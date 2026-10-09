@@ -21,7 +21,7 @@ use http::StatusCode;
 use http_body_util::BodyExt;
 use phantom::{
     Client, ConnectUdpProxy, HttpProtocol, RequestErrorKind, ResponseInfo, Route, Socks5Proxy,
-    profile::{ClientProfile, Http3AltUsed, chromium},
+    profile::{ClientProfile, Http3AltUsed, browser::chrome},
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
@@ -463,7 +463,7 @@ fn upgrade_client(identity: &TestIdentity, alt_used: Http3AltUsed) -> TestResult
         client_settings()
     };
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
     Ok(Client::builder(profile)

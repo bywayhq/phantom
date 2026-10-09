@@ -5,7 +5,7 @@
 
 use std::{io::ErrorKind, time::Duration};
 
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use tokio::io::AsyncReadExt;
 
 use super::{
@@ -51,11 +51,11 @@ async fn chromium_ping_timeout_close_sends_nothing_after_goaway() -> TestResult<
             TestResult::Ok((goaway, after))
         });
 
-        let mut http2 = chromium::v154_http2();
+        let mut http2 = chrome::v154_http2();
         http2.preface_ping_after = Some(Duration::from_millis(300));
         http2.ping_timeout = Some(Duration::from_secs(1));
         let connector = Http2TlsConnector::new_with_roots(
-            &chromium::v154_tls(),
+            &chrome::v154_tcp_tls(),
             &http2,
             [identity.root_der()],
         )?;

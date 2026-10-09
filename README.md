@@ -38,14 +38,14 @@ tokio = { version = "1", features = ["full"] }
 ```
 
 ```rust,no_run
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
 
     let response = client

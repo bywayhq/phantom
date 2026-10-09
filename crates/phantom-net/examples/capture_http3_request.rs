@@ -9,7 +9,7 @@ use std::{env, error::Error, fs, net::SocketAddr, path::PathBuf, time::Duration}
 use btls::x509::X509;
 use http_body_util::BodyExt as _;
 use phantom_net::http3::{Http3Connector, OriginForm, RequestHeader};
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use tokio::time::timeout;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -21,12 +21,12 @@ async fn main() -> CaptureResult<()> {
     require_loopback(arguments.remote)?;
 
     let certificate = X509::from_pem(&fs::read(&arguments.trust_root)?)?.to_der()?;
-    let tls = chromium::v154_http3_tls();
+    let tls = chrome::v154_quic_tls();
     let connector = Http3Connector::new_with_additional_roots(
         &tls,
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
         std::iter::once(certificate.as_slice()),
     )?;
 

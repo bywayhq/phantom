@@ -9,7 +9,7 @@ use std::{
     os::windows::io::AsSocket,
 };
 
-use phantom_profile::{UdpSettings, chromium};
+use phantom_profile::{UdpSettings, browser::chrome};
 
 use super::{IPV4_LOOPBACK, TestResult};
 use crate::{SourceBinding, socket_ffi::port_randomization, udp::bind_socket};
@@ -58,7 +58,7 @@ fn lacks_the_option(error: &std::io::Error) -> bool {
 
 #[test]
 fn chromium_sockets_read_back_port_randomization() -> TestResult {
-    let sockets = sockets(Some(chromium::v154_udp()), None, 1)?;
+    let sockets = sockets(Some(chrome::v154_udp()), None, 1)?;
     assert!(random_port(&sockets[0])?);
     Ok(())
 }
@@ -104,7 +104,7 @@ fn an_unbound_udp_socket_takes_port_randomization() -> TestResult {
 }
 
 /// Without the option, Windows hands out the ports of successive binds in
-/// sequence, one apart, which is what `chromium::v154_udp` changes.
+/// sequence, one apart, which is what `chrome::v154_udp` changes.
 ///
 /// Other test processes bind UDP ports at the same time and can take ports
 /// in between, so a pair counts as sequential when the next port is at most
@@ -139,7 +139,7 @@ fn sockets_without_udp_settings_take_sequential_local_ports() -> TestResult {
 
 #[test]
 fn chromium_sockets_take_scattered_local_ports() -> TestResult {
-    let sockets = sockets(Some(chromium::v154_udp()), None, 8)?;
+    let sockets = sockets(Some(chrome::v154_udp()), None, 8)?;
     for socket in &sockets {
         assert!(random_port(socket)?);
     }
@@ -150,7 +150,7 @@ fn chromium_sockets_take_scattered_local_ports() -> TestResult {
 #[test]
 fn source_bound_chromium_sockets_take_scattered_local_ports() -> TestResult {
     let source = SourceBinding::new().with_address(Ipv4Addr::LOCALHOST.into());
-    let sockets = sockets(Some(chromium::v154_udp()), Some(&source), 8)?;
+    let sockets = sockets(Some(chrome::v154_udp()), Some(&source), 8)?;
     for socket in &sockets {
         assert!(random_port(socket)?);
     }

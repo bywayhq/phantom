@@ -10,7 +10,7 @@
 use std::time::Duration;
 
 use http::Method;
-use phantom_profile::{Http2Settings, firefox};
+use phantom_profile::{Http2Settings, browser::firefox};
 use tokio::{sync::mpsc, task::JoinSet};
 
 use super::{

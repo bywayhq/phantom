@@ -57,11 +57,11 @@ let response = client.get("https://example.com/").send().await?;
 ```
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol};
 
 async fn get() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     let client = Client::builder(profile).build()?;
     let response = client.get(HttpProtocol::Http2, "https://example.com/")?.send().await?;
     println!("{}", response.status());
@@ -83,12 +83,12 @@ let request = client.get("https://example.com/").header("accept-language", "en-U
 ```
 
 ```rust
-use phantom::profile::chromium;
+use phantom::profile::browser::chrome;
 use phantom::{Client, HttpProtocol, PreparedRequestTemplate, RequestBuilder, RequestHeader};
 
 fn fields(client: &Client) -> Result<RequestBuilder, Box<dyn std::error::Error>> {
     // Prepare the template once; reuse it across requests.
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
     Ok(client
         .get(HttpProtocol::Http2, "https://example.com/")?
         .template(&navigation)

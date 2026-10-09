@@ -3,7 +3,7 @@ use std::{future::poll_fn, task::Poll};
 use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 use tokio::{io::DuplexStream, sync::oneshot, time::timeout};
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};

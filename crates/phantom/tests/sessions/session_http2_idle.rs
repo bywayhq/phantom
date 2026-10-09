@@ -14,7 +14,10 @@ use btls::ssl::SslAcceptor;
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol,
-    profile::{ClientProfile, Http2IdleTimeout, Http2Settings, chromium, firefox},
+    profile::{
+        ClientProfile, Http2IdleTimeout, Http2Settings,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::{
     io::{AsyncWriteExt, split},
@@ -314,7 +317,7 @@ async fn an_open_stream_keeps_an_idle_connection_open_until_it_ends() -> TestRes
 async fn chromium_recipe_keeps_an_idle_http2_connection() -> TestResult<()> {
     bounded(async {
         let (identity, base, mut seen) = origin(None).await?;
-        let client = client(&identity, chromium::v154_http2())?;
+        let client = client(&identity, chrome::v154_http2())?;
 
         send(&client, false, &format!("{base}/a"))
             .await?

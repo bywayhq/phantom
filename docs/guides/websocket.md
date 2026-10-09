@@ -36,7 +36,7 @@ async fn echo(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 WebSocket as a stream on a new HTTP/2 connection. It uses extended CONNECT
 (RFC 8441), a CONNECT request that names the WebSocket protocol. The
 profile's HTTP/2 settings must set `extended_connect_pseudo_header_order`,
-as `chromium::v154_http2` and `firefox::v157_http2` do:
+as `chrome::v154_http2` and `firefox::v157_http2` do:
 
 ```rust
 use phantom::{Client, HttpProtocol};
@@ -63,13 +63,13 @@ opens the WebSocket as that browser would. It sends the browser's headers in
 the browser's order, and picks the connection the browser would use:
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, RequestHeader};
 
 async fn open_like_chrome() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_websocket(chromium::v154_websocket());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_websocket(chrome::v154_websocket());
     let client = Client::builder(profile).build()?;
 
     // Fills the recipe's slots for these headers, in the browser's order.
@@ -122,7 +122,7 @@ async fn open_within(client: &Client) -> Result<(), Box<dyn std::error::Error>> 
 ```
 
 - A WebSocket recipe sets its browser's limit: 240 seconds in
-  `chromium::v154_websocket` and 20 seconds in `firefox::v157_websocket`.
+  `chrome::v154_websocket` and 20 seconds in `firefox::v157_websocket`.
 - Without a recipe there is no limit. `handshake_timeout(None)` removes a
   recipe's limit.
 

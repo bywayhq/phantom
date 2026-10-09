@@ -10,7 +10,7 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Method, Response};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt as _;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 
 use super::{TestResult, bounded_peer_test};
 use crate::{

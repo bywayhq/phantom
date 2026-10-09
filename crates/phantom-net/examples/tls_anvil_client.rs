@@ -3,7 +3,7 @@
 use std::{env, error::Error, io, time::Duration};
 
 use phantom_net::{ServerAuthentication, http1::Http1TlsConnector};
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -17,7 +17,7 @@ struct Config {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse(env::args().skip(1))?;
-    let mut settings = chromium::v154_tls();
+    let mut settings = chrome::v154_tcp_tls();
     settings.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
     settings.alps = None;
     let connector = Http1TlsConnector::new_with_server_authentication(

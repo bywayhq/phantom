@@ -19,7 +19,7 @@ use btls::{
 };
 use http::{Method, StatusCode};
 use phantom_net::{http1_or_2::Http1Or2TlsConnector, request::OriginForm};
-use phantom_profile::firefox;
+use phantom_profile::browser::firefox;
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
     KeyUsagePurpose, SanType,
@@ -67,7 +67,7 @@ async fn a_lease_whose_alpn_change_settled_before_dispatch_restarts() -> TestRes
         });
 
         let connector = Http1Or2TlsConnector::new_with_additional_roots(
-            &firefox::v157_tls(),
+            &firefox::v157_tcp_tls(),
             &firefox::v157_http2(),
             [root.as_slice()],
         )?;

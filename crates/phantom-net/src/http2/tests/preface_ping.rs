@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use http::Method;
-use phantom_profile::{chromium, firefox};
+use phantom_profile::browser::{chrome, firefox};
 use tokio::{net::TcpStream, sync::mpsc, task::JoinSet};
 
 use super::{
@@ -41,7 +41,7 @@ const CHROME_IDLE_MS: f64 = 10_000.0;
 #[test]
 fn recipes_state_the_preface_ping_idle_time() {
     assert_eq!(
-        chromium::v154_http2().preface_ping_after,
+        chrome::v154_http2().preface_ping_after,
         Some(Duration::from_secs(10))
     );
     assert_eq!(firefox::v157_http2().preface_ping_after, None);
@@ -52,7 +52,7 @@ fn recipes_state_the_preface_ping_idle_time() {
 #[test]
 fn recipes_state_the_ping_timeout() {
     assert_eq!(
-        chromium::v154_http2().ping_timeout,
+        chrome::v154_http2().ping_timeout,
         Some(Duration::from_secs(10))
     );
     assert_eq!(firefox::v157_http2().ping_timeout, None);
@@ -66,7 +66,7 @@ fn recipes_state_the_ping_timeout() {
 #[tokio::test]
 async fn chromium_recipe_closes_a_connection_whose_ping_goes_unanswered() -> TestResult<()> {
     idle_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.preface_ping_after = Some(IDLE);
         settings.ping_timeout = Some(Duration::from_secs(2));
         let (mut peer, connection) = start(&settings).await?;
@@ -115,7 +115,7 @@ async fn chromium_recipe_closes_a_connection_whose_ping_goes_unanswered() -> Tes
 #[tokio::test]
 async fn a_frame_read_restarts_the_ping_timeout() -> TestResult<()> {
     idle_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.preface_ping_after = Some(IDLE);
         settings.ping_timeout = Some(Duration::from_secs(4));
         let (mut peer, connection) = start(&settings).await?;
@@ -144,7 +144,7 @@ async fn a_frame_read_restarts_the_ping_timeout() -> TestResult<()> {
 #[tokio::test]
 async fn an_acknowledged_ping_keeps_the_connection() -> TestResult<()> {
     idle_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.preface_ping_after = Some(IDLE);
         settings.ping_timeout = Some(Duration::from_secs(1));
         let (mut peer, connection) = start(&settings).await?;
@@ -173,7 +173,7 @@ async fn an_acknowledged_ping_keeps_the_connection() -> TestResult<()> {
 #[tokio::test]
 async fn chromium_recipe_pings_after_request_headers_on_a_read_idle_connection() -> TestResult<()> {
     idle_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.preface_ping_after = Some(IDLE);
         let (mut peer, connection) = start(&settings).await?;
         let mut requests = JoinSet::new();
@@ -208,7 +208,7 @@ async fn chromium_recipe_pings_after_request_headers_on_a_read_idle_connection()
 #[tokio::test]
 async fn settings_without_a_preface_ping_send_none_after_read_idle() -> TestResult<()> {
     idle_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.preface_ping_after = None;
         settings.ping_timeout = None;
         settings.ping_failure_retries = 0;
@@ -264,7 +264,7 @@ fn chrome_capture_pings_right_after_the_request_frame() -> TestResult<()> {
 #[tokio::test]
 async fn chromium_recipe_replays_the_chrome_capture_ping_sequence() -> TestResult<()> {
     idle_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.preface_ping_after = Some(IDLE);
         let (peer, connection) = start(&settings).await?;
         let (frames, mut sequence) = mpsc::unbounded_channel();

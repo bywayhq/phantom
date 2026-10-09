@@ -26,7 +26,7 @@ use phantom::{
     AddressResolver, BuildErrorKind, Client, HttpProtocol, HttpProxy, Route, Socks5Proxy,
     TimeoutPhase, WebSocketError, WebSocketErrorKind, WebSocketRequestBuilder,
     WebSocketRetryPolicy,
-    profile::{ClientProfile, Http2PseudoHeader, WebSocketSettings, chromium},
+    profile::{ClientProfile, Http2PseudoHeader, WebSocketSettings, browser::chrome},
 };
 use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
@@ -89,7 +89,7 @@ async fn expect_handshake_timeout(
 }
 
 fn http2_profile() -> ClientProfile {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,
@@ -346,7 +346,7 @@ async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_free
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
-        let profile = http2_profile().with_websocket(chromium::v154_websocket());
+        let profile = http2_profile().with_websocket(chrome::v154_websocket());
         // One stream per origin, so a permit the timed-out stream kept would
         // hold every later request.
         let client = Client::builder(profile)
@@ -400,7 +400,7 @@ async fn recipe_handshake_timeout_applies_unless_the_caller_removes_it() -> Test
         let identity = TestIdentity::generate()?;
         let settings = WebSocketSettings {
             handshake_timeout: Some(LIMIT),
-            ..chromium::v154_websocket()
+            ..chrome::v154_websocket()
         };
         let profile = http2_profile().with_websocket(settings);
         let client = Client::builder(profile)
@@ -764,7 +764,7 @@ async fn an_unusable_handshake_timeout_fails_before_any_io() -> TestResult<()> {
 fn a_recipe_timeout_beyond_the_clock_fails_the_build() -> TestResult<()> {
     let settings = WebSocketSettings {
         handshake_timeout: Some(Duration::MAX),
-        ..chromium::v154_websocket()
+        ..chrome::v154_websocket()
     };
     let error = match Client::builder(http2_profile().with_websocket(settings)).build() {
         Ok(_) => return Err("a recipe timeout beyond the clock built a client".into()),

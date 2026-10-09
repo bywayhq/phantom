@@ -37,12 +37,12 @@ use crate::{RequestError, request::RequestBodySource};
 /// ```
 /// use std::num::NonZeroUsize;
 ///
-/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::profile::{browser::chrome, ClientProfile};
 /// use phantom::{Client, RedirectPolicy};
 ///
 /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// let policy = RedirectPolicy::limited(NonZeroUsize::new(5).expect("five is nonzero"));
-/// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+/// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
 /// let client = Client::builder(profile).redirect_policy(policy).build()?;
 /// # drop(client);
 /// # Ok(())

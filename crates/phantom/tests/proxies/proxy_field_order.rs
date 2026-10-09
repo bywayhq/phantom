@@ -18,8 +18,8 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, RequestHeader, Route,
     profile::{
-        ClientHintSettings, ClientProfile, ProxyConnectTemplate, RequestTemplate, brave, chromium,
-        edge, firefox, opera,
+        ClientHintSettings, ClientProfile, ProxyConnectTemplate, RequestTemplate,
+        browser::{brave, chrome, edge, firefox, opera},
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
@@ -178,12 +178,12 @@ fn browsers() -> Vec<Browser> {
     vec![
         Browser {
             label: "chrome",
-            tls: chromium::v154_tls(),
-            hints: Some(chromium::v154_windows_client_hints()),
-            navigation: chromium::v154_windows_navigation_template(),
-            fetch: chromium::v154_windows_fetch_no_store_template(),
+            tls: chrome::v154_tcp_tls(),
+            hints: Some(chrome::v154_windows_client_hints()),
+            navigation: chrome::v154_windows_navigation_template(),
+            fetch: chrome::v154_windows_fetch_no_store_template(),
             caller: Vec::new(),
-            connect: chromium::v154_proxy_connect(),
+            connect: chrome::v154_proxy_connect(),
             user_agent: CHROME_UA,
             authenticated: [
                 proxy_fixture!("chrome/154.0.8037.58", "http-proxy-auth-hostname"),
@@ -204,12 +204,12 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "edge",
-            tls: edge::v154_tls(),
+            tls: edge::v154_tcp_tls(),
             hints: Some(edge::v154_windows_client_hints()),
             navigation: edge::v154_windows_navigation_template(),
             fetch: edge::v154_windows_fetch_no_store_template(),
             caller: vec![RequestHeader::new("User-Agent", EDGE_UA)],
-            connect: chromium::v154_proxy_connect(),
+            connect: chrome::v154_proxy_connect(),
             user_agent: EDGE_UA,
             authenticated: [
                 proxy_fixture!("edge/154.0.4258.37", "http-proxy-auth-hostname"),
@@ -227,7 +227,7 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "brave",
-            tls: brave::v154_tls(),
+            tls: brave::v154_tcp_tls(),
             hints: Some(brave::v154_windows_client_hints()),
             navigation: brave::v154_windows_navigation_template(),
             fetch: brave::v154_windows_fetch_no_store_template(),
@@ -235,7 +235,7 @@ fn browsers() -> Vec<Browser> {
                 RequestHeader::new("User-Agent", CHROME_UA),
                 RequestHeader::new("Accept-Language", BRAVE_LANGUAGE),
             ],
-            connect: chromium::v154_proxy_connect(),
+            connect: chrome::v154_proxy_connect(),
             user_agent: CHROME_UA,
             authenticated: [
                 proxy_fixture!("brave/154.1.96.59", "http-proxy-auth-hostname"),
@@ -253,12 +253,12 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "opera",
-            tls: opera::v136_tls(),
+            tls: opera::v136_tcp_tls(),
             hints: Some(opera::v136_windows_client_hints()),
             navigation: opera::v136_windows_navigation_template(),
             fetch: opera::v136_windows_fetch_no_store_template(),
             caller: vec![RequestHeader::new("User-Agent", OPERA_UA)],
-            connect: chromium::v154_proxy_connect(),
+            connect: chrome::v154_proxy_connect(),
             user_agent: OPERA_UA,
             authenticated: [
                 proxy_fixture!("opera/136.0.6008.52", "http-proxy-auth-hostname"),
@@ -279,7 +279,7 @@ fn browsers() -> Vec<Browser> {
         },
         Browser {
             label: "firefox",
-            tls: firefox::v157_tls(),
+            tls: firefox::v157_tcp_tls(),
             hints: None,
             navigation: firefox::v157_windows_navigation_template(),
             fetch: firefox::v157_windows_fetch_no_store_template(),
@@ -680,7 +680,7 @@ async fn forwarded_credentials_without_a_template_follow_every_field() -> TestRe
         let proxy = HttpProxy::new(&format!("http://{}", listener.local_addr()?))?
             .with_basic_auth("user", "secret")?;
         let server = tokio::spawn(challenge_then_accept(listener));
-        let client = Client::builder(ClientProfile::new(chromium::v154_tls()))
+        let client = Client::builder(ClientProfile::new(chrome::v154_tcp_tls()))
             .route(Route::http_proxy(proxy))
             .build()?;
         for path in ["/page", "/done"] {

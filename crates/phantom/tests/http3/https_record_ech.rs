@@ -19,7 +19,7 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProxy, Route,
     dns::HttpsRecordResolver,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use phantom_testkit::{
     dns::{DnsAnswer, DnsReply, DnsServer},
@@ -40,7 +40,7 @@ fn client(identity: &TestIdentity, dns: &DnsServer) -> TestResult<Client> {
         identity,
         dns,
         ClientProfile::new(ech_tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(client_settings()),
     )
 }
@@ -182,7 +182,7 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
         let mut settings = ech_tls_settings();
         settings.ech_from_https_records = false;
         let profile = ClientProfile::new(settings)
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(client_settings());
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
@@ -229,9 +229,9 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
         let port = listener.local_addr()?.port();
         let acceptor = ech_acceptor(&identity)?;
         let profile = ClientProfile::new(ech_tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(client_settings())
-            .with_http1(chromium::v154_http1());
+            .with_http1(chrome::v154_http1());
         let client = client_with(&identity, &dns, profile)?;
         let url = |path: &str| format!("https://{ORIGIN_NAME}:{port}{path}");
 
@@ -326,7 +326,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             async move { upstream.lookup(STAND_IN_NAME, port).await }
         });
         let profile = ClientProfile::new(ech_tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(client_settings());
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())

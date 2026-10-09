@@ -5,7 +5,7 @@
 use std::{io, net::SocketAddr, sync::PoisonError, time::Duration};
 
 use btls::ssl::SslAcceptor;
-use phantom_profile::firefox;
+use phantom_profile::browser::firefox;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -157,7 +157,7 @@ async fn the_plain_handshake_offers_no_early_data() -> TestResult<()> {
 
 fn firefox_connector(identity: &TestIdentity) -> TestResult<TlsConnector> {
     Ok(
-        TlsConnector::new_with_roots(&firefox::v157_tls(), [identity.root_der()])?
+        TlsConnector::new_with_roots(&firefox::v157_tcp_tls(), [identity.root_der()])?
             .with_isolated_session_cache(),
     )
 }

@@ -17,8 +17,10 @@ use btls::{
 };
 use phantom_profile::{
     TlsSettings,
-    chromium::{v154_http2, v154_tls},
-    edge,
+    browser::{
+        chrome::{v154_http2, v154_tcp_tls},
+        edge,
+    },
 };
 use phantom_testkit::tls::{
     CaptureLimits, ClientHelloSummary, EchOuterExtension, EchTestKey, TEST_ECH_KEYS,
@@ -191,7 +193,7 @@ impl AsyncWrite for Replayed {
 }
 
 fn connector(identity: &TestIdentity) -> TestResult<Http1Or2TlsConnector> {
-    connector_with(&v154_tls(), identity)
+    connector_with(&v154_tcp_tls(), identity)
 }
 
 fn connector_with(
@@ -481,26 +483,34 @@ async fn assert_accept_replays(fixture: &str, settings: &TlsSettings) -> TestRes
 
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
-    assert_accept_replays(CHROME_ACCEPT, &v154_tls()).await
+    assert_accept_replays(CHROME_ACCEPT, &v154_tcp_tls()).await
 }
 
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_edge_153_sent() -> TestResult<()> {
-    assert_accept_replays(EDGE_ACCEPT, &edge::v154_tls()).await
+    assert_accept_replays(EDGE_ACCEPT, &edge::v154_tcp_tls()).await
 }
 
 /// Brave sends Chrome's outer shape without the trust-anchor IDs extension,
 /// which its recipe also omits.
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_brave_154_sent() -> TestResult<()> {
-    assert_accept_replays(BRAVE_ACCEPT, &phantom_profile::brave::v154_tls()).await
+    assert_accept_replays(
+        BRAVE_ACCEPT,
+        &phantom_profile::browser::brave::v154_tcp_tls(),
+    )
+    .await
 }
 
 /// Opera sends Chrome's outer shape with its own trust-anchor IDs, whose
 /// order the extension set ignores.
 #[tokio::test]
 async fn outer_client_hello_has_the_shape_opera_136_sent() -> TestResult<()> {
-    assert_accept_replays(OPERA_ACCEPT, &phantom_profile::opera::v136_tls()).await
+    assert_accept_replays(
+        OPERA_ACCEPT,
+        &phantom_profile::browser::opera::v136_tcp_tls(),
+    )
+    .await
 }
 
 /// The fixture's `ech_outer` line for one observed connection.
@@ -518,12 +528,16 @@ fn ech_outer_line(observed: &Observed) -> String {
 
 #[tokio::test]
 async fn edge_153_rejection_is_retried_as_edge_retried_it() -> TestResult<()> {
-    assert_rejection_replays(EDGE_REJECT, &edge::v154_tls()).await
+    assert_rejection_replays(EDGE_REJECT, &edge::v154_tcp_tls()).await
 }
 
 #[tokio::test]
 async fn opera_136_rejection_is_retried_as_opera_retried_it() -> TestResult<()> {
-    assert_rejection_replays(OPERA_REJECT, &phantom_profile::opera::v136_tls()).await
+    assert_rejection_replays(
+        OPERA_REJECT,
+        &phantom_profile::browser::opera::v136_tcp_tls(),
+    )
+    .await
 }
 
 /// Checks Phantom's rejected connection and its retry, made with `settings`,

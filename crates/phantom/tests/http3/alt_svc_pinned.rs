@@ -13,7 +13,7 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, RedirectPolicy, RequestErrorKind,
     RequestHeader, ResponseInfo, RetryPolicy, Route,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
 
@@ -87,7 +87,7 @@ fn direct_client(identity: &TestIdentity) -> ClientBuilder {
 /// A direct client builder whose HTTP/3 profile is `http3`.
 fn direct_client_with(identity: &TestIdentity, http3: Http3ClientSettings) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
@@ -342,7 +342,7 @@ async fn an_invalid_pin_fails_before_any_io() -> TestResult<()> {
         let proxy_identity = TestIdentity::generate()?;
         let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
         let profile = ClientProfile::new(tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(masque_client_settings());
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())

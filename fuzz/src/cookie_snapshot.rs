@@ -34,7 +34,7 @@ use std::{
 
 use phantom::{
     Client, CookieSameSite, CookieSnapshot, CookieSnapshotEntry, CookieSourceScheme,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 
 use crate::seed;
@@ -61,7 +61,7 @@ const LIFETIME_UNIT: Duration = Duration::from_secs(60 * 60);
 fn client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
-        Client::builder(ClientProfile::new(chromium::v154_tls()))
+        Client::builder(ClientProfile::new(chrome::v154_tcp_tls()))
             .cookies()
             .build()
             .expect("a cookie client must build")

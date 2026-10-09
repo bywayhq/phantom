@@ -4,7 +4,8 @@ use ::http2::{
 };
 use http::{Method, Version, header::CONNECTION};
 use phantom_profile::{
-    Http2Priority, Http2PseudoHeader, chromium::v154_http2, firefox::v157_http2,
+    Http2Priority, Http2PseudoHeader,
+    browser::{chrome::v154_http2, firefox::v157_http2},
 };
 
 use super::super::{

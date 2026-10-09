@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
-use phantom_profile::{ClientProfile, Http3ClientSettings, TlsSettings, chromium};
+use phantom_profile::{ClientProfile, Http3ClientSettings, TlsSettings, browser::chrome};
 
 use crate::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, BuildErrorKind, Client, RequestBuilder,
@@ -25,13 +25,13 @@ fn client_handles_are_send_sync_and_clone() {
 /// A profile with negotiated HTTP/1.1+HTTP/2 and HTTP/3, whose HTTP/3 TLS
 /// settings are `http3_tls`.
 fn profile(http3_tls: TlsSettings) -> ClientProfile {
-    ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
+    ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
             http3_tls,
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         ))
 }
 
@@ -42,10 +42,11 @@ fn nonzero(value: usize) -> NonZeroUsize {
 #[test]
 fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn std::error::Error>> {
     let chromium_client =
-        Client::builder(profile(chromium::v154_http3_tls()).with_http1(chromium::v154_http1()))
+        Client::builder(profile(chrome::v154_quic_tls()).with_http1(chrome::v154_http1()))
             .build()?;
     let firefox = Client::builder(
-        profile(chromium::v154_http3_tls()).with_http1(phantom_profile::firefox::v157_http1()),
+        profile(chrome::v154_quic_tls())
+            .with_http1(phantom_profile::browser::firefox::v157_http1()),
     )
     .build()?;
 
@@ -76,11 +77,11 @@ fn profile_used_idle_timeout_reaches_both_http1_pools() -> Result<(), Box<dyn st
 #[test]
 fn an_http2_idle_limit_shares_the_prune_timer_of_every_pool()
 -> Result<(), Box<dyn std::error::Error>> {
-    let chromium_client = Client::builder(profile(chromium::v154_http3_tls())).build()?;
+    let chromium_client = Client::builder(profile(chrome::v154_quic_tls())).build()?;
     assert!(chromium_client.state.http2.prune_timer().is_none());
 
-    let firefox_http2 =
-        ClientProfile::new(chromium::v154_tls()).with_http2(phantom_profile::firefox::v157_http2());
+    let firefox_http2 = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(phantom_profile::browser::firefox::v157_http2());
     let http2_only = Client::builder(firefox_http2.clone()).build()?;
     let timer = http2_only
         .state
@@ -96,8 +97,9 @@ fn an_http2_idle_limit_shares_the_prune_timer_of_every_pool()
         .ok_or("no negotiated timer")?;
     assert!(Arc::ptr_eq(timer, negotiated));
 
-    let firefox = Client::builder(firefox_http2.with_http1(phantom_profile::firefox::v157_http1()))
-        .build()?;
+    let firefox =
+        Client::builder(firefox_http2.with_http1(phantom_profile::browser::firefox::v157_http1()))
+            .build()?;
     let exact = firefox.state.http2.prune_timer().ok_or("no HTTP/2 timer")?;
     let http1 = firefox.state.http1.prune_timer().ok_or("no HTTP/1 timer")?;
     assert!(Arc::ptr_eq(exact, http1));
@@ -109,13 +111,13 @@ fn an_http2_idle_limit_shares_the_prune_timer_of_every_pool()
 fn client_applies_its_options() -> Result<(), Box<dyn std::error::Error>> {
     let timeouts = RequestTimeouts::new().total(Duration::from_secs(5));
     let retry = RetryPolicy::connection_failures(nonzero(2), Duration::from_millis(1));
-    let client = Client::builder(profile(chromium::v154_http3_tls()))
+    let client = Client::builder(profile(chrome::v154_quic_tls()))
         .request_timeouts(timeouts)
         .retry_policy(retry)
         .max_http2_connections_per_origin(nonzero(3))
         .max_http3_connections_per_origin(nonzero(4))
         .build()?;
-    let defaults = Client::builder(profile(chromium::v154_http3_tls())).build()?;
+    let defaults = Client::builder(profile(chrome::v154_quic_tls())).build()?;
 
     assert_eq!(client.request_timeouts(), timeouts);
     assert_eq!(client.retry_policy(), retry);
@@ -136,24 +138,24 @@ fn client_early_data_choice_overrides_the_profile() -> Result<(), Box<dyn std::e
             .is_some_and(|connector| connector.sends_early_data())
     };
     // The Chrome 154 QUIC recipe offers early data.
-    let builder = || Client::builder(profile(chromium::v154_http3_tls()));
+    let builder = || Client::builder(profile(chrome::v154_quic_tls()));
     assert!(sends_early_data(&builder().build()?));
     assert!(!sends_early_data(
         &builder().http3_early_data(false).build()?
     ));
     assert!(sends_early_data(&builder().http3_early_data(true).build()?));
 
-    let mut quic = chromium::v154_quic();
+    let mut quic = chrome::v154_quic();
     quic.early_data = false;
     let without_recipe_early_data = || {
         Client::builder(
-            ClientProfile::new(chromium::v154_tls())
-                .with_http2(chromium::v154_http2())
+            ClientProfile::new(chrome::v154_tcp_tls())
+                .with_http2(chrome::v154_http2())
                 .with_http3(Http3ClientSettings::new(
-                    chromium::v154_http3_tls(),
+                    chrome::v154_quic_tls(),
                     quic.clone(),
-                    chromium::v154_http3(),
-                    chromium::v154_http3_request(),
+                    chrome::v154_http3(),
+                    chrome::v154_http3_request(),
                 )),
         )
     };
@@ -167,11 +169,11 @@ fn client_early_data_choice_overrides_the_profile() -> Result<(), Box<dyn std::e
 #[test]
 fn client_build_rejects_invalid_options() -> Result<(), Box<dyn std::error::Error>> {
     // The ceiling itself is accepted.
-    Client::builder(profile(chromium::v154_http3_tls()))
+    Client::builder(profile(chrome::v154_quic_tls()))
         .max_http3_connections_per_origin(nonzero(super::HTTP3_CONNECTIONS_PER_ORIGIN_CEILING))
         .build()?;
 
-    let mut without_tickets = chromium::v154_http3_tls();
+    let mut without_tickets = chrome::v154_quic_tls();
     without_tickets.session_tickets = false;
     let builder = || Client::builder(profile(without_tickets.clone()));
     let rejected = [

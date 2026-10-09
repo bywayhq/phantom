@@ -64,7 +64,7 @@ proxy itself, the proxy leg, uses HTTP/3 by default:
 | HTTP/1.1 | `with_http1_transport` |
 
 - The HTTP/2 leg needs HTTP/2 settings that set
-  `extended_connect_pseudo_header_order`, as `chromium::v154_http2` does.
+  `extended_connect_pseudo_header_order`, as `chrome::v154_http2` does.
 - The proxy's certificate is checked against the proxy roots. The server's
   certificate is checked against the server roots.
 - `with_basic_auth` sends credentials only after the proxy answers `407`.

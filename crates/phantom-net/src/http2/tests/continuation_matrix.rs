@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::{Http2Setting, chromium::v154_http2};
+use phantom_profile::{Http2Setting, browser::chrome::v154_http2};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,

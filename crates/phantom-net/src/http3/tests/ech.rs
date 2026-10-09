@@ -7,7 +7,10 @@ use btls::{
     hpke::HpkeKey,
     ssl::{AlpnError, SslEchKeys, select_next_proto},
 };
-use phantom_profile::{TlsSettings, brave, chromium, edge, opera};
+use phantom_profile::{
+    TlsSettings,
+    browser::{brave, chrome, edge, opera},
+};
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::tls::{
     ClientHelloSummary, EchOuterExtension, EchTestKey, TEST_ECH_KEYS, ech_config, ech_config_list,
@@ -141,9 +144,9 @@ async fn assert_no_other_connection(endpoint: &quinn::Endpoint) -> TestResult<()
 fn connector_with(settings: &TlsSettings, identity: &TestIdentity) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
         settings,
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
         [identity.root_der()],
     )?)
 }
@@ -183,7 +186,7 @@ async fn connect(
 async fn accepted_ech_carries_the_origin_inside_the_quic_client_hello() -> TestResult<()> {
     let identity = identity()?;
     let (address, endpoint) = server(&identity, Some((1, &TEST_ECH_KEYS[0], PUBLIC_NAME)))?;
-    let mut settings = chromium::v154_http3_tls();
+    let mut settings = chrome::v154_quic_tls();
     settings.ech_from_https_records = true;
     let connector = connector_with(&settings, &identity)?;
     assert!(connector.ech_from_https_records());
@@ -211,7 +214,7 @@ async fn accepted_ech_carries_the_origin_inside_the_quic_client_hello() -> TestR
 async fn a_rejection_fails_without_another_quic_connection() -> TestResult<()> {
     let identity = identity()?;
     let (address, endpoint) = server(&identity, Some((2, &TEST_ECH_KEYS[1], PUBLIC_NAME)))?;
-    let connector = connector_with(&chromium::v154_http3_tls(), &identity)?;
+    let connector = connector_with(&chrome::v154_quic_tls(), &identity)?;
 
     let (result, observed) = tokio::join!(
         connect(&connector, "127.0.0.1", address, INNER_NAME, async {
@@ -233,7 +236,7 @@ async fn a_rejection_fails_without_another_quic_connection() -> TestResult<()> {
 async fn a_malformed_list_fails_before_any_packet() -> TestResult<()> {
     let identity = identity()?;
     let (address, endpoint) = server(&identity, None)?;
-    let connector = connector_with(&chromium::v154_http3_tls(), &identity)?;
+    let connector = connector_with(&chrome::v154_quic_tls(), &identity)?;
 
     let error = connect(&connector, "127.0.0.1", address, INNER_NAME, async {
         Some(EchConfigList::new(vec![0x00, 0x03, 0xfe, 0x0d, 0x00]))
@@ -290,7 +293,7 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
     // the addresses.
     let (resolver, resolved) = slow_resolver(Duration::from_millis(250));
     let connector =
-        connector_with(&chromium::v154_http3_tls(), &identity)?.with_host_resolver(resolver);
+        connector_with(&chrome::v154_quic_tls(), &identity)?.with_host_resolver(resolver);
     let lookup = record_after(resolved, Duration::from_millis(5));
     let (connection, observed) = tokio::join!(
         connect(&connector, "origin.test", address, INNER_NAME, async {
@@ -309,7 +312,7 @@ async fn the_connection_waits_for_a_lookup_only_within_the_bound() -> TestResult
     // deadline timer and the hand-off of the addresses to the client.
     let (resolver, resolved) = slow_resolver(Duration::from_millis(250));
     let connector =
-        connector_with(&chromium::v154_http3_tls(), &identity)?.with_host_resolver(resolver);
+        connector_with(&chrome::v154_quic_tls(), &identity)?.with_host_resolver(resolver);
     let lookup = record_after(resolved, Duration::from_millis(90));
     let (connection, observed) = tokio::join!(
         connect(&connector, "origin.test", address, INNER_NAME, async {
@@ -432,22 +435,22 @@ async fn assert_accept_replays(fixture: &str, settings: &TlsSettings) -> TestRes
 
 #[tokio::test]
 async fn quic_outer_client_hello_has_the_shape_chrome_154_sent() -> TestResult<()> {
-    assert_accept_replays(CHROME_ACCEPT, &chromium::v154_http3_tls()).await
+    assert_accept_replays(CHROME_ACCEPT, &chrome::v154_quic_tls()).await
 }
 
 #[tokio::test]
 async fn quic_outer_client_hello_has_the_shape_edge_153_sent() -> TestResult<()> {
-    assert_accept_replays(EDGE_ACCEPT, &edge::v154_http3_tls()).await
+    assert_accept_replays(EDGE_ACCEPT, &edge::v154_quic_tls()).await
 }
 
 #[tokio::test]
 async fn quic_outer_client_hello_has_the_shape_brave_154_sent() -> TestResult<()> {
-    assert_accept_replays(BRAVE_ACCEPT, &brave::v154_http3_tls()).await
+    assert_accept_replays(BRAVE_ACCEPT, &brave::v154_quic_tls()).await
 }
 
 #[tokio::test]
 async fn quic_outer_client_hello_has_the_shape_opera_136_sent() -> TestResult<()> {
-    assert_accept_replays(OPERA_ACCEPT, &opera::v136_http3_tls()).await
+    assert_accept_replays(OPERA_ACCEPT, &opera::v136_quic_tls()).await
 }
 
 /// Every QUIC connection in Chrome's `reject` capture offered the record's
@@ -455,13 +458,13 @@ async fn quic_outer_client_hello_has_the_shape_opera_136_sent() -> TestResult<()
 /// configuration, which only Chrome's TCP connection did.
 #[tokio::test]
 async fn chrome_154_quic_rejection_is_not_retried_as_chrome_did_not_retry_it() -> TestResult<()> {
-    assert_quic_rejection_replays(CHROME_REJECT, &chromium::v154_http3_tls()).await
+    assert_quic_rejection_replays(CHROME_REJECT, &chrome::v154_quic_tls()).await
 }
 
 /// Opera 136's `reject` capture shows the same three QUIC connections.
 #[tokio::test]
 async fn opera_136_quic_rejection_is_not_retried_as_opera_did_not_retry_it() -> TestResult<()> {
-    assert_quic_rejection_replays(OPERA_REJECT, &opera::v136_http3_tls()).await
+    assert_quic_rejection_replays(OPERA_REJECT, &opera::v136_quic_tls()).await
 }
 
 /// Checks that every QUIC connection of a `reject` capture offered the

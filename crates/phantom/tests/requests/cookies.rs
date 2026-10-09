@@ -22,7 +22,10 @@ use http::{HeaderMap, Request, Response, StatusCode, header::COOKIE, header::SET
 use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, RedirectPolicy, RequestHeader, Route,
-    profile::ClientProfile, profile::CookiePlacement, profile::chromium, profile::firefox,
+    profile::{
+        ClientProfile, CookiePlacement,
+        browser::{chrome, firefox},
+    },
 };
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
@@ -544,7 +547,7 @@ fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
 
 fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(client_settings());
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }

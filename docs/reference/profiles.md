@@ -24,22 +24,23 @@ needs.
 
 ## Built-in recipes
 
-Phantom carries one version per browser. Desktop recipes use the stable
-build recorded on the capture host. Android recipes use the build served
+The recipe modules live under `phantom::profile::browser` or
+`phantom_profile::browser`. Phantom carries one version per browser.
+Desktop recipes use the stable build recorded on the capture host. Android recipes use the build served
 to the emulator by the Play Store, which can trail stable.
 
 | Browser | Module | TLS | HTTP/2 | QUIC and HTTP/3 | Client hints | WebSocket | Captured on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Chrome 154 | `chromium::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
+| Chrome 154 | `chrome::v154_*` | Yes | Yes | Yes | `v154_windows_client_hints`, `v154_macos_client_hints` | `v154_websocket` | Windows; macOS for client hints and templates |
 | Edge 154 | `edge::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints`, `v154_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Brave 154 | `brave::v154_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v154_windows_client_hints` | Chromium | Windows |
 | Opera 136 | `opera::v136_*` | Yes | Chromium | Chromium QUIC and H3; own H3 TLS | `v136_windows_client_hints`, `v136_macos_client_hints` | Chromium | Windows; macOS for client hints and templates |
 | Firefox 157 | `firefox::v157_*` | Yes | Yes | Yes | No | `v157_websocket` | Windows; macOS for templates |
-| Firefox 156 for Android | `firefox_android::v156_tls` | Yes | No | No | No | No | Android emulator |
-| Opera 102 for Android | `opera_android::v102_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
-| Brave 153 for Android | `brave_android::v153_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
-| Chrome 154 for Android | `chrome_android::v154_*` | Chromium | Chromium | Chromium | `v154_android_client_hints` | Chromium | Android emulator |
-| Edge 153 for Android | `edge_android::v153_*` | Edge | Chromium | Chromium QUIC and H3; Edge H3 TLS | `v153_android_client_hints` | No | Android emulator (arm64) |
+| Firefox 156 for Android | `firefox::v156_android_tcp_tls` | Yes | No | No | No | No | Android emulator |
+| Opera 102 for Android | `opera::v102_android_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
+| Brave 153 for Android | `brave::v153_android_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
+| Chrome 154 for Android | `chrome::v154_android_*` | Chromium | Chromium | Chromium | `v154_android_client_hints` | Chromium | Android emulator |
+| Edge 153 for Android | `edge::v153_android_*` | Edge | Chromium | Chromium QUIC and H3; Edge H3 TLS | `v153_android_client_hints` | No | Android emulator (arm64) |
 
 - "Captured on" lists the platforms whose retained captures back the recipe.
   "Android emulator" is an emulator, not a phone. On the Windows capture
@@ -55,18 +56,18 @@ to the emulator by the Play Store, which can trail stable.
   which the browser's own captures equal on every compared field.
   [Validation](../explanation/validation.md#browser-recipes) lists the exact
   builds and comparison details.
-- [TCP socket options](#tcp-socket-options): `chromium::v154_tcp` for
+- [TCP socket options](#tcp-socket-options): `chrome::v154_tcp` for
   Chromium and Brave; `firefox::v157_tcp` for Firefox.
-- [HTTP/1.1 connections](#http11-connections): `chromium::v154_http1` and
+- [HTTP/1.1 connections](#http11-connections): `chrome::v154_http1` and
   `firefox::v157_http1`.
-- [Address cache](#address-cache): `chromium::v154_dns_cache` and
+- [Address cache](#address-cache): `chrome::v154_dns_cache` and
   `firefox::v157_dns_cache`.
-- Proxy CONNECT recipes are not in the table: `chromium::v154_proxy_connect`
+- Proxy CONNECT recipes are not in the table: `chrome::v154_proxy_connect`
   serves Chrome, Edge, Brave, and Opera, and `firefox::v157_proxy_connect`
   serves Firefox
   ([Proxy CONNECT fields](#proxy-connect-fields)).
 - H2 WebSocket needs a captured pseudo-header order for extended CONNECT.
-  Only `chromium::v154_http2` and `firefox::v157_http2` carry one
+  Only `chrome::v154_http2` and `firefox::v157_http2` carry one
   ([Profile connection policy](../guides/websocket.md#open-a-websocket-the-way-the-browser-does)).
 
 ## Recipe names and platforms
@@ -76,15 +77,15 @@ Socket operations adapt to the host OS. Browser identity stays in the profile.
 
 | Name form | Example | Means |
 | --- | --- | --- |
-| No platform | `chromium::v154_tls`, `firefox::v157_http2` | No platform in the name. Check rustdoc for platform-specific policies and recorded platforms. |
-| `windows`, `macos`, or `android` in the name | `chromium::v154_windows_client_hints`, `chromium::v154_macos_client_hints`, `chrome_android::v154_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Used for client-hint and request-template recipes, whose values carry platform data on the wire. |
+| No platform | `chrome::v154_tcp_tls`, `firefox::v157_http2` | No platform in the name. Check rustdoc for platform-specific policies and recorded platforms. |
+| `windows`, `macos`, or `android` in the name | `chrome::v154_windows_client_hints`, `chrome::v154_macos_client_hints`, `chrome::v154_android_client_hints` | Observed on that platform. Never "selected by `target_os`". Selects an Android recipe or platform-specific client hints and request templates. |
 
 The recorded protocol and header settings use Windows 11 for the
-`chromium`, `edge`, `brave`, `opera`, and `firefox` recipes without `macos`
+`chrome`, `edge`, `brave`, `opera`, and `firefox` recipes without a platform
 in the name, macOS 15.5 on Apple silicon for those with it, and Android
-emulators for `chrome_android`, `edge_android`, `brave_android`,
-`opera_android`, and `firefox_android`. TCP, connection-limit, and address-cache
-policies also use source-defined settings. Rustdoc names the build and platform.
+emulators for recipes with `android` in the function name. TCP,
+connection-limit, and address-cache policies also use source-defined
+settings. Rustdoc names the build and platform.
 
 On macOS, Opera sends the fields of its `windows` request templates, and
 Edge does too with its language list set to `en-US`. Edge otherwise takes
@@ -101,9 +102,9 @@ values: `extension_order`, `ech_grease_payload_length`, and
 
 | Recipe | `extension_order` | `ech_grease_payload_length` | `tls12_extensions_in_tls13_client_hello` |
 | --- | --- | --- | --- |
-| Chromium-family `*_tls` and `*_http3_tls` | `Permuted`: every extension shuffled per connection | `BackendDefault`: 144, 176, 208, or 240 bytes, drawn per connection | `false` |
-| `firefox::v157_tls` | `Fixed`: Firefox's order | `FromClientHello { maximum_name_length: 100 }` | `true`; no effect, as the recipe also offers TLS 1.2 |
-| `firefox::v157_http3_tls` | `PermutedWithTail`: shuffled, then `quic_transport_parameters` and `encrypted_client_hello` | `FromClientHello { maximum_name_length: 100 }` | `true` |
+| Chromium-family `*_tcp_tls` and `*_quic_tls` | `Permuted`: every extension shuffled per connection | `BackendDefault`: 144, 176, 208, or 240 bytes, drawn per connection | `false` |
+| `firefox::v157_tcp_tls` | `Fixed`: Firefox's order | `FromClientHello { maximum_name_length: 100 }` | `true`; no effect, as the recipe also offers TLS 1.2 |
+| `firefox::v157_quic_tls` | `PermutedWithTail`: shuffled, then `quic_transport_parameters` and `encrypted_client_hello` | `FromClientHello { maximum_name_length: 100 }` | `true` |
 
 - `PermutedWithTail` writes its list after the shuffled extensions; only
   `padding` and `pre_shared_key` follow it.
@@ -127,8 +128,8 @@ order is chosen. Every variant sends the same IDs; only the order changes.
 | Variant | Order | Recipes |
 | --- | --- | --- |
 | `Fixed(ids)` | The listed order on every connection | Chrome 154 and Chrome 154 for Android, TCP and QUIC: 28 IDs in ascending byte order |
-| `PerClient(orders)` | One listed order, drawn when a client is built, on every connection of that client | `opera::v136_tls`: 29 entries, one per captured process, holding 16 orders |
-| `PerConnection(orders)` | One listed order, drawn for each connection | `opera::v136_http3_tls`: 20 entries, one per captured QUIC ClientHello, holding 19 orders |
+| `PerClient(orders)` | One listed order, drawn when a client is built, on every connection of that client | `opera::v136_tcp_tls`: 29 entries, one per captured process, holding 16 orders |
+| `PerConnection(orders)` | One listed order, drawn for each connection | `opera::v136_quic_tls`: 20 entries, one per captured QUIC ClientHello, holding 19 orders |
 | `None` (no `TrustAnchorIds`) | No extension | Edge, Brave, Firefox, and the other Android recipes |
 
 - Each entry of a drawn variant is equally likely, so an order listed
@@ -157,10 +158,10 @@ use it.
 | Variant | Offers first | Drops when full | Recipes |
 | --- | --- | --- | --- |
 | `NewestFirst` | The newest ticket | The oldest ticket | Chromium-family `*_tls`, which keep 2 tickets |
-| `OldestConnectionFirst` | The first connection to store a ticket, newest of its tickets first | The ticket it would offer next | `firefox::v157_tls`, which keeps 10 |
-| `OldestFirst` | The oldest ticket | The oldest ticket | `firefox_android::v156_tls`, which keeps 10 |
+| `OldestConnectionFirst` | The first connection to store a ticket, newest of its tickets first | The ticket it would offer next | `firefox::v157_tcp_tls`, which keeps 10 |
+| `OldestFirst` | The oldest ticket | The oldest ticket | `firefox::v156_android_tcp_tls`, which keeps 10 |
 
-Firefox's order depends on how finely its clock counts: `firefox::v157_tls`
+Firefox's order depends on how finely its clock counts: `firefox::v157_tcp_tls`
 follows Firefox on Windows, a macOS Firefox profile would use `OldestFirst`,
 and Android uses the source-defined `OldestFirst`. Android ticket order
 remains uncaptured.
@@ -176,9 +177,9 @@ resolved addresses.
 | Recipe | `TCP_NODELAY` | `SO_SNDBUF` | Keepalive | Address order | Local port on Windows |
 | --- | --- | --- | --- | --- | --- |
 | None (no `with_tcp`) | OS default | OS default | OS default | One at a time, resolver order | OS default (sequential) |
-| `chromium::v154_tcp` | Set (Nagle off) | OS default | 45 s idle and 45 s interval before connecting, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay | Random (`SO_RANDOMIZE_PORT`) from build 22621, Windows 11 22H2 |
+| `chrome::v154_tcp` | Set (Nagle off) | OS default | 45 s idle and 45 s interval before connecting, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay | Random (`SO_RANDOMIZE_PORT`) from build 22621, Windows 11 22H2 |
 | `firefox::v157_tcp` | Set (Nagle off) | 524,288 bytes, as Firefox on Windows | Scheduled: 10 s idle, then 600 s; off for HTTP/2 | One at a time, resolver order; the next only after a refused, unreachable, or timed-out connect | OS default (sequential) |
-| Brave, Edge, Opera | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` | `chromium::v154_tcp` |
+| Brave, Edge, Opera | `chrome::v154_tcp` | `chrome::v154_tcp` | `chrome::v154_tcp` | `chrome::v154_tcp` | `chrome::v154_tcp` |
 | Android browsers | Not covered | Not covered | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
@@ -223,7 +224,7 @@ resolved addresses.
   the same cached DNS record; its `SO_LINGER` of `{1, 0}` (its close is
   still a FIN, as Phantom's is); and the probe
   counts of macOS and Linux.
-- Brave 1.96.59 builds the Chromium tag behind `chromium::v154_tcp` and
+- Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
 - `TcpPortRandomization` sets `SO_RANDOMIZE_PORT` from a minimum Windows
   build, after the other options and before a source binding binds the
@@ -262,8 +263,8 @@ and Phantom's own DNS query sockets.
 | Recipe | Local port on Windows |
 | --- | --- |
 | None (no `with_udp`) | OS default (sequential) |
-| `chromium::v154_udp` | Random (`SO_RANDOMIZE_PORT`) on every Windows |
-| Brave, Edge, Opera | `chromium::v154_udp` |
+| `chrome::v154_udp` | Random (`SO_RANDOMIZE_PORT`) on every Windows |
+| Brave, Edge, Opera | `chrome::v154_udp` |
 | Firefox | None: Firefox 157 does not set `SO_RANDOMIZE_PORT`, so its profiles take no `with_udp` |
 | Android browsers | Not covered |
 
@@ -286,10 +287,10 @@ for each origin and route.
 | Recipe | Connections per origin and route | Source |
 | --- | --- | --- |
 | None (no `with_http1`) | 1; requests run one after another | Not a browser value |
-| `chromium::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
+| `chrome::v154_http1` | 6 | Chromium's per-group socket limit, `g_max_sockets_per_group` |
 | `firefox::v157_http1` | 6 | Firefox's `network.http.max-persistent-connections-per-server` |
-| Brave | 6, from `chromium::v154_http1` | Brave 1.96.59 builds the same Chromium tag and changes none of the cited values |
-| Edge, Opera | 6, from `chromium::v154_http1` | Hook logs: ten concurrent requests to one origin opened six connections |
+| Brave | 6, from `chrome::v154_http1` | Brave 1.96.59 builds the same Chromium tag and changes none of the cited values |
+| Edge, Opera | 6, from `chrome::v154_http1` | Hook logs: ten concurrent requests to one origin opened six connections |
 | Android browsers | Not covered | No Android source reading or capture backs a value |
 
 - Idle connections, and connections still being established, count toward
@@ -298,7 +299,7 @@ for each origin and route.
   another. Once the limit is reached, it waits in arrival order, up to the
   waiter limit in [Defaults and limits](limits.md#connection-pools).
 - `Http1Settings::idle_timeout` ends reuse of an idle connection.
-  `chromium::v154_http1` sets `Http1IdleTimeout::CheckedOnRequest` with 300
+  `chrome::v154_http1` sets `Http1IdleTimeout::CheckedOnRequest` with 300
   seconds, Chromium's used idle socket timeout: when a request reaches the
   origin and route's connections, each connection idle 300 s or more is
   closed, and the request reuses another or opens one. Nothing closes a
@@ -345,7 +346,7 @@ without response data before it stops taking new requests and closes.
 
 | Recipe | `idle_timeout` | Source |
 | --- | --- | --- |
-| None (no `with_http2`), `chromium::v154_http2` and the recipes built on it | `Http2IdleTimeout::Unlimited`: reused until the server closes it or sends a [`GOAWAY`](glossary.md#goaway) | No limit found in Chromium source |
+| None (no `with_http2`), `chrome::v154_http2` and the recipes built on it | `Http2IdleTimeout::Unlimited`: reused until the server closes it or sends a [`GOAWAY`](glossary.md#goaway) | No limit found in Chromium source |
 | `firefox::v157_http2` | `Http2IdleTimeout::ClosedOnTimer` with 170 seconds | Firefox's `network.http.http2.timeout` |
 
 - Only response data (a response head, DATA, or trailers) restarts the
@@ -377,10 +378,10 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | Recipe | Names kept | Answer without a record TTL kept for (`ttl`) | Answer with a record TTL kept for (`min_record_ttl`) | Failure kept for |
 | --- | --- | --- | --- | --- |
 | None (no `with_dns_cache`) | 0; every new connection resolves its host | Not kept | Not kept | Not kept |
-| `chromium::v154_dns_cache` | 1,000 | 60 s | The TTL, at least 60 s | Not kept |
+| `chrome::v154_dns_cache` | 1,000 | 60 s | The TTL, at least 60 s | Not kept |
 | `firefox::v157_dns_cache` | 1,600 | 60 s | The TTL | 60 s |
-| Brave | 1,000, from `chromium::v154_dns_cache` | 60 s | The TTL, at least 60 s | Not kept |
-| Edge, Opera | 1,000, from `chromium::v154_dns_cache` | 60 s, as hook logs show through the system resolver | The TTL, at least 60 s | Not kept |
+| Brave | 1,000, from `chrome::v154_dns_cache` | 60 s | The TTL, at least 60 s | Not kept |
+| Edge, Opera | 1,000, from `chrome::v154_dns_cache` | 60 s, as hook logs show through the system resolver | The TTL, at least 60 s | Not kept |
 | Android browsers | Not covered | Not covered | Not covered | Not covered |
 
 - The operating system's resolver reports no record TTL, and neither does
@@ -398,7 +399,7 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 - Firefox serves an expired answer for up to 600 s more while it resolves the
   name again in the background. Phantom resolves an expired name before it
   connects.
-- Brave builds the Chromium tag behind `chromium::v154_dns_cache` without
+- Brave builds the Chromium tag behind `chrome::v154_dns_cache` without
   changing the cited values, but keys its cache by top-level site as well, so
   it resolves a name again under another site. A Phantom client keeps one
   cache.
@@ -416,12 +417,12 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 
 | Recipe | Request | HTTP/1.1 | HTTP/2 | HTTP/3 | `User-Agent` |
 | --- | --- | --- | --- | --- | --- |
-| `chromium::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 154 value |
-| `chromium::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
-| `chromium::v154_macos_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
-| `chromium::v154_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
-| `chromium::v154_windows_fetch_template` | Same-origin `fetch(url)` GET in the default cache mode, with validator slots | Yes | Yes | No | Captured headful Chrome 154 value |
-| `chromium::v154_macos_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | No | Required caller slot |
+| `chrome::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured headful Chrome 154 value |
+| `chrome::v154_windows_fetch_no_store_template` | Same-origin `fetch(url, {cache: "no-store"})` GET | Yes | Yes | No | Captured headful Chrome 154 value |
+| `chrome::v154_macos_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
+| `chrome::v154_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
+| `chrome::v154_windows_fetch_template` | Same-origin `fetch(url)` GET in the default cache mode, with validator slots | Yes | Yes | No | Captured headful Chrome 154 value |
+| `chrome::v154_macos_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | No | Required caller slot |
 | `edge::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
 | `edge::v154_windows_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Required caller slot |
 | `brave::v154_windows_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Required caller slot |
@@ -434,12 +435,12 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | `firefox::v157_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
 | `firefox::v157_windows_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | HTTP/2 list | Captured Firefox 157 value |
 | `firefox::v157_macos_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
-| `brave_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
-| `brave_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
-| `chrome_android::v154_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Chrome 154 for Android value |
-| `chrome_android::v154_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Chrome 154 for Android value |
-| `edge_android::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Edge 153 for Android value |
-| `edge_android::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Edge 153 for Android value |
+| `brave::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
+| `brave::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
+| `chrome::v154_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Chrome 154 for Android value |
+| `chrome::v154_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Chrome 154 for Android value |
+| `edge::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Edge 153 for Android value |
+| `edge::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Edge 153 for Android value |
 
 - An address-bar navigation is an HTML document request with
   `Sec-Fetch-Site: none` and `Sec-Fetch-User: ?1`.
@@ -453,7 +454,8 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
   leaves a required caller slot empty fails before any I/O.
 - Every template carries the capture machine's `en-US` `Accept-Language`,
   from the Windows 11 host, the macOS host for a `macos` template, or, for
-  `chrome_android` and `edge_android`, the Android emulator. Brave's
+  Chrome and Edge templates with `android` in the name, the Android
+  emulator. Brave's
   templates leave it to you: Brave draws the `q` value of its second
   language per session. On macOS,
   Edge takes the field from the system's language list, so its templates
@@ -496,8 +498,8 @@ template and caller fields, not client hints, which are added afterward.
 | --- | --- | --- |
 | `firefox::v157_cookie_placement` | Firefox `fetch` | After `Referer`, before `Sec-Fetch-Dest` |
 | `firefox::v157_cookie_placement` | Firefox navigation | Before `Upgrade-Insecure-Requests` |
-| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/1.1 | Last, or before your `If-None-Match` and `If-Modified-Since` |
-| `chromium::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/2 and HTTP/3 | Before your validators and the final `priority` |
+| `chrome::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/1.1 | Last, or before your `If-None-Match` and `If-Modified-Since` |
+| `chrome::v154_cookie_placement` | Chrome, Edge, Brave, or Opera, HTTP/2 and HTTP/3 | Before your validators and the final `priority` |
 
 Both placements put `Cookie` before revalidation headers. That ordering
 is source-defined; a cookie and validator together remain uncaptured.
@@ -512,9 +514,9 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
 
 | Recipe | Protocol | Split | Each crumb |
 | --- | --- | --- | --- |
-| `chromium::v154_http2` | HTTP/2 | At `;`, skipping one space (`IndexAll`) | Inserted into the HPACK table, then sent as an index |
+| `chrome::v154_http2` | HTTP/2 | At `;`, skipping one space (`IndexAll`) | Inserted into the HPACK table, then sent as an index |
 | `firefox::v157_http2` | HTTP/2 | At `"; "` (`NeverIndexShort`) | Under 20 bytes: never-indexed literal; otherwise inserted, then an index |
-| `chromium::v154_http3_request` | HTTP/3 | At `;`, skipping one space (`Split`) | Encoded like any other field; under the recipe's dynamic QPACK policy, inserted and then referenced |
+| `chrome::v154_http3_request` | HTTP/3 | At `;`, skipping one space (`Split`) | Encoded like any other field; under the recipe's dynamic QPACK policy, inserted and then referenced |
 
 - The rule applies to every `cookie` field on the connection: the jar's, one
   you supply, and, on HTTP/2, one in a WebSocket opening.
@@ -526,7 +528,7 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
   channel; `Whole` avoids it at the cost of browser parity. See
   [Design](../explanation/design.md#cookie-crumbs-and-compression).
 - On HTTP/2 each recipe applies its browser's size limit to a crumb's table
-  entry (name, value, and 32 bytes). `chromium::v154_http2` inserts a crumb
+  entry (name, value, and 32 bytes). `chrome::v154_http2` inserts a crumb
   of any size, evicting older entries, and one larger than the whole table
   empties it. `firefox::v157_http2` sends a crumb larger than half the
   table, 2,048 bytes with the default 4,096, as a literal without indexing.
@@ -540,8 +542,8 @@ rule is `Http2HpackSettings::cookie_crumbs`; the HTTP/3 rule is
 - Firefox 157 does not split `cookie` over HTTP/3, so
   `firefox::v157_http3_request` sends one joined field, a literal with a
   static name reference that is never inserted.
-- Edge, Brave, and Opera use `chromium::v154_http2` and
-  `chromium::v154_http3_request`, so they send crumbs as Chrome does, as
+- Edge, Brave, and Opera use `chrome::v154_http2` and
+  `chrome::v154_http3_request`, so they send crumbs as Chrome does, as
   their cookie captures show.
 
 ### Alt-Used on HTTP/3
@@ -554,7 +556,7 @@ explicit port.
 
 | Recipe | `alt_used` |
 | --- | --- |
-| `chromium::v154_http3_request`, used by every Chromium-family recipe | `Omit` |
+| `chrome::v154_http3_request`, used by every Chromium-family recipe | `Omit` |
 | `firefox::v157_http3_request` | `Append`: one header after all others |
 
 - An exact H3 request to the origin, and one that an HTTPS record sends over
@@ -636,13 +638,13 @@ replace it.
 | Recipe | HTTP/1.1 proxy | HTTP/2 proxy, after `:method` and `:authority` |
 | --- | --- | --- |
 | None (no `with_proxy_connect`) | `Host`, then `Proxy-Authorization` | `proxy-authorization` |
-| `chromium::v154_proxy_connect` (Chrome 154, Edge 154, Brave 154, and Opera 136) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
+| `chrome::v154_proxy_connect` (Chrome 154, Edge 154, Brave 154, and Opera 136) | `Host`, `Proxy-Connection: keep-alive`, `User-Agent`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 | `firefox::v157_proxy_connect` | `User-Agent`, `Proxy-Connection: keep-alive`, `Connection: keep-alive`, `Host`, `Proxy-Authorization` | `user-agent`, `proxy-authorization` |
 
 - `Proxy-Authorization` is sent only with `HttpProxy::with_basic_auth`
   credentials, after a challenge or once the proxy has accepted them.
 - On an HTTP/2 proxy, `Http2HpackSettings::sensitive_proxy_authorization`
-  decides the field's HPACK form. `chromium::v154_http2` and
+  decides the field's HPACK form. `chrome::v154_http2` and
   `firefox::v157_http2` set `FieldIndexing`: a literal with incremental
   indexing on first use on a connection, then an index, as the browsers
   send it. The default, `NeverIndexed`, keeps the credential out of the

@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
 
 use super::{
@@ -389,8 +389,8 @@ async fn https_queries_randomize_their_port_with_the_profiles_udp_settings() -> 
     })
     .await?;
     let plain = HttpsRecordResolver::with_nameservers([server.address()])?;
-    let chromium = plain.clone().with_udp_settings(chromium::v154_udp());
-    assert_eq!(chromium.udp_settings(), Some(chromium::v154_udp()));
+    let chromium = plain.clone().with_udp_settings(chrome::v154_udp());
+    assert_eq!(chromium.udp_settings(), Some(chrome::v154_udp()));
     assert_eq!(plain.udp_settings(), None);
 
     for (resolver, randomized) in [(&chromium, cfg!(windows)), (&plain, false)] {

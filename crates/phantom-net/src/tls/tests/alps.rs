@@ -10,8 +10,10 @@ use std::{
 use btls::ssl::{AlpnError, Ssl, SslVersion, select_next_proto};
 use phantom_profile::{
     TlsSettings, WebSocketSettings,
-    chromium::{self, v154_tls},
-    firefox,
+    browser::{
+        chrome::{self, v154_tcp_tls},
+        firefox,
+    },
 };
 use phantom_testkit::tls::ClientHelloSummary;
 use tokio::task::JoinHandle;
@@ -46,8 +48,8 @@ const H2: &[u8] = b"h2";
 async fn a_connector_with_the_websocket_alpn_list_sends_the_policy_client_hello() -> TestResult<()>
 {
     let recipes: [(TlsSettings, WebSocketSettings, bool); 2] = [
-        (v154_tls(), chromium::v154_websocket(), false),
-        (firefox::v157_tls(), firefox::v157_websocket(), true),
+        (v154_tcp_tls(), chrome::v154_websocket(), false),
+        (firefox::v157_tcp_tls(), firefox::v157_websocket(), true),
     ];
     for (tls, websocket, fixed_order) in recipes {
         let policy = &websocket.connection;
@@ -136,7 +138,7 @@ const fn is_grease(value: u16) -> bool {
 async fn absent_alps_is_distinct_from_negotiated_empty_settings() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_alps_server(&identity, None).await?;
-    let connector = TlsConnector::new_with_roots(&v154_tls(), [identity.root_der()])?;
+    let connector = TlsConnector::new_with_roots(&v154_tcp_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(H2));
@@ -165,7 +167,7 @@ async fn nonempty_alps_settings_round_trip_exactly() -> TestResult<()> {
 
 #[test]
 fn oversized_alps_settings_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings
         .alps
         .as_mut()
@@ -206,7 +208,7 @@ async fn round_trip(
 ) -> TestResult<(Option<Vec<u8>>, Option<Vec<u8>>)> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_alps_server(&identity, Some(server_settings)).await?;
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings
         .alps
         .as_mut()

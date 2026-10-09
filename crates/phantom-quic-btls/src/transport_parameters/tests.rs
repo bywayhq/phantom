@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, error::Error, time::Duration};
 
 use phantom_profile::{
-    chromium, firefox,
+    browser::{chrome, firefox},
     quic::{QuicConnectionIdLength, QuicTransportParameterKind, QuicTransportSettings},
 };
 use quinn_proto::{Side, transport_parameters::TransportParameters};
@@ -21,7 +21,7 @@ const CAPTURED_PARAMETERS: &str = "08024064070480600000110c000000019a7aaa7a00000
 fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
+    let profile = TransportParameterProfile::new(chrome::v154_quic())?;
     let mut entropy = fixture_entropy();
 
     let encoded = profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy)?;
@@ -51,7 +51,7 @@ fn reads_the_peer_s_bidirectional_stream_limit() -> Result<(), Box<dyn Error>> {
 fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let settings = chromium::v154_quic();
+    let settings = chrome::v154_quic();
     let profile = TransportParameterProfile::new(settings.clone())?;
     let expected_shape = parameter_shape(&captured)?;
     let captured = ParsedTransportParameters::from_encoded(&captured)?;
@@ -74,7 +74,7 @@ fn entropy_changes_order_without_changing_profile_semantics() -> Result<(), Box<
 fn a_resumed_connection_adds_only_initial_rtt_as_a_minimal_varint() -> Result<(), Box<dyn Error>> {
     let captured = decode_hex(CAPTURED_PARAMETERS)?;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
+    let profile = TransportParameterProfile::new(chrome::v154_quic())?;
     let mut fresh_shape = parameter_shape(&captured)?;
     // Loopback and 50 ms values from the resumption captures, and the
     // one-byte and eight-byte extremes.
@@ -129,7 +129,7 @@ fn live_semantic_mismatch_fails_closed() -> Result<(), Box<dyn Error>> {
         .ok_or("missing max-data fixture value")?;
     captured[max_data + 3] = 1;
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
+    let profile = TransportParameterProfile::new(chrome::v154_quic())?;
     let mut entropy = fixture_entropy();
 
     let error = match profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy) {
@@ -146,7 +146,7 @@ fn unprofiled_live_parameter_fails_closed() -> Result<(), Box<dyn Error>> {
     let mut captured = decode_hex(CAPTURED_PARAMETERS)?;
     captured.extend_from_slice(&[0x0c, 0x00]);
     let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
-    let profile = TransportParameterProfile::new(chromium::v154_quic())?;
+    let profile = TransportParameterProfile::new(chrome::v154_quic())?;
     let mut entropy = fixture_entropy();
 
     let error = match profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy) {
@@ -215,7 +215,7 @@ fn version_information_lists_v2_then_v1_after_a_leading_reserved_version()
         assert_eq!(words[2..], [0x6b33_43cf, 1]);
     }
 
-    let chrome = TransportParameterProfile::new(chromium::v154_quic())?;
+    let chrome = TransportParameterProfile::new(chrome::v154_quic())?;
     let mut entropy = fixture_entropy();
     let error = match chrome.version_information(
         QuicVersion::V2,
@@ -252,7 +252,7 @@ fn masked_random_destination_ids_favor_the_minimum_length() -> Result<(), Box<dy
         .ok_or("a fixed length is a policy")?;
     assert_eq!(provider().len(), 12);
     assert!(
-        TransportParameterProfile::new(chromium::v154_quic())?
+        TransportParameterProfile::new(chrome::v154_quic())?
             .initial_destination_connection_id()
             .is_none()
     );
@@ -261,7 +261,7 @@ fn masked_random_destination_ids_favor_the_minimum_length() -> Result<(), Box<dy
 
 #[test]
 fn constructor_preserves_backend_neutral_validation_field() {
-    let mut settings = chromium::v154_quic();
+    let mut settings = chrome::v154_quic();
     settings.max_udp_payload_size = 1_199;
 
     let error = match TransportParameterProfile::new(settings) {

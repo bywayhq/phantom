@@ -17,7 +17,7 @@ use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, Client, ClientBuilder, HttpProtocol, HttpProxy,
     RequestErrorKind, ResponseInfo, Route, Socks5Proxy,
     dns::HttpsRecordResolver,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
 use tokio::time::timeout;
@@ -372,7 +372,7 @@ fn resolver(dns: &DnsServer) -> TestResult<HttpsRecordResolver> {
 /// service, so a request at an HTTPS record's location shows it sends none.
 fn profile_builder(identity: &TestIdentity) -> ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(appending_alt_used(client_settings()));
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }

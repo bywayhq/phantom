@@ -1,6 +1,6 @@
 use std::{task::Waker, time::Duration};
 
-use phantom_profile::{TcpKeepaliveSchedule, firefox};
+use phantom_profile::{TcpKeepaliveSchedule, browser::firefox};
 use socket2::SockRef;
 use tokio::net::{TcpListener, TcpStream};
 

@@ -53,11 +53,11 @@ this way, so no recipe sets it up. Set the pseudo-header order in the
 profile's HTTP/3 request settings yourself:
 
 ```rust
-use phantom::profile::{chromium, ClientProfile, Http3ClientSettings, Http3PseudoHeader};
+use phantom::profile::{ClientProfile, Http3ClientSettings, Http3PseudoHeader, browser::chrome};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
 async fn open_h3() -> Result<(), Box<dyn std::error::Error>> {
-    let mut request = chromium::v154_http3_request();
+    let mut request = chrome::v154_http3_request();
     request.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,
@@ -66,12 +66,12 @@ async fn open_h3() -> Result<(), Box<dyn std::error::Error>> {
         Http3PseudoHeader::Path,
     ]);
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
         request,
     );
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http3(http3);
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http3(http3);
     let client = Client::builder(profile).build()?;
 
     let socket = client

@@ -1,7 +1,7 @@
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use phantom_net::{http1::Http1Connection, http2::Http2Connection};
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use tokio::{
     io::{DuplexStream, duplex},
     time::timeout,
@@ -40,7 +40,7 @@ async fn http1() -> Result<(PooledConnection, DuplexStream), Box<dyn std::error:
 /// Opens an HTTP/2 connection over an in-memory stream; see [`http1`].
 async fn http2() -> Result<(PooledConnection, DuplexStream), Box<dyn std::error::Error>> {
     let (client, server) = duplex(64 * 1024);
-    let connection = Http2Connection::connect(client, &chromium::v154_http2()).await?;
+    let connection = Http2Connection::connect(client, &chrome::v154_http2()).await?;
     Ok((PooledConnection::Http2(connection), server))
 }
 

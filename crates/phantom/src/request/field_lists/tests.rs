@@ -20,7 +20,7 @@ use btls::{
 };
 use bytes::Bytes;
 use http::StatusCode;
-use phantom_profile::{ClientProfile, Http3ClientSettings, chromium};
+use phantom_profile::{ClientProfile, Http3ClientSettings, browser::chrome};
 use phantom_testkit::tcp::ReservedPort;
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
@@ -313,10 +313,10 @@ async fn a_ping_failure_resend_builds_each_list_once() -> TestResult {
             replacement.write_all(OK_RESPONSE).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((silent, replacement))
         });
-        let mut http2 = chromium::v154_http2();
+        let mut http2 = chrome::v154_http2();
         http2.preface_ping_after = Some(Duration::from_secs(1));
         http2.ping_timeout = Some(Duration::from_secs(2));
-        let profile = ClientProfile::new(chromium::v154_tls()).with_http2(http2);
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(http2);
         let client = client_builder(&identity, profile).build()?;
         let first = client
             .get_negotiated(&format!("https://{origin}/first"))?
@@ -414,7 +414,7 @@ async fn a_critical_ch_retry_builds_the_lists_again_with_the_requested_hint() ->
         });
         let client = client_builder(
             &identity,
-            profile(false).with_client_hints(chromium::v154_windows_client_hints()),
+            profile(false).with_client_hints(chrome::v154_windows_client_hints()),
         )
         .build()?;
         counts::take();
@@ -480,7 +480,7 @@ async fn an_accept_ch_restart_builds_the_lists_again_with_the_hint() -> TestResu
         });
         let client = client_builder(
             &identity,
-            profile(false).with_client_hints(chromium::v154_windows_client_hints()),
+            profile(false).with_client_hints(chrome::v154_windows_client_hints()),
         )
         .build()?;
         counts::take();
@@ -588,15 +588,15 @@ async fn a_status_retry_builds_the_lists_again_with_the_response_s_cookie() -> T
 /// The Chrome 154 recipes, which negotiate h2 or http/1.1, with HTTP/3 when
 /// `http3` is set.
 fn profile(http3: bool) -> ClientProfile {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     if !http3 {
         return profile;
     }
     profile.with_http3(Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     ))
 }
 

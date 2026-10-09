@@ -20,7 +20,10 @@ use http::{Method, Response};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, HttpProxy, Route,
-    profile::{ClientProfile, chromium, firefox},
+    profile::{
+        ClientProfile,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -204,8 +207,8 @@ fn client(
 
 fn chromium_profile() -> ClientProfile {
     ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
-        .with_proxy_connect(chromium::v154_proxy_connect())
+        .with_http2(chrome::v154_http2())
+        .with_proxy_connect(chrome::v154_proxy_connect())
 }
 
 fn firefox_profile() -> ClientProfile {

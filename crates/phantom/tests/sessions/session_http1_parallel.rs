@@ -7,7 +7,10 @@ use std::{future::Future, net::Ipv4Addr, net::SocketAddr, num::NonZeroUsize, tim
 use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, ResponseBody, Route,
-    profile::{ClientProfile, Http1IdleTimeout, Http1Settings, chromium, firefox},
+    profile::{
+        ClientProfile, Http1IdleTimeout, Http1Settings,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -179,7 +182,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
     bounded(async {
         let mut server = Server::start().await?;
         // The builder bound replaces the recipe's six connections.
-        let client = builder(profile().with_http1(chromium::v154_http1()))
+        let client = builder(profile().with_http1(chrome::v154_http1()))
             .max_concurrent_http1_requests_per_origin(bound(2)?)
             .build()?;
 
@@ -219,7 +222,7 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
 async fn idle_connection_is_reused_before_another_opens() -> TestResult {
     bounded(async {
         let mut server = Server::start().await?;
-        let client = builder(profile().with_http1(chromium::v154_http1())).build()?;
+        let client = builder(profile().with_http1(chrome::v154_http1())).build()?;
 
         let first = hold(&client, &server.uri("first")).await?;
         let second = hold(&client, &server.uri("second")).await?;
@@ -259,7 +262,7 @@ async fn connection_idle_past_the_idle_timeout_is_replaced_by_the_next_request()
         let uri = |path: &str| format!("http://{address}/{path}");
         let settings = Http1Settings {
             idle_timeout: Http1IdleTimeout::CheckedOnRequest(IDLE_TIMEOUT),
-            ..chromium::v154_http1()
+            ..chrome::v154_http1()
         };
         let client = builder(profile().with_http1(settings)).build()?;
         let first_uri = uri("first");
@@ -364,7 +367,7 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
 #[tokio::test]
 async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
     bounded(async {
-        for recipe in [chromium::v154_http1(), firefox::v157_http1()] {
+        for recipe in [chrome::v154_http1(), firefox::v157_http1()] {
             assert_eq!(recipe.max_connections_per_origin.get(), 6);
             let mut server = Server::start().await?;
             let client = builder(profile().with_http1(recipe)).build()?;

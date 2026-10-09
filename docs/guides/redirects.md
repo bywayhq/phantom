@@ -12,12 +12,12 @@ Follow up to five redirects and see which URL gave the final response.
 ```rust
 use std::num::NonZeroUsize;
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol, RedirectPolicy, ResponseInfo};
 
 async fn follow() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2());
     let client = Client::builder(profile)
         .redirect_policy(RedirectPolicy::limited(
             NonZeroUsize::new(5).expect("five is nonzero"),

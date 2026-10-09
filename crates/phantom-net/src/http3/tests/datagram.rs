@@ -10,7 +10,7 @@ use bytes::Bytes;
 use h3_datagram::datagram_handler::HandleDatagramsExt;
 use http::{Request, Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use tokio::{
     sync::{Notify, oneshot},
     time::timeout,
@@ -91,7 +91,7 @@ async fn datagram_violation_is_isolated_to_its_request_stream() -> TestResult<()
         Ok::<(), Box<dyn Error + Send + Sync>>(())
     });
 
-    let settings = chromium::v154_http3();
+    let settings = chrome::v154_http3();
     let connection =
         super::super::connect_direct(address, TEST_SERVER_NAME, client, &settings).await?;
     let violated = Request::get(format!("https://{TEST_SERVER_NAME}/violated")).body(())?;
@@ -178,7 +178,7 @@ async fn unexpected_datagram_aborts_get_stream() -> TestResult<()> {
         address.port()
     ))
     .body(())?;
-    let settings = chromium::v154_http3();
+    let settings = chrome::v154_http3();
     let response = timeout(
         TEST_TIMEOUT,
         super::send_request_head(address, TEST_SERVER_NAME, client, &settings, request),
@@ -266,7 +266,7 @@ async fn datagram_before_response_aborts_get_stream() -> TestResult<()> {
         address.port()
     ))
     .body(())?;
-    let settings = chromium::v154_http3();
+    let settings = chrome::v154_http3();
     let result = timeout(
         TEST_TIMEOUT,
         super::send_request_head(address, TEST_SERVER_NAME, client, &settings, request),

@@ -14,7 +14,7 @@ use std::{
 use btls::x509::X509;
 use phantom::{
     Client, HttpProtocol, ResponseInfo,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use tokio::{
     fs::{self, OpenOptions},
@@ -145,12 +145,12 @@ async fn build_client(ca_pem: &Path) -> Result<Client, BoxError> {
         .ok_or_else(|| invalid_input("interop CA file is empty"))?
         .to_der()?;
 
-    let http3_tls = chromium::v154_http3_tls();
+    let http3_tls = chrome::v154_quic_tls();
     let http3 = Http3ClientSettings::new(
         http3_tls.clone(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
     let profile = ClientProfile::new(http3_tls).with_http3(http3);
     Ok(Client::builder(profile)

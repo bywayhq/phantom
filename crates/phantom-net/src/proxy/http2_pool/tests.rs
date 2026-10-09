@@ -12,7 +12,7 @@ use std::{
     time::Duration,
 };
 
-use phantom_profile::{Http2IdleTimeout, chromium::v154_http2};
+use phantom_profile::{Http2IdleTimeout, browser::chrome::v154_http2};
 use tokio::{io::DuplexStream, sync::oneshot, time::Instant};
 
 use super::{ConnectionSettingsId, Http2ProxyPool, PooledConnection, RouteKey};

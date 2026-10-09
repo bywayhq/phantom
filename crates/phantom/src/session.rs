@@ -787,10 +787,10 @@ impl Client {
     /// # Examples
     ///
     /// ```
-    /// use phantom::{Client, profile::ClientProfile, profile::chromium};
+    /// use phantom::{Client, profile::{ClientProfile, browser::chrome}};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let profile = || ClientProfile::new(chromium::v154_tls());
+    /// let profile = || ClientProfile::new(chrome::v154_tcp_tls());
     /// let client = Client::builder(profile()).cookies().build()?;
     /// if let Some(jar) = client.cookie_jar() {
     ///     jar.set_cookie("https://example.com/", "sid=1; Secure; HttpOnly")?;

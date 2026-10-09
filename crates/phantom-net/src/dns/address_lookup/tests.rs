@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use phantom_profile::{DnsCacheSettings, UdpSettings, chromium};
+use phantom_profile::{DnsCacheSettings, UdpSettings, browser::chrome};
 use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
 
 use super::{AddressLookup, MAX_FALLBACKS, probe_socket};
@@ -315,7 +315,7 @@ async fn sixteen_fallbacks_in_a_row_stop_the_dns_queries() -> TestResult {
 async fn copies_for_other_udp_settings_share_the_fallback_count() -> TestResult {
     let server = DnsServer::spawn(|_: &DnsQuery| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let plain = lookup(&server, false)?;
-    let chromium = plain.with_udp_settings(chromium::v154_udp());
+    let chromium = plain.with_udp_settings(chrome::v154_udp());
 
     for _ in 0..MAX_FALLBACKS {
         plain.resolve("failing.example.test").await?;
@@ -341,8 +341,8 @@ fn a_rejected_probe_socket_option_binds_again_without_it() -> TestResult {
         }
     };
 
-    assert!(probe_socket(Some(chromium::v154_udp()), bind).is_some());
-    assert_eq!(*calls.borrow(), [Some(chromium::v154_udp()), None]);
+    assert!(probe_socket(Some(chrome::v154_udp()), bind).is_some());
+    assert_eq!(*calls.borrow(), [Some(chrome::v154_udp()), None]);
 
     calls.borrow_mut().clear();
     let failing = |udp: Option<UdpSettings>| {
@@ -384,7 +384,7 @@ async fn the_address_cache_keeps_a_dns_answer_for_its_record_ttl() -> TestResult
 async fn the_address_cache_raises_a_short_record_ttl_to_the_minimum() -> TestResult {
     let server = DnsServer::spawn(records(0, 0)).await?;
     let resolver = AddressResolver::from_dns(lookup(&server, false)?);
-    let cache = AddressCache::with_resolver(chromium::v154_dns_cache(), resolver);
+    let cache = AddressCache::with_resolver(chrome::v154_dns_cache(), resolver);
 
     cache.lookup("origin.example.test", 443).await?;
     cache.lookup("origin.example.test", 8443).await?;
@@ -400,9 +400,9 @@ async fn the_address_cache_raises_a_short_record_ttl_to_the_minimum() -> TestRes
 async fn query_sockets_randomize_their_port_with_the_profiles_udp_settings() -> TestResult {
     let server = DnsServer::spawn(records(300, 300)).await?;
     let plain = lookup(&server, true)?;
-    let chromium = plain.with_udp_settings(chromium::v154_udp());
+    let chromium = plain.with_udp_settings(chrome::v154_udp());
     let off = plain.with_udp_settings(UdpSettings::default());
-    assert_eq!(chromium.udp_settings(), Some(chromium::v154_udp()));
+    assert_eq!(chromium.udp_settings(), Some(chrome::v154_udp()));
     assert_eq!(plain.udp_settings(), None);
 
     for (lookup, randomized) in [(&chromium, cfg!(windows)), (&off, false), (&plain, false)] {

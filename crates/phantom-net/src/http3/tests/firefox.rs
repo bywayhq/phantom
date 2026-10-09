@@ -12,7 +12,7 @@ use btls::ssl::{AlpnError, select_next_proto};
 use bytes::{Bytes, BytesMut};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::firefox;
+use phantom_profile::browser::firefox;
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn::crypto::ServerConfig as _;
@@ -87,7 +87,7 @@ const QUIC_V2: u32 = 0x6b33_43cf;
 
 fn connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
-        &firefox::v157_http3_tls(),
+        &firefox::v157_quic_tls(),
         &firefox::v157_quic(),
         &firefox::v157_http3(),
         &firefox::v157_http3_request(),

@@ -29,7 +29,7 @@ use std::{
 
 use phantom::{
     AltSvcSnapshot, AltSvcSnapshotEntry, Client,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 
 use crate::seed;
@@ -58,13 +58,13 @@ fn client() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
         let http3 = Http3ClientSettings::new(
-            chromium::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
-        let profile = ClientProfile::new(chromium::v154_tls())
-            .with_http2(chromium::v154_http2())
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
+            .with_http2(chrome::v154_http2())
             .with_http3(http3);
         let capacity = NonZeroUsize::new(ORIGIN_CAPACITY).expect("a non-zero store capacity");
         Client::builder(profile)

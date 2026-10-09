@@ -50,14 +50,14 @@ few minutes. Later builds reuse it.
 Replace `src/main.rs` with this program:
 
 ```rust,no_run
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol, RequestHeader};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
 
     let client = Client::builder(profile).build()?;
     let response = client
@@ -132,12 +132,12 @@ added. When Chrome loads a page, it sends about a dozen headers in a fixed
 order. A request template adds them for you:
 
 ```rust
-use phantom::profile::chromium;
+use phantom::profile::browser::chrome;
 use phantom::{Client, HttpProtocol, PreparedRequestTemplate};
 
 async fn navigate(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
     // Validate the template once and reuse it for every navigation.
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
     let page = client
         .get(HttpProtocol::Http2, "https://example.com/")?
         .template(&navigation)

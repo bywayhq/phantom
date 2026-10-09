@@ -412,7 +412,7 @@ Tests in `crates/phantom-net/src/tcp/tests/port_randomization.rs` and
 `crates/phantom-net/src/udp/tests/port_randomization.rs` run on Windows. They
 read the option back with `getsockopt`: after a loopback connect with the
 Chromium TCP recipe (set) and the Firefox one (not set), and on a UDP socket
-bound with `chromium::v154_udp` (set) and without UDP settings (not set). They
+bound with `chrome::v154_udp` (set) and without UDP settings (not set). They
 check that a minimum build past the host leaves the TCP option off, that a
 bound TCP or UDP socket rejects it with `WSAEINVAL` (the failure path), and
 that eight successive sockets of each transport, with and without a source

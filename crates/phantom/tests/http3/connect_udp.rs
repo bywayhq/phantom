@@ -25,7 +25,9 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, RequestError, RequestErrorKind,
     RequestHeader, RetryPolicy, Route,
-    profile::{ClientProfile, Http2PseudoHeader, Http3ClientSettings, Http3Setting, chromium},
+    profile::{
+        ClientProfile, Http2PseudoHeader, Http3ClientSettings, Http3Setting, browser::chrome,
+    },
 };
 use phantom_net::http3::{ConnectUdpError, ConnectUdpErrorKind};
 use tokio::{task::JoinHandle, time::timeout};
@@ -714,7 +716,7 @@ async fn http2_leg_without_profile_extended_connect_order_fails_before_io() -> T
             MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?;
         // A profile whose HTTP/2 settings carry no extended CONNECT order
         // cannot send one, whatever the route asks for.
-        let mut http2 = chromium::v154_http2();
+        let mut http2 = chrome::v154_http2();
         http2.extended_connect_pseudo_header_order = None;
         http2.extended_connect_priority = None;
         let profile = ClientProfile::new(tls_settings())
@@ -1090,7 +1092,7 @@ fn leg_client(
     proxy: &TestIdentity,
     route: ConnectUdpProxy,
 ) -> TestResult<Client> {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,
@@ -1114,7 +1116,7 @@ fn identities() -> TestResult<(TestIdentity, TestIdentity)> {
 
 fn profile() -> ClientProfile {
     ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(masque_client_settings())
 }
 

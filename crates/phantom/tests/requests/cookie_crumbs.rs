@@ -27,7 +27,10 @@ use http::{Response, StatusCode, header::SET_COOKIE};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, RequestHeader,
-    profile::{ClientProfile, CookiePlacement, Http2Settings, chromium, firefox},
+    profile::{
+        ClientProfile, CookiePlacement, Http2Settings,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
@@ -66,8 +69,8 @@ async fn chrome_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResu
     let capture = Capture::parse(CHROME)?;
     let observed = replay(
         &capture,
-        chromium::v154_http2(),
-        chromium::v154_cookie_placement(),
+        chrome::v154_http2(),
+        chrome::v154_cookie_placement(),
     )
     .await?;
     assert_crumbs_match(&capture, &observed)
@@ -75,12 +78,12 @@ async fn chrome_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResu
 
 #[tokio::test]
 async fn edge_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
-    // Edge 154 replays against the Chromium recipes (`phantom::profile::edge`).
+    // Edge 154 replays against the Chromium recipes (`phantom::profile::browser::edge`).
     let capture = Capture::parse(EDGE)?;
     let observed = replay(
         &capture,
-        chromium::v154_http2(),
-        chromium::v154_cookie_placement(),
+        chrome::v154_http2(),
+        chrome::v154_cookie_placement(),
     )
     .await?;
     assert_crumbs_match(&capture, &observed)
@@ -88,12 +91,12 @@ async fn edge_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult
 
 #[tokio::test]
 async fn brave_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
-    // Brave 154 replays against the Chromium recipes (`phantom::profile::brave`).
+    // Brave 154 replays against the Chromium recipes (`phantom::profile::browser::brave`).
     let capture = Capture::parse(BRAVE)?;
     let observed = replay(
         &capture,
-        chromium::v154_http2(),
-        chromium::v154_cookie_placement(),
+        chrome::v154_http2(),
+        chrome::v154_cookie_placement(),
     )
     .await?;
     assert_crumbs_match(&capture, &observed)
@@ -101,12 +104,12 @@ async fn brave_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResul
 
 #[tokio::test]
 async fn opera_sends_one_indexed_field_per_jar_cookie_as_captured() -> TestResult<()> {
-    // Opera 136 replays against the Chromium recipes (`phantom::profile::opera`).
+    // Opera 136 replays against the Chromium recipes (`phantom::profile::browser::opera`).
     let capture = Capture::parse(OPERA)?;
     let observed = replay(
         &capture,
-        chromium::v154_http2(),
-        chromium::v154_cookie_placement(),
+        chrome::v154_http2(),
+        chrome::v154_cookie_placement(),
     )
     .await?;
     assert_crumbs_match(&capture, &observed)
@@ -129,9 +132,9 @@ async fn firefox_never_indexes_short_jar_cookies_as_captured() -> TestResult<()>
 #[tokio::test]
 async fn whole_cookie_setting_keeps_one_field() -> TestResult<()> {
     let capture = Capture::parse(CHROME)?;
-    let mut settings = chromium::v154_http2();
+    let mut settings = chrome::v154_http2();
     settings.hpack.cookie_crumbs = phantom::profile::Http2CookieCrumbs::Whole;
-    let observed = replay(&capture, settings, chromium::v154_cookie_placement()).await?;
+    let observed = replay(&capture, settings, chrome::v154_cookie_placement()).await?;
     let page = observed.get(1).ok_or("the page request was not recorded")?;
     let cookies = page
         .iter()

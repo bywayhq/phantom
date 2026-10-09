@@ -9,7 +9,7 @@ use phantom_net::{
     http2::Http2Connection,
     tcp::{AddressFamily, SlowerConnection, SlowerProgress},
 };
-use phantom_profile::{Http2Setting, firefox};
+use phantom_profile::{Http2Setting, browser::firefox};
 use phantom_testkit::http2::{CLIENT_CONNECTION_PREFACE, CapturedFrame};
 use tokio::{
     io::{AsyncReadExt, DuplexStream, duplex},

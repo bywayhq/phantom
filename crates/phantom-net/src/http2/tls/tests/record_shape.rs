@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::{NamedGroup, TlsVersion, chromium::v154_http2};
+use phantom_profile::{NamedGroup, TlsVersion, browser::chrome::v154_http2};
 use rustls::{
     ServerConfig, ServerConnection, StreamOwned,
     pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},

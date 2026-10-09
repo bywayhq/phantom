@@ -125,7 +125,7 @@ connects.
 ## Browser recipes
 
 A [recipe](../reference/glossary.md#recipe) is the wire data for one browser
-build at one protocol layer, such as `chromium::v154_tls`. The sections below
+build at one protocol layer, such as `chrome::v154_tcp_tls`. The sections below
 record the captures and source reading behind each recipe and the tests that
 replay them.
 
@@ -158,7 +158,7 @@ Capture comparisons normalize only per-connection randomness:
   both values in each of three processes (359 and 337 of 696 connections),
   which is consistent with NSS taking the choice from the low bit of fresh
   per-handshake random bytes. The comparison therefore treats the AEAD as
-  per-connection randomness. `firefox::v157_tls` lists both AEADs in
+  per-connection randomness. `firefox::v157_tcp_tls` lists both AEADs in
   `ech_grease_aeads`, and the patched BoringSSL backend draws one uniformly
   per connection from fresh random bytes, keeping it across a
   HelloRetryRequest. `firefox_157_recipe_draws_either_ech_grease_aead_per_connection`
@@ -191,7 +191,7 @@ Limits:
 
 ### Chrome 154 recipes
 
-The `chromium::v154_*` recipes, a complete Chromium set (listed in Coverage),
+The `chrome::v154_*` recipes, a complete Chromium set (listed in Coverage),
 reproduce Google Chrome 154.0.8037.58 and 154.0.8037.97 on Windows 11.
 
 Chrome 154.0.8037.58, the stable build installed on the Windows 11 capture
@@ -235,14 +235,14 @@ differed only in `sec-ch-ua-full-version` and the `Chromium` and `Google
 Chrome` entries of `sec-ch-ua-full-version-list`, which report the new build.
 The three `client_hints.py` runs agree, and their `navigation.txt` differs
 from the 154.0.8037.58 one only in those values and in the capture time and
-port. `chromium::v154_windows_client_hints` carries the new values, and the
+port. `chrome::v154_windows_client_hints` carries the new values, and the
 154.0.8037.58 Windows `navigation.txt` was removed. The three snapshots are
 retained beside the new `navigation.txt` as `snapshot-1.txt` to
 `snapshot-3.txt`, and each now compares equal to the retained fixtures. The
 other 154.0.8037.58 Windows fixtures stay, because 154.0.8037.97 sends their
 layers unchanged as far as the snapshots compare. None of them carries a full
 version. The macOS captures are of 154.0.8037.95, so
-`chromium::v154_macos_client_hints` reports that build.
+`chrome::v154_macos_client_hints` reports that build.
 
 #### Chrome 154 trust-anchor ID order
 
@@ -285,7 +285,7 @@ processes opened more than one connection, one of them 13. Every ClientHello,
 the outer one in the ECH captures, carries the same trust-anchor extension, so the order is fixed within a
 process as well as between processes.
 
-`chromium::v154_tls` and `chromium::v154_http3_tls` list the 28 identifiers in
+`chrome::v154_tcp_tls` and `chrome::v154_quic_tls` list the 28 identifiers in
 that ascending order, which is how a `TlsSettings` expresses trust-anchor
 order: the wire order is the vector order. Because Chrome's order is fixed,
 the recipe has no per-client draw to model. A caller who wants another order
@@ -317,14 +317,14 @@ In the QUIC captures the transport-parameter order, the GREASE
 transport-parameter id and length, the GREASE H3 setting id and value, and the
 position of the reserved version inside `version_information` differ per
 connection. The QUIC ClientHello carries no GREASE cipher suite, group, or
-extension. `chromium::v154_quic` keeps one captured parameter order as its
+extension. `chrome::v154_quic` keeps one captured parameter order as its
 permutation template. `deterministic_entropy_reproduces_captured_parameters`
 re-encodes the retained capture's transport parameters byte for byte from that
 recipe with fixed entropy.
 
 #### QUIC session resumption
 
-`chromium::v154_http3_tls`, and `edge::v154_http3_tls` through it, enable
+`chrome::v154_quic_tls`, and `edge::v154_quic_tls` through it, enable
 `session_tickets`, so a later QUIC connection to an origin resumes the TLS
 session. The recipes rest on Chromium source. At tag `154.0.8037.58`:
 
@@ -359,7 +359,7 @@ lines 84-85), and that flag defaults to false
 (`quiche/common/quiche_protocol_flags_list.h` line 209).
 `HttpNetworkTransaction` lets a request of default idempotency use early data
 when `HttpUtil::IsMethodSafe` accepts its method
-(`net/http/http_network_transaction.cc` lines 435-439). `chromium::v154_quic`
+(`net/http/http_network_transaction.cc` lines 435-439). `chrome::v154_quic`
 sets `early_data`, so the Chrome 154 and Edge 153 recipes offer early data on
 every resumed connection, and Phantom applies the same method rule to the
 requests it sends early, requiring no body and no trailers as well.
@@ -463,7 +463,7 @@ Limits:
   and there is no
   `*-chrome-for-testing` fixture. The Chrome for Testing 154 list ends at
   154.0.8037.57, a different build that would need its own version directory.
-- `chromium::v154_tcp` rests on Chromium source at tag `154.0.8037.58`, not
+- `chrome::v154_tcp` rests on Chromium source at tag `154.0.8037.58`, not
   on a capture; see
   [TCP socket option evidence](#tcp-socket-option-evidence).
 - `client-startup.txt` under `http3` is the only CRLF file under `fixtures/`,
@@ -496,20 +496,20 @@ Chromium or Firefox fixture for the same layer. Edge ran without
 | --- | --- | --- |
 | Edge 153.0.4234.48 TLS | 20 processes | The Chromium ClientHello without the trust-anchor IDs extension |
 | Edge 153 QUIC ClientHello | 3 processes | The Chromium QUIC ClientHello without the trust-anchor IDs extension |
-| Edge 153 H2 startup and request HEADERS | 1 raw startup, 3 H2 session runs | Equal to `chromium::v154_http2` |
-| Edge 153 QUIC, H3 SETTINGS and request | 3 processes | Equal to `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`; request fields equal except persona values |
+| Edge 153 H2 startup and request HEADERS | 1 raw startup, 3 H2 session runs | Equal to `chrome::v154_http2` |
+| Edge 153 QUIC, H3 SETTINGS and request | 3 processes | Equal to `chrome::v154_quic`, `chrome::v154_http3`, and `chrome::v154_http3_request`; request fields equal except persona values |
 | Edge 153 client hints | 3 runs (plus 1 headful) | The Chromium names, order, and delivery; Edge brand list and version values |
 | Firefox 157.0 TLS | 5 snapshot processes | Its own fixed extension order and a 240-byte ECH GREASE payload |
 | Firefox 157 H2 startup and request HEADERS | 3 retained H2 session runs, 6 connections | `m,p,a,s` pseudo-headers; non-exclusive parent 0 weight 42 |
 
-The recipes follow from those results. `edge::v154_tls` and
-`edge::v154_http3_tls` remove the trust-anchor IDs from the Chromium recipes.
+The recipes follow from those results. `edge::v154_tcp_tls` and
+`edge::v154_quic_tls` remove the trust-anchor IDs from the Chromium recipes.
 The Chrome 153 and Chrome 154 ClientHellos differ only in that extension, so
 the Edge captures replay against the surviving Chromium recipes unchanged.
 Edge has no H2, QUIC, or H3 recipe of its own, because those layers equal the
 Chromium recipes on every compared field. The Edge client hints carry
 Edge's brand list and build values. The
-complete Firefox set is `firefox::v157_tls`, `v157_tcp`, `v157_dns_cache`,
+complete Firefox set is `firefox::v157_tcp_tls`, `v157_tcp`, `v157_dns_cache`,
 `v157_http1`, `v157_http2`, `v157_websocket`, `v157_proxy_connect`,
 `v157_cookie_placement`, the recipes of the
 [Firefox 157 HTTP/3 recipe](#firefox-157-http3-recipe), and the Firefox
@@ -724,7 +724,7 @@ Limits:
 - On Windows, the Edge 154.0.4258.48 evidence for every layer but the
   client hints is the snapshot comparison; the per-layer captures there are
   of 154.0.4258.37.
-- The ECH behavior of `edge::v154_tls` and `edge::v154_http3_tls` rests on
+- The ECH behavior of `edge::v154_tcp_tls` and `edge::v154_quic_tls` rests on
   Edge 153 captures and on Edge 154 sending the same ClientHello without an
   HTTPS record.
 
@@ -800,22 +800,22 @@ them.
 | Brave QUIC ClientHello | 3 processes | The Chrome 154 QUIC ClientHello without trust-anchor IDs |
 | Opera QUIC ClientHello | 3 processes | The Chrome 154 QUIC ClientHello with the 32 trust-anchor IDs of the Opera TLS row, in an order drawn per connection |
 | Brave and Opera H2 startup | 3 raw startups each | Byte-identical to the Chrome 154 SETTINGS and WINDOW_UPDATE frames |
-| Brave and Opera H2 request HEADERS, pseudo-header order, priority, HPACK | 3 H2 session runs each | Equal to `chromium::v154_http2` |
-| Brave and Opera QUIC transport parameters, H3 SETTINGS, H3 pseudo-header order | 3 processes each | Equal to `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request` |
+| Brave and Opera H2 request HEADERS, pseudo-header order, priority, HPACK | 3 H2 session runs each | Equal to `chrome::v154_http2` |
+| Brave and Opera QUIC transport parameters, H3 SETTINGS, H3 pseudo-header order | 3 processes each | Equal to `chrome::v154_quic`, `chrome::v154_http3`, and `chrome::v154_http3_request` |
 | Brave client hints | 3 runs (plus 1 headful) | The Chromium names, order, and delivery without `sec-ch-ua-full-version` and `sec-ch-ua-form-factors`; every version reduced to `154.0.0.0` or `99.0.0.0` |
 | Opera client hints | 3 runs | The Chromium names, order, and delivery; Opera brand list and version values |
 | Brave request fields | 9 WebSocket scenarios, 20 proxy scenarios, H3 startup | Chromium order, plus `Sec-GPC: 1` after `Accept`; `Accept` without signed exchanges; `Accept-Language` q value drawn per session |
 | Opera request fields | Same | Equal to the Chromium templates except `User-Agent` and brand values |
-| WebSocket openings and connection choice | 9 scenarios, 3 runs each | Equal to `chromium::v154_websocket` |
-| Proxy CONNECT fields | 20 proxy scenarios, 3 runs each | Equal to `chromium::v154_proxy_connect` |
+| WebSocket openings and connection choice | 9 scenarios, 3 runs each | Equal to `chrome::v154_websocket` |
+| Proxy CONNECT fields | 20 proxy scenarios, 3 runs each | Equal to `chrome::v154_proxy_connect` |
 | Brave ECH from an HTTPS record | 1 `accept` and 1 `reject` run | Chrome 154's outer extension fields; one retry with the server's configuration after a rejection |
 | Brave ECH over QUIC | 3 `accept` and 3 `reject` runs | Chrome 154's outer QUIC fields without trust-anchor IDs; no QUIC connection after a rejection |
-| Brave and Opera cookie placement and crumbs | 3 runs each over H1, H2, and H3 | Equal to `chromium::v154_cookie_placement`, `chromium::v154_http2`, and `chromium::v154_http3_request` |
+| Brave and Opera cookie placement and crumbs | 3 runs each over H1, H2, and H3 | Equal to `chrome::v154_cookie_placement`, `chrome::v154_http2`, and `chrome::v154_http3_request` |
 
-The recipes follow from those results. `brave::v154_tls` and
-`brave::v154_http3_tls` remove the trust-anchor IDs from the Chromium
+The recipes follow from those results. `brave::v154_tcp_tls` and
+`brave::v154_quic_tls` remove the trust-anchor IDs from the Chromium
 recipes, and both keep `ech_from_https_records`.
-`opera::v136_tls` and `opera::v136_http3_tls` replace the Chromium ID list
+`opera::v136_tcp_tls` and `opera::v136_quic_tls` replace the Chromium ID list
 with Opera's 32 IDs, in an order drawn per client over TCP and per
 connection over QUIC. Neither browser has an H2, QUIC, H3,
 WebSocket, proxy CONNECT, or cookie placement recipe of its own, because
@@ -843,8 +843,8 @@ tasks, and `net/base/features.cc` changes three feature defaults, one of
 them below. Its `net/dns/dns_client.cc` override adds a fallback
 DNS-over-HTTPS server behind `kBraveFallbackDoHProvider`, which is off by
 default, and its resolver configuration changes apply only while Brave VPN
-is connected. So `chromium::v154_tcp`, `chromium::v154_http1`, and
-`chromium::v154_dns_cache` serve Brave as they are.
+is connected. So `chrome::v154_tcp`, `chrome::v154_http1`, and
+`chrome::v154_dns_cache` serve Brave as they are.
 
 Brave's `patches/net-base-features.cc.patch` enables
 `kPartitionConnectionsByNetworkIsolationKey`, which Chromium leaves off
@@ -881,11 +881,11 @@ version Opera 136 reports, the recipes' values are those of 154:
 (`net/dns/host_resolver_manager_job.cc:54`, `:57`), `kIPv6FallbackTime` 300 ms
 (`net/socket/tcp_connect_job.h:85`), and Happy Eyeballs v3 off
 (`net/base/features.cc:111`). Frida hook logs of Opera 136 show what Opera
-does with them: the options of `chromium::v154_tcp`, its 300 ms fallback,
+does with them: the options of `chrome::v154_tcp`, its 300 ms fallback,
 six connections to one origin, and a 60-second system-resolver cache, as
 Chrome 154's logs do ([Socket hook evidence](#socket-hook-evidence)). Opera
-profiles therefore use `chromium::v154_tcp`, `chromium::v154_http1`, and
-`chromium::v154_dns_cache`.
+profiles therefore use `chrome::v154_tcp`, `chrome::v154_http1`, and
+`chrome::v154_dns_cache`.
 
 Brave's `Accept-Language` is the one request value that no literal can
 match. The sample is the 87 runs of the Brave WebSocket and proxy route
@@ -945,7 +945,7 @@ the names `dns_over_https.opera.doh_mode`,
 `dns_over_https_prefs_observer.cc`, and a run with Chromium's preferences
 alone timed out with no lookup. With Opera's set in the throwaway profile it
 sent its lookups to the capture server and used the record's `ech` over TCP
-and QUIC, as Chrome 154 does. `opera::v136_tls` and `v136_http3_tls` therefore
+and QUIC, as Chrome 154 does. `opera::v136_tcp_tls` and `v136_quic_tls` therefore
 keep `ech_from_https_records`. See [Real ECH evidence](#real-ech-evidence).
 Without a record, every Opera 135 and 136 ClientHello carried ECH GREASE.
 
@@ -1096,13 +1096,13 @@ counter makes the seed depend on how many tables the thread built before
 the copy. Neither the source order nor the seed shows on the wire, so the
 recipes draw from the retained orders instead of computing them:
 
-- `opera::v136_tls` sets `TrustAnchorIds::PerClient` with one entry per
+- `opera::v136_tcp_tls` sets `TrustAnchorIds::PerClient` with one entry per
   tallied process: 29 entries holding 16 orders, so a client takes a
   process's order at its observed frequency and keeps it. A `phantom`
   client draws once when it is built, before it builds its HTTP/1.1,
   HTTP/2, HTTPS proxy, and WebSocket connectors, so they all send that
   order.
-- `opera::v136_http3_tls` sets `TrustAnchorIds::PerConnection` with one
+- `opera::v136_quic_tls` sets `TrustAnchorIds::PerConnection` with one
   entry per tallied QUIC ClientHello, 20 entries holding 19 orders, and
   each QUIC connection draws again.
 
@@ -1130,10 +1130,10 @@ Limits:
 
 ### macOS recipes
 
-`chromium::v154_macos_client_hints`, `edge::v154_macos_client_hints`,
+`chrome::v154_macos_client_hints`, `edge::v154_macos_client_hints`,
 `opera::v136_macos_client_hints`, the Chrome templates
-`chromium::v154_macos_navigation_template` and
-`chromium::v154_macos_fetch_no_store_template`, and the Firefox templates
+`chrome::v154_macos_navigation_template` and
+`chrome::v154_macos_fetch_no_store_template`, and the Firefox templates
 `firefox::v157_macos_navigation_template` and
 `firefox::v157_macos_fetch_no_store_template` reproduce what those browsers
 send on macOS 15.5 on Apple silicon. On macOS, Opera 136 sends the fields of
@@ -1169,15 +1169,15 @@ launcher](../../scripts/capture/README.md#browser-launcher)).
 | Chrome, Edge, Opera page loads and no-store `fetch()` over H1 and H2 | 3 runs each | The Windows template fields and values. `User-Agent` is a caller slot in every macOS Chromium-family template, and the headless value names `Macintosh; Intel Mac OS X 10_15_7` |
 | Chrome, Opera H3 page request | 1 startup each | The Windows template's H3 fields |
 | Firefox page loads and no-store `fetch()` over H1 and H2 | 3 runs | The Windows template, with `User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0` |
-| Chrome, Edge, Opera, Firefox resumed TCP ClientHello | 1 `tls_resumption.py --scenario sequential` run each | The shape of the TLS recipe's resumed ClientHello, as for the Windows captures (`phantom-net` `tls::tests::resumption`); Opera's trust-anchor ID set is that of `opera::v136_tls`, in an order drawn per process |
+| Chrome, Edge, Opera, Firefox resumed TCP ClientHello | 1 `tls_resumption.py --scenario sequential` run each | The shape of the TLS recipe's resumed ClientHello, as for the Windows captures (`phantom-net` `tls::tests::resumption`); Opera's trust-anchor ID set is that of `opera::v136_tcp_tls`, in an order drawn per process |
 | Chrome, Edge, Opera, Firefox H2 session | 3 page loads each | The H2 recipe's SETTINGS, WINDOW_UPDATE, priority, pseudo-header order, and static-name choice |
-| Chrome, Edge, Opera QUIC ClientHello and H3 startup | 1 startup each | The transport parameters of `chromium::v154_quic` and the Chromium H3 control stream; Chrome's and Opera's H3 request fields equal their Windows startups apart from persona fields |
+| Chrome, Edge, Opera QUIC ClientHello and H3 startup | 1 startup each | The transport parameters of `chrome::v154_quic` and the Chromium H3 control stream; Chrome's and Opera's H3 request fields equal their Windows startups apart from persona fields |
 
 Each capture differed from the macOS capture it replaced only in the build
 numbers it reports and in per-connection values, except Opera's: its client
 hints and brand-bearing request fields carry Opera 136's brand list, where
 Opera 135 put the greased brand first, and its TCP and QUIC ClientHellos
-carry the trust-anchor IDs of `opera::v136_tls` and, over TCP, GREASE at
+carry the trust-anchor IDs of `opera::v136_tcp_tls` and, over TCP, GREASE at
 the head of `signature_algorithms`, as on Windows.
 
 On macOS the page's final `fetch()` sometimes opened a new H2 connection,
@@ -1258,7 +1258,7 @@ Limits:
 
 ### Chrome for Android 154 recipes
 
-The `chrome_android::v154_*` recipes reproduce Google Chrome 154.0.8037.57 for
+The `chrome::v154_android_*` recipes reproduce Google Chrome 154.0.8037.57 for
 Android, as captured on the Android 17 emulator described below.
 
 Chrome 154.0.8037.57 is the build the Google Play Store served to the
@@ -1304,12 +1304,12 @@ the page load too, but no test compares it.
 
 | Layer | Samples | Result against the desktop Chrome 154 recipes |
 | --- | --- | --- |
-| TLS ClientHello | 1 intent process | Equal to `chromium::v154_tls` on every compared field, the 28 trust-anchor IDs in sorted order included |
+| TLS ClientHello | 1 intent process | Equal to `chrome::v154_tcp_tls` on every compared field, the 28 trust-anchor IDs in sorted order included |
 | HTTP/2 startup | 1 intent process | Byte-identical to the Chrome 154 startup: SETTINGS, their order, the connection WINDOW_UPDATE, and the empty ALPS payload |
-| QUIC ClientHello, QUIC and H3 startup | 1 intent process | The ClientHello equals `chromium::v154_http3_tls`, sorted trust-anchor IDs included; the transport parameters equal `chromium::v154_quic`; the H3 SETTINGS and QPACK stream prefixes equal `chromium::v154_http3`. The request fields equal Chrome 154's apart from persona values, the missing `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
-| Client hints | 3 typed runs | The same eleven names, order, and `default` or `accept-ch` delivery as `chromium::v154_windows_client_hints`; Android persona values |
+| QUIC ClientHello, QUIC and H3 startup | 1 intent process | The ClientHello equals `chrome::v154_quic_tls`, sorted trust-anchor IDs included; the transport parameters equal `chrome::v154_quic`; the H3 SETTINGS and QPACK stream prefixes equal `chrome::v154_http3`. The request fields equal Chrome 154's apart from persona values, the missing `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
+| Client hints | 3 typed runs | The same eleven names, order, and `default` or `accept-ch` delivery as `chrome::v154_windows_client_hints`; Android persona values |
 | WebSocket `accept` and `h1-accept` | 3 typed runs each | Every page load and no-store `fetch()` equals the Android templates on HTTP/1.1 and HTTP/2 |
-| WebSocket openings, the other 7 scenarios | 3 intent runs each | With `accept` and `h1-accept`, equal to `chromium::v154_websocket` and `chromium::v154_http2` on every compared field, with the same connection choices and counts as desktop Chrome: 15 openings on the page's H2 session, 6 HTTP/1.1 Upgrades, and 3 refused streams retried once |
+| WebSocket openings, the other 7 scenarios | 3 intent runs each | With `accept` and `h1-accept`, equal to `chrome::v154_websocket` and `chrome::v154_http2` on every compared field, with the same connection choices and counts as desktop Chrome: 15 openings on the page's H2 session, 6 HTTP/1.1 Upgrades, and 3 refused streams retried once |
 | QUIC resumption | 3 intent runs each of `accept` and `reject` | Every later connection resumed, offered early data, and added `early_data` and a final `pre_shared_key`, and unsafe methods stayed in 1-RTT, as on Windows. Unlike the Windows runs, the `/navigate` GET travelled in 0-RTT in all three `accept` runs |
 | Plaintext trust | 3 intent runs each of `direct-loopback` and `direct-hostname` | Every `ws://` opening equals the Chromium WebSocket template for its origin's trust: `Accept-Encoding: gzip, deflate, br, zstd` to `127.0.0.1`, and `gzip, deflate` to `origin.phantom.test` |
 
@@ -1327,7 +1327,7 @@ bitness, and form factor `"Mobile"`. `v154_android_client_hints()` sends the
 captured model, and `v154_android_client_hints_for_model` sends another. Only
 the Pixel 7 value is captured.
 
-`v154_tls` and `v154_http3_tls` are the Chromium recipes with
+`v154_android_tcp_tls` and `v154_android_quic_tls` are the Chromium recipes with
 `ech_from_https_records` off. The H2, QUIC, H3, H3 request, and WebSocket
 functions return the Chromium recipes. The templates change only
 `User-Agent` in the Chromium templates. The H3 startups were opened by
@@ -1371,7 +1371,7 @@ every fresh connection sent it, set to 400000 microseconds: 13 of 13 Chrome
 and 12 of 12 Brave startups. Two Chrome startups before the restart sent it
 too, with no record of the default network at the time.
 
-The recipes model Wi-Fi: `chromium::v154_quic` sends `initial_rtt_us` only
+The recipes model Wi-Fi: `chrome::v154_quic` sends `initial_rtt_us` only
 on a resumed connection. `network/client-startup-cellular.txt` under
 `http3/chrome-android/153.0.8010.52/android-35-emulator/` retains one
 cellular Chrome startup, and
@@ -1431,12 +1431,12 @@ Limits:
   capture from a real device checks any of these recipes.
 - The emulator's network ends the guest's TCP connections and opens new ones
   from the host, so no TCP option, SYN, or keepalive is visible, and there is
-  no `chrome_android` TCP, HTTP/1.1 connection, or address-cache recipe.
+  no Chrome for Android TCP, HTTP/1.1 connection, or address-cache recipe.
 - No capture shows Chrome for Android using an HTTPS record's `ech`, because
   the device cannot be given a DNS-over-HTTPS resolver as the desktop capture
   was, so `ech_from_https_records` is off.
 - No proxy, SSE, or Alt-Svc racing capture exists for Android, so there is no
-  `chrome_android` proxy CONNECT or cookie-placement recipe. No Android
+  Chrome for Android proxy CONNECT or cookie-placement recipe. No Android
   capture carries a cookie either: the H2 and H3 recipes split `cookie` into
   crumbs as the desktop cookie captures show, which no Android capture
   checks.
@@ -1446,7 +1446,7 @@ Limits:
 
 ### Brave for Android 153 recipes
 
-The `brave_android::v153_*` recipes reproduce Brave 1.95.104 for Android,
+The `brave::v153_android_*` recipes reproduce Brave 1.95.104 for Android,
 built on Chromium 153, as captured on the Android 17 emulator of the [Chrome
 for Android section](#chrome-for-android-154-recipes) and, for some layers, on
 the Android 15 emulator used before it. Fixtures name the build
@@ -1459,22 +1459,22 @@ apply unchanged. A cleared Brave profile shows no first-run screen.
 
 | Layer | Emulator | Samples | Result |
 | --- | --- | --- | --- |
-| TLS ClientHello | Android 17 | 1 intent process | Equal to the desktop Brave 154 ClientHello (`brave::v154_tls`): no trust-anchor IDs, and every other compared field, ECH GREASE included |
+| TLS ClientHello | Android 17 | 1 intent process | Equal to the desktop Brave 154 ClientHello (`brave::v154_tcp_tls`): no trust-anchor IDs, and every other compared field, ECH GREASE included |
 | HTTP/2 startup | Android 15 | 3 intent processes | Byte-identical to the Chrome 154 and Brave 154 startups |
-| QUIC ClientHello, QUIC and H3 startup | Android 17 | 1 intent process | Equal to `brave::v154_http3_tls`, `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request` |
+| QUIC ClientHello, QUIC and H3 startup | Android 17 | 1 intent process | Equal to `brave::v154_quic_tls`, `chrome::v154_quic`, `chrome::v154_http3`, and `chrome::v154_http3_request` |
 | H3 startup | Android 15 | 1 typed process | The typed H3 page request that `brave_android_navigation_sends_the_captured_page_request` reproduces |
 | QUIC resumption | Android 15 | 3 typed runs each of `accept` and `reject` | `reject` equals desktop Brave's summary. In `accept`, every later connection resumed and offered early data; a few concurrent requests went in 1-RTT, where desktop Brave sent them in 0-RTT |
 | Client hints | Android 17 | 3 typed runs | The desktop Brave names, order, and delivery (no `sec-ch-ua-full-version` or `sec-ch-ua-form-factors`); Android values, platform version `"17.0.0"`, an empty model, and versions reduced to `.0.0.0` |
 | WebSocket `accept` and `h1-accept` | Android 17 | 3 typed runs each | Every page load and no-store `fetch()` equals the Brave for Android templates |
 | Request fields | Android 15 | 9 WebSocket scenarios and 2 direct proxy-route scenarios, 3 typed runs each | The desktop Brave differences from Chrome: `Accept` without signed exchanges, `Sec-GPC: 1` after `Accept`, and an `Accept-Language` `q` value drawn per session (all five values from `0.5` to `0.9` appear, one per run) |
-| WebSocket openings | Android 15 | 9 scenarios, 3 runs each | Equal to `chromium::v154_websocket` with the same connection choices and counts as Chrome |
+| WebSocket openings | Android 15 | 9 scenarios, 3 runs each | Equal to `chrome::v154_websocket` with the same connection choices and counts as Chrome |
 
 Between the two emulators, the only client-hint value that changed was the
 platform version, from `"15.0.0"` to `"17.0.0"`. The model stayed empty.
 
-`brave_android::v153_tls` is `brave::v154_tls` with `ech_from_https_records`
-off, for the reason given for Chrome for Android, and `v153_http3_tls` is
-`brave::v154_http3_tls` with the same change. The H2, QUIC, H3, and WebSocket
+`brave::v153_android_tcp_tls` is `brave::v154_tcp_tls` with `ech_from_https_records`
+off, for the reason given for Chrome for Android, and `v153_android_quic_tls` is
+`brave::v154_quic_tls` with the same change. The H2, QUIC, H3, and WebSocket
 functions return the Chromium recipes. The templates apply desktop Brave's
 changes to the Chromium templates with Chrome's reduced Android `User-Agent`,
 which Brave sent on every request. `Accept-Language` stays a caller slot.
@@ -1499,7 +1499,7 @@ while its desktop build was 154.
 
 ### Edge for Android 153 recipes
 
-The `edge_android::v153_*` recipes reproduce Microsoft Edge 153.0.4234.49 for
+The `edge::v153_android_*` recipes reproduce Microsoft Edge 153.0.4234.49 for
 Android, as captured on an arm64 Android 17 emulator that reports a Pixel 7.
 
 Play serves Edge for Android only as an arm64 build, which cannot start on the
@@ -1519,9 +1519,9 @@ wall-clock time there.
 
 | Layer | Samples | Result |
 | --- | --- | --- |
-| TLS ClientHello | 3 intent processes | Each equals `edge::v154_tls`, the desktop Edge ClientHello that Edge 153 and 154 send alike: the Chromium ClientHello without trust-anchor IDs |
+| TLS ClientHello | 3 intent processes | Each equals `edge::v154_tcp_tls`, the desktop Edge ClientHello that Edge 153 and 154 send alike: the Chromium ClientHello without trust-anchor IDs |
 | HTTP/2 startup | 1 intent process | Byte-identical to the Chrome 154 startup |
-| QUIC ClientHello, QUIC and H3 startup | 1 intent process | Equal to `edge::v154_http3_tls`, `chromium::v154_quic`, `chromium::v154_http3`, and `chromium::v154_http3_request`. The request fields are as for Chrome for Android opened by intent: no `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
+| QUIC ClientHello, QUIC and H3 startup | 1 intent process | Equal to `edge::v154_quic_tls`, `chrome::v154_quic`, `chrome::v154_http3`, and `chrome::v154_http3_request`. The request fields are as for Chrome for Android opened by intent: no `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
 | Client hints | 3 typed runs | The Chromium names, order, and delivery; desktop Edge 153's brand list, `"Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153"`, full version `"153.0.4234.49"`, and a full version list with Chromium `153.0.8010.53`; `?1`, `"Android"`, platform version `"17.0.0"`, model `"Pixel 7"`, an empty architecture and bitness, and form factor `"Mobile"` |
 | WebSocket `accept` and `h1-accept` | 3 typed runs each | Every page load and no-store `fetch()` equals the Edge for Android templates |
 
@@ -1531,7 +1531,7 @@ every request. The captures ran with a visible browser, so the templates
 carry this literal value, where the headless desktop Edge templates leave
 `User-Agent` to the caller.
 
-`v153_tls` and `v153_http3_tls` are desktop Edge's recipes with
+`v153_android_tcp_tls` and `v153_android_quic_tls` are desktop Edge's recipes with
 `ech_from_https_records` off. `v153_http2`, `v153_quic`, `v153_http3`, and
 `v153_http3_request` return the Chromium recipes.
 `v153_android_client_hints()` sends the captured model, and
@@ -1576,7 +1576,7 @@ x86_64 one, and:
 
 ### Opera for Android 102 recipes
 
-`opera_android::v102_tls` and `opera_android::v102_android_client_hints`
+`opera::v102_android_tcp_tls` and `opera::v102_android_client_hints`
 reproduce Opera 102.1.5206.90382 for Android, built on Chromium 152.0.7977.82,
 on the Android 17 emulator of the [Chrome for Android
 section](#chrome-for-android-154-recipes).
@@ -1595,7 +1595,7 @@ box ([Android browsers](../../scripts/capture/README.md#android-browsers)).
 
 | Layer | Emulator | Samples | Result |
 | --- | --- | --- | --- |
-| TLS ClientHello to `https://localhost` | Android 17 | 1 process on a cleared profile, after the launcher stepped through the first-run screens | Equal to `opera_android::v102_tls` |
+| TLS ClientHello to `https://localhost` | Android 17 | 1 process on a cleared profile, after the launcher stepped through the first-run screens | Equal to `opera::v102_android_tcp_tls` |
 | TLS ClientHello to `https://localhost` | Android 15 | 14 fresh processes: 2 on cleared profiles, 12 restarted on one onboarded profile | All agree. Equal to Chrome 154's ClientHello without trust-anchor IDs, signature-algorithm GREASE included, where desktop Opera 135 drops that GREASE |
 | Client hints | Android 17 | 3 typed runs on cleared profiles | The Chromium names, order, and delivery; a four-brand list (`OperaMobile` 102, `Opera` 137, `Chromium` 152, and a greased brand last), platform version `"17"`, model `"Pixel 7"`, and an empty `sec-ch-ua-form-factors` |
 | HTTP/1.1 page load, `fetch()`, and `ws://` opening to `127.0.0.1` | Android 15 | 3 typed runs of `direct-loopback` | The field names Chrome 154 for Android sends: the page load equals the typed `h1-accept` page load in the WebSocket captures, and the `fetch()` and `ws://` opening equal the `direct-loopback` capture; `User-Agent` ends in `OPR/102.0.0.0` |
@@ -1628,7 +1628,7 @@ another name.
 
 ### Firefox for Android 156 recipe
 
-`firefox_android::v156_tls` reproduces the TCP ClientHello of Firefox 156.0.1
+`firefox::v156_android_tcp_tls` reproduces the TCP ClientHello of Firefox 156.0.1
 for Android on the Android 15 (API 35) emulator used before the [Chrome for
 Android](#chrome-for-android-154-recipes) Android 17 emulator. Firefox for
 Android was not recaptured on Android 17.
@@ -1651,7 +1651,7 @@ Twelve fresh-profile processes, each opened by intent at
 desktop Firefox 156 ClientHello: the same fixed extension order and every
 compared field, and a 240-byte ECH GREASE payload. The ECH GREASE AEAD
 varied per connection, as on Windows: 5 AES-128-GCM and 7
-ChaCha20-Poly1305. `firefox_android::v156_tls` returns `firefox::v157_tls`
+ChaCha20-Poly1305. `firefox::v156_android_tcp_tls` returns `firefox::v157_tcp_tls`
 with another ticket order ([TLS resumption over
 TCP](#tls-resumption-over-tcp-evidence)), and
 `firefox_android_156_tls_recipe_matches_android_captures` replays one
@@ -1661,7 +1661,7 @@ Retained fixtures, under
 `fixtures/tls/firefox-android/156.0.1/android-35-emulator/`:
 `client-hello.txt` (AES-128-GCM) and `client-hello-chacha20-ech.txt`.
 
-`firefox_android::v156_tls` also keeps the desktop recipe's TCP early data,
+`firefox::v156_android_tcp_tls` also keeps the desktop recipe's TCP early data,
 from source only, since no Android capture could resume a session: at tag
 `FIREFOX_156_0_RELEASE`, `security.tls.enable_0rtt_data` and
 `network.http.remove_resumption_token_when_early_data_failed` default to
@@ -1679,7 +1679,7 @@ Firefox does not resolve.
 
 ### Firefox 157 HTTP/3 recipe
 
-`firefox::v157_http3_tls`, `v157_quic`, `v157_http3`, and
+`firefox::v157_quic_tls`, `v157_quic`, `v157_http3`, and
 `v157_http3_request`, with the HTTP/3 lists of the Firefox 157 templates,
 reproduce the QUIC and HTTP/3 layers of Firefox 157.0 on Windows 11 that the
 list below names, apart from the differences under Limits.
@@ -1868,9 +1868,9 @@ Limits:
 
 ### TCP socket option evidence
 
-`chromium::v154_tcp` and `firefox::v157_tcp` set the socket options and
-keepalive, and `chromium::v154_tcp` races addresses, as those browsers do at
-the profiled release tags. `chromium::v154_tcp` does the same for Brave 154,
+`chrome::v154_tcp` and `firefox::v157_tcp` set the socket options and
+keepalive, and `chrome::v154_tcp` races addresses, as those browsers do at
+the profiled release tags. `chrome::v154_tcp` does the same for Brave 154,
 and for Edge 154 and Opera 136, whose hook logs match Chrome 154's ([Socket
 hook evidence](#socket-hook-evidence)). Firefox 157's own hook logs confirm
 `firefox::v157_tcp` on Windows ([Firefox socket hook
@@ -1886,10 +1886,10 @@ encode were.
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`). On Windows, right before `connect`, it also sets `SO_RANDOMIZE_PORT` when `kTcpPortRandomizationWin` is enabled, which it is by default, and `base::win::GetVersion()` is at least the feature's minimum, `WIN11_22H2`, build 22621 (`net/socket/tcp_socket_win.cc:105-110`, `:1046-1053`; `net/base/features.cc:308-314`; `base/win/windows_version.cc:386-404`). |
+| `chrome::v154_tcp` | `TCPClientSocket` calls `SetDefaultOptionsForClient` when it opens each socket, before connecting (`net/socket/tcp_client_socket.cc:173`, `:558`). That sets `TCP_NODELAY` and a 45-second keepalive idle time and interval: `SIO_KEEPALIVE_VALS` on Windows (`net/socket/tcp_socket_win.cc:50`, `:55-72`, `:815-818`), `TCP_KEEPIDLE` and `TCP_KEEPINTVL` on Linux (`net/socket/tcp_socket_posix.cc:88-100`, `:493-517`). On Windows, right before `connect`, it also sets `SO_RANDOMIZE_PORT` when `kTcpPortRandomizationWin` is enabled, which it is by default, and `base::win::GetVersion()` is at least the feature's minimum, `WIN11_22H2`, build 22621 (`net/socket/tcp_socket_win.cc:105-110`, `:1046-1053`; `net/base/features.cc:308-314`; `base/win/windows_version.cc:386-404`). |
 | `firefox::v157_tcp` | `nsSocketTransport::InitiateSocket` sets `PR_SockOpt_NoDelay` and, on Windows, a 524,288-byte send buffer on every socket before connecting (`netwerk/base/nsSocketTransport2.cpp:1449-1465`, `netwerk/base/nsSocketTransportService2.cpp:1536-1538`). Each HTTP/1 transaction starts short-lived keepalive (10 s idle, `network.http.tcp_keepalive.short_lived_idle_time`) with an interval of the connection's setup time in whole seconds, at least one, and arms a switch to the long-lived 600 s (`netwerk/protocol/http/nsHttpConnection.cpp:686`, `:2126-2241`; `modules/libpref/init/all.js:1263-1270`). The switch comes 60 s, less the remainder modulo the idle time, plus 10 probe intervals and 2 s later on Windows (`nsHttpConnection.cpp:2167-2190`, `netwerk/base/nsSocketTransportService2.h:63-70`), and is skipped for an idle pooled connection (`:1411-1414`). HTTP/2 disables keepalive (`:405-406`, `:2243-2262`), and taking the transport for an upgrade switches at once (`:1303-1320`). |
 | `firefox::v157_tcp` address selection | Release builds keep Happy Eyeballs behind the nightly-only `network.http.happy_eyeballs_enabled` (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). `DnsAndConnectSocket` arms a 250 ms backup timer once the primary attempt is connecting (`modules/libpref/init/all.js:1205`; `netwerk/protocol/http/DnsAndConnectSocket.cpp:242-265`, `:307-329`); without a learned family the backup resolves IPv4 only (`all.js:1237`; `DnsAndConnectSocket.cpp:179-186`, `:222-225`). An attempt moves to its next address only after a refused, unreachable, or timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755`), and a primary attempt that ends before the timer cancels it (`DnsAndConnectSocket.cpp:267-277`). The attempt that loses keeps connecting; its connection goes to the idle list, after a null transaction finishes its TLS handshake on a TLS origin (`:267-287`, `:671-745`), and a request may claim it meanwhile (`netwerk/protocol/http/ConnectionAttemptPool.cpp:141-163`; `netwerk/protocol/http/PendingTransactionInfo.cpp:20-44`, `:113-128`). Each connection records its address family on the connection entry, the first one setting it (`DnsAndConnectSocket.cpp:1152-1165`; `netwerk/protocol/http/ConnectionEntry.cpp:125-149`); later connections resolve that family alone, the backup with `network.http.fallback-connection-timeout`, 5 s, on each connect, and try the other family once it fails (`all.js:1220`; `DnsAndConnectSocket.cpp:167-178`, `:1014-1046`, `:1063`, `:1295-1303`; `nsSocketTransport2.cpp:1541`, `:1799-1825`). Once a connection reports HTTP/2, the entry's other attempts are closed and its other connections are not reused (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:921-1033`; `ConnectionEntry.cpp:627-650`). |
-| `chromium::v154_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:298-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:443-466`, `:573-610`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
+| `chrome::v154_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:298-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:443-466`, `:573-610`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
 
 Differences from the browsers:
 
@@ -1901,7 +1901,7 @@ Differences from the browsers:
   binding binds the socket, so a bound connection gets a random port too.
 - Chromium on macOS sets only the keepalive idle time
   (`net/socket/tcp_socket_posix.cc:102-106`), and Android and iOS builds
-  enable no keepalive (`:512-516`). `chromium::v154_tcp` describes Windows
+  enable no keepalive (`:512-516`). `chrome::v154_tcp` describes Windows
   and Linux; a macOS profile sets the interval of its
   `TcpKeepalivePolicy::Fixed` to `None`.
 - Firefox applies keepalive after connecting, where Phantom's fixed
@@ -1911,7 +1911,7 @@ Differences from the browsers:
   (`netwerk/base/nsSocketTransport2.cpp:3311-3401`); Phantom's schedule sets
   the interval wherever the host can and never a probe count.
 - Brave 1.96.59 builds Chromium tag `154.0.8037.58` and changes none of
-  the values above, so it uses `chromium::v154_tcp`. Neither
+  the values above, so it uses `chrome::v154_tcp`. Neither
   `patches/net-base-features.cc.patch` nor
   `rewrite/net/base/features.cc.yaml` in `brave-core` at `v1.96.59` changes
   `kTcpPortRandomizationWin`
@@ -1919,7 +1919,7 @@ Differences from the browsers:
 - Edge's and Opera's network-stack source is not public. Their hook logs,
   and Chrome's, show `TCP_NODELAY` and the 45-second keepalive on every
   socket, `SO_RANDOMIZE_PORT` after them, and a 300 ms IPv4 fallback, so
-  both use `chromium::v154_tcp`. On Chromium 154 the logs also show
+  both use `chrome::v154_tcp`. On Chromium 154 the logs also show
   `SIO_TCP_INITIAL_RTO` toward loopback peers, which Phantom does not set
   ([Socket hook evidence](#socket-hook-evidence)).
 - Chromium races as DNS answers arrive and sorts addresses itself. Phantom
@@ -1962,7 +1962,7 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `tcp::tests::host_check_*` | The build-time host check for every combination of platform capabilities. The facade rejects a Windows keepalive without an interval as `BuildErrorKind::InvalidProfile` |
 | `tcp::tests::connected_socket_carries_requested_options` | `TCP_NODELAY` and `SO_KEEPALIVE`, and on Linux and macOS the idle time and interval. Windows exposes no getter for the `SIO_KEEPALIVE_VALS` values |
 | `tcp::tests::paths` | Options on every socket opened by the direct, forward proxy, HTTP CONNECT (with and without Basic), HTTPS proxy, SOCKS5 (remote and local DNS), HTTP/1.1-or-HTTP/2, and SOCKS5 UDP control paths, `SO_RANDOMIZE_PORT` included on Windows |
-| `tcp::tests::port_randomization` | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chromium::v154_tcp` from build 22621 and not by `firefox::v157_tcp` or a minimum build past the host; a bound socket rejects it with `WSAEINVAL`; eight successive Chromium-profile connections, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart |
+| `tcp::tests::port_randomization` | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chrome::v154_tcp` from build 22621 and not by `firefox::v157_tcp` or a minimum build past the host; a bound socket rejects it with `WSAEINVAL`; eight successive Chromium-profile connections, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart |
 | `tcp::backup_connection::tests` | With scripted attempt outcomes and a test-controlled delay: no backup for a fast primary, an IPv4-only backup that can win, the next address only after a refused, unreachable, or timed-out connect, no backup after an early primary failure or for an IPv6-only host, and the returned error; the attempt that loses keeps connecting through its addresses; a remembered family restricts both attempts, gives each backup connect the timeout, and gives way to the other family, without the timeout, once its addresses fail; the first connection sets the family and only a switch replaces it |
 | `tcp::keepalive_schedule::tests` | The interval from the setup time, the 72 s switch of `firefox::v157_tcp`, and the phases applied for an opened connection, HTTP/2, an upgrade, a reused connection, and, on a four-second schedule, an active against an idle connection and a switch moved later by a second request |
 | `tcp::tests::keepalive_paths` | The phases a Firefox profile's connection goes through, and its idle state after each response, on plaintext HTTP/1.1 requests, a `101` upgrade, HTTP/1.1 or HTTP/2 chosen by ALPN, and an HTTP/2 connection to an HTTPS proxy; a Chromium profile opens no schedule; the send buffer is set before connecting |
@@ -1988,7 +1988,7 @@ Limits:
 
 ### UDP socket option evidence
 
-`chromium::v154_udp` sets `SO_RANDOMIZE_PORT` on the UDP socket of every QUIC
+`chrome::v154_udp` sets `SO_RANDOMIZE_PORT` on the UDP socket of every QUIC
 connection, and on the query socket of every DNS query Phantom sends itself
 with the `https-records` feature, as Chromium 154 sets it on every UDP socket
 it connects on Windows, and as Chrome 154, Edge 154, and Opera 136 do in their
@@ -2002,7 +2002,7 @@ evidence](#socket-hook-evidence).
 | Browser | Source behavior |
 | --- | --- |
 | Chromium 154 | `UDPSocketWin::Connect` calls `InternalConnect`, which sets `SO_RANDOMIZE_PORT` and then calls `connect`, with no feature or Windows version check, and ignores a failure, which its comment expects on a socket that is already bound (`net/socket/udp_socket_win.cc:544-575`). `UDPClientSocket::Connect` opens the socket and calls it (`net/socket/udp_client_socket.cc:69-89`). The QUIC session pool connects each QUIC socket first and only then sets its receive buffer, do-not-fragment, ECN, and send buffer options (`net/quic/quic_session_pool.cc:1334-1378`, and `:1196-1268` for the asynchronous path), and the built-in DNS client opens its sockets the same way (`net/dns/dns_transaction.cc:696-700`). A socket that binds an address instead, through `UDPSocketWin::Bind`, does not get the option (`net/socket/udp_socket_win.cc:587-602`); WebRTC's sockets bind that way (`services/network/p2p/socket_udp.cc:112-113`, `:250-260`; `net/socket/udp_server_socket.cc:20`). |
-| Brave 154 | Brave 1.96.59 builds Chromium tag `154.0.8037.58`, and `brave-core` at tag `v1.96.59` has no patch, `chromium_src` override, or rewrite for `net/socket/udp_socket_win.cc`, `udp_client_socket.cc`, `socket_descriptor.cc`, `net/quic/quic_session_pool.cc`, or `net/dns/dns_transaction.cc`; its `net/` changes touch SOCKS5, the TLS client socket, the QUIC proof verifier, and the DNS client, host cache, and resolver job. `chromium::v154_udp` therefore serves Brave, checked on 2026-10-02. |
+| Brave 154 | Brave 1.96.59 builds Chromium tag `154.0.8037.58`, and `brave-core` at tag `v1.96.59` has no patch, `chromium_src` override, or rewrite for `net/socket/udp_socket_win.cc`, `udp_client_socket.cc`, `socket_descriptor.cc`, `net/quic/quic_session_pool.cc`, or `net/dns/dns_transaction.cc`; its `net/` changes touch SOCKS5, the TLS client socket, the QUIC proof verifier, and the DNS client, host cache, and resolver job. `chrome::v154_udp` therefore serves Brave, checked on 2026-10-02. |
 | Firefox 157 | No Firefox code sets the option. On 2026-10-02 Searchfox's `firefox-release` tree, at 157.0.1, holds the name `SO_RANDOMIZE_PORT` only in the vendored `windows-sys` and `winapi` crates (`third_party/rust/`). |
 
 The Windows SDK declares `SO_RANDOMIZE_PORT` for Windows Vista and later
@@ -2042,17 +2042,17 @@ Differences from the browsers:
   packet.
 - A TCP connection that carries a DNS query after a truncated UDP response
   is hickory's own and takes no profile TCP options. Chromium's goes through
-  its TCP client socket, with `chromium::v154_tcp`'s options.
+  its TCP client socket, with `chrome::v154_tcp`'s options.
 
 Tests:
 
 | Test | What it proves |
 | --- | --- |
-| `udp::tests::port_randomization` (`phantom-net`) | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chromium::v154_udp` and not without UDP settings; a bound UDP socket rejects it with `WSAEINVAL`; eight successive Chromium-profile sockets, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart; sixteen successive sockets without UDP settings take ascending ports at most 64 apart, all but two pairs, and the test prints how many were one apart |
+| `udp::tests::port_randomization` (`phantom-net`) | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chrome::v154_udp` and not without UDP settings; a bound UDP socket rejects it with `WSAEINVAL`; eight successive Chromium-profile sockets, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart; sixteen successive sockets without UDP settings take ascending ports at most 64 apart, all but two pairs, and the test prints how many were one apart |
 | `udp::tests::paths` (`phantom-net`) | The UDP socket of a direct HTTP/3 connection, with and without a source binding, and of a SOCKS5 UDP association, with local and remote DNS, has the option exactly when the connector has Chromium's UDP settings |
-| `udp::tests::a_socket_takes_port_randomization_only_when_the_settings_ask` (`phantom-net`) | On every platform, a socket has the option only on Windows and only with `chromium::v154_udp`, not with default or absent settings |
+| `udp::tests::a_socket_takes_port_randomization_only_when_the_settings_ask` (`phantom-net`) | On every platform, a socket has the option only on Windows and only with `chrome::v154_udp`, not with default or absent settings |
 | `profile_udp_settings_reach_every_http3_connector` (facade) | A profile's UDP settings reach the HTTP/3 connector and the CONNECT-UDP proxy's HTTP/3 connector the client builds |
-| `dns::address_lookup::tests::query_sockets_randomize_their_port_with_the_profiles_udp_settings`, `dns::tests::https_queries_randomize_their_port_with_the_profiles_udp_settings` (`phantom-net`) | Each A, AAAA, and HTTPS query socket to a loopback DNS server has the option exactly on Windows with `chromium::v154_udp`, not with default or absent settings |
+| `dns::address_lookup::tests::query_sockets_randomize_their_port_with_the_profiles_udp_settings`, `dns::tests::https_queries_randomize_their_port_with_the_profiles_udp_settings` (`phantom-net`) | Each A, AAAA, and HTTPS query socket to a loopback DNS server has the option exactly on Windows with `chrome::v154_udp`, not with default or absent settings |
 | `profile_udp_settings_reach_the_dns_query_sockets` (facade) | A profile's UDP settings reach the client's address resolver and HTTPS record resolver, and a profile without them leaves both unchanged |
 | `chromium_family_udp_sockets_randomize_their_port_before_connecting` (`phantom-profile`) | In every Chromium-family hook log, each UDP socket the browser's network code opened set `SO_RANDOMIZE_PORT` before `connect`, after only the `IPV6_V6ONLY` of an IPv6 socket; the Chrome and Edge logs include QUIC sockets |
 | `firefox_sets_no_port_randomization_on_any_socket` (`phantom-profile`) | No call in the Firefox hook logs sets the option, and every UDP socket in them came from `ws2_32.dll` |
@@ -2070,10 +2070,10 @@ Limits:
 
 ### HTTP/1.1 connection bound evidence
 
-`chromium::v154_http1` and `firefox::v157_http1` allow 6 HTTP/1.1 connections
+`chrome::v154_http1` and `firefox::v157_http1` allow 6 HTTP/1.1 connections
 to one origin and route, as those browsers do at the profiled release tags and
 as Brave 154, Edge 154, and Opera 136 do, and the client opens connections up
-to the profile's bound. `chromium::v154_http1` stops reusing a connection that
+to the profile's bound. `chrome::v154_http1` stops reusing a connection that
 has sat idle 300 s, as Chromium 154 does and as the Chrome 154, Edge 154, and
 Opera 136 hook logs show. Negotiated requests that select HTTP/1.1 use the
 same bound and idle limit, and their TLS handshakes follow the browsers' rule
@@ -2085,7 +2085,7 @@ tag `FIREFOX_157_0_RELEASE`.
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_http1` | The normal socket pool allows six sockets per group, `g_max_sockets_per_group` (`net/socket/client_socket_pool_manager.cc:46-58`). A socket that carried a request is closed once it has sat idle `g_used_idle_socket_timeout_s = 300` seconds (`net/socket/client_socket_pool.cc:42`), checked when `RequestSocket` calls `CleanupIdleSockets` before it looks for a socket (`net/socket/transport_client_socket_pool.cc:242-263`, `:935-955`, `:969-1000`). A group is one scheme, host, and port within the pool of one proxy chain (`net/socket/client_socket_pool.h:130-153`, `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as one origin and route. Idle, connecting, and in-use sockets all occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a request takes the most recently used idle socket before it opens another (`net/socket/transport_client_socket_pool.cc:530-560`). |
+| `chrome::v154_http1` | The normal socket pool allows six sockets per group, `g_max_sockets_per_group` (`net/socket/client_socket_pool_manager.cc:46-58`). A socket that carried a request is closed once it has sat idle `g_used_idle_socket_timeout_s = 300` seconds (`net/socket/client_socket_pool.cc:42`), checked when `RequestSocket` calls `CleanupIdleSockets` before it looks for a socket (`net/socket/transport_client_socket_pool.cc:242-263`, `:935-955`, `:969-1000`). A group is one scheme, host, and port within the pool of one proxy chain (`net/socket/client_socket_pool.h:130-153`, `net/socket/client_socket_pool_manager_impl.h:48`), which Phantom keys as one origin and route. Idle, connecting, and in-use sockets all occupy a slot (`net/socket/transport_client_socket_pool.h:356-363`), and a request takes the most recently used idle socket before it opens another (`net/socket/transport_client_socket_pool.cc:530-560`). |
 | `firefox::v157_http1` | `network.http.max-persistent-connections-per-server` is 6 (`modules/libpref/init/all.js:1150-1153`). Firefox applies it to direct and CONNECT-tunneled connections and counts active connections together with those still connecting (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:1202-1209`, `:1394-1430`; `netwerk/protocol/http/ConnectionEntry.cpp:289-297`). |
 
 Differences from the browsers:
@@ -2100,13 +2100,13 @@ Differences from the browsers:
   where the recipe keeps 6, and lets urgent-start requests exceed the limit
   by 3 (`modules/libpref/init/all.js:1155-1157`).
 - Brave builds the same Chromium tag without changing the bound, and uses
-  `chromium::v154_http1`. It keys each socket group by top-level site as
+  `chrome::v154_http1`. It keys each socket group by top-level site as
   well (`kPartitionConnectionsByNetworkIsolationKey`), so one origin under
   two top-level sites gets two groups; Phantom has one per origin and route
   ([Brave 154 and Opera 136 recipes](#brave-154-and-opera-136-recipes)).
 - Edge's and Opera's network-stack source is not public. Their hook logs,
   and Chrome's, show ten concurrent requests to one origin holding at most
-  six connections, so both use `chromium::v154_http1`
+  six connections, so both use `chrome::v154_http1`
   ([Socket hook evidence](#socket-hook-evidence)).
 - Chromium's cleanup on a request closes the expired idle sockets of every
   group in the proxy chain's pool (`net/socket/transport_client_socket_pool.cc:935-955`).
@@ -2243,9 +2243,9 @@ Limits:
 
 ### Address cache evidence
 
-`chromium::v154_dns_cache` and `firefox::v157_dns_cache` keep as many names,
+`chrome::v154_dns_cache` and `firefox::v157_dns_cache` keep as many names,
 and an answer and a failure for as long, as those browsers do at the profiled
-release tags, and `chromium::v154_dns_cache` as Brave 154, Edge 154, and Opera
+release tags, and `chrome::v154_dns_cache` as Brave 154, Edge 154, and Opera
 136 do: an answer without a record TTL for `ttl`, and an answer with one for
 that TTL or `min_record_ttl`, whichever is longer. With a cache, the client
 makes one lookup per name it resolves itself per answer lifetime, shares one
@@ -2267,7 +2267,7 @@ tag `FIREFOX_157_0_RELEASE`.
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_dns_cache` | Each `URLRequestContext`, one per browser profile, creates its resolver with caching on (`net/url_request/url_request_context_builder.cc:363-382`), and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000` entries in builds with the built-in DNS client (`net/dns/resolve_context.cc:109-121`), which is every Blink build (`net/dns/BUILD.gn:9`). An answer from the system resolver is kept for `kCacheEntryTTLSeconds = 60` and a failure for `kNegativeCacheEntryTTLSeconds = 0` (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`); a failure without a positive TTL is not cached (`net/dns/host_resolver_manager.cc:1284-1291`). An answer from the built-in DNS client takes the smallest TTL of its results (`net/dns/host_cache.cc:279-336`, `:729-740`), each the smallest TTL of its records or of an empty answer's SOA records (`net/dns/dns_response_result_extractor.cc:265-296`, `:330-354`), and is kept for that TTL or `kMinimumTTLSeconds`, which is `kCacheEntryTTLSeconds`, whichever is longer (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`). A built-in lookup that fails, or finds no address, falls back to the system resolver (`net/dns/host_resolver_manager.cc:1415-1421`; `net/dns/host_resolver_manager_job.cc:932-946`), whose answer is then kept 60 s and whose failure is not kept. A full cache evicts the entry that expires soonest, stale entries first (`net/dns/host_cache.cc:886-916`, `:1289-1319`). A request joins the job already running for its key (`net/dns/host_resolver_manager.cc:993-1010`). |
+| `chrome::v154_dns_cache` | Each `URLRequestContext`, one per browser profile, creates its resolver with caching on (`net/url_request/url_request_context_builder.cc:363-382`), and its `ResolveContext` holds a `HostCache` of `kDefaultCacheSize = 1000` entries in builds with the built-in DNS client (`net/dns/resolve_context.cc:109-121`), which is every Blink build (`net/dns/BUILD.gn:9`). An answer from the system resolver is kept for `kCacheEntryTTLSeconds = 60` and a failure for `kNegativeCacheEntryTTLSeconds = 0` (`net/dns/host_resolver_manager_job.cc:54-58`, `:799-815`); a failure without a positive TTL is not cached (`net/dns/host_resolver_manager.cc:1284-1291`). An answer from the built-in DNS client takes the smallest TTL of its results (`net/dns/host_cache.cc:279-336`, `:729-740`), each the smallest TTL of its records or of an empty answer's SOA records (`net/dns/dns_response_result_extractor.cc:265-296`, `:330-354`), and is kept for that TTL or `kMinimumTTLSeconds`, which is `kCacheEntryTTLSeconds`, whichever is longer (`net/dns/host_resolver_manager_job.cc:61`, `:965-966`). A built-in lookup that fails, or finds no address, falls back to the system resolver (`net/dns/host_resolver_manager.cc:1415-1421`; `net/dns/host_resolver_manager_job.cc:932-946`), whose answer is then kept 60 s and whose failure is not kept. A full cache evicts the entry that expires soonest, stale entries first (`net/dns/host_cache.cc:886-916`, `:1289-1319`). A request joins the job already running for its key (`net/dns/host_resolver_manager.cc:993-1010`). |
 | `firefox::v157_dns_cache` | `network.dnsCacheEntries` is 1600 outside nightly builds and `network.dnsCacheExpiration`, the lifetime of an answer without an OS TTL, is 60 seconds (`modules/libpref/init/StaticPrefList.yaml:15647-15661`; `netwerk/dns/nsHostResolver.cpp:1311-1318`). With `network.dns.get-ttl`, on in Windows builds (`:15663-15671`), Firefox looks a resolved name up again and reads the smallest record TTL from the operating system's cache with `DnsQuery_A` (`netwerk/dns/nsHostResolver.cpp:1625-1645`, `netwerk/dns/GetAddrInfo.cpp:150-175`), and that TTL replaces the lifetime without a bound (`netwerk/dns/nsHostResolver.cpp:1314-1315`). A failed lookup is kept for `NEGATIVE_RECORD_LIFETIME`, 60 seconds (`netwerk/dns/nsHostResolver.cpp:66-68`, `:1304-1309`). A request for a name being resolved is appended to that record's callbacks (`netwerk/dns/nsHostResolver.cpp:647-653`). |
 
 Both browsers keep one cache per browser profile. Chromium keys an entry by
@@ -2314,13 +2314,13 @@ Differences from the browsers:
 - Firefox evicts from an LRU queue; Phantom, like Chromium, evicts the entry
   that expires soonest.
 - Brave builds the same Chromium tag without changing these values, and
-  uses `chromium::v154_dns_cache`. With
+  uses `chrome::v154_dns_cache`. With
   `kPartitionConnectionsByNetworkIsolationKey` on, its cache key carries the
   top-level site, so Brave resolves a name again under another site
   ([Brave 154 and Opera 136 recipes](#brave-154-and-opera-136-recipes)).
 - Edge's and Opera's network-stack source is not public. Their hook logs,
   and Chrome's, show system-resolver lookups of one name 60 to 70 s apart
-  for fetches 10 s apart, so both use `chromium::v154_dns_cache`. With the
+  for fetches 10 s apart, so both use `chrome::v154_dns_cache`. With the
   built-in DNS client on, all three sent one query in 120 s, keeping the
   record's TTL ([Socket hook evidence](#socket-hook-evidence)).
 
@@ -2401,7 +2401,7 @@ resolver fixed so no test opens a probe socket or needs the network:
 | `an_empty_family_counts_its_soa_ttl` | A NODATA answer's SOA record TTL, not its MINIMUM field, lowers the answer's TTL |
 | `localhost_names_resolve_to_loopback_without_a_query`, `single_label_and_local_names_go_to_the_system_resolver`, `the_hosts_file_answers_without_a_query` | The local steps, with no query |
 | `a_failed_or_empty_lookup_falls_back_to_the_system_resolver`, `sixteen_fallbacks_in_a_row_stop_the_dns_queries` | The fallback, and the stop after 16 fallbacks |
-| `the_address_cache_keeps_a_dns_answer_for_its_record_ttl`, `the_address_cache_raises_a_short_record_ttl_to_the_minimum` | Through the cache: a 1-second record TTL keeps the answer 1 s although `ttl` keeps nothing, and `chromium::v154_dns_cache` keeps a 0-second record TTL 60 s |
+| `the_address_cache_keeps_a_dns_answer_for_its_record_ttl`, `the_address_cache_raises_a_short_record_ttl_to_the_minimum` | Through the cache: a 1-second record TTL keeps the answer 1 s although `ttl` keeps nothing, and `chrome::v154_dns_cache` keeps a 0-second record TTL 60 s |
 
 Differences from the browser:
 
@@ -2448,8 +2448,8 @@ Limits:
 
 On Windows 11, Edge 154.0.4258.48 and Opera 136.0.6008.52 set the TCP and UDP
 options, race addresses, bound HTTP/1.1 connections to one origin, and keep
-system-resolver answers as `chromium::v154_tcp`, `chromium::v154_udp`,
-`chromium::v154_http1`, and `chromium::v154_dns_cache` do, and as Chrome
+system-resolver answers as `chrome::v154_tcp`, `chrome::v154_udp`,
+`chrome::v154_http1`, and `chrome::v154_dns_cache` do, and as Chrome
 154.0.8037.58 does. Edge and Opera profiles therefore use those recipes.
 
 Hook logs, a class of evidence distinct from wire captures. A wire capture
@@ -2475,13 +2475,13 @@ them. The calls came from `chrome.dll`, `msedge.dll`, and
 
 | Behavior | Chrome 154 | Edge 154 | Opera 136 | Recipe |
 | --- | --- | --- | --- | --- |
-| Options on every TCP socket to the origin, before `connect` (`single` and `parallel`: 13 sockets per browser) | `TCP_NODELAY` 1; `SIO_KEEPALIVE_VALS` on, 45,000 ms, 45,000 ms; `SO_RANDOMIZE_PORT` 1; to loopback, `SIO_TCP_INITIAL_RTO` with no SYN retransmissions | The same | The same without `SIO_TCP_INITIAL_RTO` | `chromium::v154_tcp`: `TCP_NODELAY`, keepalive 45 s and 45 s, then `SO_RANDOMIZE_PORT` from build 22621; no initial RTO |
-| Most connections open to one origin for 10 concurrent slow requests (`parallel`) | 6 | 6 | 6 | `chromium::v154_http1`: 6 |
+| Options on every TCP socket to the origin, before `connect` (`single` and `parallel`: 13 sockets per browser) | `TCP_NODELAY` 1; `SIO_KEEPALIVE_VALS` on, 45,000 ms, 45,000 ms; `SO_RANDOMIZE_PORT` 1; to loopback, `SIO_TCP_INITIAL_RTO` with no SYN retransmissions | The same | The same without `SIO_TCP_INITIAL_RTO` | `chrome::v154_tcp`: `TCP_NODELAY`, keepalive 45 s and 45 s, then `SO_RANDOMIZE_PORT` from build 22621; no initial RTO |
+| Most connections open to one origin for 10 concurrent slow requests (`parallel`) | 6 | 6 | 6 | `chrome::v154_http1`: 6 |
 | IPv4 attempt after a pending `[::1]` attempt to `localhost` (`happy-eyeballs-slow`, two connect jobs) | 304 and 312 ms | 300 and 302 ms | 302 and 315 ms | 300 ms fallback delay |
 | IPv4 attempt after a refused `[::1]` attempt (`happy-eyeballs`) | 3 ms, after the failure | 3 ms, after the failure | 301 and 301 ms: the refusal takes Windows' SYN retransmissions | The other family after a failure; 300 ms otherwise |
-| System-resolver lookups of `127.0.0.1.nip.io` for fetches 10 s apart for 120 s (`lookups-system`) | At 0, 60, and 120 s | At 0, 60, and 120 s | At 0, 60, and 120 s | `chromium::v154_dns_cache`: an answer kept 60 s |
-| Lookups with the default built-in DNS client (`lookups`) | One HTTPS and then one A query at 0 s, each from its own socket; no AAAA query | The same | The same | `chromium::v154_dns_cache`: an answer kept for its record TTL, at least 60 s, when the resolver reports one, which only `AddressResolver::system_nameservers` does |
-| A used connection idle 290 s, then 310 s (`idle`) | Reused, then closed by the next request, which opened another | The same | The same | `chromium::v154_http1`: reused under 300 s idle, replaced at 300 s or more |
+| System-resolver lookups of `127.0.0.1.nip.io` for fetches 10 s apart for 120 s (`lookups-system`) | At 0, 60, and 120 s | At 0, 60, and 120 s | At 0, 60, and 120 s | `chrome::v154_dns_cache`: an answer kept 60 s |
+| Lookups with the default built-in DNS client (`lookups`) | One HTTPS and then one A query at 0 s, each from its own socket; no AAAA query | The same | The same | `chrome::v154_dns_cache`: an answer kept for its record TTL, at least 60 s, when the resolver reports one, which only `AddressResolver::system_nameservers` does |
+| A used connection idle 290 s, then 310 s (`idle`) | Reused, then closed by the next request, which opened another | The same | The same | `chrome::v154_http1`: reused under 300 s idle, replaced at 300 s or more |
 
 Each system-resolver lookup was two `getaddrinfo` calls from the browser
 module within a few milliseconds. The calls those make inside `ws2_32.dll` and
@@ -2530,7 +2530,7 @@ Differences from the browsers:
 
 - Phantom does not set `SIO_TCP_INITIAL_RTO`, which changes only connects
   to loopback peers.
-- `chromium::v154_tcp` sets `SO_RANDOMIZE_PORT` through `phantom-net`'s
+- `chrome::v154_tcp` sets `SO_RANDOMIZE_PORT` through `phantom-net`'s
   Windows FFI module, as the last option before the socket is bound or
   connects ([Design](design.md#windows-port-randomization-audit)). With it,
   Windows picks each connection's local port at random instead of in
@@ -2542,7 +2542,7 @@ Differences from the browsers:
   attempt that Windows rejects the option for.
 - The logs show `SO_RANDOMIZE_PORT` on every UDP socket the browsers'
   network code opened, before `connect`: DNS sockets, the IPv6 reachability
-  probe, and, for Chrome and Edge, QUIC sockets. `chromium::v154_udp` sets
+  probe, and, for Chrome and Edge, QUIC sockets. `chrome::v154_udp` sets
   it on Phantom's QUIC sockets
   ([UDP socket option evidence](#udp-socket-option-evidence)).
 - The browsers resolve with their built-in DNS client by default and keep an
@@ -2551,7 +2551,7 @@ Differences from the browsers:
   that path, unless the caller passes `AddressResolver::system_nameservers`
   ([Chromium's built-in DNS client](#chromiums-built-in-dns-client)).
 
-Tests in `crates/phantom-profile/src/chromium/hook_tests.rs` read the
+Tests in `crates/phantom-profile/src/browser/chrome/hook_tests.rs` read the
 retained logs of all three browsers:
 
 | Test | What it checks |
@@ -2562,7 +2562,7 @@ retained logs of all three browsers:
 | `chromium_154_tries_ipv4_right_after_a_failed_ipv6_attempt` | Chrome and Edge try IPv4 within 150 ms of a refused `[::1]` attempt |
 | `chromium_family_system_resolver_keeps_an_answer_for_the_cache_ttl` | Successive system-resolver lookups are at least the recipe's 60 s and less than 70 s apart |
 | `chromium_family_built_in_resolver_keeps_an_answer_for_its_record_ttl` | The built-in client sent one HTTPS query and, at most 1 ms later, one A query in 120 s, and no AAAA query; the recipe's `min_record_ttl` is its 60 s `ttl` |
-| `chromium_family_udp_sockets_randomize_their_port_before_connecting` | Every UDP socket the browser's network code opened set `SO_RANDOMIZE_PORT` before `connect`, after only the `IPV6_V6ONLY` of an IPv6 socket, as `chromium::v154_udp` asks; the Chrome and Edge logs include QUIC sockets |
+| `chromium_family_udp_sockets_randomize_their_port_before_connecting` | Every UDP socket the browser's network code opened set `SO_RANDOMIZE_PORT` before `connect`, after only the `IPV6_V6ONLY` of an IPv6 socket, as `chrome::v154_udp` asks; the Chrome and Edge logs include QUIC sockets |
 | `chromium_family_replaces_a_connection_idle_past_300_s_on_the_next_request` | The connection idle 290 s carried the next request; the one idle 310 s, past the recipe's `idle_timeout`, closed as the replacement opened |
 
 Reproduce: run `socket_hooks.py --scenario all` once per browser with the
@@ -2681,7 +2681,7 @@ Differences from the browser:
 - Firefox keeps an answer for its record TTL on Windows; see
   [Address cache evidence](#address-cache-evidence).
 
-Tests in `crates/phantom-profile/src/firefox/hook_tests.rs` read the
+Tests in `crates/phantom-profile/src/browser/firefox/hook_tests.rs` read the
 retained logs:
 
 | Test | What it checks |
@@ -3034,7 +3034,7 @@ Differences from Chromium:
 - Phantom bounds restarts by the profile's hints: each restart adds at least
   one hint the request keeps for the rest of its hop, so a request restarts
   at most once per hint the profile sends on request, 8 with
-  `chromium::v154_windows_client_hints`. Chromium's limit of 20 is never
+  `chrome::v154_windows_client_hints`. Chromium's limit of 20 is never
   reached.
 - A restarted Chromium navigation runs its whole loader again. Phantom
   restarts within the attempt it was in: the same exact protocol, or the
@@ -3230,7 +3230,7 @@ run, 7 of the 15 crumbs name the oldest dynamic `cookie` entry, as Firefox
 names a literal with the highest-numbered entry that has its name.
 [HPACK encoder evidence](#hpack-encoder-evidence) compares every block of
 all three runs byte for byte. Brave and Opera replay against
-`chromium::v154_http2` and `chromium::v154_cookie_placement`, as Edge does.
+`chrome::v154_http2` and `chrome::v154_cookie_placement`, as Edge does.
 
 The Brave and Opera HTTP/1.1 captures are compared with Phantom's requests,
 not replayed: `brave_and_opera_templates_place_the_jar_cookie_as_captured` in
@@ -3288,7 +3288,7 @@ Phantom's profile WebSocket connection policy and recipes open a WebSocket the
 way Chrome 154, Edge 154, and Firefox 157 do, apart from the
 [differences](../reference/websocket.md#differences-from-the-captures) the
 WebSocket reference lists. The Brave 154 and Opera 136 openings match
-`chromium::v154_websocket` too. [Brave 154 and Opera 136
+`chrome::v154_websocket` too. [Brave 154 and Opera 136
 recipes](#brave-154-and-opera-136-recipes) records them.
 
 `fixtures/websocket/` retains WebSocket openings from headless Chrome
@@ -3389,7 +3389,7 @@ Reproduce: `scripts/capture/http2_websocket.py --browser <browser> --scenario
 all --repeat 3`. The Chrome 153 comparison is under [Comparison with Chrome
 153](#comparison-with-chrome-153).
 
-`WebSocketProxiedSession::Reuse` in `chromium::v154_websocket` and
+`WebSocketProxiedSession::Reuse` in `chrome::v154_websocket` and
 `firefox::v157_websocket` rests on browser source, not on a capture: no
 retained capture opens a `wss://` WebSocket through a proxy. Chromium, at
 tag `154.0.8037.58`:
@@ -3453,7 +3453,7 @@ Limits:
 
 ### WebSocket handshake timer evidence
 
-`chromium::v154_websocket` limits one WebSocket opening to 240 seconds and
+`chrome::v154_websocket` limits one WebSocket opening to 240 seconds and
 `firefox::v157_websocket` to 20 seconds, as those browsers' own handshake
 timers do. `WebSocketRequestBuilder::handshake_timeout` applies that limit to
 the whole opening and fails with `WebSocketErrorKind::Timeout`.
@@ -3466,7 +3466,7 @@ source at Chromium tag `154.0.8037.58` and Firefox tag
 
 | Recipe | Source behavior |
 | --- | --- |
-| `chromium::v154_websocket` | `kHandshakeTimeoutIntervalInSeconds` is 240, set equal to the TCP connect timeout so that a page cannot tell which step timed out (`net/websockets/websocket_stream.cc:60-64`). `WebSocketStreamRequestImpl::Start` starts the one-shot timer before the opening request starts (`:248-255`), `PerformUpgrade` stops it once the handshake stream is upgraded (`:258-262`), and `OnTimeout` cancels the request with `ERR_TIMED_OUT` (`:338-340`). A failure is reported to the page (`:303-332`); nothing opens the WebSocket again. |
+| `chrome::v154_websocket` | `kHandshakeTimeoutIntervalInSeconds` is 240, set equal to the TCP connect timeout so that a page cannot tell which step timed out (`net/websockets/websocket_stream.cc:60-64`). `WebSocketStreamRequestImpl::Start` starts the one-shot timer before the opening request starts (`:248-255`), `PerformUpgrade` stops it once the handshake stream is upgraded (`:258-262`), and `OnTimeout` cancels the request with `ERR_TIMED_OUT` (`:338-340`). A failure is reported to the page (`:303-332`); nothing opens the WebSocket again. |
 | `firefox::v157_websocket` | `mOpenTimeout` starts at 20,000 ms (`netwerk/protocol/websocket/WebSocketChannel.cpp:1200`) and is read from `network.websocket.timeout.open`, clamped to 1 to 1,800 seconds (`:3511-3514`), whose default is 20 (`modules/libpref/init/all.js:1317`). `BeginOpenInternal` starts the timer after it opens the HTTP channel (`WebSocketChannel.cpp:1403-1420`), `CallStartWebsocketData` cancels it when the handshake completes (`:2974-2982`), and when it fires the connection is aborted with `NS_ERROR_NET_TIMEOUT_EXTERNAL` (`:3342-3351`). |
 
 Differences from the browsers:
@@ -3480,7 +3480,7 @@ Differences from the browsers:
   (`WebSocketChannel.cpp:103-117`). Phantom has no such delay across
   connects; a `WebSocketRetryPolicy` delay is the caller's fixed value.
 - Edge's network-stack source is not public. The Edge, Brave, and Opera
-  WebSocket openings match `chromium::v154_websocket`
+  WebSocket openings match `chrome::v154_websocket`
   ([WebSocket browser evidence](#websocket-browser-evidence)); their timer is
   assumed to be Chromium's.
 
@@ -3525,7 +3525,7 @@ Limits:
 
 ### HPACK encoder evidence
 
-Over HTTP/2, `chromium::v154_http2` and `firefox::v157_http2` encode request
+Over HTTP/2, `chrome::v154_http2` and `firefox::v157_http2` encode request
 fields as Chrome 154 and Firefox 157 do, down to the byte of every HEADERS
 block: which fields enter the dynamic table, which entry names a literal,
 which strings are Huffman-coded, and when a dynamic-table size update starts a
@@ -3640,7 +3640,7 @@ Limits:
 
 ### HTTP/2 stream numbering evidence
 
-On every HTTP/2 connection, `chromium::v154_http2` sends the first request on
+On every HTTP/2 connection, `chrome::v154_http2` sends the first request on
 stream 1 and `firefox::v157_http2` on stream 3, and each later request takes
 the next odd stream, as Chrome 154 and Firefox 157 do. Until the peer states
 `SETTINGS_MAX_CONCURRENT_STREAMS`, both recipes open at most 100 streams at
@@ -3731,12 +3731,12 @@ Limits:
 ### HTTP/2 preface PING evidence
 
 On an HTTP/2 connection that has read nothing from the peer for more than 10
-seconds, `chromium::v154_http2` sends a PING right after the next request
+seconds, `chrome::v154_http2` sends a PING right after the next request
 HEADERS, or after the next DATA frame with a non-empty payload, as Chrome 154
 does. The first PING on a connection carries the 64-bit big-endian value 1 and
 each later one the next value. No other is sent while one awaits its ACK, and
 the ACK, like any frame read, restarts the idle time. Every Chromium-family
-recipe shares `chromium::v154_http2`, so each sends the PING.
+recipe shares `chrome::v154_http2`, so each sends the PING.
 `firefox::v157_http2` sends none.
 
 When the PING goes unanswered and nothing is read from the peer, the Chromium
@@ -4057,7 +4057,7 @@ the origin reads that `GOAWAY` on an exact and on a negotiated HTTP/2
 connection at least 1 second and less than 4 seconds after the request, and
 the next request opens a second connection. A connection whose response
 body stays open past the limit sends the next request on a new connection
-and its `GOAWAY` only after the body ends. Under `chromium::v154_http2`, a
+and its `GOAWAY` only after the body ends. Under `chrome::v154_http2`, a
 connection idle 3 seconds carries the next request. The prune timer's
 arithmetic is checked in `session::http2_pool::tests` and
 `session::prune_timer::tests` with Tokio's paused clock.
@@ -4093,7 +4093,7 @@ Limits:
 `TlsSettings::close_notify` decides whether Phantom sends a TLS `close_notify`
 alert before the TCP FIN when it shuts a connection down. The Chromium-family
 recipes leave it unset and send only the FIN, as Chrome 154 did on every close
-captured. `firefox::v157_tls` sets it, as Firefox 157 did when it aborted a
+captured. `firefox::v157_tcp_tls` sets it, as Firefox 157 did when it aborted a
 response and at exit. It applies wherever Phantom shuts a TLS connection down,
 such as an HTTP/2 connection that ends after a `GOAWAY` or a PING timeout.
 
@@ -4122,7 +4122,7 @@ the same socket class. Their recipes rest on that source.
 
 `tls::tests::shutdown_sends_close_notify_only_when_the_profile_does`, in
 `crates/phantom-net/src/tls/tests.rs`, shuts down a connection made with
-`chromium::v154_tls` and one made with `firefox::v157_tls` and reads the raw
+`chrome::v154_tcp_tls` and one made with `firefox::v157_tcp_tls` and reads the raw
 bytes each sent after the handshake: nothing before the FIN for Chromium,
 and for Firefox exactly one 24-byte encrypted record holding the alert.
 `http2::tls::tests::ping_close::chromium_ping_timeout_close_sends_nothing_after_goaway`,
@@ -4147,13 +4147,13 @@ Limits:
 - No Android browser's close was captured. The Chrome, Edge, Brave, and
   Opera for Android recipes, which leave the setting unset, rest on
   `SSLClientSocketImpl::Disconnect` in Chromium source;
-  `firefox_android::v156_tls`, which sets it, rests on desktop Firefox 157
+  `firefox::v156_android_tcp_tls`, which sets it, rests on desktop Firefox 157
   and NSS's `ssl_SecureClose`.
 
 ### Revalidation and upload evidence
 
-`chromium::v154_windows_fetch_template`,
-`chromium::v154_macos_fetch_template`, `firefox::v157_windows_fetch_template`,
+`chrome::v154_windows_fetch_template`,
+`chrome::v154_macos_fetch_template`, `firefox::v157_windows_fetch_template`,
 and `firefox::v157_macos_fetch_template` place a caller's `If-None-Match` and
 `If-Modified-Since` where Chrome 154 and Firefox 157 send them when their
 cache revalidates a response, and the browsers' cookie placements put `Cookie`
@@ -4469,8 +4469,8 @@ Chrome connects to an alternative at another host or port
 157 sends the field (`HTTP_ATOM(Alternate_Service_Used, "Alt-Used")` in
 `netwerk/protocol/http/nsHttpAtomList.inc`), and the retained Firefox H3
 snapshots and cookie captures show it, so the Firefox recipe sets `Append`.
-`crates/phantom-profile/src/chromium/http3_tests.rs` and
-`crates/phantom-profile/src/firefox/tests.rs` check both recipes against
+`crates/phantom-profile/src/browser/chrome/http3_tests.rs` and
+`crates/phantom-profile/src/browser/firefox/tests.rs` check both recipes against
 those captures.
 
 Under `Append`, the managed H3 attempt carries one automatically generated
@@ -4687,7 +4687,7 @@ show the same outer server name and extension fields, the Chrome extension
 set without trust-anchor IDs, and, after a rejection, one connection with
 retry configuration 2 that the origin accepted.
 `outer_client_hello_has_the_shape_brave_154_sent` replays the accept capture
-with `brave::v154_tls`, as described below.
+with `brave::v154_tcp_tls`, as described below.
 
 Opera 136.0.6008.52 behaves the same way. Opera overrides Chromium's two
 `Local State` preferences with its own, so `chrome_ech.py --browser opera`
@@ -4700,7 +4700,7 @@ show the same outer server name and extension fields as Chrome's, with Opera's
 trust-anchor IDs, and, after each of two rejections, one connection with retry
 configuration 2 that the origin accepted.
 `outer_client_hello_has_the_shape_opera_136_sent` replays the accept capture
-with `opera::v136_tls`, and
+with `opera::v136_tcp_tls`, and
 `opera_136_rejection_is_retried_as_opera_retried_it` replays the reject
 capture: the rejected connection and its retry have Opera's outer name,
 extension fields, acceptance, and inner name. One run of each scenario was
@@ -4819,7 +4819,7 @@ submodule commit `f1f2556a`, states the rules the recipe follows:
   returned to the caller.
 
 Phantom implements this as `TlsSettings::ech_from_https_records`, set in
-`chromium::v154_tls` and kept by `edge::v154_tls`. Edge's network stack
+`chrome::v154_tcp_tls` and kept by `edge::v154_tcp_tls`. Edge's network stack
 source is not public, so for Edge these rules rest on the captures, which
 show the same outer fields and retry, and not on its source. The wait is computed from Phantom's own address
 resolution time, since its addresses come from the operating system. It
@@ -4958,7 +4958,7 @@ of each is retained.
   three QUIC connections offering config ID 1, each closed with `0x179`,
   then the page over TCP after one rejection and one retry with config ID 2.
   `quic_outer_client_hello_has_the_shape_opera_136_sent` replays the accept
-  capture with `opera::v136_http3_tls`, and
+  capture with `opera::v136_quic_tls`, and
   `opera_136_quic_rejection_is_not_retried_as_opera_did_not_retry_it` the
   reject capture: the connection has Opera's outer fields, closes with
   `0x179`, and no second QUIC connection arrives.
@@ -5026,8 +5026,8 @@ pins, `80bf9559`, states the rules the recipe follows:
   and retries, until the record expires.
 
 Phantom implements this through the same `TlsSettings::ech_from_https_records`
-field, set in `chromium::v154_http3_tls` and kept by `edge::v154_http3_tls`
-and `brave::v154_http3_tls`. `opera::v136_http3_tls` clears it. The connector
+field, set in `chrome::v154_quic_tls` and kept by `edge::v154_quic_tls`
+and `brave::v154_quic_tls`. `opera::v136_quic_tls` clears it. The connector
 checks the list, waits for the lookup as a TCP connection does, and offers ECH
 through `QuicClientConfig::with_ech`. A rejection is an HTTP/3 setup failure
 like any other: a sequential client fails the request and marks the
@@ -5065,7 +5065,7 @@ Limits:
   the record expires. Marking the alternative broken does not stop an exact
   request.
 - Setting `ech_from_https_records = false` on the value
-  `chromium::v154_http3_tls` returns sends GREASE on HTTP/3 and avoids both
+  `chrome::v154_quic_tls` returns sends GREASE on HTTP/3 and avoids both
   failures.
 
 ### QUIC resumption and 0-RTT evidence
@@ -5221,9 +5221,9 @@ quiche `80bf9559d3a4c08dde4b85abc46d190a88ffef64`. Paths below are under
 Replay against Phantom:
 
 - `chromium_resumption_captures_match_the_quic_recipe`, in
-  `crates/phantom-profile/src/chromium/quic_tests.rs`, reads every Chrome and
+  `crates/phantom-profile/src/browser/chrome/quic_tests.rs`, reads every Chrome and
   Edge connection in the six fixtures. Each resumed one offered early data and
-  carried the `chromium::v154_quic` parameter set plus `initial_rtt_us`; no
+  carried the `chrome::v154_quic` parameter set plus `initial_rtt_us`; no
   fresh one carried `initial_rtt_us`. Where the fixture keeps raw ClientHello
   bytes (the first run of each scenario), `initial_rtt_us` has a two-byte id,
   a one-byte length, and a minimal-length varint value equal to the recorded
@@ -5362,11 +5362,11 @@ Replay against Phantom:
   that carried a request also wrote stream 10 and sometimes stream 6, and an
   idle one wrote nothing else. Their stream types are not recorded.
 - `chromium_captures_open_qpack_streams_in_the_recipe_order`, in
-  `crates/phantom-profile/src/chromium/http3_tests.rs`, reads the four
+  `crates/phantom-profile/src/browser/chrome/http3_tests.rs`, reads the four
   `resumption-streams-*` fixtures and the three Opera 136 `resumption-*`
   fixtures, which record stream types too, checks the stream order and types
   above in all 132 connections,
-  and checks that `chromium::v154_http3` opens the decoder stream first
+  and checks that `chrome::v154_http3` opens the decoder stream first
   (`Http3QpackStreamOrder::DecoderFirst`) and defers both QPACK stream types.
   `chrome_request_matches_captured_qpack_on_a_live_connection`, in
   `crates/phantom-net/src/http3/tests/request.rs`, sends the recipe's request
@@ -5519,7 +5519,7 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   `pre_shared_key` to Phantom's fresh one.
 - `firefox_resumed_client_hello_matches_the_capture_without_early_data`
   learns a 64-byte ticket, as long as the capture server's, from a loopback
-  rustls server, and compares the resumed `firefox::v157_tls` ClientHello
+  rustls server, and compares the resumed `firefox::v157_tcp_tls` ClientHello
   with every resumed ClientHello of `resumption-no-early-data.txt` byte for
   byte apart from the random, the session ID, key-share keys, the ECH GREASE
   AEAD, configuration ID, encapsulated key, and payload bytes, and the PSK
@@ -5542,12 +5542,12 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   offers `early_data`.
 - `concurrent_connections_resume_up_to_the_recipes_tickets_per_origin`
   learns two tickets, resumes once (which stores two more), then opens three
-  connections at once. With `chromium::v154_tls` two resume and one makes a
+  connections at once. With `chrome::v154_tcp_tls` two resume and one makes a
   full handshake, because only the two newest tickets remain; with
-  `firefox::v157_tls` all three resume.
+  `firefox::v157_tcp_tls` all three resume.
 - In `crates/phantom-net/src/tls/tests/session_cache.rs`, loopback servers
   with separate ticket keys issue tickets that resume only against their
-  own server, so a resumption shows which ticket a `firefox::v157_tls`
+  own server, so a resumption shows which ticket a `firefox::v157_tcp_tls`
   connector took.
   `the_firefox_order_takes_the_earliest_connections_tickets_first` stores
   two tickets from server A, then connects to server B, which rejects the
@@ -5561,19 +5561,19 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   `a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first`
   shows the Chromium order.
   `the_android_firefox_order_takes_tickets_in_the_order_they_were_stored`
-  stores the same interleaved tickets with `firefox_android::v156_tls` and
+  stores the same interleaved tickets with `firefox::v156_android_tcp_tls` and
   takes them in the order they were stored, and
   `a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next`
   shows a full origin evicting the first ticket stored.
   `the_firefox_recipe_keeps_ten_tickets_per_origin` stores eleven tickets
-  over ten connections with `firefox::v157_tls` and keeps ten.
+  over ten connections with `firefox::v157_tcp_tls` and keeps ten.
 
 The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
 (2 for the Chromium family, 10 for Firefox), the order as
 `TlsSettings::session_ticket_order`, the `session_ticket` choice as
 `TlsSettings::session_ticket_extension_when_resuming`, and early data as
-`TlsSettings::tcp_early_data`, set by `firefox::v157_tls` and, from source,
-by `firefox_android::v156_tls`
+`TlsSettings::tcp_early_data`, set by `firefox::v157_tcp_tls` and, from source,
+by `firefox::v156_android_tcp_tls`
 ([Firefox for Android](#firefox-for-android-156-recipe)).
 
 The Firefox order follows Firefox 157's source at tag
@@ -5613,13 +5613,13 @@ often they tie depends on the platform's `PR_Now`:
   one goes first: 58 of the 66 Windows connections above. One `issue-once`
   run offered tickets 4, 3, 2, 1, 0, 7, 6, 5: the order this rule gives
   when tickets 0 to 4 and 5 to 7 were processed in two milliseconds.
-  `firefox::v157_tls` follows this build with `OldestConnectionFirst`.
+  `firefox::v157_tcp_tls` follows this build with `OldestConnectionFirst`.
 - On Unix, which covers macOS, Linux, and Android, `PR_Now` reads
   `gettimeofday`, which counts microseconds
   (`nsprpub/pr/src/md/unix/unix.c:2917-2930`, and the `GETTIMEOFDAY` macro,
   `nsprpub/pr/include/md/_unixos.h:494-496`). This makes ties less likely.
   The earliest ticket went first in 3 of the 3 macOS connections above.
-  `firefox_android::v156_tls` uses `OldestFirst` for this rule, and a macOS
+  `firefox::v156_android_tcp_tls` uses `OldestFirst` for this rule, and a macOS
   Firefox profile would use it too. No Android capture resumed a session,
   so the Android order rests on this source reading alone.
 
@@ -5824,7 +5824,7 @@ Limits:
 
 ### Firefox ECH GREASE payload evidence
 
-`firefox::v157_tls` and `firefox::v157_http3_tls` size the ECH GREASE payload
+`firefox::v157_tcp_tls` and `firefox::v157_quic_tls` size the ECH GREASE payload
 as Firefox 157 does, from the ClientHello that carries it, so a fresh
 ClientHello to a host name carries 240 payload bytes, one that resumes with
 the capture servers' tickets 368, and one to an IP literal the length Firefox
@@ -6187,7 +6187,7 @@ Against the route matrix:
   in `crates/phantom/tests/streams/websocket_profile.rs` sends the Chromium and
   Firefox recipes' openings through a loopback CONNECT proxy and compares the
   field order with the `http-proxy-loopback` captures.
-- CONNECT fields: a profile with `chromium::v154_proxy_connect` or
+- CONNECT fields: a profile with `chrome::v154_proxy_connect` or
   `firefox::v157_proxy_connect` sends the captured CONNECT fields in the
   captured order on both proxy transports, with the `User-Agent` of the
   request or opening that opens the tunnel. Without the recipe, or when the
@@ -6219,7 +6219,7 @@ Against the route matrix:
   the Upgrade inside it, as every captured browser does.
 - Connection sharing on an H2 proxy: each client keeps pooled proxy
   connections, and `ProxyConnectTemplate::http2_connections` decides which
-  requests share one. `chromium::v154_proxy_connect` uses `Shared`, which
+  requests share one. `chrome::v154_proxy_connect` uses `Shared`, which
   puts forwarded requests, CONNECT tunnels, and WebSocket tunnels on one
   connection, as Chrome, Edge, Brave, and Opera do;
   `firefox::v157_proxy_connect` uses `ByPurpose`, which gives each of the

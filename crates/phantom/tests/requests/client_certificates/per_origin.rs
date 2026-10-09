@@ -21,7 +21,7 @@ use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, BuildErrorKind, Client, ClientBuilder,
     ConnectUdpProxy, HttpProtocol, HttpProxy, RedirectPolicy, RequestError, ResponseInfo, Route,
     Socks5Proxy,
-    profile::{ClientProfile, SignatureScheme, TlsVersion, chromium},
+    profile::{ClientProfile, SignatureScheme, TlsVersion, browser::chrome},
 };
 use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384};
 use tokio::{
@@ -273,7 +273,7 @@ fn alternative_client(
     alternative_port: u16,
 ) -> TestResult<ClientBuilder> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3_settings());
     Ok(Client::builder(profile)
         .add_root_certificate_der(server.root_der.clone())
@@ -492,7 +492,7 @@ async fn a_wss_opening_over_http2_presents_the_origin_s_certificate() -> TestRes
         listener,
         requiring(&server, H2_ALPN, &[&mapped.authority_der])?,
     ));
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,
@@ -602,7 +602,7 @@ async fn a_connect_udp_tunnel_carries_the_mapped_certificate_to_the_origin_only(
         &mapped.authority_der,
     )?;
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(masque_client_settings());
     let client = Client::builder(profile)
         .add_root_certificate_der(origin.root_der.clone())

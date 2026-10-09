@@ -15,7 +15,7 @@ use std::env;
 
 use phantom::{
     Client, HttpProtocol, PreparedRequestTemplate, RequestHeader,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use url::Url;
 
@@ -34,13 +34,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None => page_url.clone(),
     };
 
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
     // Prepare each template once and reuse it for every request.
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
-    let fetch = PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
+    let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
 
     let page = client
         .get(HttpProtocol::Http2, page_url.as_str())?

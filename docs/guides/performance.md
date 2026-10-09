@@ -32,13 +32,13 @@ Let one server carry more parallel requests over HTTP/1.1 and HTTP/2.
 ```rust
 use std::num::NonZeroUsize;
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::Client;
 
 fn parallel_client() -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http1(chromium::v154_http1())
-        .with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http1(chrome::v154_http1())
+        .with_http2(chrome::v154_http2());
     let bound = |value| NonZeroUsize::new(value).ok_or("zero bound");
     Ok(Client::builder(profile)
         // Chrome opens at most 6 H1 connections per origin.
@@ -61,11 +61,11 @@ each one carries.
 ```rust
 use std::num::NonZeroUsize;
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::Client;
 
 fn multi_connection_client() -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     let bound = |value| NonZeroUsize::new(value).ok_or("zero bound");
     Ok(Client::builder(profile)
         // Up to 4 connections of 100 streams each, if the server allows 100.
@@ -89,11 +89,11 @@ as Chromium does:
 ```rust
 use std::time::Duration;
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::Client;
 
 fn bounded_wait_client() -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     Ok(Client::builder(profile)
         // Chromium 154's value; Firefox 157 waits without a limit.
         .negotiated_setup_wait_limit(Duration::from_millis(300))
@@ -114,18 +114,18 @@ Phantom's default of 4 seconds.
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
-use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
+use phantom::profile::{ClientProfile, Http3ClientSettings, browser::chrome};
 use phantom::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, Client};
 
 fn racing_client() -> Result<Client, Box<dyn std::error::Error>> {
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     let race = AltSvcRace::new(Duration::from_millis(300), AltSvcBrokenBackoff::CHROMIUM_153)
         .with_alternative_setup_limit(Duration::from_secs(1));
@@ -155,13 +155,13 @@ Let one HTTP/2 connection receive more data before the server has to wait,
 with a custom profile.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 
 fn wide_window_profile() -> ClientProfile {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     // Chrome 154 opens a 15 MiB connection window.
     http2.initial_connection_window_size = 64 << 20;
-    ClientProfile::new(chromium::v154_tls()).with_http2(http2)
+    ClientProfile::new(chrome::v154_tcp_tls()).with_http2(http2)
 }
 ```
 

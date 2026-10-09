@@ -16,7 +16,10 @@ use std::{
 use phantom::{
     Client, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestHeader, Route, Socks5Proxy, WebSocket,
     WebSocketCloseFrame, WebSocketErrorKind, WebSocketMessage,
-    profile::{ClientProfile, Http2PseudoHeader, chromium, firefox},
+    profile::{
+        ClientProfile, Http2PseudoHeader,
+        browser::{chrome, firefox},
+    },
 };
 use phantom_net::proxy::HttpConnectError;
 use tokio::{net::TcpListener, sync::oneshot, time::timeout};
@@ -593,10 +596,7 @@ fn assert_challenged_then_authorized(records: &[tunnel_proxy::Http2ConnectRecord
 /// `:authority`.
 #[tokio::test]
 async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestResult<()> {
-    for connect in [
-        chromium::v154_proxy_connect(),
-        firefox::v157_proxy_connect(),
-    ] {
+    for connect in [chrome::v154_proxy_connect(), firefox::v157_proxy_connect()] {
         bounded(async {
             let (origin_address, origin_listener) = bind().await?;
             let origin = tokio::spawn(websocket_origin::serve_plaintext_h1_echo(origin_listener));
@@ -611,7 +611,7 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
                 HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
             );
             let profile = ClientProfile::new(tls_settings())
-                .with_http2(chromium::v154_http2())
+                .with_http2(chrome::v154_http2())
                 .with_proxy_connect(connect.clone());
             let client = Client::builder(profile)
                 .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
@@ -658,7 +658,7 @@ fn h2_websocket_client(
     proxy_root: Option<Vec<u8>>,
     route: Route,
 ) -> TestResult<Client> {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,

@@ -1,8 +1,12 @@
 //! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
 use phantom_profile::{
-    TlsSettings, TrustAnchorIds, brave, brave_android, chrome_android, chromium::v154_tls, edge,
-    edge_android, opera, opera_android,
+    TlsSettings, TrustAnchorIds,
+    browser::{
+        brave,
+        chrome::{self, v154_tcp_tls},
+        edge, opera,
+    },
 };
 use phantom_testkit::tls::{ClientHelloCapture, ClientHelloSummary, is_grease};
 
@@ -64,7 +68,7 @@ const TRUST_ANCHORS_EXTENSION: u16 = 0xca34;
 
 #[tokio::test]
 async fn chrome_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(CHROME_154_FIXTURE, &v154_tls(), Some(28)).await
+    assert_recipe_matches_fixture(CHROME_154_FIXTURE, &v154_tcp_tls(), Some(28)).await
 }
 
 /// Chrome 154 sorts its trust-anchor list before encoding it, so every
@@ -95,7 +99,9 @@ async fn chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order() -> TestResu
     sorted.sort_unstable();
     assert_eq!(expected, sorted, "the captured order is not ascending");
 
-    let actual = capture_client_hello_from(&v154_tls()).await?.summary()?;
+    let actual = capture_client_hello_from(&v154_tcp_tls())
+        .await?
+        .summary()?;
     let actual = actual
         .requested_trust_anchor_ids()
         .ok_or("Chrome 154 recipe omitted trust-anchor IDs")?
@@ -110,7 +116,7 @@ async fn chrome_154_tls_recipe_emits_the_sorted_trust_anchor_order() -> TestResu
 async fn chrome_android_154_tls_recipe_matches_android_capture() -> TestResult<()> {
     assert_recipe_matches_fixture(
         CHROME_ANDROID_154_FIXTURE,
-        &chrome_android::v154_tls(),
+        &chrome::v154_android_tcp_tls(),
         Some(28),
     )
     .await
@@ -121,7 +127,7 @@ async fn chrome_android_154_tls_recipe_matches_android_capture() -> TestResult<(
 #[tokio::test]
 async fn edge_android_153_tls_recipe_matches_every_android_capture() -> TestResult<()> {
     for fixture in EDGE_ANDROID_153_FIXTURES {
-        assert_recipe_matches_fixture(fixture, &edge_android::v153_tls(), None).await?;
+        assert_recipe_matches_fixture(fixture, &edge::v153_android_tcp_tls(), None).await?;
     }
     Ok(())
 }
@@ -129,26 +135,36 @@ async fn edge_android_153_tls_recipe_matches_every_android_capture() -> TestResu
 /// Brave for Android sends the desktop Brave ClientHello: no trust-anchor IDs.
 #[tokio::test]
 async fn brave_android_153_tls_recipe_matches_android_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(BRAVE_ANDROID_153_FIXTURE, &brave_android::v153_tls(), None).await
+    assert_recipe_matches_fixture(
+        BRAVE_ANDROID_153_FIXTURE,
+        &brave::v153_android_tcp_tls(),
+        None,
+    )
+    .await
 }
 
 /// Opera for Android sends Chrome's ClientHello without trust-anchor IDs,
 /// signature-algorithm GREASE included; its captures reached `localhost`.
 #[tokio::test]
 async fn opera_android_102_tls_recipe_matches_android_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(OPERA_ANDROID_102_FIXTURE, &opera_android::v102_tls(), None).await
+    assert_recipe_matches_fixture(
+        OPERA_ANDROID_102_FIXTURE,
+        &opera::v102_android_tcp_tls(),
+        None,
+    )
+    .await
 }
 
 /// Edge 154 sends the Chromium ClientHello without trust-anchor IDs.
 #[tokio::test]
 async fn edge_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(EDGE_154_FIXTURE, &edge::v154_tls(), None).await
+    assert_recipe_matches_fixture(EDGE_154_FIXTURE, &edge::v154_tcp_tls(), None).await
 }
 
 /// Brave 154 sends the Chrome 154 ClientHello without trust-anchor IDs.
 #[tokio::test]
 async fn brave_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(BRAVE_154_FIXTURE, &brave::v154_tls(), None).await
+    assert_recipe_matches_fixture(BRAVE_154_FIXTURE, &brave::v154_tcp_tls(), None).await
 }
 
 /// Opera 136 sends the Chrome 154 ClientHello with Chromium 152's 32
@@ -157,7 +173,7 @@ async fn brave_154_tls_recipe_matches_windows_capture() -> TestResult<()> {
 /// emits.
 #[tokio::test]
 async fn opera_136_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    let settings = opera::v136_tls();
+    let settings = opera::v136_tcp_tls();
     assert_recipe_matches_fixture(OPERA_136_FIXTURE, &settings, Some(32)).await?;
     let orders = recipe_trust_anchor_orders(&settings)?;
     let expected = client_hello_fixture::capture(OPERA_136_FIXTURE)
@@ -183,7 +199,7 @@ async fn opera_136_tls_recipe_matches_windows_capture() -> TestResult<()> {
 /// connections, and separate connectors draw different ones.
 #[tokio::test]
 async fn opera_136_tcp_trust_anchor_order_is_drawn_once_per_connector() -> TestResult<()> {
-    let settings = opera::v136_tls();
+    let settings = opera::v136_tcp_tls();
     let orders = recipe_trust_anchor_orders(&settings)?;
     let mut drawn = Vec::new();
     for _ in 0..12 {
@@ -217,7 +233,7 @@ async fn opera_136_tcp_trust_anchor_order_is_drawn_once_per_connector() -> TestR
 /// connections do not all send the same one.
 #[tokio::test]
 async fn per_connection_trust_anchor_order_is_drawn_for_each_tcp_connection() -> TestResult<()> {
-    let mut settings = opera::v136_tls();
+    let mut settings = opera::v136_tcp_tls();
     let listed = settings
         .requested_trust_anchor_ids
         .take()
@@ -261,14 +277,14 @@ fn recipe_trust_anchor_orders(settings: &TlsSettings) -> TestResult<Vec<Vec<Vec<
 async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> TestResult<()> {
     const AES_128_GCM: [u8; 5] = [0x00, 0x00, 0x01, 0x00, 0x01];
     for settings in [
-        v154_tls(),
-        edge::v154_tls(),
-        brave::v154_tls(),
-        opera::v136_tls(),
-        chrome_android::v154_tls(),
-        edge_android::v153_tls(),
-        brave_android::v153_tls(),
-        opera_android::v102_tls(),
+        v154_tcp_tls(),
+        edge::v154_tcp_tls(),
+        brave::v154_tcp_tls(),
+        opera::v136_tcp_tls(),
+        chrome::v154_android_tcp_tls(),
+        edge::v153_android_tcp_tls(),
+        brave::v153_android_tcp_tls(),
+        opera::v102_android_tcp_tls(),
     ] {
         assert!(settings.ech_grease_aeads.is_empty());
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {
@@ -376,7 +392,7 @@ async fn assert_recipe_matches_fixture(
 
 #[tokio::test]
 async fn omitted_trust_anchor_ids_omit_the_extension() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.requested_trust_anchor_ids = None;
 
     let summary = capture_client_hello_from(&settings).await?.summary()?;

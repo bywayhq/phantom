@@ -15,7 +15,9 @@ use std::future::poll_fn;
 
 use bytes::{Buf, Bytes, BytesMut};
 use http::{Response, StatusCode};
-use phantom::profile::{Http3ClientSettings, Http3PseudoHeader, Http3RequestSettings, chromium};
+use phantom::profile::{
+    Http3ClientSettings, Http3PseudoHeader, Http3RequestSettings, browser::chrome,
+};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -381,7 +383,7 @@ pub(crate) fn masque_client_settings() -> Http3ClientSettings {
 }
 
 pub(crate) fn extended_request_settings() -> Http3RequestSettings {
-    let mut settings = chromium::v154_http3_request();
+    let mut settings = chrome::v154_http3_request();
     settings.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,

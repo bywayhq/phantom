@@ -2,8 +2,11 @@ use std::{net::SocketAddr, pin::Pin};
 
 use btls::ssl::{ScopedSslSession, Ssl, SslAcceptor, SslVersion};
 use phantom_profile::{
-    TlsSettings, TlsVersion, chromium::v154_tls, firefox::v157_tls,
-    firefox_android::v156_tls as v156_android_tls,
+    TlsSettings, TlsVersion,
+    browser::{
+        chrome::v154_tcp_tls,
+        firefox::{v156_android_tcp_tls as v156_android_tls, v157_tcp_tls},
+    },
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -29,7 +32,7 @@ type ServerResult = Result<Vec<bool>, Box<dyn std::error::Error + Send + Sync>>;
 #[tokio::test]
 async fn a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.session_tickets_per_origin = 2;
     let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?
         .with_isolated_session_cache();
@@ -106,7 +109,7 @@ async fn a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first() -> 
 #[tokio::test]
 async fn the_firefox_order_takes_the_earliest_connections_tickets_first() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let (connector, cache) = isolated_connector(&identity, &v157_tls())?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tcp_tls())?;
     let (server_a, a) = ticket_server(&identity, 2).await?;
     let (server_b, b) = ticket_server(&identity, 3).await?;
 
@@ -143,7 +146,7 @@ async fn the_firefox_order_takes_the_earliest_connections_tickets_first() -> Tes
 #[tokio::test]
 async fn the_firefox_order_keeps_interleaved_connections_apart() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let (connector, cache) = isolated_connector(&identity, &v157_tls())?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tcp_tls())?;
     let mut servers = Vec::new();
     let mut tickets = Vec::new();
     for _ in 0..3 {
@@ -186,7 +189,7 @@ async fn the_firefox_order_keeps_interleaved_connections_apart() -> TestResult<(
 #[tokio::test]
 async fn a_full_origin_evicts_the_ticket_the_firefox_order_takes_next() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let mut settings = v157_tls();
+    let mut settings = v157_tcp_tls();
     settings.session_tickets_per_origin = 3;
     let (connector, cache) = isolated_connector(&identity, &settings)?;
     let mut servers = Vec::new();
@@ -321,7 +324,7 @@ async fn a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next() 
 #[tokio::test]
 async fn the_firefox_recipe_keeps_ten_tickets_per_origin() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
-    let (connector, cache) = isolated_connector(&identity, &v157_tls())?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tcp_tls())?;
     let (address, server) = ticket_server(&identity, 10).await?;
     drop(connect_and_read(&connector, address, false).await?);
     for _ in 1..10 {
@@ -609,7 +612,7 @@ fn client_certificate() -> TestResult<ClientCertificate> {
 }
 
 fn tls12_settings() -> TlsSettings {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();

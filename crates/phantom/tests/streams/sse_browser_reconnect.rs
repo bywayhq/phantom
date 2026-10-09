@@ -323,10 +323,10 @@ async fn terminal_reconnect_responses_end_both_browsers_and_phantom() -> TestRes
 #[cfg(feature = "cookies")]
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn cookie_placement_presets_reproduce_each_browser_reconnect() -> TestResult<()> {
-    use phantom::profile::{chromium, firefox};
+    use phantom::profile::browser::{chrome, firefox};
 
     for (browser, placement, expected_index, field_count) in [
-        (Browser::Chrome, chromium::v154_cookie_placement(), 15, 16),
+        (Browser::Chrome, chrome::v154_cookie_placement(), 15, 16),
         (Browser::Firefox, firefox::v157_cookie_placement(), 7, 14),
     ] {
         let fixture = Fixture::load(browser, "set-cookie-then-close")?;

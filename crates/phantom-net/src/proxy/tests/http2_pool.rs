@@ -14,7 +14,7 @@ use std::{
 };
 
 use btls::ssl::SslAcceptor;
-use phantom_profile::{chromium::v154_http2, firefox::v157_http2};
+use phantom_profile::browser::{chrome::v154_http2, firefox::v157_http2};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,

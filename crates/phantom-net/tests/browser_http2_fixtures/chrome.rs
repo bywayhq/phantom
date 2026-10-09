@@ -1,4 +1,8 @@
-use phantom_profile::{brave_android, chrome_android, chromium::v154_http2, edge_android};
+use phantom_profile::browser::{
+    brave,
+    chrome::{self, v154_http2},
+    edge,
+};
 
 use super::{
     TestResult, assert_public_startup_matches_fixture, assert_raw_startup, fixture::Fixture,
@@ -110,9 +114,9 @@ async fn chrome_android_154_http2_recipe_matches_android_capture() -> TestResult
     assert_eq!(fixture.browser, "Google Chrome");
     assert_eq!(fixture.browser_version, "154.0.8037.57");
     assert_eq!(fixture.launch_mode, "android-intent");
-    assert_eq!(chrome_android::v154_http2(), v154_http2());
+    assert_eq!(chrome::v154_android_http2(), v154_http2());
     assert_raw_startup(&fixture).await?;
-    assert_public_startup_matches_fixture(&fixture, chrome_android::v154_http2()).await
+    assert_public_startup_matches_fixture(&fixture, chrome::v154_android_http2()).await
 }
 
 /// Edge 153 for Android starts HTTP/2 with the desktop Chromium frames, so
@@ -123,9 +127,9 @@ async fn edge_android_153_http2_recipe_matches_android_capture() -> TestResult<(
     assert_eq!(fixture.browser, "Microsoft Edge");
     assert_eq!(fixture.browser_version, "153.0.4234.49");
     assert_eq!(fixture.launch_mode, "android-intent");
-    assert_eq!(edge_android::v153_http2(), v154_http2());
+    assert_eq!(edge::v153_android_http2(), v154_http2());
     assert_raw_startup(&fixture).await?;
-    assert_public_startup_matches_fixture(&fixture, edge_android::v153_http2()).await
+    assert_public_startup_matches_fixture(&fixture, edge::v153_android_http2()).await
 }
 
 /// Brave for Android starts HTTP/2 with the desktop Chromium frames.
@@ -139,5 +143,5 @@ async fn brave_android_153_http2_recipe_matches_android_capture() -> TestResult<
     assert_eq!(fixture.browser_version, "153.1.95.104");
     assert_eq!(fixture.launch_mode, "android-intent");
     assert_raw_startup(&fixture).await?;
-    assert_public_startup_matches_fixture(&fixture, brave_android::v153_http2()).await
+    assert_public_startup_matches_fixture(&fixture, brave::v153_android_http2()).await
 }

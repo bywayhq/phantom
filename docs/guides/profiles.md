@@ -19,13 +19,14 @@ Combine one browser's recipes into a profile.
 
 ```rust
 use phantom::profile::{
-    brave, chrome_android, chromium, edge, firefox, opera, ClientProfile, Http3ClientSettings,
+    ClientProfile, Http3ClientSettings,
+    browser::{brave, chrome, edge, firefox, opera},
 };
 
 fn profiles() -> [ClientProfile; 5] {
     // Firefox 157: its TLS, TCP, HTTP/1.1 and HTTP/2 settings, and where
     // it puts the cookie header.
-    let firefox = ClientProfile::new(firefox::v157_tls())
+    let firefox = ClientProfile::new(firefox::v157_tcp_tls())
         .with_tcp(firefox::v157_tcp())
         .with_http1(firefox::v157_http1())
         .with_http2(firefox::v157_http2())
@@ -33,69 +34,70 @@ fn profiles() -> [ClientProfile; 5] {
 
     // Edge 154: its own TLS and client hints, plus Chromium's other
     // settings.
-    let edge = ClientProfile::new(edge::v154_tls())
-        .with_tcp(chromium::v154_tcp())
-        .with_udp(chromium::v154_udp())
-        .with_http1(chromium::v154_http1())
-        .with_dns_cache(chromium::v154_dns_cache())
-        .with_http2(chromium::v154_http2())
+    let edge = ClientProfile::new(edge::v154_tcp_tls())
+        .with_tcp(chrome::v154_tcp())
+        .with_udp(chrome::v154_udp())
+        .with_http1(chrome::v154_http1())
+        .with_dns_cache(chrome::v154_dns_cache())
+        .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            edge::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            edge::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         ))
         .with_client_hints(edge::v154_windows_client_hints());
 
     // Brave 154 and Opera 136 follow the same pattern, with their own TLS
     // and client hints.
-    let brave = ClientProfile::new(brave::v154_tls())
-        .with_tcp(chromium::v154_tcp())
-        .with_udp(chromium::v154_udp())
-        .with_http1(chromium::v154_http1())
-        .with_dns_cache(chromium::v154_dns_cache())
-        .with_http2(chromium::v154_http2())
+    let brave = ClientProfile::new(brave::v154_tcp_tls())
+        .with_tcp(chrome::v154_tcp())
+        .with_udp(chrome::v154_udp())
+        .with_http1(chrome::v154_http1())
+        .with_dns_cache(chrome::v154_dns_cache())
+        .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            brave::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            brave::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         ))
         .with_client_hints(brave::v154_windows_client_hints())
-        .with_cookie_placement(chromium::v154_cookie_placement());
-    let opera = ClientProfile::new(opera::v136_tls())
-        .with_tcp(chromium::v154_tcp())
-        .with_udp(chromium::v154_udp())
-        .with_http1(chromium::v154_http1())
-        .with_dns_cache(chromium::v154_dns_cache())
-        .with_http2(chromium::v154_http2())
+        .with_cookie_placement(chrome::v154_cookie_placement());
+    let opera = ClientProfile::new(opera::v136_tcp_tls())
+        .with_tcp(chrome::v154_tcp())
+        .with_udp(chrome::v154_udp())
+        .with_http1(chrome::v154_http1())
+        .with_dns_cache(chrome::v154_dns_cache())
+        .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            opera::v136_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            opera::v136_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         ))
         .with_client_hints(opera::v136_windows_client_hints())
-        .with_cookie_placement(chromium::v154_cookie_placement());
+        .with_cookie_placement(chrome::v154_cookie_placement());
 
     // Chrome 154 for Android, with Android client hints.
-    let android = ClientProfile::new(chrome_android::v154_tls())
-        .with_http2(chrome_android::v154_http2())
+    let android = ClientProfile::new(chrome::v154_android_tcp_tls())
+        .with_http2(chrome::v154_android_http2())
         .with_http3(Http3ClientSettings::new(
-            chrome_android::v154_http3_tls(),
-            chrome_android::v154_quic(),
-            chrome_android::v154_http3(),
-            chrome_android::v154_http3_request(),
+            chrome::v154_android_quic_tls(),
+            chrome::v154_android_quic(),
+            chrome::v154_android_http3(),
+            chrome::v154_android_http3_request(),
         ))
         // A Pixel 7. `v154_android_client_hints_for_model` sends another model.
-        .with_client_hints(chrome_android::v154_android_client_hints());
+        .with_client_hints(chrome::v154_android_client_hints());
 
     [firefox, edge, brave, opera, android]
 }
 ```
 
-Each browser has one version, in a desktop module such as `chromium` and an
-Android module such as `chrome_android`. Not every module has every recipe.
+Each brand has one module under `phantom::profile::browser`, such as
+`chrome`. Android recipe names include `_android_`. Not every version has
+every recipe.
 The [recipe table](../reference/profiles.md#built-in-recipes) lists them.
 
 A request fails if the profile lacks a part it needs. An HTTP/3 request,
@@ -116,18 +118,18 @@ Start from a recipe, change its public fields, and build the profile from
 the result.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile, CookiePlacement, TcpKeepalivePolicy};
+use phantom::profile::{ClientProfile, CookiePlacement, TcpKeepalivePolicy, browser::chrome};
 
 fn chrome_on_macos() -> ClientProfile {
     // Chromium on macOS sets only the keepalive idle time.
-    let mut tcp = chromium::v154_tcp();
+    let mut tcp = chrome::v154_tcp();
     if let TcpKeepalivePolicy::Fixed(keepalive) = &mut tcp.keepalive {
         keepalive.interval = None;
     }
 
-    ClientProfile::new(chromium::v154_tls())
+    ClientProfile::new(chrome::v154_tcp_tls())
         .with_tcp(tcp)
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_cookie_placement(CookiePlacement::before_fields(["priority"]))
 }
 ```

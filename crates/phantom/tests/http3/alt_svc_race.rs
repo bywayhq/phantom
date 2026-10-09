@@ -27,7 +27,7 @@ use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry, Client,
     HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader, RequestTimeouts,
     ResponseInfo, Route, Socks5Proxy, TimeoutPhase,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use tokio::{net::TcpListener, task::JoinHandle, time::timeout};
 
@@ -1276,7 +1276,7 @@ async fn race_refuses_an_unplaceable_requested_hint_before_either_candidate_conn
         let alternative = Blackhole::bind().await?;
         let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
         let client =
-            Client::builder(profile().with_client_hints(chromium::v154_windows_client_hints()))
+            Client::builder(profile().with_client_hints(chrome::v154_windows_client_hints()))
                 .alt_svc(maximum_origins)
                 .alt_svc_policy(race_policy(Duration::ZERO)?)
                 .build()?;
@@ -1289,7 +1289,7 @@ async fn race_refuses_an_unplaceable_requested_hint_before_either_candidate_conn
 
         // The template has a list for every protocol the race may use but no
         // captured position for a requested hint.
-        let mut template = chromium::v154_windows_navigation_template();
+        let mut template = chrome::v154_windows_navigation_template();
         template.requested_client_hint_placement = false;
         let error = client
             .get_negotiated(&format!("https://{ORIGIN_NAME}:{origin_port}/refused"))?
@@ -1361,7 +1361,7 @@ fn profile() -> ClientProfile {
 
 fn profile_with(http3: Http3ClientSettings) -> ClientProfile {
     ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3)
 }
 

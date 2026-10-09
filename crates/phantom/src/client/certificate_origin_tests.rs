@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use phantom_net::ClientCertificate;
-use phantom_profile::{ClientProfile, Http3ClientSettings, chromium};
+use phantom_profile::{ClientProfile, Http3ClientSettings, browser::chrome};
 
 use super::{Client, certificate_origin};
 use crate::{
@@ -23,13 +23,13 @@ fn certificate() -> TestResult<ClientCertificate> {
 }
 
 fn profile() -> ClientProfile {
-    ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
+    ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
-            chromium::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         ))
 }
 

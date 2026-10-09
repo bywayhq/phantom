@@ -17,7 +17,10 @@ use std::{
 use http::Version;
 use phantom::{
     Client, ClientBuilder, HttpProxy, Route, Socks5Proxy,
-    profile::{ClientProfile, WebSocketProxiedSession, chromium, firefox},
+    profile::{
+        ClientProfile, WebSocketProxiedSession,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::{net::TcpListener, task::JoinHandle};
 
@@ -592,9 +595,9 @@ impl Recipe {
         let profile = ClientProfile::new(tls_settings());
         match self {
             Self::Chromium => profile
-                .with_http2(chromium::v154_http2())
-                .with_websocket(chromium::v154_websocket())
-                .with_proxy_connect(chromium::v154_proxy_connect()),
+                .with_http2(chrome::v154_http2())
+                .with_websocket(chrome::v154_websocket())
+                .with_proxy_connect(chrome::v154_proxy_connect()),
             Self::Firefox => profile
                 .with_http2(firefox::v157_http2())
                 .with_websocket(firefox::v157_websocket())
@@ -612,8 +615,8 @@ impl Recipe {
         let (capture, http2, websocket) = match self {
             Self::Chromium => (
                 CHROME_ACCEPT,
-                chromium::v154_http2(),
-                chromium::v154_websocket(),
+                chrome::v154_http2(),
+                chrome::v154_websocket(),
             ),
             Self::Firefox => (
                 FIREFOX_ACCEPT,

@@ -10,7 +10,10 @@
 use std::net::Ipv4Addr;
 
 use http::Method;
-use phantom_profile::{Http2Priority, Http2Settings, Http2StreamSettings, chromium, firefox};
+use phantom_profile::{
+    Http2Priority, Http2Settings, Http2StreamSettings,
+    browser::{chrome, firefox},
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -32,7 +35,7 @@ const MAX_CONCURRENT_STREAMS: u16 = 0x3;
 /// numbered from 1.
 #[tokio::test]
 async fn chromium_recipe_opens_100_streams_from_1_before_settings() -> TestResult<()> {
-    bounded_peer_test(expect_assumed_limit(chromium::v154_http2(), 1, 100)).await
+    bounded_peer_test(expect_assumed_limit(chrome::v154_http2(), 1, 100)).await
 }
 
 /// Firefox 157 opens at most 100 streams before the peer states a limit,
@@ -46,7 +49,7 @@ async fn firefox_recipe_opens_100_streams_from_3_before_settings() -> TestResult
 /// last waits.
 #[tokio::test]
 async fn chromium_recipe_caps_a_stated_limit_of_1000_at_256() -> TestResult<()> {
-    bounded_peer_test(expect_stated_limit(chromium::v154_http2(), 1, 256)).await
+    bounded_peer_test(expect_stated_limit(chrome::v154_http2(), 1, 256)).await
 }
 
 /// Firefox 157 applies a stated limit of 1,000 as it is: 257 requests open.
@@ -59,7 +62,7 @@ async fn firefox_recipe_applies_a_stated_limit_of_1000() -> TestResult<()> {
 #[tokio::test]
 async fn settings_without_an_assumed_limit_open_every_request_at_once() -> TestResult<()> {
     bounded_peer_test(async {
-        let mut settings = chromium::v154_http2();
+        let mut settings = chrome::v154_http2();
         settings.streams = Http2StreamSettings::default();
         let (mut peer, _connection, mut requests) = start(&settings, 101).await?;
         for index in 0..101 {

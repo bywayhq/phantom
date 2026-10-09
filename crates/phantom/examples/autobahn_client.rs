@@ -4,7 +4,7 @@ use std::{env, error::Error, io, path::PathBuf, time::Duration};
 
 use phantom::{
     Client, PerMessageDeflate, WebSocket, WebSocketMessage, WebSocketRequestBuilder,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use url::Url;
 
@@ -25,7 +25,7 @@ struct Config {
 async fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse(env::args().skip(1))?;
     let root = std::fs::read(&config.ca_der)?;
-    let profile = ClientProfile::new(chromium::v154_tls());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls());
     let client = Client::builder(profile)
         .add_root_certificate_der(root)
         .build()?;

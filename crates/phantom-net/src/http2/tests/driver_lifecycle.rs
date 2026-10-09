@@ -5,7 +5,7 @@ use std::{
 };
 
 use http_body::Body as _;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 use tokio::{io::duplex, runtime::Builder, time::timeout};
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 

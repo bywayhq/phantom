@@ -3,7 +3,7 @@ use std::{future::poll_fn, time::Duration};
 use bytes::Bytes;
 use http::Response;
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 use tokio::{io::duplex, sync::oneshot, time::timeout};
 
 use super::{TestResult, bounded_peer_test, next_nonempty_data, target};

@@ -1,6 +1,6 @@
 use std::{io, net::SocketAddr};
 
-use phantom_profile::{CipherSuite, TlsSettings, TlsVersion, chromium::v154_tls};
+use phantom_profile::{CipherSuite, TlsSettings, TlsVersion, browser::chrome::v154_tcp_tls};
 use phantom_testkit::tls::{CaptureLimits, ClientHelloCapture, capture_client_hello};
 use tokio::{
     io::{AsyncReadExt as _, AsyncWriteExt as _},
@@ -53,7 +53,7 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
         .map_err(io::Error::other)
     });
 
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.max_version = TlsVersion::Tls12;
     settings.alps = None;
     settings.key_shares.clear();
@@ -185,7 +185,7 @@ async fn capture_client_hellos_from(
 
 #[test]
 fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.alpn_protocols = vec![Box::default()];
 
     let error = match TlsConnector::new(&settings) {
@@ -201,7 +201,7 @@ fn invalid_settings_fail_before_stream_io() -> TestResult<()> {
 fn connector_debug_reports_alps_metadata_without_payload() -> TestResult<()> {
     const OPAQUE_ALPS_PAYLOAD: &[u8] = b"opaque-alps-marker-7f3c";
 
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings
         .alps
         .as_mut()
@@ -227,7 +227,7 @@ fn connector_debug_reports_alps_metadata_without_payload() -> TestResult<()> {
 async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(&v154_tls(), [identity.root_der()])?;
+    let connector = TlsConnector::new_with_roots(&v154_tcp_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), Some(&b"h2"[..]));
@@ -250,7 +250,7 @@ async fn trusted_chain_succeeds_and_reports_alpn_and_sni() -> TestResult<()> {
 async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, false).await?;
-    let connector = TlsConnector::new_with_roots(&v154_tls(), [identity.root_der()])?;
+    let connector = TlsConnector::new_with_roots(&v154_tcp_tls(), [identity.root_der()])?;
 
     let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
     assert_eq!(stream.negotiated_alpn(), None);
@@ -263,7 +263,7 @@ async fn successful_handshake_without_alpn_reports_none() -> TestResult<()> {
 async fn wrong_hostname_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(&v154_tls(), [identity.root_der()])?
+    let connector = TlsConnector::new_with_roots(&v154_tcp_tls(), [identity.root_der()])?
         .with_isolated_session_cache();
 
     let result = connect_local(&connector, address, "wrong.phantom.test").await?;
@@ -285,7 +285,7 @@ async fn wrong_hostname_fails() -> TestResult<()> {
 async fn untrusted_root_fails() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, server_task) = start_server(&identity, true).await?;
-    let connector = TlsConnector::new_with_roots(&v154_tls(), std::iter::empty())?;
+    let connector = TlsConnector::new_with_roots(&v154_tcp_tls(), std::iter::empty())?;
 
     let result = connect_local(&connector, address, TEST_SERVER_NAME).await?;
     assert_eq!(
@@ -307,8 +307,8 @@ async fn shutdown_sends_close_notify_only_when_the_profile_does() -> TestResult<
     // then the 2-byte alert, its 1-byte inner content type, and a 16-byte tag.
     const ALERT_RECORD_HEADER: [u8; 5] = [0x17, 0x03, 0x03, 0x00, 0x13];
     const ALERT_RECORD_LENGTH: usize = 5 + 2 + 1 + 16;
-    let firefox = phantom_profile::firefox::v157_tls();
-    for (settings, sends_alert) in [(v154_tls(), false), (firefox, true)] {
+    let firefox = phantom_profile::browser::firefox::v157_tcp_tls();
+    for (settings, sends_alert) in [(v154_tcp_tls(), false), (firefox, true)] {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::H2)?;
         let (address, listener) = loopback_listener().await?;

@@ -13,7 +13,7 @@ use btls::ssl::{
 };
 use bytes::Bytes;
 use http_body_util::BodyExt;
-use phantom_profile::{NamedGroup, TlsVersion, chromium::v154_http2};
+use phantom_profile::{NamedGroup, TlsVersion, browser::chrome::v154_http2};
 
 use super::{
     H2_ALPN_WIRE, Http2TlsConnector, TEST_AUTHORITY, TEST_SERVER_NAME, TestIdentity, TestResult,

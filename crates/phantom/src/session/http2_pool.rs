@@ -969,7 +969,7 @@ mod tests {
         let (client, _server) = tokio::io::duplex(64 * 1024);
         let connection = phantom_net::http2::Http2Connection::connect(
             client,
-            &phantom_profile::chromium::v154_http2(),
+            &phantom_profile::browser::chrome::v154_http2(),
         )
         .await?;
         drop(reservation.finish(connection));
@@ -996,7 +996,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         use std::time::Duration;
 
-        use phantom_profile::{Http2IdleTimeout, firefox};
+        use phantom_profile::{Http2IdleTimeout, browser::firefox};
         use tokio::time::{Instant, advance};
 
         use super::super::prune_timer::PruneTimer;

@@ -7,6 +7,8 @@
 //! headless, so their `User-Agent` names `HeadlessChrome`; the comparison
 //! uses the headful `Chrome` product.
 
+#[path = "request_templates/default_profile.rs"]
+mod default_profile;
 #[path = "request_templates/fixture.rs"]
 mod fixture;
 use crate::support::h3 as h3_support;
@@ -29,8 +31,8 @@ use phantom::{
     HttpProxy, PreparedRequestTemplate, RedirectPolicy, RequestErrorKind, RequestHeader,
     ResponseInfo, Route, Socks5Proxy,
     profile::{
-        ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate, brave,
-        brave_android, chrome_android, chromium, edge, edge_android, firefox, opera,
+        ClientHintSettings, ClientProfile, CookiePlacement, Http2Settings, RequestTemplate,
+        browser::{brave, chrome, edge, firefox, opera},
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
@@ -94,8 +96,8 @@ struct Browser {
 
 fn chrome() -> Browser {
     Browser {
-        http2: chromium::v154_http2(),
-        hints: Some(chromium::v154_windows_client_hints()),
+        http2: chrome::v154_http2(),
+        hints: Some(chrome::v154_windows_client_hints()),
         http1_capture: CHROME_H1,
         http2_capture: CHROME_H2,
         http3_capture: Some(CHROME_H3),
@@ -104,7 +106,7 @@ fn chrome() -> Browser {
 
 fn edge() -> Browser {
     Browser {
-        http2: chromium::v154_http2(),
+        http2: chrome::v154_http2(),
         hints: Some(edge::v154_windows_client_hints()),
         http1_capture: EDGE_H1,
         http2_capture: EDGE_H2,
@@ -114,7 +116,7 @@ fn edge() -> Browser {
 
 fn brave() -> Browser {
     Browser {
-        http2: chromium::v154_http2(),
+        http2: chrome::v154_http2(),
         hints: Some(brave::v154_windows_client_hints()),
         http1_capture: BRAVE_H1,
         http2_capture: BRAVE_H2,
@@ -124,7 +126,7 @@ fn brave() -> Browser {
 
 fn opera() -> Browser {
     Browser {
-        http2: chromium::v154_http2(),
+        http2: chrome::v154_http2(),
         hints: Some(opera::v136_windows_client_hints()),
         http1_capture: OPERA_H1,
         http2_capture: OPERA_H2,
@@ -134,8 +136,8 @@ fn opera() -> Browser {
 
 fn brave_android() -> Browser {
     Browser {
-        http2: brave_android::v153_http2(),
-        hints: Some(brave_android::v153_android_client_hints()),
+        http2: brave::v153_android_http2(),
+        hints: Some(brave::v153_android_client_hints()),
         http1_capture: BRAVE_ANDROID_H1,
         http2_capture: BRAVE_ANDROID_H2,
         http3_capture: Some(BRAVE_ANDROID_H3),
@@ -144,8 +146,8 @@ fn brave_android() -> Browser {
 
 fn chrome_android() -> Browser {
     Browser {
-        http2: chrome_android::v154_http2(),
-        hints: Some(chrome_android::v154_android_client_hints()),
+        http2: chrome::v154_android_http2(),
+        hints: Some(chrome::v154_android_client_hints()),
         http1_capture: CHROME_ANDROID_H1,
         http2_capture: CHROME_ANDROID_H2,
         // The Android 17 H3 startups were opened by intent, without the
@@ -156,8 +158,8 @@ fn chrome_android() -> Browser {
 
 fn edge_android() -> Browser {
     Browser {
-        http2: edge_android::v153_http2(),
-        hints: Some(edge_android::v153_android_client_hints()),
+        http2: edge::v153_android_http2(),
+        hints: Some(edge::v153_android_client_hints()),
         http1_capture: EDGE_ANDROID_H1,
         http2_capture: EDGE_ANDROID_H2,
         http3_capture: None,
@@ -459,7 +461,7 @@ const TCP: &[HttpProtocol] = &[HttpProtocol::Http1, HttpProtocol::Http2];
 async fn chrome_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         chrome(),
-        chromium::v154_windows_navigation_template,
+        chrome::v154_windows_navigation_template,
         Kind::Navigation,
         ALL,
     )
@@ -503,7 +505,7 @@ async fn opera_navigation_sends_the_captured_page_request() -> TestResult<()> {
 async fn brave_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         brave_android(),
-        brave_android::v153_android_navigation_template,
+        brave::v153_android_navigation_template,
         Kind::Navigation,
         ALL,
     )
@@ -514,7 +516,7 @@ async fn brave_android_navigation_sends_the_captured_page_request() -> TestResul
 async fn brave_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         brave_android(),
-        brave_android::v153_android_fetch_no_store_template,
+        brave::v153_android_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -525,7 +527,7 @@ async fn brave_android_fetch_sends_the_captured_report_request() -> TestResult<(
 async fn chrome_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         chrome_android(),
-        chrome_android::v154_android_navigation_template,
+        chrome::v154_android_navigation_template,
         Kind::Navigation,
         TCP,
     )
@@ -536,7 +538,7 @@ async fn chrome_android_navigation_sends_the_captured_page_request() -> TestResu
 async fn edge_android_navigation_sends_the_captured_page_request() -> TestResult<()> {
     assert_reproduces(
         edge_android(),
-        edge_android::v153_android_navigation_template,
+        edge::v153_android_navigation_template,
         Kind::Navigation,
         TCP,
     )
@@ -558,7 +560,7 @@ async fn firefox_navigation_sends_the_captured_page_request() -> TestResult<()> 
 async fn chrome_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         chrome(),
-        chromium::v154_windows_fetch_no_store_template,
+        chrome::v154_windows_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -602,7 +604,7 @@ async fn opera_fetch_sends_the_captured_report_request() -> TestResult<()> {
 async fn chrome_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         chrome_android(),
-        chrome_android::v154_android_fetch_no_store_template,
+        chrome::v154_android_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -613,7 +615,7 @@ async fn chrome_android_fetch_sends_the_captured_report_request() -> TestResult<
 async fn edge_android_fetch_sends_the_captured_report_request() -> TestResult<()> {
     assert_reproduces(
         edge_android(),
-        edge_android::v153_android_fetch_no_store_template,
+        edge::v153_android_fetch_no_store_template,
         Kind::Fetch,
         TCP,
     )
@@ -647,7 +649,7 @@ async fn negotiated_http2_request_sends_the_template_priority() -> TestResult<()
     let sent = client
         .get_negotiated(&url)?
         .template(&PreparedRequestTemplate::new(
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_fetch_no_store_template(),
         )?)
         .header(RequestHeader::new("referer", url.as_str()))
         .send();
@@ -907,7 +909,7 @@ mod cookie_placement {
             let observed = send_with_jar_cookie(
                 &browser,
                 template,
-                chromium::v154_cookie_placement(),
+                chrome::v154_cookie_placement(),
                 HttpProtocol::Http1,
                 caller,
             )
@@ -930,13 +932,13 @@ mod cookie_placement {
         let (_, captured_after) = sides(&captured)?;
         assert!(captured_after.is_empty(), "the capture sends Cookie last");
         for (template, caller) in [
-            (chromium::v154_windows_navigation_template(), Vec::new()),
-            (chromium::v154_windows_fetch_no_store_template(), referer()),
+            (chrome::v154_windows_navigation_template(), Vec::new()),
+            (chrome::v154_windows_fetch_no_store_template(), referer()),
         ] {
             let http1 = send_with_jar_cookie(
                 &browser,
                 template.clone(),
-                chromium::v154_cookie_placement(),
+                chrome::v154_cookie_placement(),
                 HttpProtocol::Http1,
                 caller.clone(),
             )
@@ -949,7 +951,7 @@ mod cookie_placement {
             let http2 = send_with_jar_cookie(
                 &browser,
                 template,
-                chromium::v154_cookie_placement(),
+                chrome::v154_cookie_placement(),
                 HttpProtocol::Http2,
                 caller,
             )
@@ -982,8 +984,8 @@ mod cookie_placement {
         ] {
             let observed = send_with_jar_cookie(
                 &chrome,
-                chromium::v154_windows_fetch_template(),
-                chromium::v154_cookie_placement(),
+                chrome::v154_windows_fetch_template(),
+                chrome::v154_cookie_placement(),
                 protocol,
                 caller.clone(),
             )
@@ -1056,7 +1058,7 @@ async fn redirect_hop() -> TestResult<()> {
     });
 
     let profile =
-        ClientProfile::new(tls_settings()).with_client_hints(chromium::v154_windows_client_hints());
+        ClientProfile::new(tls_settings()).with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -1064,7 +1066,7 @@ async fn redirect_hop() -> TestResult<()> {
     let response = client
         .get(HttpProtocol::Http1, &first_url)?
         .template(&PreparedRequestTemplate::new(
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_windows_navigation_template(),
         )?)
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
         .content_decoding(ContentDecoding::advertised(1 << 20))
@@ -1144,7 +1146,7 @@ async fn fork_templates_without_a_user_agent_fail_before_any_connection() -> Tes
         ),
     ] {
         let profile = ClientProfile::new(tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_client_hints(hints);
         let client = Client::builder(profile).build()?;
         // Nothing listens here; an attempted connection would fail differently.
@@ -1173,7 +1175,7 @@ async fn fork_templates_without_a_user_agent_fail_before_any_connection() -> Tes
 #[tokio::test]
 async fn brave_template_without_an_accept_language_fails_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_client_hints(brave::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
     let url = "https://127.0.0.1:9/";
@@ -1198,15 +1200,15 @@ async fn brave_template_without_an_accept_language_fails_before_any_connection()
 #[tokio::test]
 async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> TestResult<()> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
     // Nothing listens here; an attempted connection would fail differently.
     let url = "https://127.0.0.1:9/";
     let error = client
         .get(HttpProtocol::Http2, url)?
         .template(&PreparedRequestTemplate::new(
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_fetch_no_store_template(),
         )?)
         .header(RequestHeader::new("referer", "https://127.0.0.1:9/"))
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
@@ -1221,7 +1223,7 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
     let error = client
         .get(HttpProtocol::Http1, "http://127.0.0.1:9/")?
         .template(&PreparedRequestTemplate::new(
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_fetch_no_store_template(),
         )?)
         .header(RequestHeader::new("referer", "http://127.0.0.1:9/"))
         .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
@@ -1257,7 +1259,7 @@ async fn serve_http1_replies(
 
 fn chrome_hints_client(identity: &TestIdentity) -> TestResult<Client> {
     let profile =
-        ClientProfile::new(tls_settings()).with_client_hints(chromium::v154_windows_client_hints());
+        ClientProfile::new(tls_settings()).with_client_hints(chrome::v154_windows_client_hints());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)
@@ -1275,7 +1277,7 @@ async fn fetch_template_after_accept_ch_fails_before_the_request_is_sent() -> Te
     .await?;
     let client = chrome_hints_client(&identity)?;
     // One prepared template serves every request.
-    let template = PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
+    let template = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
     let fetch = || {
         client.get(HttpProtocol::Http1, &url).map(|request| {
             request
@@ -1316,7 +1318,7 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
         client
             .get(HttpProtocol::Http1, &url)?
             .template(&PreparedRequestTemplate::new(
-                chromium::v154_windows_fetch_no_store_template(),
+                chrome::v154_windows_fetch_no_store_template(),
             )?)
             .header(RequestHeader::new("referer", url.as_str()))
             .send(),

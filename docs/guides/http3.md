@@ -14,17 +14,17 @@ sends. `Http3ClientSettings` holds the browser's QUIC handshake and HTTP/3
 settings. Add it to the profile and ask for `HttpProtocol::Http3`:
 
 ```rust
-use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
+use phantom::profile::{ClientProfile, Http3ClientSettings, browser::chrome};
 use phantom::{Client, HttpProtocol};
 
 async fn run_h3() -> Result<(), Box<dyn std::error::Error>> {
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http3(http3);
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http3(http3);
 
     let client = Client::builder(profile).build()?;
     let response = client
@@ -101,18 +101,18 @@ send negotiated requests, which let Phantom pick the protocol:
 ```rust
 use std::num::NonZeroUsize;
 
-use phantom::profile::{chromium, ClientProfile, Http3ClientSettings};
+use phantom::profile::{ClientProfile, Http3ClientSettings, browser::chrome};
 use phantom::{Client, ResponseInfo};
 
 async fn upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     let client = Client::builder(profile)
         .alt_svc(NonZeroUsize::new(64).expect("64 is nonzero"))

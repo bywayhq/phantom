@@ -22,7 +22,7 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestErrorKind,
     ResponseBody, ResponseInfo, Route,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
 
@@ -596,7 +596,7 @@ async fn negotiated_get(
 /// A client whose profile negotiates H1 or H2 and may upgrade to HTTP/3.
 fn alt_svc_client(identity: &TestIdentity) -> TestResult<ClientBuilder> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(client_settings());
     let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
     Ok(Client::builder(profile)

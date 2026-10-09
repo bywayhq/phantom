@@ -15,7 +15,7 @@ use http::{HeaderMap, HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom_profile::{
     Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
-    Http3Setting, Http3SettingOrder, Http3Settings, chromium, quic::QuicTransportSettings,
+    Http3Setting, Http3SettingOrder, Http3Settings, browser::chrome, quic::QuicTransportSettings,
 };
 use phantom_quic_btls::QuicClientConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -252,7 +252,7 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
         let _ = done_received.await;
         Ok::<(), Box<dyn Error + Send + Sync>>(())
     });
-    let settings = chromium::v154_http3();
+    let settings = chrome::v154_http3();
     let response = timeout(
         TEST_TIMEOUT,
         super::send_with_config(
@@ -260,7 +260,7 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
             TEST_SERVER_NAME,
             client,
             &settings,
-            &chromium::v154_http3_request(),
+            &chrome::v154_http3_request(),
             Method::GET,
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             super::OriginForm::parse("/profiled")?,
@@ -312,7 +312,7 @@ async fn bounded_qlog_completes_without_recording_request_headers() -> TestResul
             TEST_SERVER_NAME,
             client,
             &test_settings(),
-            &chromium::v154_http3_request(),
+            &chrome::v154_http3_request(),
             Method::GET,
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             super::OriginForm::parse("/qlog")?,
@@ -593,7 +593,7 @@ fn assert_complete_json_seq(bytes: &[u8]) -> TestResult<()> {
 }
 
 fn profiled_client_config(identity: &TestIdentity) -> TestResult<Arc<QuicClientConfig>> {
-    client_config_with_profile(identity, chromium::v154_quic())
+    client_config_with_profile(identity, chrome::v154_quic())
 }
 
 fn client_config_with_profile(

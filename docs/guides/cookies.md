@@ -10,13 +10,13 @@ Turn on the cookie jar. Phantom then stores the cookies that responses set
 and sends them back on later requests.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol};
 
 async fn with_cookies() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_cookie_placement(chromium::v154_cookie_placement());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_cookie_placement(chrome::v154_cookie_placement());
     let client = Client::builder(profile).cookies().build()?;
 
     if let Some(jar) = client.cookie_jar() {
@@ -48,7 +48,9 @@ and import them later. An export is a `CookieSnapshot`: a list of cookies
 with their values and attributes.
 
 ```rust
-use phantom::{Client, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError, CookieSourceScheme};
+use phantom::{
+    Client, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError, CookieSourceScheme,
+};
 
 fn copy_cookies(from: &Client, to: &Client) -> Result<(), CookieSnapshotError> {
     // `None` means `from` was built without a cookie jar.
@@ -88,7 +90,7 @@ request has:
 
 | Recipe | Goes before |
 | --- | --- |
-| `chromium::v154_cookie_placement` | `priority` |
+| `chrome::v154_cookie_placement` | `priority` |
 | `firefox::v157_cookie_placement` | `Upgrade-Insecure-Requests`, `Sec-Fetch-*`, `Priority`, `Pragma`, `Cache-Control`, `te` |
 
 The placement works with your own headers and with a

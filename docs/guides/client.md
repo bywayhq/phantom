@@ -16,12 +16,12 @@ settings and so on.
 ```rust
 use std::{num::NonZeroUsize, time::Duration};
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, RedirectPolicy, RequestTimeouts, RetryPolicy};
 
 fn build() -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2());
     let timeouts = RequestTimeouts::new()
         .connect(Duration::from_secs(10))
         .response_head(Duration::from_secs(20))
@@ -127,14 +127,14 @@ one. You can set one for every server and another for a single host and
 port.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, ClientCertificate};
 
 fn client_with_certificates(
     default: ClientCertificate,
     api: ClientCertificate,
 ) -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     Ok(Client::builder(profile)
         .client_certificate(default)
         .client_certificate_for("https://api.example:8443", api)

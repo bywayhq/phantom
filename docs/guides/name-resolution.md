@@ -19,17 +19,17 @@ of looking the host up for every new connection.
 ```rust
 use std::time::Duration;
 
-use phantom::profile::{chromium, ClientProfile, DnsCacheSettings};
+use phantom::profile::{ClientProfile, DnsCacheSettings, browser::chrome};
 use phantom::{BuildError, Client};
 
 fn build() -> Result<Client, BuildError> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_dns_cache(chromium::v154_dns_cache());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_dns_cache(chrome::v154_dns_cache());
     // Keep answers for five minutes instead of the recipe's 60 seconds.
     let longer = DnsCacheSettings {
         ttl: Duration::from_secs(300),
-        ..chromium::v154_dns_cache()
+        ..chrome::v154_dns_cache()
     };
     Client::builder(profile).dns_cache(longer).build()
 }
@@ -47,11 +47,11 @@ CDN edge. TLS and HTTP still use the name.
 ```rust
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{BuildError, Client};
 
 fn pinned() -> Result<Client, BuildError> {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     Client::builder(profile)
         // Tried in this order; the port still comes from each URL.
         .resolve(
@@ -78,7 +78,7 @@ at servers you choose.
 use std::io;
 use std::net::{IpAddr, Ipv4Addr};
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{AddressResolver, BuildError, Client};
 
 fn with_resolver() -> Result<Client, BuildError> {
@@ -89,9 +89,9 @@ fn with_resolver() -> Result<Client, BuildError> {
             _ => Err(io::Error::new(io::ErrorKind::NotFound, "unknown host")),
         }
     });
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_dns_cache(chromium::v154_dns_cache());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_dns_cache(chrome::v154_dns_cache());
     Client::builder(profile).dns_resolver(resolver).build()
 }
 ```
@@ -108,14 +108,14 @@ and cache each answer for as long as the DNS record allows.
 ```rust
 use std::error::Error;
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{AddressResolver, Client};
 
 fn own_queries() -> Result<Client, Box<dyn Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_udp(chromium::v154_udp())
-        .with_dns_cache(chromium::v154_dns_cache());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_udp(chrome::v154_udp())
+        .with_dns_cache(chrome::v154_dns_cache());
     let resolver = AddressResolver::system_nameservers()?;
     Ok(Client::builder(profile).dns_resolver(resolver).build()?)
 }

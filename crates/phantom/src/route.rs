@@ -33,12 +33,12 @@ pub use socks5::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigError, Socks5Proxy
 /// # Examples
 ///
 /// ```no_run
-/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::profile::{browser::chrome, ClientProfile};
 /// use phantom::{Client, HttpProtocol, Route, Socks5Proxy};
 ///
 /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-/// let profile = ClientProfile::new(chromium::v154_tls())
-///     .with_http2(chromium::v154_http2());
+/// let profile = ClientProfile::new(chrome::v154_tcp_tls())
+///     .with_http2(chrome::v154_http2());
 /// let proxy = Socks5Proxy::new("socks5h://127.0.0.1:1080")?;
 /// let client = Client::builder(profile).route(Route::socks5(proxy)).build()?;
 ///
@@ -913,7 +913,7 @@ mod tests {
     #[test]
     fn profile_connect_fields_apply_only_without_route_fields_and_keep_route_identity()
     -> Result<(), Box<dyn std::error::Error>> {
-        let template = phantom_profile::chromium::v154_proxy_connect();
+        let template = phantom_profile::browser::chrome::v154_proxy_connect();
         let user_agent = |name: &str| {
             name.eq_ignore_ascii_case("user-agent").then(|| {
                 phantom_net::request::RequestHeader::new("user-agent", "agent").sensitive()

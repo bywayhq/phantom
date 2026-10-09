@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use http::{Method, Response};
-use phantom_profile::{Http2RejectedConnect, chromium::v154_http2};
+use phantom_profile::{Http2RejectedConnect, browser::chrome::v154_http2};
 use phantom_testkit::http2::CLIENT_CONNECTION_PREFACE;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},

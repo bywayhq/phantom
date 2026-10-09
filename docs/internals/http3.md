@@ -531,7 +531,7 @@ TCP:
   `Http3Connector::without_ticket_offers`.
 
 Whether a resumed connection offers early (0-RTT) data is profile data:
-`QuicTransportSettings::early_data`, which `chromium::v154_quic` sets.
+`QuicTransportSettings::early_data`, which `chrome::v154_quic` sets.
 `QuicClientConfig::with_transport_profile` reads it, and `with_tls_profile`
 clears it when the TLS settings disable `session_tickets`, since such a
 connection never resumes. `ClientBuilder::http3_early_data(bool)` overrides it
@@ -715,7 +715,7 @@ Phantom starts a second HTTP/3 session on the connection instead.
 
 A resumed connection also advertises `initial_rtt_us` (`0x3127`) when the
 transport profile lists `QuicTransportParameterKind::InitialRtt`, as
-`chromium::v154_quic` does. The ticket cache keeps the round-trip time last
+`chrome::v154_quic` does. The ticket cache keeps the round-trip time last
 measured to each server name, at most four names. `phantom-net` records
 Quinn's smoothed RTT through `QuicClientConfig::record_round_trip_time` when a
 connection's handshake completes and again when its driver ends, but never for

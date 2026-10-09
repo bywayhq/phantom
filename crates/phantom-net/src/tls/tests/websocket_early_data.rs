@@ -13,7 +13,7 @@ use btls::ssl::{AlpnError, ExtensionType, SelectCertError, SslAcceptor, select_n
 
 use bytes::Bytes;
 use http::{Method, Response, StatusCode};
-use phantom_profile::firefox;
+use phantom_profile::browser::firefox;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
@@ -201,9 +201,11 @@ type Openings<E> = (Result<StatusCode, E>, Option<Observed>, Vec<bool>);
 /// opening's result and, when the server served it, what it saw.
 async fn http1_openings(second: Second) -> TestResult<Openings<Http1TlsError>> {
     let identity = TestIdentity::generate()?;
-    let connector =
-        Http1TlsConnector::new_with_additional_roots(&firefox::v157_tls(), [identity.root_der()])?
-            .with_isolated_session_cache();
+    let connector = Http1TlsConnector::new_with_additional_roots(
+        &firefox::v157_tcp_tls(),
+        [identity.root_der()],
+    )?
+    .with_isolated_session_cache();
     let server = serve_two(identity, TestServerAlpn::Http1, second, serve_upgrade)?;
     let port = server.port;
 
@@ -252,7 +254,7 @@ async fn http1_openings(second: Second) -> TestResult<Openings<Http1TlsError>> {
 async fn http2_openings(second: Second) -> TestResult<Openings<Http2TlsError>> {
     let identity = TestIdentity::generate()?;
     let connector = Http2TlsConnector::new_with_additional_roots(
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
         &firefox::v157_http2(),
         [identity.root_der()],
     )?

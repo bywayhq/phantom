@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use phantom_profile::{Http3PseudoHeader, chromium};
+use phantom_profile::{Http3PseudoHeader, browser::chrome};
 use tokio::{net::TcpListener, task::JoinHandle};
 
 use super::{Recorder, TestResult, V4, long_lived};
@@ -62,10 +62,10 @@ fn names(recorder: &Recorder) -> Vec<String> {
 
 fn http3() -> TestResult<Http3Connector> {
     Ok(Http3Connector::new(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?)
 }
 
@@ -76,7 +76,7 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
     let connector = || -> TestResult<(Recorder, Http1TlsConnector)> {
         let (recorder, cache) = recording_cache();
         let connector =
-            Http1TlsConnector::new(&chromium::v154_tls())?.with_host_resolver(cache.clone());
+            Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_host_resolver(cache.clone());
         assert_eq!(
             connector
                 .host_resolver()
@@ -197,7 +197,7 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
 async fn http2_and_negotiated_connectors_resolve_through_the_cache() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     let (recorder, cache) = recording_cache();
-    let http2 = Http2TlsConnector::new(&chromium::v154_tls(), &chromium::v154_http2())?
+    let http2 = Http2TlsConnector::new(&chrome::v154_tcp_tls(), &chrome::v154_http2())?
         .with_host_resolver(cache);
 
     let _ = http2
@@ -253,8 +253,8 @@ async fn https_proxy_host_resolves_through_the_proxy_connector() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     let (origin_recorder, origin_cache) = recording_cache();
     let (proxy_recorder, proxy_cache) = recording_cache();
-    let origin = Http1TlsConnector::new(&chromium::v154_tls())?.with_host_resolver(origin_cache);
-    let proxy = HttpsProxyConnector::new(&chromium::v154_tls())?.with_host_resolver(proxy_cache);
+    let origin = Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_host_resolver(origin_cache);
+    let proxy = HttpsProxyConnector::new(&chrome::v154_tcp_tls())?.with_host_resolver(proxy_cache);
     let connect_headers = [HttpConnectHeader::authority("Host")];
 
     let _ = origin
@@ -356,7 +356,7 @@ async fn connect_udp_over_tcp_resolves_only_the_proxy() -> TestResult {
     let (target_recorder, target_cache) = recording_cache();
     let (proxy_recorder, proxy_cache) = recording_cache();
     let h3 = http3()?.with_host_resolver(target_cache);
-    let proxy = HttpsProxyConnector::new(&chromium::v154_tls())?.with_host_resolver(proxy_cache);
+    let proxy = HttpsProxyConnector::new(&chrome::v154_tcp_tls())?.with_host_resolver(proxy_cache);
     let authority = format!("{PROXY}:{}", peer.port);
 
     let _ = tokio::time::timeout(
@@ -390,7 +390,7 @@ async fn connect_udp_over_tcp_resolves_only_the_proxy() -> TestResult {
 async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
     let (recorder, cache) = recording_cache();
     let h3 = http3()?.with_host_resolver(cache);
-    let mut request = chromium::v154_http3_request();
+    let mut request = chrome::v154_http3_request();
     request.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,
@@ -399,9 +399,9 @@ async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
         Http3PseudoHeader::Path,
     ]);
     let proxy = Http3Connector::new(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
         &request,
     )?;
     // Nothing listens on this UDP port, so the outer QUIC connection never
@@ -434,7 +434,7 @@ async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
 #[tokio::test(flavor = "current_thread")]
 async fn clones_for_isolated_tls_sessions_keep_the_cache() -> TestResult {
     let (_, cache) = recording_cache();
-    let http1 = Http1TlsConnector::new(&chromium::v154_tls())?.with_host_resolver(cache.clone());
+    let http1 = Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_host_resolver(cache.clone());
     let http3 = http3()?.with_host_resolver(cache);
 
     assert!(

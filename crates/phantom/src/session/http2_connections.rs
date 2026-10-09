@@ -95,7 +95,7 @@ mod tests {
     use std::num::NonZeroUsize;
 
     use phantom_net::http2::Http2Connection;
-    use phantom_profile::chromium;
+    use phantom_profile::browser::chrome;
     use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
     use super::{Choice, Http2Spread};
@@ -106,7 +106,7 @@ mod tests {
     async fn connection() -> Result<(Http2Connection, DuplexStream), Box<dyn std::error::Error>> {
         let (client, server) = duplex(64 * 1024);
         Ok((
-            Http2Connection::connect(client, &chromium::v154_http2()).await?,
+            Http2Connection::connect(client, &chrome::v154_http2()).await?,
             server,
         ))
     }

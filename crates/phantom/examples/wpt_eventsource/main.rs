@@ -4,7 +4,7 @@ use std::{env, error::Error, io, path::PathBuf, time::Duration};
 
 use phantom::{
     Client,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use url::Url;
 
@@ -32,7 +32,7 @@ impl Context {
 }
 
 fn profile() -> ClientProfile {
-    ClientProfile::new(chromium::v154_tls())
+    ClientProfile::new(chrome::v154_tcp_tls())
 }
 
 #[derive(Debug)]

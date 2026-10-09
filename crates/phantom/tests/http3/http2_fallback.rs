@@ -20,7 +20,7 @@ use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, ConnectUdpProxy, HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo,
     RetryPolicy, Route,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
@@ -103,7 +103,7 @@ fn quic_config(identity: &TestIdentity) -> TestResult<quinn::ServerConfig> {
 fn client(identity: &TestIdentity, http2: bool) -> TestResult<Client> {
     let mut profile = ClientProfile::new(tls_settings()).with_http3(client_settings());
     if http2 {
-        profile = profile.with_http2(chromium::v154_http2());
+        profile = profile.with_http2(chrome::v154_http2());
     }
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
@@ -479,7 +479,7 @@ async fn the_http2_attempt_uses_the_profiles_http2_recipe() -> TestResult<()> {
         refused.await??;
 
         let start = served.await??;
-        // `chromium::v154_http2`: HEADER_TABLE_SIZE 65536, ENABLE_PUSH 0,
+        // `chrome::v154_http2`: HEADER_TABLE_SIZE 65536, ENABLE_PUSH 0,
         // INITIAL_WINDOW_SIZE 6291456, MAX_HEADER_LIST_SIZE 262144, in order.
         let expected: [(u16, u32); 4] = [(1, 65_536), (2, 0), (4, 6_291_456), (6, 262_144)];
         let sent = start
@@ -561,12 +561,12 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
         });
 
         let profile = ClientProfile::new(tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(Http3ClientSettings::new(
-                chromium::v154_http3_tls(),
-                chromium::v154_quic(),
-                chromium::v154_http3(),
-                chromium::v154_http3_request(),
+                chrome::v154_quic_tls(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                chrome::v154_http3_request(),
             ));
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())

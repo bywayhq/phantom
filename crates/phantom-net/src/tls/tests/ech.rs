@@ -1,6 +1,6 @@
 use phantom_profile::{
     EchGreaseAead, EchGreasePayloadLength,
-    chromium::{v154_http3_tls, v154_tls},
+    browser::chrome::{v154_quic_tls, v154_tcp_tls},
 };
 
 use super::{
@@ -9,7 +9,7 @@ use super::{
 
 #[tokio::test]
 async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
 
     let capture = capture_client_hello_from(&settings).await?;
@@ -27,7 +27,7 @@ async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<
 
 #[tokio::test]
 async fn omitted_ech_grease_payload_length_retains_backend_policy() -> TestResult<()> {
-    let settings = v154_tls();
+    let settings = v154_tcp_tls();
     assert_eq!(
         settings.ech_grease_payload_length,
         EchGreasePayloadLength::BackendDefault
@@ -46,7 +46,7 @@ async fn omitted_ech_grease_payload_length_retains_backend_policy() -> TestResul
 
 #[test]
 fn exact_ech_grease_payload_without_ech_fails_before_stream_io() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.ech_grease = false;
     settings.ech_from_https_records = false;
     settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
@@ -62,7 +62,7 @@ fn exact_ech_grease_payload_without_ech_fails_before_stream_io() -> TestResult<(
 
 #[tokio::test]
 async fn configured_ech_grease_aead_controls_the_wire_cipher_suite() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.ech_grease_aeads = vec![EchGreaseAead::Aes256Gcm];
 
     let capture = capture_client_hello_from(&settings).await?;
@@ -77,7 +77,7 @@ async fn configured_ech_grease_aead_controls_the_wire_cipher_suite() -> TestResu
 
 #[test]
 fn ech_grease_aeads_without_ech_fail_before_stream_io() -> TestResult<()> {
-    let mut settings = v154_tls();
+    let mut settings = v154_tcp_tls();
     settings.ech_grease = false;
     settings.ech_from_https_records = false;
     settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
@@ -93,7 +93,7 @@ fn ech_grease_aeads_without_ech_fail_before_stream_io() -> TestResult<()> {
 
 #[test]
 fn quic_connector_accepts_ech_from_https_records() -> TestResult<()> {
-    let mut settings = v154_http3_tls();
+    let mut settings = v154_quic_tls();
     settings.ech_from_https_records = true;
     TlsConnector::new_quic_with_additional_roots(&settings, [], |_| {})?;
     Ok(())

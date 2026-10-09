@@ -1,6 +1,6 @@
 //! Firefox-specific TLS differential tests.
 
-use phantom_profile::{SessionTicketOrder, TlsSettings, firefox::v157_tls};
+use phantom_profile::{SessionTicketOrder, TlsSettings, browser::firefox::v157_tcp_tls};
 use phantom_testkit::tls::ClientHelloSummary;
 
 use super::{
@@ -66,13 +66,18 @@ const ENCRYPTED_CLIENT_HELLO_EXTENSION: u16 = 0xfe0d;
 
 #[tokio::test]
 async fn firefox_157_tls_recipe_matches_windows_capture() -> TestResult<()> {
-    assert_recipe_matches_fixture(WINDOWS_FIREFOX_157_FIXTURE, &v157_tls(), 282).await
+    assert_recipe_matches_fixture(WINDOWS_FIREFOX_157_FIXTURE, &v157_tcp_tls(), 282).await
 }
 
 #[tokio::test]
 async fn firefox_157_tls_recipe_matches_windows_capture_with_chacha20_ech_grease() -> TestResult<()>
 {
-    assert_recipe_matches_fixture(WINDOWS_FIREFOX_157_CHACHA20_ECH_FIXTURE, &v157_tls(), 282).await
+    assert_recipe_matches_fixture(
+        WINDOWS_FIREFOX_157_CHACHA20_ECH_FIXTURE,
+        &v157_tcp_tls(),
+        282,
+    )
+    .await
 }
 
 /// Firefox 156.0.1 for Android sends the desktop Firefox 156 ClientHello:
@@ -80,14 +85,14 @@ async fn firefox_157_tls_recipe_matches_windows_capture_with_chacha20_ech_grease
 /// recipes differ only in the order they offer saved tickets.
 #[tokio::test]
 async fn firefox_android_156_tls_recipe_matches_android_captures() -> TestResult<()> {
-    let recipe = phantom_profile::firefox_android::v156_tls();
+    let recipe = phantom_profile::browser::firefox::v156_android_tcp_tls();
     assert_eq!(recipe.session_ticket_order, SessionTicketOrder::OldestFirst);
     assert_eq!(
         TlsSettings {
-            session_ticket_order: v157_tls().session_ticket_order,
+            session_ticket_order: v157_tcp_tls().session_ticket_order,
             ..recipe.clone()
         },
-        v157_tls()
+        v157_tcp_tls()
     );
     assert_recipe_matches_fixture(ANDROID_FIREFOX_156_FIXTURE, &recipe, 282).await?;
     assert_recipe_matches_fixture(ANDROID_FIREFOX_156_CHACHA20_ECH_FIXTURE, &recipe, 282).await
@@ -104,7 +109,7 @@ async fn firefox_157_recipe_draws_either_ech_grease_aead_per_connection() -> Tes
             WINDOWS_FIREFOX_157_FIXTURE,
             WINDOWS_FIREFOX_157_CHACHA20_ECH_FIXTURE,
         ],
-        &v157_tls(),
+        &v157_tcp_tls(),
     )
     .await
 }
@@ -268,7 +273,7 @@ async fn firefox_157_recipe_matches_the_ip_literal_captures() -> TestResult<()> 
             .next()
             .ok_or("the capture holds no ClientHello")?;
         let expected = ClientHelloSummary::from_handshake_bytes(&expected_hello)?;
-        let actual_capture = capture_client_hello_from_server_name(&v157_tls(), host).await?;
+        let actual_capture = capture_client_hello_from_server_name(&v157_tcp_tls(), host).await?;
         let actual_hello = actual_capture.handshake_bytes();
         let actual = actual_capture.summary()?;
         assert_stable_vectors(&actual, &expected);

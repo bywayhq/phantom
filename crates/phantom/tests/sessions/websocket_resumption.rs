@@ -16,7 +16,10 @@ use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, Route,
-    profile::{ClientProfile, chromium, firefox},
+    profile::{
+        ClientProfile,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -111,7 +114,7 @@ fn decode_alpn_extension(body: &[u8]) -> Vec<String> {
 }
 
 fn firefox_client(identity: &TestIdentity) -> TestResult<Client> {
-    let profile = ClientProfile::new(firefox::v157_tls())
+    let profile = ClientProfile::new(firefox::v157_tcp_tls())
         .with_http1(firefox::v157_http1())
         .with_http2(firefox::v157_http2())
         .with_websocket(firefox::v157_websocket());
@@ -121,10 +124,10 @@ fn firefox_client(identity: &TestIdentity) -> TestResult<Client> {
 }
 
 fn chromium_client(identity: &TestIdentity) -> TestResult<Client> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http1(chromium::v154_http1())
-        .with_http2(chromium::v154_http2())
-        .with_websocket(chromium::v154_websocket());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http1(chrome::v154_http1())
+        .with_http2(chrome::v154_http2())
+        .with_websocket(chrome::v154_websocket());
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)
@@ -766,10 +769,10 @@ async fn a_chromium_upgrade_through_a_proxy_resumes_the_ticket_of_a_proxied_requ
             serve_upgrade(socket, "/socket").await
         });
 
-        let profile = ClientProfile::new(chromium::v154_tls())
-            .with_http1(chromium::v154_http1())
-            .with_http2(chromium::v154_http2())
-            .with_websocket(chromium::v154_websocket());
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
+            .with_http1(chrome::v154_http1())
+            .with_http2(chrome::v154_http2())
+            .with_websocket(chrome::v154_websocket());
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
             .route(Route::http_proxy(HttpProxy::new(&format!(

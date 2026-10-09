@@ -5,7 +5,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use http_body_util::BodyExt as _;
-use phantom_profile::{TcpKeepalivePolicy, TcpKeepaliveSchedule, firefox};
+use phantom_profile::{TcpKeepalivePolicy, TcpKeepaliveSchedule, browser::firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -131,8 +131,10 @@ async fn a_tls_slower_connection_finishes_its_handshake_without_a_request() -> T
         TestResult::<()>::Ok(())
     });
     observed::take();
-    let connector =
-        Http1TlsConnector::new_with_additional_roots(&firefox::v157_tls(), [identity.root_der()])?;
+    let connector = Http1TlsConnector::new_with_additional_roots(
+        &firefox::v157_tcp_tls(),
+        [identity.root_der()],
+    )?;
     let (attempt, gate) = gated(address)?;
     let slower = connector.slower_tls(attempt, TEST_SERVER_NAME);
 
@@ -169,7 +171,7 @@ async fn a_negotiated_slower_connection_enters_the_protocol_alpn_selects() -> Te
     });
     observed::take();
     let connector = Http1Or2TlsConnector::new_with_additional_roots(
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
         &firefox::v157_http2(),
         [identity.root_der()],
     )?;

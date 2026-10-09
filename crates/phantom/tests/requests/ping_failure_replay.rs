@@ -19,7 +19,7 @@ use http::{Method, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, HttpProtocol, HttpProxy, RequestError, RequestErrorKind, Route,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use phantom_net::http2::Http2Error;
 use tokio::{
@@ -205,7 +205,7 @@ async fn accept_tls(
 /// read and closes the connection when unanswered for 2 seconds; it keeps
 /// the recipe's two PING-failure retries.
 fn short_ping_timeout_client(identity: &TestIdentity) -> TestResult<Client> {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.preface_ping_after = Some(Duration::from_secs(1));
     http2.ping_timeout = Some(Duration::from_secs(2));
     assert_eq!(http2.ping_failure_retries, 2);
@@ -243,7 +243,7 @@ const PING_FAILURE_RETRIES: u8 = 2;
 /// PING, since its connections are always read-idle for longer than zero,
 /// and closes the connection when the PING goes unanswered for 500 ms.
 fn every_request_pings_client(identity: &TestIdentity) -> TestResult<Client> {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.preface_ping_after = Some(Duration::ZERO);
     http2.ping_timeout = Some(Duration::from_millis(500));
     assert_eq!(http2.ping_failure_retries, PING_FAILURE_RETRIES);
@@ -456,7 +456,7 @@ async fn a_request_through_a_tunnel_is_sent_again_after_a_ping_failure() -> Test
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(tunnel_every_connect(proxy_listener, server.address));
-        let mut http2 = chromium::v154_http2();
+        let mut http2 = chrome::v154_http2();
         http2.preface_ping_after = Some(Duration::from_secs(1));
         http2.ping_timeout = Some(Duration::from_secs(2));
         let client = Client::builder(ClientProfile::new(tls_settings()).with_http2(http2))

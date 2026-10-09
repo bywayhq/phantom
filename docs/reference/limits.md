@@ -20,7 +20,7 @@ explains how Phantom limits the state a client keeps.
 | Cookies | No jar | `cookies` feature, then `ClientBuilder::cookies` or `cookie_jar` |
 | Alt-Svc | Disabled | `ClientBuilder::alt_svc(maximum_origins)` |
 | Racing a learned Alt-Svc alternative against the origin | Sequential: the alternative alone | `ClientBuilder::alt_svc_policy(AltSvcPolicy::race(..))`, with `alt_svc` |
-| HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; every built-in QUIC recipe offers it: `chromium::v154_quic`, which every Chromium-family profile uses, and `firefox::v157_quic` | `ClientBuilder::http3_early_data(bool)` overrides the profile |
+| HTTP/3 early (0-RTT) data | As the profile's QUIC `early_data`; every built-in QUIC recipe offers it: `chrome::v154_quic`, which every Chromium-family profile uses, and `firefox::v157_quic` | `ClientBuilder::http3_early_data(bool)` overrides the profile |
 | HTTPS DNS record discovery | Off | `https-records` feature, then `ClientBuilder::https_record_discovery` |
 | Address cache | As the profile's `DnsCacheSettings`; off without one | `ClientProfile::with_dns_cache` or `ClientBuilder::dns_cache`; `ClientBuilder::no_dns_cache` turns it off |
 | Host-to-address overrides | None | `ClientBuilder::resolve` |
@@ -42,7 +42,7 @@ connection closed on an unanswered PING is sent again, any method, up to
 twice per redirect hop, unless its body cannot be sent again; set
 `Http2Settings::ping_failure_retries` to 0 to turn it off. A profile with
 client hints repeats a safe request once when a `Critical-CH` response
-names a hint it lacked. `chromium::v154_websocket` reopens a refused
+names a hint it lacked. `chrome::v154_websocket` reopens a refused
 extended CONNECT stream once on the same session
 ([WebSocket recipes](websocket.md#browser-recipes)).
 
@@ -95,7 +95,7 @@ error names `TimeoutPhase::WebSocketHandshake`
 - An H1 connection carries one request at a time, so an H1 entry keeps up to
   its active bound of connections, idle ones included. A request reuses the
   most recently used idle connection before it opens another. The
-  `chromium::v154_http1` and `firefox::v157_http1` recipes set 6, the
+  `chrome::v154_http1` and `firefox::v157_http1` recipes set 6, the
   browsers' per-host limit; a profile without `Http1Settings` keeps one
   connection.
 - The negotiated H1/H2 pool applies the same bound to each pool key.
@@ -161,12 +161,12 @@ The last column shows which changes a server can observe.
 | HTTPS record result lifetime | Answer TTL, at most 1 day; 60 seconds without one | Phantom | Not configurable | Resolver only |
 | HTTPS record query timeout and attempts | 5 seconds, 2 attempts | hickory-resolver default | `HttpsRecordResolver::from_fn` replaces the resolver | Resolver only |
 | Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
-| TCP second-attempt delay | 300 ms racing in `chromium::v154_tcp`; a 250 ms backup attempt in `firefox::v157_tcp`, IPv4 until the origin's address family is known, then that family with each backup connect limited to 5 seconds | Chromium 154 source; Firefox 157 source and hook logs | `TcpSettings::address_selection` | Yes |
-| TCP keepalive idle and interval | 45 seconds and 45 seconds in `chromium::v154_tcp`; 10 seconds, then 600 seconds, with the setup time as interval, in `firefox::v157_tcp` | Chromium 154 source; Firefox 157 hook logs | `TcpSettings::keepalive` | Yes |
-| Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chromium::v154_http1`, checked when a request arrives; closed by a timer after 115 seconds idle in `firefox::v157_http1`; no limit without a recipe | Chromium 154 source and hook logs; Firefox 157 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection, or a FIN on an idle one |
+| TCP second-attempt delay | 300 ms racing in `chrome::v154_tcp`; a 250 ms backup attempt in `firefox::v157_tcp`, IPv4 until the origin's address family is known, then that family with each backup connect limited to 5 seconds | Chromium 154 source; Firefox 157 source and hook logs | `TcpSettings::address_selection` | Yes |
+| TCP keepalive idle and interval | 45 seconds and 45 seconds in `chrome::v154_tcp`; 10 seconds, then 600 seconds, with the setup time as interval, in `firefox::v157_tcp` | Chromium 154 source; Firefox 157 hook logs | `TcpSettings::keepalive` | Yes |
+| Reuse of an idle HTTP/1.1 connection | Under 300 seconds idle in `chrome::v154_http1`, checked when a request arrives; closed by a timer after 115 seconds idle in `firefox::v157_http1`; no limit without a recipe | Chromium 154 source and hook logs; Firefox 157 source and hook logs | `Http1Settings::idle_timeout` | Yes: a new connection, or a FIN on an idle one |
 | QUIC idle timeout | Profile's `max_idle_timeout` (30 seconds for Chrome 154) | Chrome capture | `QuicTransportSettings` | Yes: transport parameter |
-| HTTP/2 idle PING | After 58 seconds without a read, failing after 8 more, in `firefox::v157_http2`; none in `chromium::v154_http2` | Firefox 157 source and capture | `Http2Settings::idle_ping_after`, `idle_ping_timeout` | Yes: PING frame |
-| Reuse of an idle HTTP/2 connection | Under 170 seconds without response data in `firefox::v157_http2`, then closed with `GOAWAY(NO_ERROR)` within about a second, or when its last stream ends; no limit in `chromium::v154_http2` or without a recipe | Firefox 157 source | [`Http2Settings::idle_timeout`](profiles.md#idle-http2-connections) | Yes: `GOAWAY` and a new connection |
+| HTTP/2 idle PING | After 58 seconds without a read, failing after 8 more, in `firefox::v157_http2`; none in `chrome::v154_http2` | Firefox 157 source and capture | `Http2Settings::idle_ping_after`, `idle_ping_timeout` | Yes: PING frame |
+| Reuse of an idle HTTP/2 connection | Under 170 seconds without response data in `firefox::v157_http2`, then closed with `GOAWAY(NO_ERROR)` within about a second, or when its last stream ends; no limit in `chrome::v154_http2` or without a recipe | Firefox 157 source | [`Http2Settings::idle_timeout`](profiles.md#idle-http2-connections) | Yes: `GOAWAY` and a new connection |
 | Wait for `100 Continue` before a request body | None (no `Expect` field) | RFC 9110 | `RequestBuilder::expect_continue` | Yes: when the body is sent |
 | SSE reconnect delay | 3 seconds, or the server's `retry` | Phantom | `initial_retry`, `min_retry` | Yes |
 | Resend after a stale keep-alive connection closes | Immediate, when enabled | Chrome | `RetryPolicy::with_reused_connection_replay` | Yes |
@@ -203,9 +203,9 @@ from Chromium.
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
-| Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chromium::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
-| Lifetime of cached addresses | Without a record TTL, `DnsCacheSettings::ttl`: 60 seconds in both recipes. With one, from `AddressResolver::system_nameservers`, the TTL or `DnsCacheSettings::min_record_ttl`, whichever is longer: at least 60 seconds in `chromium::v154_dns_cache`, no minimum in `firefox::v157_dns_cache` |
-| Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chromium::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
+| Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chrome::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
+| Lifetime of cached addresses | Without a record TTL, `DnsCacheSettings::ttl`: 60 seconds in both recipes. With one, from `AddressResolver::system_nameservers`, the TTL or `DnsCacheSettings::min_record_ttl`, whichever is longer: at least 60 seconds in `chrome::v154_dns_cache`, no minimum in `firefox::v157_dns_cache` |
+| Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chrome::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |
@@ -260,7 +260,7 @@ The cap of 8 informational responses is Phantom's bound for every profile.
 | Outbound write buffer | Message limit plus 128 KiB plus 14 bytes | Follows the message limit |
 | `permessage-deflate` client window | 15 bits | `PerMessageDeflate::client_max_window_bits` |
 | `permessage-deflate` compression level | 6 | `PerMessageDeflate::compression_level` |
-| Opening handshake time | 240 seconds in `chromium::v154_websocket`, 20 seconds in `firefox::v157_websocket`, none without a recipe | `WebSocketRequestBuilder::handshake_timeout` |
+| Opening handshake time | 240 seconds in `chrome::v154_websocket`, 20 seconds in `firefox::v157_websocket`, none without a recipe | `WebSocketRequestBuilder::handshake_timeout` |
 | Setup retries per connect | None | `WebSocketRetryPolicy::connection_failures` |
 
 - The frame count includes the first text or binary frame and every

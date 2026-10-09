@@ -3,7 +3,7 @@
 //! Each peer accepts and immediately closes, so the protocol step after the
 //! TCP connect fails; the sockets are read back when they connect.
 
-use phantom_profile::{TcpSettings, chromium};
+use phantom_profile::{TcpSettings, browser::chrome};
 use tokio::{net::TcpListener, task::JoinHandle};
 
 use super::{TestResult, chromium_like, sets_random_port};
@@ -59,26 +59,26 @@ fn assert_profiled(path: &str, sockets: &[ObservedSocket]) {
 }
 
 fn http1(settings: &TcpSettings) -> TestResult<Http1TlsConnector> {
-    Ok(Http1TlsConnector::new(&chromium::v154_tls())?.with_tcp_settings(settings))
+    Ok(Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_tcp_settings(settings))
 }
 
 fn http2(settings: &TcpSettings) -> TestResult<Http2TlsConnector> {
     Ok(
-        Http2TlsConnector::new(&chromium::v154_tls(), &chromium::v154_http2())?
+        Http2TlsConnector::new(&chrome::v154_tcp_tls(), &chrome::v154_http2())?
             .with_tcp_settings(settings),
     )
 }
 
 fn https_proxy(settings: &TcpSettings) -> TestResult<HttpsProxyConnector> {
-    Ok(HttpsProxyConnector::new(&chromium::v154_tls())?.with_tcp_settings(settings))
+    Ok(HttpsProxyConnector::new(&chrome::v154_tcp_tls())?.with_tcp_settings(settings))
 }
 
 fn http3(settings: &TcpSettings) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?
     .with_tcp_settings(settings))
 }
@@ -88,7 +88,7 @@ async fn connectors_without_tcp_settings_keep_os_defaults() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     observed::take();
 
-    let connector = Http1TlsConnector::new(&chromium::v154_tls())?;
+    let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?;
     let _ = connector
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Tls {
@@ -250,7 +250,7 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
 async fn https_proxy_connections_apply_the_proxy_connectors_tcp_settings() -> TestResult {
     let peer = ClosingPeer::bind().await?;
     let settings = chromium_like();
-    let origin = Http1TlsConnector::new(&chromium::v154_tls())?;
+    let origin = Http1TlsConnector::new(&chrome::v154_tcp_tls())?;
     let proxy = https_proxy(&settings)?;
     let connect_headers = [HttpConnectHeader::authority("Host")];
     observed::take();

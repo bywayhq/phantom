@@ -3,7 +3,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
-use phantom_profile::{UdpSettings, chromium};
+use phantom_profile::{UdpSettings, browser::chrome};
 
 use super::{WSAENOBUFS, bind_socket, observed, retry_past_reserved_ports};
 use crate::SourceBinding;
@@ -72,11 +72,7 @@ fn a_socket_takes_port_randomization_only_when_the_settings_ask() -> TestResult 
     let remote = SocketAddr::new(IPV4_LOOPBACK, 443);
     observed::take();
 
-    for settings in [
-        Some(chromium::v154_udp()),
-        Some(UdpSettings::default()),
-        None,
-    ] {
+    for settings in [Some(chrome::v154_udp()), Some(UdpSettings::default()), None] {
         bind_socket(remote, local, None, settings)?;
         assert_eq!(
             observed::take(),

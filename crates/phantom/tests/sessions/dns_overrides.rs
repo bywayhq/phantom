@@ -23,7 +23,9 @@ use http_body_util::BodyExt;
 use phantom::{
     AddressResolver, BuildErrorKind, Client, ConnectUdpProxy, HttpProtocol, HttpProxy,
     RequestErrorKind, Route, Socks5Proxy,
-    profile::{ClientProfile, DnsCacheSettings, Http3ClientSettings, Http3PseudoHeader, chromium},
+    profile::{
+        ClientProfile, DnsCacheSettings, Http3ClientSettings, Http3PseudoHeader, browser::chrome,
+    },
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -385,7 +387,7 @@ async fn resolver_errors_for_proxy_hosts_and_http3_origins_keep_their_path_kinds
 /// A Chrome HTTP/3 profile with the extended CONNECT order a CONNECT-UDP
 /// proxy leg needs.
 fn http3_profile() -> ClientProfile {
-    let mut request = chromium::v154_http3_request();
+    let mut request = chrome::v154_http3_request();
     request.extended_connect_pseudo_header_order = Some(vec![
         Http3PseudoHeader::Method,
         Http3PseudoHeader::Protocol,
@@ -393,10 +395,10 @@ fn http3_profile() -> ClientProfile {
         Http3PseudoHeader::Authority,
         Http3PseudoHeader::Path,
     ]);
-    ClientProfile::new(chromium::v154_tls()).with_http3(Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
+    ClientProfile::new(chrome::v154_tcp_tls()).with_http3(Http3ClientSettings::new(
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
         request,
     ))
 }

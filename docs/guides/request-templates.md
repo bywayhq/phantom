@@ -16,17 +16,17 @@ Prepare a template once with `PreparedRequestTemplate::new`, then pass it to
 `RequestBuilder::template` on each request.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol, PreparedRequestTemplate, RequestHeader};
 
 async fn navigate_then_fetch() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
     // Prepare each template once and reuse it for every request.
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
-    let fetch = PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
+    let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
 
     let page = client
         .get(HttpProtocol::Http2, "https://example.com/")?
@@ -71,13 +71,13 @@ browser and the device. Send the hints a browser sends by default, and the
 ones a server asks for.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol};
 
 async fn with_hints() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
 
     // Sends the default hints. An `Accept-CH` response adds to what the

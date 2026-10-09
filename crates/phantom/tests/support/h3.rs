@@ -4,7 +4,7 @@ use bytes::Bytes;
 use http::Request;
 use phantom::profile::{
     CipherSuite, ClientHelloExtensionOrder, Http3AltUsed, Http3ClientSettings, NamedGroup,
-    SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion, chromium,
+    SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion, browser::chrome,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
@@ -13,9 +13,9 @@ use crate::support::tls::{TestIdentity, TestResult};
 pub(crate) fn client_settings() -> Http3ClientSettings {
     Http3ClientSettings::new(
         client_tls_settings(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     )
 }
 

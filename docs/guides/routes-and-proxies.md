@@ -17,12 +17,12 @@ through another.
 Set a default route on the builder, and override it for one request.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol, Route, Socks5Proxy};
 
 async fn routes() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2());
     let proxy = Socks5Proxy::new("socks5h://127.0.0.1:1080")?;
     let client = Client::builder(profile).route(Route::socks5(proxy)).build()?;
 
@@ -82,7 +82,7 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
 - To authenticate the very first request, leave out `with_basic_auth` and
   send your own `Proxy-Authorization` header. Put it on the request for an
   `http://` URL, or on the CONNECT request with `HttpProxy::header`.
-- A profile with `with_proxy_connect(chromium::v154_proxy_connect())`, or
+- A profile with `with_proxy_connect(chrome::v154_proxy_connect())`, or
   the Firefox recipe, sends the browser's CONNECT headers.
   `HttpProxy::header`, `headers`, and `connect_headers` replace them with
   your own.
@@ -116,14 +116,14 @@ fn h2_proxy_route() -> Result<Route, Box<dyn std::error::Error>> {
 Add roots or change verification separately for servers and proxies.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::Client;
 
 fn private_roots(
     origin_root: Vec<u8>,
     proxy_root: Vec<u8>,
 ) -> Result<Client, Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chromium::v154_tls());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls());
     let client = Client::builder(profile)
         .add_root_certificate_der(origin_root)
         .add_proxy_root_certificate_der(proxy_root)

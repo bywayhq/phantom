@@ -1523,7 +1523,7 @@ mod tests {
     fn an_attempt_limit_without_a_time_driver_fails_instead_of_panicking()
     -> Result<(), Box<dyn std::error::Error>> {
         use phantom_net::http3::Http3Connector;
-        use phantom_profile::chromium;
+        use phantom_profile::browser::chrome;
 
         use super::Http3SetupControl;
         use crate::RequestErrorKind;
@@ -1534,10 +1534,10 @@ mod tests {
             .build()?;
         runtime.block_on(async {
             let connector = Http3Connector::new_with_additional_roots(
-                &chromium::v154_http3_tls(),
-                &chromium::v154_quic(),
-                &chromium::v154_http3(),
-                &chromium::v154_http3_request(),
+                &chrome::v154_quic_tls(),
+                &chrome::v154_quic(),
+                &chrome::v154_http3(),
+                &chrome::v154_http3_request(),
                 std::iter::empty(),
             )?;
             let one = NonZeroUsize::MIN;

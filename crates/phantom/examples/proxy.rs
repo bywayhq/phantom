@@ -17,7 +17,7 @@ use std::{env, process};
 
 use phantom::{
     Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, Route, Socks5Proxy,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 
 const PROXY_VARIABLE: &str = "PHANTOM_EXAMPLE_PROXY";
@@ -40,11 +40,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Route::http_proxy(HttpProxy::new(&proxy)?)
     };
 
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).route(route).build()?;
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
 
     let response = client
         .get(HttpProtocol::Http2, &url)?

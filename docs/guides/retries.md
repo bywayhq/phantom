@@ -35,7 +35,7 @@ Retry DNS, TCP and QUIC failures that happen before anything is sent.
 ```rust
 use std::{num::NonZeroUsize, time::Duration};
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, RetryPolicy};
 
 fn build() -> Result<Client, Box<dyn std::error::Error>> {
@@ -43,7 +43,7 @@ fn build() -> Result<Client, Box<dyn std::error::Error>> {
         NonZeroUsize::new(3).expect("three is nonzero"),
         Duration::from_millis(200),
     );
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     Ok(Client::builder(profile).retry_policy(retries).build()?)
 }
 ```

@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use h3::quic::{self, ConnectionErrorIncoming, StreamErrorIncoming};
 use http::{Method, Response, StatusCode};
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{task::JoinHandle, time::timeout};
 use tracing::instrument::WithSubscriber;
@@ -29,13 +29,13 @@ const RELAY_DELAY: Duration = Duration::from_millis(150);
 pub(super) type Served = Arc<Mutex<Vec<String>>>;
 
 pub(super) fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
-    trusting_connector_with(identity, &chromium::v154_http3())
+    trusting_connector_with(identity, &chrome::v154_http3())
 }
 
 /// The Chrome 154 recipes with stateless QPACK request encoding, whose
 /// requests do not wait for the peer's SETTINGS and so can leave in 0-RTT.
 fn stateless_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
-    let mut http3 = chromium::v154_http3();
+    let mut http3 = chrome::v154_http3();
     http3.qpack_encoding = phantom_profile::Http3QpackEncoding::Stateless;
     trusting_connector_with(identity, &http3)
 }
@@ -45,10 +45,10 @@ pub(super) fn trusting_connector_with(
     http3: &phantom_profile::Http3Settings,
 ) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
         http3,
-        &chromium::v154_http3_request(),
+        &chrome::v154_http3_request(),
         [identity.root_der()],
     )?)
 }

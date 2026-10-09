@@ -1,5 +1,8 @@
 use phantom_net::request::RequestHeader;
-use phantom_profile::{RequestField, RequestTemplate, chromium, edge, firefox};
+use phantom_profile::{
+    RequestField, RequestTemplate,
+    browser::{chrome, edge, firefox},
+};
 
 use super::{PreparedRequestTemplate, ProtocolScope, check, expand};
 use crate::{HttpProtocol, RequestErrorKind};
@@ -36,7 +39,7 @@ fn kind(
 
 #[test]
 fn caller_fields_take_template_positions_and_spelling() {
-    let template = chromium::v154_windows_fetch_no_store_template();
+    let template = chrome::v154_windows_fetch_no_store_template();
     let caller = [
         RequestHeader::new("x-trace", "1"),
         RequestHeader::new("referer", "https://example.test/page"),
@@ -94,12 +97,12 @@ fn unfilled_caller_slots_emit_nothing_and_hint_values_wait_for_the_connection() 
 
 #[test]
 fn caller_hints_fill_the_block_in_profile_order() {
-    let template = chromium::v154_windows_navigation_template();
+    let template = chrome::v154_windows_navigation_template();
     let caller = [
         RequestHeader::new("Sec-CH-UA-Platform", "\"Windows\""),
         RequestHeader::new("sec-ch-ua", "\"Chromium\";v=\"154\""),
     ];
-    let hints = chromium::v154_windows_client_hints();
+    let hints = chrome::v154_windows_client_hints();
     let expanded = expand(&template.http2_fields, &caller, Some(&hints), true);
     assert_eq!(
         names(&expanded)[..3],
@@ -116,13 +119,13 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
     let edge_user_agent = [RequestHeader::new("User-Agent", EDGE_154)];
     let cases = [
         (
-            chromium::v154_windows_navigation_template(),
-            Some(chromium::v154_windows_client_hints()),
+            chrome::v154_windows_navigation_template(),
+            Some(chrome::v154_windows_client_hints()),
             &[][..],
         ),
         (
-            chromium::v154_windows_fetch_no_store_template(),
-            Some(chromium::v154_windows_client_hints()),
+            chrome::v154_windows_fetch_no_store_template(),
+            Some(chrome::v154_windows_client_hints()),
             &[][..],
         ),
         (
@@ -142,8 +145,8 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
             &[][..],
         ),
         (
-            chromium::v154_windows_fetch_template(),
-            Some(chromium::v154_windows_client_hints()),
+            chrome::v154_windows_fetch_template(),
+            Some(chrome::v154_windows_client_hints()),
             &[][..],
         ),
         (firefox::v157_windows_fetch_template(), None, &[][..]),
@@ -188,7 +191,7 @@ fn a_required_caller_slot_left_empty_is_rejected() {
     );
 
     // An optional caller slot may stay empty.
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     let user_agent = template
         .http2_fields
         .iter()
@@ -209,11 +212,11 @@ fn a_referer_on_a_navigation_template_goes_after_every_template_field() {
     let caller = [RequestHeader::new("referer", "https://example.test/")];
     for (fields, last) in [
         (
-            chromium::v154_windows_navigation_template().http1_fields,
+            chrome::v154_windows_navigation_template().http1_fields,
             "Accept-Language",
         ),
         (
-            chromium::v154_windows_navigation_template().http2_fields,
+            chrome::v154_windows_navigation_template().http2_fields,
             "priority",
         ),
         (
@@ -270,7 +273,7 @@ fn default_profile_hints_need_a_template_with_a_hint_slot() {
     // A Chromium template has slots for the same profile.
     assert_eq!(
         kind(
-            &chromium::v154_windows_navigation_template(),
+            &chrome::v154_windows_navigation_template(),
             exact(HttpProtocol::Http2),
             &[],
             Some(&platform_only)
@@ -281,7 +284,7 @@ fn default_profile_hints_need_a_template_with_a_hint_slot() {
 
 #[test]
 fn a_caller_requested_hint_needs_a_template_that_places_it() {
-    let hints = chromium::v154_windows_client_hints();
+    let hints = chrome::v154_windows_client_hints();
     let caller = [
         RequestHeader::new("referer", "https://example.com/"),
         RequestHeader::new("Sec-CH-UA-Arch", "\"x86\""),
@@ -289,7 +292,7 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
     // Refused before I/O whatever the scheme: `check` sees no origin.
     assert_eq!(
         kind(
-            &chromium::v154_windows_fetch_no_store_template(),
+            &chrome::v154_windows_fetch_no_store_template(),
             exact(HttpProtocol::Http1),
             &caller,
             Some(&hints)
@@ -300,7 +303,7 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
     // default hint from the caller is never a requested one.
     assert_eq!(
         kind(
-            &chromium::v154_windows_navigation_template(),
+            &chrome::v154_windows_navigation_template(),
             exact(HttpProtocol::Http1),
             &caller,
             Some(&hints)
@@ -310,7 +313,7 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
     let default_hint = [RequestHeader::new("sec-ch-ua-mobile", "?0")];
     assert_eq!(
         kind(
-            &chromium::v154_windows_fetch_no_store_template(),
+            &chrome::v154_windows_fetch_no_store_template(),
             exact(HttpProtocol::Http1),
             &default_hint,
             Some(&hints)
@@ -321,8 +324,8 @@ fn a_caller_requested_hint_needs_a_template_that_places_it() {
 
 #[test]
 fn a_request_that_may_use_http3_needs_an_http3_list() {
-    let fetch = chromium::v154_windows_fetch_no_store_template();
-    let navigation = chromium::v154_windows_navigation_template();
+    let fetch = chrome::v154_windows_fetch_no_store_template();
+    let navigation = chrome::v154_windows_navigation_template();
     let negotiated = |alt_svc| ProtocolScope {
         exact: None,
         alt_svc,
@@ -404,7 +407,7 @@ fn an_untrustworthy_url_drops_fetch_metadata_and_advanced_codings() {
 
 #[test]
 fn caller_fields_keep_trust_dependent_positions_on_either_url() {
-    let template = chromium::v154_windows_navigation_template();
+    let template = chrome::v154_windows_navigation_template();
     let caller = [
         RequestHeader::new("accept-encoding", "br"),
         RequestHeader::new("sec-fetch-site", "cross-site"),
@@ -426,8 +429,8 @@ fn caller_fields_keep_trust_dependent_positions_on_either_url() {
 #[test]
 fn prepared_templates_report_the_accept_encoding_for_each_trust() {
     for template in [
-        chromium::v154_windows_navigation_template(),
-        chromium::v154_windows_fetch_no_store_template(),
+        chrome::v154_windows_navigation_template(),
+        chrome::v154_windows_fetch_no_store_template(),
         edge::v154_windows_navigation_template(),
         edge::v154_windows_fetch_no_store_template(),
         firefox::v157_windows_navigation_template(),
@@ -486,7 +489,7 @@ fn a_forwarded_caller_proxy_authorization_takes_the_preemptive_slot() {
     };
     for (template, before) in [
         (
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_windows_navigation_template(),
             "Upgrade-Insecure-Requests",
         ),
         (firefox::v157_windows_navigation_template(), "Connection"),
@@ -506,7 +509,7 @@ fn a_forwarded_caller_proxy_authorization_takes_the_preemptive_slot() {
 
     // A request that no proxy forwards keeps the caller's order.
     let (expanded, _) = expand_on_route(
-        &chromium::v154_windows_navigation_template().http1_fields,
+        &chrome::v154_windows_navigation_template().http1_fields,
         &caller,
         None,
         false,
@@ -612,7 +615,7 @@ fn chrome_fetch_template_places_validators_as_the_revalidation_capture() {
     ];
     for names in captured {
         assert_eq!(
-            expand_revalidation(&chromium::v154_windows_fetch_template(), &names, &hints),
+            expand_revalidation(&chrome::v154_windows_fetch_template(), &names, &hints),
             names
         );
     }
@@ -633,7 +636,7 @@ fn firefox_fetch_template_places_validators_as_the_revalidation_capture() {
 #[test]
 fn default_mode_fetch_templates_send_no_pragma_or_cache_control() {
     let chrome = expand(
-        &chromium::v154_windows_fetch_template().http1_fields,
+        &chrome::v154_windows_fetch_template().http1_fields,
         &[],
         None,
         true,

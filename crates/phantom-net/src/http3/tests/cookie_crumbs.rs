@@ -12,7 +12,10 @@
 use std::collections::BTreeMap;
 
 use bytes::{Bytes, BytesMut};
-use phantom_profile::{Http3CookieCrumbs, Http3RequestSettings, chromium, firefox};
+use phantom_profile::{
+    Http3CookieCrumbs, Http3RequestSettings,
+    browser::{chrome, firefox},
+};
 
 use super::TestResult;
 use crate::http3::{OriginForm, RequestHeader};
@@ -41,19 +44,19 @@ fn chrome_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
 
 #[test]
 fn edge_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
-    // Edge 154 replays against the Chromium recipes (`phantom_profile::edge`).
+    // Edge 154 replays against the Chromium recipes (`phantom_profile::browser::edge`).
     assert_replay_matches(&Capture::parse(EDGE)?)
 }
 
 #[test]
 fn brave_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
-    // Brave 154 replays against the Chromium recipes (`phantom_profile::brave`).
+    // Brave 154 replays against the Chromium recipes (`phantom_profile::browser::brave`).
     assert_replay_matches(&Capture::parse(BRAVE)?)
 }
 
 #[test]
 fn opera_cookie_crumbs_match_the_captured_qpack_bytes() -> TestResult<()> {
-    // Opera 136 replays against the Chromium recipes (`phantom_profile::opera`).
+    // Opera 136 replays against the Chromium recipes (`phantom_profile::browser::opera`).
     assert_replay_matches(&Capture::parse(OPERA)?)
 }
 
@@ -71,7 +74,7 @@ fn firefox_cookie_fields_match_the_captured_qpack_bytes() -> TestResult<()> {
 #[test]
 fn whole_cookie_setting_encodes_one_cookie_field() -> TestResult<()> {
     let capture = Capture::parse(CHROME)?;
-    let mut settings = chromium::v154_http3_request();
+    let mut settings = chrome::v154_http3_request();
     settings.cookie_crumbs = Http3CookieCrumbs::Whole;
     let page = &capture.requests[1];
     let fields = encoder_input(&settings, page)?;
@@ -87,7 +90,7 @@ fn whole_cookie_setting_encodes_one_cookie_field() -> TestResult<()> {
 fn assert_replay_matches(capture: &Capture) -> TestResult<()> {
     assert_replay_matches_with(
         capture,
-        &chromium::v154_http3_request(),
+        &chrome::v154_http3_request(),
         h3::qpack::Encoder::default(),
     )
 }

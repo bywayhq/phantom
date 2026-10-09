@@ -128,7 +128,7 @@ Supported:
   losing attempt is cancelled, and the most recent failure is returned.
 - Windows port randomization (`TcpPortRandomization`): `SO_RANDOMIZE_PORT`
   before the socket is bound or connects, from a minimum Windows build.
-  `chromium::v154_tcp` sets it from build 22621 (Windows 11 22H2), as Chrome
+  `chrome::v154_tcp` sets it from build 22621 (Windows 11 22H2), as Chrome
   154, Edge 154, and Opera 136 do in the hook logs.
   It has no effect off Windows.
 - Firefox's backup connection (`TcpBackupConnection`), which
@@ -143,7 +143,7 @@ Supported:
   key; later connections try that family alone, falling back to the other
   when its addresses fail, until a prune of the client's idle timer finds
   every key of the origin without a connection.
-- Named TCP policies: `chromium::v154_tcp` for Windows and Linux;
+- Named TCP policies: `chrome::v154_tcp` for Windows and Linux;
   `firefox::v157_tcp` for Windows.
 
 Not modeled:
@@ -166,7 +166,7 @@ Not modeled:
   a connection failure.
 - Chromium 154's immediate failure of a refused loopback connect
   (`SIO_TCP_INITIAL_RTO`), which the Chrome 154 and Edge 154 hook logs show.
-  It applies only to loopback peers, and `chromium::v154_tcp` leaves it out.
+  It applies only to loopback peers, and `chrome::v154_tcp` leaves it out.
 - The TCP SYN itself (window, MSS, options, TTL). The host OS decides it.
 
 ## TLS over TCP
@@ -241,7 +241,7 @@ Supported:
   `Http1Settings` keeps one connection. Negotiated requests that select H1
   use the same bound, each connection with its own TLS handshake; until a
   connection has selected H2, their handshakes run in parallel.
-- Idle limits: `chromium::v154_http1` stops reusing a connection idle 300 s
+- Idle limits: `chrome::v154_http1` stops reusing a connection idle 300 s
   when the next request comes, and `firefox::v157_http1` closes one idle
   115 s on a timer, within a second after the limit, whether or not a
   request comes.
@@ -263,7 +263,7 @@ Not modeled:
   chain.
 - Chromium's cleanup of other origins' idle connections. A request closes
   the connections of its own origin and route that have sat idle 300 s, as
-  `chromium::v154_http1` sets, but Chromium also closes those of every other
+  `chrome::v154_http1` sets, but Chromium also closes those of every other
   origin in the same proxy chain's pool.
 - The `timeout` of a response's `Keep-Alive` field, which Firefox uses in
   place of its 115 s limit.
@@ -368,7 +368,7 @@ Supported:
 - Windows port randomization for the UDP socket (`ClientProfile::with_udp`,
   `UdpSettings`): `SO_RANDOMIZE_PORT` before the socket binds, on a direct
   connection, a connection to a CONNECT-UDP proxy, and a SOCKS5 UDP
-  association. `chromium::v154_udp` sets it on every Windows, as Chromium
+  association. `chrome::v154_udp` sets it on every Windows, as Chromium
   154 does on every UDP socket it connects, and as Chrome 154, Edge 154, and
   Opera 136 do in the hook logs.
   The client applies the same setting to the UDP socket of each DNS query
@@ -670,7 +670,7 @@ Supported:
   `socks5://` targets. It is bounded, keeps an answer without a record TTL
   for a fixed time, one with a record TTL for that TTL or a minimum, and
   failures optionally, shares one lookup between concurrent connections, and
-  keeps the resolver's address order. The recipes `chromium::v154_dns_cache`
+  keeps the resolver's address order. The recipes `chrome::v154_dns_cache`
   and `firefox::v157_dns_cache` set source-defined policies.
   Proxy-resolved targets never reach it.
 - With the `https-records` feature, an opt-in address resolver,
@@ -1027,19 +1027,19 @@ Recipe evidence is specific to these builds and platforms:
 
 How the recipes differ:
 
-- `chromium::v154_*` is a complete Chromium set: TLS, TCP, H2, WebSocket,
+- `chrome::v154_*` is a complete Chromium set: TLS, TCP, H2, WebSocket,
   cookie placement, client hints, the navigation and fetch templates, and the
   H3, H3 TLS, H3 request, and QUIC recipes. Its
   [trust-anchor](glossary.md#trust-anchor-ids) list holds 28 identifiers in
   one ascending order. The `sec-ch-ua` brand
   list is `"Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99"`.
 - Edge 154 matches the Chromium H2, QUIC, and H3 recipes and omits
-  trust-anchor IDs. So `edge::` carries only `v154_tls`, `v154_http3_tls`,
+  trust-anchor IDs. So `edge::` carries only `v154_tcp_tls`, `v154_quic_tls`,
   `v154_windows_client_hints`, `v154_macos_client_hints`, and its request
   templates.
 - Brave 154 matches the Chromium H2, QUIC, H3, WebSocket, and proxy CONNECT
-  recipes and omits trust-anchor IDs. `brave::` carries `v154_tls`, which
-  keeps Chrome's ECH from HTTPS records, `v154_http3_tls`,
+  recipes and omits trust-anchor IDs. `brave::` carries `v154_tcp_tls`, which
+  keeps Chrome's ECH from HTTPS records, `v154_quic_tls`,
   `v154_windows_client_hints`, and its request templates. Its client hints
   omit `sec-ch-ua-full-version` and `sec-ch-ua-form-factors` and reduce every
   version to `.0.0.0`. Its templates drop signed exchanges from the
@@ -1047,30 +1047,30 @@ How the recipes differ:
   caller, because Brave draws its `q` value per session.
 - Opera 136 matches the same Chromium recipes and sends Chromium 152's 32
   trust-anchor IDs, in an order drawn per process, where Chrome 154 sends 28
-  sorted. `opera::` carries `v136_tls`, which keeps Chrome's ECH from
-  HTTPS records, `v136_http3_tls`,
+  sorted. `opera::` carries `v136_tcp_tls`, which keeps Chrome's ECH from
+  HTTPS records, `v136_quic_tls`,
   `v136_windows_client_hints`, `v136_macos_client_hints`, and its request
   templates, which equal the Chromium templates apart from `User-Agent`.
-- `firefox_android::v156_tls` returns `firefox::v157_tls`, which the Android
+- `firefox::v156_android_tcp_tls` returns `firefox::v157_tcp_tls`, which the Android
   ClientHellos equal, with the `OldestFirst` ticket order. No other Firefox for Android layer is captured,
   because no certificate override can be installed on Android.
-- `opera_android::v102_*` carries only `v102_tls`, Chrome 154's ClientHello
+- `opera::v102_android_*` carries only `v102_android_tcp_tls`, Chrome 154's ClientHello
   without trust-anchor IDs, `v102_android_client_hints()` with the captured
   `"Pixel 7"` model, and `v102_android_client_hints_for_model`. Opera for Android
   takes no switches, so only loopback captures without a certificate exist.
-- `brave_android::v153_*` returns the Chromium H2, QUIC, H3, H3 request,
+- `brave::v153_android_*` returns the Chromium H2, QUIC, H3, H3 request,
   and WebSocket recipes, which the Android captures equal, and carries
   desktop Brave's TCP and QUIC ClientHellos without ECH from HTTPS records,
   `v153_android_client_hints`, and templates with desktop Brave's
   request-field changes and the Android `User-Agent`.
-- `chrome_android::v154_*` returns the Chromium H2, QUIC, H3, H3 request,
+- `chrome::v154_android_*` returns the Chromium H2, QUIC, H3, H3 request,
   and WebSocket recipes, which the Android captures equal, and the Chromium
   TLS recipes with ECH from HTTPS records off. It carries
   `v154_android_client_hints()` (`?1`, `"Android"`, `"17.0.0"`, and the
   captured model `"Pixel 7"`), `v154_android_client_hints_for_model` for
   another model, and navigation and fetch templates with Chrome's reduced
   Android `User-Agent`.
-- `edge_android::v153_*` carries desktop Edge's TLS recipes, which Edge 153
+- `edge::v153_android_*` carries desktop Edge's TLS recipes, which Edge 153
   and Edge 154 send alike, with ECH from HTTPS records off, returns the
   Chromium H2, QUIC, H3, and H3 request recipes, and carries
   `v153_android_client_hints()` with desktop Edge 153's brand list and the
@@ -1112,30 +1112,30 @@ Randomized fields:
   per-connection permutation.
 - Opera 136, built on Chromium 152, keeps that per-process order for its
   32 trust-anchor IDs over TCP, and draws a new order for each QUIC
-  connection. `opera::v136_tls` draws one of 29 processes' TCP orders for
+  connection. `opera::v136_tcp_tls` draws one of 29 processes' TCP orders for
   each client and keeps it on all of the client's connections, and
-  `opera::v136_http3_tls` draws one of 20 QUIC ClientHellos' orders for
+  `opera::v136_quic_tls` draws one of 20 QUIC ClientHellos' orders for
   each connection. Both draw only orders a capture holds.
 - The Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154, Edge 153,
   and Brave 153 for Android recipes leave the ECH GREASE AEAD list empty and emit HKDF-SHA256 with
   AES-128-GCM on every connection, as every observed connection of those
   browsers does. Tests compare it exactly.
 - Chrome 154 for Android sorts its trust-anchor IDs as desktop Chrome 154
-  does, over TCP and QUIC, so `chrome_android::v154_tls` and
-  `v154_http3_tls` send the Chromium order.
+  does, over TCP and QUIC, so `chrome::v154_android_tcp_tls` and
+  `v154_quic_tls` send the Chromium order.
 - Firefox 157 chooses its ECH GREASE AEAD per connection, between AES-128-GCM
   and ChaCha20-Poly1305. The recipe lists both, and the backend draws one
   uniformly for each connection. A 200-connection distribution test bounds
   the split.
 - Firefox 157 sizes its ECH GREASE payload from the ClientHello that carries
-  it, over TCP and QUIC. `firefox::v157_tls` and `v157_http3_tls` do the
+  it, over TCP and QUIC. `firefox::v157_tcp_tls` and `v157_quic_tls` do the
   same, so a fresh ClientHello to a host name carries 240 bytes, one resumed
   with the capture servers' tickets 368, and one to `127.0.0.1` or `::1`
   the length Firefox pads it to.
 - Firefox 157's QUIC ClientHello shuffles its extensions per connection but
   keeps `quic_transport_parameters` and then `encrypted_client_hello` last,
   and sends `record_size_limit` 16385, `extended_master_secret`, and
-  `renegotiation_info`. `firefox::v157_http3_tls` does all of this; only the
+  `renegotiation_info`. `firefox::v157_quic_tls` does all of this; only the
   shuffled order, drawn per connection, differs between any two
   ClientHellos.
 

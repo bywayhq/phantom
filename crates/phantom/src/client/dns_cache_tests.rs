@@ -11,7 +11,10 @@ use std::{
 };
 
 use phantom_net::host_resolver::{AddressResolver, HostResolver};
-use phantom_profile::{ClientProfile, DnsCacheSettings, Http3ClientSettings, chromium, firefox};
+use phantom_profile::{
+    ClientProfile, DnsCacheSettings, Http3ClientSettings,
+    browser::{chrome, firefox},
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -80,7 +83,7 @@ fn settings() -> DnsCacheSettings {
 }
 
 fn profile() -> ClientProfile {
-    ClientProfile::new(chromium::v154_tls()).with_http1(chromium::v154_http1())
+    ClientProfile::new(chrome::v154_tcp_tls()).with_http1(chrome::v154_http1())
 }
 
 /// Replaces the client's address cache with one whose resolver answers
@@ -196,21 +199,21 @@ async fn clear_dns_cache_resolves_the_host_again() -> TestResult {
 #[test]
 fn profile_dns_cache_reaches_every_connector() -> TestResult {
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_dns_cache(chromium::v154_dns_cache())
-        .with_http2(chromium::v154_http2())
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_dns_cache(chrome::v154_dns_cache())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     #[cfg(feature = "websocket")]
-    let profile = profile.with_websocket(chromium::v154_websocket());
+    let profile = profile.with_websocket(chrome::v154_websocket());
     let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
     let client = Client::builder(profile).route(route).build()?;
     let inner = &client.inner;
-    let expected = Some(chromium::v154_dns_cache());
+    let expected = Some(chrome::v154_dns_cache());
     let settings = |resolver: Option<&HostResolver>| {
         resolver
             .and_then(HostResolver::cache)
@@ -265,7 +268,7 @@ fn profile_dns_cache_reaches_every_connector() -> TestResult {
 
 #[test]
 fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
-    let caching = || profile().with_dns_cache(chromium::v154_dns_cache());
+    let caching = || profile().with_dns_cache(chrome::v154_dns_cache());
 
     let replaced = Client::builder(caching())
         .dns_cache(firefox::v157_dns_cache())
@@ -297,7 +300,7 @@ fn builder_settings_replace_or_disable_the_profiles() -> TestResult {
 #[test]
 fn overrides_without_a_cache_reach_the_connectors() -> TestResult {
     let pinned = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 9));
-    let client = Client::builder(profile().with_http2(chromium::v154_http2()))
+    let client = Client::builder(profile().with_http2(chrome::v154_http2()))
         .no_dns_cache()
         .resolve("Pinned.Phantom.Test", [pinned])
         .build()?;
@@ -334,13 +337,13 @@ fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
     let addresses = AddressResolver::with_nameservers([nameserver])?;
     let records = crate::dns::HttpsRecordResolver::with_nameservers([nameserver])?;
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
-    let base = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
+    let base = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     let build = |profile: ClientProfile| {
         Client::builder(profile)
@@ -352,8 +355,8 @@ fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
 
     for (profile, expected) in [
         (
-            base.clone().with_udp(chromium::v154_udp()),
-            Some(chromium::v154_udp()),
+            base.clone().with_udp(chrome::v154_udp()),
+            Some(chrome::v154_udp()),
         ),
         (base, None),
     ] {

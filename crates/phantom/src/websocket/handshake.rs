@@ -668,7 +668,7 @@ fn accept_for_key(key: &str) -> String {
 mod tests {
     use phantom_net::request::RequestHeader;
 
-    use phantom_profile::{chromium, firefox};
+    use phantom_profile::browser::{chrome, firefox};
 
     use super::{
         WebSocketHeader, accept_for_key, default_extended_connect_headers, fill_or_append, prepare,
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     fn profile_templates_convert_to_valid_openings() -> Result<(), super::WebSocketError> {
-        let settings = chromium::v154_websocket();
+        let settings = chrome::v154_websocket();
         let http1 = prepare(
             profile_headers(&settings.http1_fields, true)?,
             "example.test",

@@ -20,7 +20,7 @@ use phantom::{
     Client, HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader,
     profile::{
         AlpsSettings, CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings,
-        ClientProfile, Http3ClientSettings, NamedGroup, TlsVersion, chromium,
+        ClientProfile, Http3ClientSettings, NamedGroup, TlsVersion, browser::chrome,
     },
 };
 use phantom_quic_btls::QuicServerConfig;
@@ -412,7 +412,7 @@ async fn http2_hint_learned_while_a_request_waits_reaches_only_the_next_request(
         // One active request per origin, so the second waits for the first.
         let session = Client::builder(
             ClientProfile::new(tls_settings())
-                .with_http2(chromium::v154_http2())
+                .with_http2(chrome::v154_http2())
                 .with_client_hints(client_hint_settings()),
         )
         .add_root_certificate_der(identity.root_der.clone())
@@ -457,8 +457,8 @@ async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built()
     bounded(async {
         let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
         let template =
-            PreparedRequestTemplate::new(chromium::v154_windows_fetch_no_store_template())?;
-        let response = alps_client_with_hints(&identity, chromium::v154_windows_client_hints())?
+            PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
+        let response = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?
             .get(HttpProtocol::Http2, &format!("{origin}/"))?
             .template(&template)
             .header(RequestHeader::new("referer", format!("{origin}/").as_str()))
@@ -484,8 +484,8 @@ async fn http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built()
 async fn http2_navigation_template_restart_places_the_hint_after_accept() -> TestResult<()> {
     bounded(async {
         let (identity, origin, server) = alps_origin_answering("Sec-CH-UA-Arch").await?;
-        let template = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
-        let response = alps_client_with_hints(&identity, chromium::v154_windows_client_hints())?
+        let template = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
+        let response = alps_client_with_hints(&identity, chrome::v154_windows_client_hints())?
             .get(HttpProtocol::Http2, &format!("{origin}/"))?
             .template(&template)
             .send()
@@ -690,9 +690,9 @@ async fn http3_alps_accept_ch_restarts_the_request_with_the_missing_hint() -> Te
         let profile = ClientProfile::new(tls_settings())
             .with_http3(Http3ClientSettings::new(
                 tls,
-                chromium::v154_quic(),
-                chromium::v154_http3(),
-                chromium::v154_http3_request(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                chrome::v154_http3_request(),
             ))
             .with_client_hints(client_hint_settings());
         let client = Client::builder(profile)
@@ -757,15 +757,15 @@ async fn http3_navigation_template_restart_places_the_hint_after_accept() -> Tes
         let profile = ClientProfile::new(tls_settings())
             .with_http3(Http3ClientSettings::new(
                 tls,
-                chromium::v154_quic(),
-                chromium::v154_http3(),
-                chromium::v154_http3_request(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                chrome::v154_http3_request(),
             ))
-            .with_client_hints(chromium::v154_windows_client_hints());
+            .with_client_hints(chrome::v154_windows_client_hints());
         let client = Client::builder(profile)
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
-        let template = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+        let template = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
         let response = client
             .get(HttpProtocol::Http3, &format!("{origin}/"))?
             .template(&template)
@@ -1077,7 +1077,7 @@ async fn cloned_clients_share_client_hints_while_new_clients_are_isolated() -> T
 
 fn client(identity: &TestIdentity) -> TestResult<Client> {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(client_settings())
         .with_client_hints(client_hint_settings());
     Ok(Client::builder(profile)
@@ -1104,7 +1104,7 @@ fn alps_client_with_hints(
         use_new_codepoint: true,
     });
     let profile = ClientProfile::new(tls)
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_client_hints(hints);
     Ok(Client::builder(profile)
         .add_root_certificate_der(identity.root_der.clone())

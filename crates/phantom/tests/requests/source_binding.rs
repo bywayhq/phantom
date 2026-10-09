@@ -10,7 +10,7 @@ use std::{
 use phantom::{
     BuildErrorKind, Client, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestError,
     RequestErrorKind, Route, Socks5Proxy,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
@@ -43,7 +43,7 @@ const LOOPBACK_INTERFACE: &str = "lo0";
 
 /// A Chromium profile, so connections race IPv6 against IPv4.
 fn profile() -> ClientProfile {
-    ClientProfile::new(chromium::v154_tls()).with_tcp(chromium::v154_tcp())
+    ClientProfile::new(chrome::v154_tcp_tls()).with_tcp(chrome::v154_tcp())
 }
 
 /// Accepts one HTTP/1.1 request and answers it, returning the peer address.
@@ -222,7 +222,7 @@ async fn connect_udp_tcp_proxy_legs_leave_from_the_bound_address() -> TestResult
     ] {
         let client = Client::builder(
             profile()
-                .with_http2(chromium::v154_http2())
+                .with_http2(chrome::v154_http2())
                 .with_http3(masque_client_settings()),
         )
         .local_address(source)
@@ -306,7 +306,7 @@ async fn connect_udp_proxy_legs_without_the_bound_family_fail_before_io() -> Tes
     for proxy in proxies {
         let client = Client::builder(
             profile()
-                .with_http2(chromium::v154_http2())
+                .with_http2(chrome::v154_http2())
                 .with_http3(masque_client_settings()),
         )
         .add_proxy_root_certificate_der(identity.root_der.clone())
@@ -351,7 +351,7 @@ async fn http3_leaves_from_the_bound_address() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (address, endpoint) = h3_support::server_endpoint(&identity)?;
     let client = Client::builder(
-        ClientProfile::new(chromium::v154_tls()).with_http3(h3_support::client_settings()),
+        ClientProfile::new(chrome::v154_tcp_tls()).with_http3(h3_support::client_settings()),
     )
     .add_root_certificate_der(identity.root_der.clone())
     .local_address(IPV4_LOOPBACK)
@@ -382,7 +382,7 @@ async fn http3_without_an_address_of_the_bound_family_fails() -> TestResult<()> 
     let identity = TestIdentity::generate()?;
     let (address, endpoint) = h3_support::server_endpoint(&identity)?;
     let client = Client::builder(
-        ClientProfile::new(chromium::v154_tls()).with_http3(h3_support::client_settings()),
+        ClientProfile::new(chrome::v154_tcp_tls()).with_http3(h3_support::client_settings()),
     )
     .add_root_certificate_der(identity.root_der.clone())
     .local_address(IPV6_LOOPBACK)
@@ -439,7 +439,7 @@ async fn socks5_udp_association_sends_from_the_bound_address() -> TestResult<()>
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     });
     let client = Client::builder(
-        ClientProfile::new(chromium::v154_tls()).with_http3(h3_support::client_settings()),
+        ClientProfile::new(chrome::v154_tcp_tls()).with_http3(h3_support::client_settings()),
     )
     .add_root_certificate_der(identity.root_der.clone())
     .route(Route::socks5(Socks5Proxy::new(&format!(

@@ -6,7 +6,7 @@ use std::time::Instant;
 use btls::ssl::{SslContext, SslContextBuilder, SslMethod};
 use btls_sys as ffi;
 use foreign_types::ForeignType;
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use quinn_proto::{ConnectError, Endpoint, EndpointConfig, TransportConfig, crypto};
 use quinn_proto::{Side, TransportErrorCode, transport_parameters::TransportParameters};
 
@@ -21,13 +21,13 @@ use crate::{
 
 /// A Chrome HTTP/3 TLS profile with ticket resumption enabled.
 fn resuming_tls_settings() -> phantom_profile::TlsSettings {
-    let mut settings = chromium::v154_http3_tls();
+    let mut settings = chrome::v154_quic_tls();
     settings.session_tickets = true;
     settings
 }
 
 fn ticketless_tls_settings() -> phantom_profile::TlsSettings {
-    let mut settings = chromium::v154_http3_tls();
+    let mut settings = chrome::v154_quic_tls();
     settings.session_tickets = false;
     settings
 }
@@ -423,7 +423,7 @@ fn a_ticket_without_early_data_permission_sends_none() {
 
 #[test]
 fn a_profile_offers_early_data_only_with_session_tickets() {
-    let quic = chromium::v154_quic();
+    let quic = chrome::v154_quic();
     assert!(quic.early_data);
     let offering = test_ok(
         test_ok(
@@ -709,7 +709,7 @@ fn a_ticket_from_a_version_2_connection_starts_the_next_connection_in_version_2(
     let profiled = test_ok(
         QuicClientConfig::with_transport_profile(
             resumption_client_context().0,
-            phantom_profile::firefox::v157_quic(),
+            phantom_profile::browser::firefox::v157_quic(),
         ),
         "Firefox transport profile",
     );

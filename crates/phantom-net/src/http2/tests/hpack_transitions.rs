@@ -1,5 +1,5 @@
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     sync::oneshot,

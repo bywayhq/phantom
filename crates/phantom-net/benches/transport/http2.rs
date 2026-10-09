@@ -4,7 +4,7 @@ use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
 use phantom_net::http2::{Http2Connection, OriginForm, RequestHeader};
-use phantom_profile::{Http2Settings, chromium::v154_http2};
+use phantom_profile::{Http2Settings, browser::chrome::v154_http2};
 use tokio::runtime::Builder;
 use tracing::{Dispatch, instrument::WithSubscriber};
 

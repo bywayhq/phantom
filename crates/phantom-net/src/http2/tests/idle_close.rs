@@ -9,7 +9,10 @@ use std::time::Duration;
 
 use http::Method;
 use http_body_util::BodyExt;
-use phantom_profile::{Http2IdleTimeout, Http2Settings, chromium, firefox};
+use phantom_profile::{
+    Http2IdleTimeout, Http2Settings,
+    browser::{chrome, firefox},
+};
 use tokio::{io::AsyncReadExt, net::TcpStream, sync::oneshot, time::Instant};
 
 use super::{
@@ -272,7 +275,7 @@ async fn a_limit_under_a_second_is_refused() -> TestResult<()> {
 #[tokio::test]
 async fn chromium_recipe_sets_no_idle_limit() -> TestResult<()> {
     idle_peer_test(async {
-        let (_peer, connection) = start(&chromium::v154_http2()).await?;
+        let (_peer, connection) = start(&chrome::v154_http2()).await?;
         assert_eq!(connection.idle_time_left(), None);
         assert!(connection.is_reusable());
         Ok(())

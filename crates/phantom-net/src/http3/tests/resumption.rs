@@ -5,14 +5,14 @@ use tokio::time::timeout;
 use super::super::{Http3Connection, Http3Connector};
 use super::{TEST_TIMEOUT, TestResult, server_endpoint};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 
 fn trusting_connector(identity: &TestIdentity) -> TestResult<Http3Connector> {
     Ok(Http3Connector::new_with_additional_roots(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
         [identity.root_der()],
     )?)
 }
@@ -250,26 +250,26 @@ async fn resumed_chromium_client_hellos_match_the_resumption_captures() -> TestR
         BRAVE_154_H3_STARTUP, CHROME_154_H3_STARTUP, EDGE_154_H3_STARTUP, OPERA_136_H3_STARTUP,
     };
     use super::early_data::{Served, learn_ticket};
-    use phantom_profile::{brave, edge, opera};
+    use phantom_profile::browser::{brave, edge, opera};
 
     for (tls, startup, captures) in [
         (
-            chromium::v154_http3_tls(),
+            chrome::v154_quic_tls(),
             CHROME_154_H3_STARTUP,
             CHROME_154_RESUMPTION,
         ),
         (
-            edge::v154_http3_tls(),
+            edge::v154_quic_tls(),
             EDGE_154_H3_STARTUP,
             EDGE_154_RESUMPTION,
         ),
         (
-            brave::v154_http3_tls(),
+            brave::v154_quic_tls(),
             BRAVE_154_H3_STARTUP,
             BRAVE_154_RESUMPTION,
         ),
         (
-            opera::v136_http3_tls(),
+            opera::v136_quic_tls(),
             OPERA_136_H3_STARTUP,
             OPERA_136_RESUMPTION,
         ),
@@ -277,9 +277,9 @@ async fn resumed_chromium_client_hellos_match_the_resumption_captures() -> TestR
         let identity = TestIdentity::generate()?;
         let connector = Http3Connector::new_with_additional_roots(
             &tls,
-            &chromium::v154_quic(),
-            &chromium::v154_http3(),
-            &chromium::v154_http3_request(),
+            &chrome::v154_quic(),
+            &chrome::v154_http3(),
+            &chrome::v154_http3_request(),
             [identity.root_der()],
         )?
         .with_isolated_session_cache();

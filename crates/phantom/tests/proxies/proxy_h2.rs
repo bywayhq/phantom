@@ -21,7 +21,8 @@ use phantom::{
     Client, HttpProtocol, HttpProxy, PreparedRequestTemplate, ProxyConfigErrorKind,
     RequestErrorKind, RequestHeader, ResponseInfo, Route,
     profile::{
-        ClientProfile, Http2Settings, RequestTemplate, brave, chromium, edge, firefox, opera,
+        ClientProfile, Http2Settings, RequestTemplate,
+        browser::{brave, chrome, edge, firefox, opera},
     },
 };
 use phantom_net::proxy::HttpConnectError;
@@ -609,7 +610,7 @@ async fn chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order() -
     // fixtures/proxy/{chrome,edge}/*/https-proxy-*.txt: every forwarded
     // request's pseudo-fields.
     assert_h2_forwarding(
-        chromium::v154_http2(),
+        chrome::v154_http2(),
         &[":method", ":authority", ":scheme", ":path"],
     )
     .await
@@ -774,16 +775,16 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
     let cases: [ForwardingCase; 5] = [
         (
             "chrome",
-            chromium::v154_http2(),
-            chromium::v154_windows_navigation_template(),
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_http2(),
+            chrome::v154_windows_navigation_template(),
+            chrome::v154_windows_fetch_no_store_template(),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-hostname"),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-nostore-hostname"),
             &[],
         ),
         (
             "edge",
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             edge::v154_windows_navigation_template(),
             edge::v154_windows_fetch_no_store_template(),
             proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-hostname"),
@@ -792,7 +793,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
         ),
         (
             "brave",
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             brave::v154_windows_navigation_template(),
             brave::v154_windows_fetch_no_store_template(),
             proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-hostname"),
@@ -804,7 +805,7 @@ async fn h2_forwarding_places_proxy_credentials_as_captured() -> TestResult<()> 
         ),
         (
             "opera",
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             opera::v136_windows_navigation_template(),
             opera::v136_windows_fetch_no_store_template(),
             proxy_fixture!("opera/136.0.6008.52", "https-proxy-auth-hostname"),
@@ -909,29 +910,29 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     let cases = [
         (
             "chrome",
-            chromium::v154_proxy_connect(),
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_proxy_connect(),
+            chrome::v154_windows_navigation_template(),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-secure-hostname"),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-auth-secure-hostname"),
         ),
         (
             "edge",
-            chromium::v154_proxy_connect(),
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_proxy_connect(),
+            chrome::v154_windows_navigation_template(),
             proxy_fixture!("edge/154.0.4258.37", "https-proxy-secure-hostname"),
             proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-secure-hostname"),
         ),
         (
             "brave",
-            chromium::v154_proxy_connect(),
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_proxy_connect(),
+            chrome::v154_windows_navigation_template(),
             proxy_fixture!("brave/154.1.96.59", "https-proxy-secure-hostname"),
             proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-secure-hostname"),
         ),
         (
             "opera",
-            chromium::v154_proxy_connect(),
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_proxy_connect(),
+            chrome::v154_windows_navigation_template(),
             proxy_fixture!("opera/136.0.6008.52", "https-proxy-secure-hostname"),
             proxy_fixture!("opera/136.0.6008.52", "https-proxy-auth-secure-hostname"),
         ),
@@ -979,7 +980,7 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                         .with_http2(if label == "firefox" {
                             firefox::v157_http2()
                         } else {
-                            chromium::v154_http2()
+                            chrome::v154_http2()
                         })
                         .with_proxy_connect(connect.clone()),
                 )
@@ -1026,8 +1027,8 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
     for (label, connect, http2, ends, expected) in [
         (
             "chromium",
-            chromium::v154_proxy_connect(),
-            chromium::v154_http2(),
+            chrome::v154_proxy_connect(),
+            chrome::v154_http2(),
             true,
             [1, 3],
         ),
@@ -1083,19 +1084,19 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
 async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
     let cases = [
         (
-            chromium::v154_proxy_connect(),
+            chrome::v154_proxy_connect(),
             proxy_fixture!("chrome/154.0.8037.58", "https-proxy-secure-hostname"),
         ),
         (
-            chromium::v154_proxy_connect(),
+            chrome::v154_proxy_connect(),
             proxy_fixture!("edge/154.0.4258.37", "https-proxy-secure-hostname"),
         ),
         (
-            chromium::v154_proxy_connect(),
+            chrome::v154_proxy_connect(),
             proxy_fixture!("brave/154.1.96.59", "https-proxy-secure-hostname"),
         ),
         (
-            chromium::v154_proxy_connect(),
+            chrome::v154_proxy_connect(),
             proxy_fixture!("opera/136.0.6008.52", "https-proxy-secure-hostname"),
         ),
         (
@@ -1114,7 +1115,7 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             });
             let client = Client::builder(
                 ClientProfile::new(tls_settings())
-                    .with_http2(chromium::v154_http2())
+                    .with_http2(chrome::v154_http2())
                     .with_proxy_connect(connect.clone()),
             )
             .add_proxy_root_certificate_der(proxy_root)
@@ -1159,9 +1160,9 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
     let cases: [ForwardingCase; 5] = [
         (
             "chrome",
-            chromium::v154_http2(),
-            chromium::v154_windows_navigation_template(),
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_http2(),
+            chrome::v154_windows_navigation_template(),
+            chrome::v154_windows_fetch_no_store_template(),
             proxy_fixture!(
                 "chrome/154.0.8037.58",
                 "https-proxy-auth-remembered-hostname"
@@ -1171,7 +1172,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
         ),
         (
             "edge",
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             edge::v154_windows_navigation_template(),
             edge::v154_windows_fetch_no_store_template(),
             proxy_fixture!("edge/154.0.4258.37", "https-proxy-auth-remembered-hostname"),
@@ -1180,7 +1181,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
         ),
         (
             "brave",
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             brave::v154_windows_navigation_template(),
             brave::v154_windows_fetch_no_store_template(),
             proxy_fixture!("brave/154.1.96.59", "https-proxy-auth-remembered-hostname"),
@@ -1192,7 +1193,7 @@ async fn h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured
         ),
         (
             "opera",
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             opera::v136_windows_navigation_template(),
             opera::v136_windows_fetch_no_store_template(),
             proxy_fixture!(

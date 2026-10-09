@@ -18,7 +18,7 @@ use http::{Method, Response, Version};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, RequestHeader, WebSocketCloseFrame, WebSocketErrorKind, WebSocketMessage,
-    profile::{ClientProfile, Http2PseudoHeader, chromium},
+    profile::{ClientProfile, Http2PseudoHeader, browser::chrome},
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
@@ -362,7 +362,7 @@ async fn non_success_response_preserves_status_and_body() -> TestResult<()> {
 }
 
 fn http2_websocket_client(identity: &TestIdentity) -> TestResult<Client> {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.extended_connect_pseudo_header_order = Some(vec![
         Http2PseudoHeader::Method,
         Http2PseudoHeader::Protocol,

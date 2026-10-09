@@ -23,7 +23,10 @@ use std::net::Ipv4Addr;
 
 use phantom::{
     Client, HttpProxy, RequestHeader, Route, WebSocketMessage, WebSocketRequestBuilder,
-    profile::{ClientProfile, Http2Settings, WebSocketField, WebSocketSettings, chromium, firefox},
+    profile::{
+        ClientProfile, Http2Settings, WebSocketField, WebSocketSettings,
+        browser::{chrome, firefox},
+    },
 };
 use tokio::net::TcpListener;
 
@@ -69,15 +72,15 @@ fn cases() -> [Case; 3] {
     [
         Case {
             client: "Google Chrome",
-            http2: chromium::v154_http2(),
-            settings: chromium::v154_websocket(),
+            http2: chrome::v154_http2(),
+            settings: chrome::v154_websocket(),
             loopback: CHROME_LOOPBACK,
             named: CHROME_NAMED,
         },
         Case {
             client: "Microsoft Edge",
-            http2: chromium::v154_http2(),
-            settings: chromium::v154_websocket(),
+            http2: chrome::v154_http2(),
+            settings: chrome::v154_websocket(),
             loopback: EDGE_LOOPBACK,
             named: EDGE_NAMED,
         },

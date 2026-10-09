@@ -19,7 +19,10 @@ fn port_randomization_starts_at_the_minimum_build() {
 mod on_windows {
     use std::{net::Ipv4Addr, os::windows::io::AsSocket};
 
-    use phantom_profile::{TcpPortRandomization, TcpSettings, chromium, firefox};
+    use phantom_profile::{
+        TcpPortRandomization, TcpSettings,
+        browser::{chrome, firefox},
+    };
     use tokio::net::TcpListener;
 
     use super::super::{TestResult, sets_random_port};
@@ -63,7 +66,7 @@ mod on_windows {
 
     #[tokio::test(flavor = "current_thread")]
     async fn chromium_sockets_read_back_port_randomization() -> TestResult {
-        let settings = chromium::v154_tcp();
+        let settings = chrome::v154_tcp();
         let streams = connections(settings, None, 1).await?;
         assert_eq!(random_port(&streams[0])?, sets_random_port(&settings));
         Ok(())
@@ -82,7 +85,7 @@ mod on_windows {
             port_randomization: Some(TcpPortRandomization {
                 minimum_windows_build: u32::MAX,
             }),
-            ..chromium::v154_tcp()
+            ..chrome::v154_tcp()
         };
         let streams = connections(settings, None, 1).await?;
         assert!(!random_port(&streams[0])?);
@@ -147,7 +150,7 @@ mod on_windows {
 
     #[tokio::test(flavor = "current_thread")]
     async fn chromium_connections_take_scattered_local_ports() -> TestResult {
-        let settings = chromium::v154_tcp();
+        let settings = chrome::v154_tcp();
         if !chromium_sets_random_port(&settings) {
             return Ok(());
         }
@@ -161,7 +164,7 @@ mod on_windows {
 
     #[tokio::test(flavor = "current_thread")]
     async fn source_bound_chromium_connections_take_scattered_local_ports() -> TestResult {
-        let settings = chromium::v154_tcp();
+        let settings = chrome::v154_tcp();
         if !chromium_sets_random_port(&settings) {
             return Ok(());
         }

@@ -6,7 +6,10 @@ use std::{
     time::Duration,
 };
 
-use phantom_profile::{TlsSettings, TrustAnchorIds, brave, chromium, edge, firefox, opera};
+use phantom_profile::{
+    TlsSettings, TrustAnchorIds,
+    browser::{brave, chrome, edge, firefox, opera},
+};
 use phantom_testkit::tls::{
     CaptureLimits, ClientHelloCapture, ClientHelloSummary, capture_client_hello,
 };
@@ -96,14 +99,14 @@ const FIREFOX_MACOS_SEQUENTIAL: &str =
 #[tokio::test]
 async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> TestResult<()> {
     for (settings, fixture) in [
-        (chromium::v154_tls(), CHROME_SEQUENTIAL),
-        (edge::v154_tls(), EDGE_SEQUENTIAL),
-        (brave::v154_tls(), BRAVE_SEQUENTIAL),
-        (opera::v136_tls(), OPERA_SEQUENTIAL),
+        (chrome::v154_tcp_tls(), CHROME_SEQUENTIAL),
+        (edge::v154_tcp_tls(), EDGE_SEQUENTIAL),
+        (brave::v154_tcp_tls(), BRAVE_SEQUENTIAL),
+        (opera::v136_tcp_tls(), OPERA_SEQUENTIAL),
         // One macOS 15.5 arm64 run per browser.
-        (chromium::v154_tls(), CHROME_MACOS_SEQUENTIAL),
-        (edge::v154_tls(), EDGE_MACOS_SEQUENTIAL),
-        (opera::v136_tls(), OPERA_MACOS_SEQUENTIAL),
+        (chrome::v154_tcp_tls(), CHROME_MACOS_SEQUENTIAL),
+        (edge::v154_tcp_tls(), EDGE_MACOS_SEQUENTIAL),
+        (opera::v136_tcp_tls(), OPERA_MACOS_SEQUENTIAL),
     ] {
         let (fresh, resumed) =
             fresh_and_resumed_client_hellos(&settings, Tickets::WithoutEarlyData).await?;
@@ -129,10 +132,10 @@ async fn chromium_resumed_client_hellos_match_the_tcp_resumption_captures() -> T
 #[tokio::test]
 async fn chromium_recipes_never_offer_early_data_over_tcp() -> TestResult<()> {
     for settings in [
-        chromium::v154_tls(),
-        edge::v154_tls(),
-        brave::v154_tls(),
-        opera::v136_tls(),
+        chrome::v154_tcp_tls(),
+        edge::v154_tcp_tls(),
+        brave::v154_tcp_tls(),
+        opera::v136_tcp_tls(),
     ] {
         assert!(!settings.tcp_early_data);
         let (_, resumed) =
@@ -146,7 +149,7 @@ async fn chromium_recipes_never_offer_early_data_over_tcp() -> TestResult<()> {
 
 #[tokio::test]
 async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -> TestResult<()> {
-    let settings = firefox::v157_tls();
+    let settings = firefox::v157_tcp_tls();
     let (fresh, resumed) = fresh_and_resumed_client_hellos(
         &settings,
         Tickets::FixedLength(FIREFOX_CAPTURE_TICKET_LENGTH),
@@ -200,7 +203,7 @@ async fn firefox_resumed_client_hello_matches_the_capture_without_early_data() -
 /// Firefox's 368.
 #[tokio::test]
 async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> TestResult<()> {
-    let settings = firefox::v157_tls();
+    let settings = firefox::v157_tcp_tls();
     let (fresh, resumed) =
         fresh_and_resumed_client_hellos(&settings, Tickets::PermittingEarlyData).await?;
     let resumed_types = resumed.summary()?.extension_types().to_vec();
@@ -275,8 +278,8 @@ async fn firefox_resumed_client_hello_with_early_data_matches_the_capture() -> T
 #[tokio::test]
 async fn concurrent_connections_resume_up_to_the_recipes_tickets_per_origin() -> TestResult<()> {
     for (settings, expected) in [
-        (chromium::v154_tls(), [true, true, false]),
-        (firefox::v157_tls(), [true, true, true]),
+        (chrome::v154_tcp_tls(), [true, true, false]),
+        (firefox::v157_tcp_tls(), [true, true, true]),
     ] {
         let identity = TestIdentity::generate()?;
         let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?

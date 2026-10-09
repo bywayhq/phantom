@@ -29,7 +29,8 @@ use phantom::{
     Client, ContentCoding, ContentDecoding, HttpProtocol, HttpProxy, PreparedRequestTemplate,
     RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo, Route,
     profile::{
-        ClientHintSettings, ClientProfile, RequestTemplate, brave, chromium, edge, firefox, opera,
+        ClientHintSettings, ClientProfile, RequestTemplate,
+        browser::{brave, chrome, edge, firefox, opera},
     },
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
@@ -265,8 +266,8 @@ fn cases() -> Vec<Case> {
         Case {
             label: "chrome navigation",
             chromium: true,
-            hints: Some(chromium::v154_windows_client_hints()),
-            template: chromium::v154_windows_navigation_template(),
+            hints: Some(chrome::v154_windows_client_hints()),
+            template: chrome::v154_windows_navigation_template(),
             caller: Vec::new(),
             loopback: chrome.navigation(true),
             named: chrome.navigation(false),
@@ -274,8 +275,8 @@ fn cases() -> Vec<Case> {
         Case {
             label: "chrome fetch",
             chromium: true,
-            hints: Some(chromium::v154_windows_client_hints()),
-            template: chromium::v154_windows_fetch_no_store_template(),
+            hints: Some(chrome::v154_windows_client_hints()),
+            template: chrome::v154_windows_fetch_no_store_template(),
             caller: vec![referer()],
             loopback: chrome.fetch(true),
             named: chrome.fetch(false),
@@ -356,7 +357,7 @@ fn cases() -> Vec<Case> {
 }
 
 fn client(hints: Option<ClientHintSettings>, route: Option<Route>) -> TestResult<Client> {
-    let mut profile = ClientProfile::new(chromium::v154_tls());
+    let mut profile = ClientProfile::new(chrome::v154_tcp_tls());
     if let Some(hints) = hints {
         profile = profile.with_client_hints(hints);
     }
@@ -554,8 +555,7 @@ async fn a_loopback_plaintext_origin_learns_accept_ch_and_a_named_one_does_not()
         let accept_ch = b"HTTP/1.1 204 No Content\r\nAccept-CH: Sec-CH-UA-Arch\r\n\
 Content-Length: 0\r\n\r\n"
             .to_vec();
-        let navigation =
-            PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+        let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
         for (url, proxied, learns) in [
             ("http://127.0.0.1/", false, true),
             ("http://origin.phantom.test/", true, false),
@@ -571,7 +571,7 @@ Content-Length: 0\r\n\r\n"
                 .then(|| HttpProxy::new(&format!("http://{address}")).map(Route::http_proxy))
                 .transpose()?;
             let server = tokio::spawn(serve(listener, vec![accept_ch.clone(), no_content()]));
-            let client = client(Some(chromium::v154_windows_client_hints()), route)?;
+            let client = client(Some(chrome::v154_windows_client_hints()), route)?;
             for _ in 0..2 {
                 client
                     .get(HttpProtocol::Http1, &url)?
@@ -638,7 +638,7 @@ Connection: close\r\nContent-Length: 0\r\n\r\n"
                 listener,
                 vec![redirect.clone(), coded_response(coding, &body)],
             ));
-            let client = Client::builder(ClientProfile::new(firefox::v157_tls()))
+            let client = Client::builder(ClientProfile::new(firefox::v157_tcp_tls()))
                 .route(Route::http_proxy(proxy))
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                 .build()?;

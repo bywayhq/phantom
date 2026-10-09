@@ -8,7 +8,7 @@ use std::{
 use bytes::{Buf, Bytes};
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::{brave, brave_android, chrome_android, chromium, edge, edge_android, opera};
+use phantom_profile::browser::{brave, chrome, edge, opera};
 use phantom_testkit::tls::ClientHelloSummary;
 use quinn_proto::{Side, crypto, transport_parameters::TransportParameters};
 
@@ -22,10 +22,10 @@ use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 #[test]
 fn constructor_rejects_tcp_tls_recipe() {
     let result = Http3Connector::new(
-        &chromium::v154_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_tcp_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     );
     let error = result
         .err()
@@ -35,13 +35,13 @@ fn constructor_rejects_tcp_tls_recipe() {
 
 #[test]
 fn datagram_mismatch_is_an_invalid_profile() {
-    let mut quic = chromium::v154_quic();
+    let mut quic = chrome::v154_quic();
     quic.max_datagram_frame_size = Some(0);
     let result = Http3Connector::new(
         &h3_tls_settings(),
         &quic,
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     );
     let error = result
         .err()
@@ -54,9 +54,9 @@ fn invalid_additional_root_is_a_trust_store_failure() {
     let invalid_root = [0_u8];
     let result = Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
         [&invalid_root[..]],
     );
     let error = result
@@ -68,10 +68,10 @@ fn invalid_additional_root_is_a_trust_store_failure() {
 #[test]
 fn chrome_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?;
     for client_hello in [CHROME_154_H3_CLIENT_HELLO_1, CHROME_154_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(
@@ -87,10 +87,10 @@ fn chrome_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<(
 #[test]
 fn edge_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &edge::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &edge::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?;
     for client_hello in [EDGE_154_H3_CLIENT_HELLO_1, EDGE_154_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, EDGE_154_H3_STARTUP, client_hello)?;
@@ -102,10 +102,10 @@ fn edge_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()>
 #[test]
 fn brave_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &brave::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &brave::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?;
     for client_hello in [BRAVE_154_H3_CLIENT_HELLO_1, BRAVE_154_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, BRAVE_154_H3_STARTUP, client_hello)?;
@@ -124,10 +124,10 @@ fn brave_154_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
 #[test]
 fn opera_136_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &opera::v136_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &opera::v136_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?;
     for client_hello in [OPERA_136_H3_CLIENT_HELLO_1, OPERA_136_H3_CLIENT_HELLO_2] {
         assert_connector_matches_quic_client_hello(&connector, OPERA_136_H3_STARTUP, client_hello)?;
@@ -140,7 +140,7 @@ fn opera_136_quic_client_hello_recipe_matches_windows_capture() -> TestResult<()
 /// never an order outside them.
 #[test]
 fn opera_136_quic_trust_anchor_order_is_drawn_per_connection() -> TestResult<()> {
-    let settings = opera::v136_http3_tls();
+    let settings = opera::v136_quic_tls();
     let recipe_orders = settings
         .requested_trust_anchor_ids
         .as_ref()
@@ -151,9 +151,9 @@ fn opera_136_quic_trust_anchor_order_is_drawn_per_connection() -> TestResult<()>
         .collect::<Vec<_>>();
     let connector = Http3Connector::new(
         &settings,
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?;
     let parameters = TransportParameters::read(
         Side::Server,
@@ -191,10 +191,10 @@ fn opera_136_quic_trust_anchor_order_is_drawn_per_connection() -> TestResult<()>
 #[test]
 fn chrome_android_154_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &chrome_android::v154_http3_tls(),
-        &chrome_android::v154_quic(),
-        &chrome_android::v154_http3(),
-        &chrome_android::v154_http3_request(),
+        &chrome::v154_android_quic_tls(),
+        &chrome::v154_android_quic(),
+        &chrome::v154_android_http3(),
+        &chrome::v154_android_http3_request(),
     )?;
     assert_connector_matches_quic_client_hello(
         &connector,
@@ -207,10 +207,10 @@ fn chrome_android_154_quic_client_hello_recipe_matches_android_capture() -> Test
 #[test]
 fn brave_android_153_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &brave_android::v153_http3_tls(),
-        &brave_android::v153_quic(),
-        &brave_android::v153_http3(),
-        &brave_android::v153_http3_request(),
+        &brave::v153_android_quic_tls(),
+        &brave::v153_android_quic(),
+        &brave::v153_android_http3(),
+        &brave::v153_android_http3_request(),
     )?;
     assert_connector_matches_quic_client_hello(
         &connector,
@@ -224,10 +224,10 @@ fn brave_android_153_quic_client_hello_recipe_matches_android_capture() -> TestR
 #[test]
 fn edge_android_153_quic_client_hello_recipe_matches_android_capture() -> TestResult<()> {
     let connector = Http3Connector::new(
-        &edge_android::v153_http3_tls(),
-        &edge_android::v153_quic(),
-        &edge_android::v153_http3(),
-        &edge_android::v153_http3_request(),
+        &edge::v153_android_quic_tls(),
+        &edge::v153_android_quic(),
+        &edge::v153_android_http3(),
+        &edge::v153_android_http3_request(),
     )?;
     assert_connector_matches_quic_client_hello(
         &connector,
@@ -401,9 +401,9 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
     let identity = TestIdentity::generate()?;
     let connector = Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
         [identity.root_der()],
     )?;
     let (address, endpoint) = server_endpoint(&identity)?;
@@ -436,7 +436,7 @@ async fn retries_a_later_resolved_address_before_sending_the_request() -> TestRe
         Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
     });
     let request = super::super::prepare_traced_request(
-        &chromium::v154_http3_request(),
+        &chrome::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/")?,
@@ -463,9 +463,9 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
     let build_connector = || {
         Http3Connector::new_with_additional_roots(
             &h3_tls_settings(),
-            &chromium::v154_quic(),
-            &chromium::v154_http3(),
-            &chromium::v154_http3_request(),
+            &chrome::v154_quic(),
+            &chrome::v154_http3(),
+            &chrome::v154_http3_request(),
             [identity.root_der()],
         )
     };
@@ -765,9 +765,9 @@ async fn spawn_parked_get(
 fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new_with_additional_roots(
         &h3_tls_settings(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
         [identity.root_der()],
     )
 }
@@ -775,14 +775,14 @@ fn trusting_connector(identity: &TestIdentity) -> Result<Http3Connector, Http3Co
 fn connector() -> Result<Http3Connector, Http3ConnectorError> {
     Http3Connector::new(
         &h3_tls_settings(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )
 }
 
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    chromium::v154_http3_tls()
+    chrome::v154_quic_tls()
 }
 
 pub(super) const CHROME_154_H3_STARTUP: &str = include_str!(concat!(

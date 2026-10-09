@@ -28,7 +28,8 @@ use phantom::{
     Socks5Proxy, TimeoutPhase, WebSocket, WebSocketErrorKind, WebSocketMessage,
     WebSocketRetryPolicy,
     profile::{
-        ClientProfile, Http2PseudoHeader, Http3ClientSettings, Http3RequestSettings, chromium,
+        ClientProfile, Http2PseudoHeader, Http3ClientSettings, Http3RequestSettings,
+        browser::chrome,
     },
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -215,7 +216,7 @@ async fn http3_websocket_without_extended_connect_order_fails_before_io() -> Tes
         let identity = TestIdentity::generate()?;
         let silent = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let address = silent.local_addr()?;
-        let client = Client::builder(profile(chromium::v154_http3_request()))
+        let client = Client::builder(profile(chrome::v154_http3_request()))
             .add_root_certificate_der(identity.root_der.clone())
             .build()?;
 
@@ -652,7 +653,7 @@ async fn http3_websocket_travels_through_connect_udp_over_http1_and_http2_legs()
                 StreamLeg::Http1 => ConnectUdpProxy::new(&proxy.template())?.with_http1_transport(),
                 StreamLeg::Http2 => ConnectUdpProxy::new(&proxy.template())?.with_http2_transport(),
             };
-            let mut http2 = chromium::v154_http2();
+            let mut http2 = chrome::v154_http2();
             http2.extended_connect_pseudo_header_order = Some(vec![
                 Http2PseudoHeader::Method,
                 Http2PseudoHeader::Protocol,

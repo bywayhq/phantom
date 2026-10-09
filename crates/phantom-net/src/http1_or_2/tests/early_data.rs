@@ -12,7 +12,7 @@ use btls::ssl::{AlpnError, ExtensionType, SelectCertError, Ssl, SslAcceptor, sel
 use bytes::Bytes;
 use http::{Method, Response};
 use http_body_util::BodyExt as _;
-use phantom_profile::firefox;
+use phantom_profile::browser::firefox;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -159,7 +159,7 @@ async fn http2_sends_a_rejected_get_once_more_on_the_same_connection() -> TestRe
 async fn a_connection_through_a_proxy_offers_no_early_data() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = Http1Or2TlsConnector::new_with_additional_roots(
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
         &firefox::v157_http2(),
         [identity.root_der()],
     )?
@@ -271,7 +271,7 @@ async fn start<const N: usize>(
 ) -> TestResult<Started<N>> {
     let identity = TestIdentity::generate()?;
     let connector = Http1Or2TlsConnector::new_with_additional_roots(
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
         &firefox::v157_http2(),
         [identity.root_der()],
     )?
@@ -457,7 +457,7 @@ async fn plaintext_negotiation_rejects_before_stream_io() -> TestResult<()> {
     use crate::route::{ConnectedStream, OriginRoute, TcpRoute};
     use crate::tls::test_support::TouchCountingStream;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    let connector = Http1Or2TlsConnector::new(&firefox::v157_tls(), &firefox::v157_http2())?;
+    let connector = Http1Or2TlsConnector::new(&firefox::v157_tcp_tls(), &firefox::v157_http2())?;
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = tokio::io::duplex(128);
     let stream = TouchCountingStream::new(client, Arc::clone(&touches));
@@ -479,7 +479,7 @@ async fn dropping_negotiated_route_connect_closes_stream_and_records_cancelled_o
 -> TestResult<()> {
     use crate::route::{ConnectedStream, DirectTlsSetup, OriginRoute, TcpRoute};
     use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
-    let connector = Http1Or2TlsConnector::new(&firefox::v157_tls(), &firefox::v157_http2())?;
+    let connector = Http1Or2TlsConnector::new(&firefox::v157_tcp_tls(), &firefox::v157_http2())?;
     let subscriber = OutcomeSubscriber::default();
     let (client, mut server) = tokio::io::duplex(64 * 1024);
     let pending = poll_once_then_drop(

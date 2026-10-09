@@ -92,7 +92,7 @@ latest_chrome_recipe() {
   sed -nE \
     -e "s|^/// Returns $description from Chrome ([0-9]+(\\.[0-9]+){3}) on macOS ([0-9]+(\\.[0-9]+)+)( and Windows [0-9]+)?\\.$|\\1\tmacos-\\3|p" \
     -e "s|^/// Returns $description from Chrome ([0-9]+(\\.[0-9]+){3}) on Windows ([0-9]+)\\.$|\\1\twindows-\\3|p" \
-    crates/phantom-profile/src/chromium.rs \
+    crates/phantom-profile/src/browser/chrome.rs \
     | jq -Rrs '
         split("\n")
         | map(select(length > 0) | split("\t"))
@@ -144,10 +144,10 @@ built_in_chrome_recipe() {
   IFS=$'\t' read -r chrome_recipe_version chrome_platform <<<"$tls_recipe"
   chrome_major=${chrome_recipe_version%%.*}
   grep -F -q "pub fn v${chrome_major}_tls()" \
-    crates/phantom-profile/src/chromium.rs \
+    crates/phantom-profile/src/browser/chrome.rs \
     || die "missing TLS function for the latest Chrome recipe"
   grep -F -q "pub fn v${chrome_major}_http2()" \
-    crates/phantom-profile/src/chromium.rs \
+    crates/phantom-profile/src/browser/chrome.rs \
     || die "missing HTTP/2 function for the latest Chrome recipe"
 
   case "$chrome_platform" in

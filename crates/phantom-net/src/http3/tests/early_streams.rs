@@ -777,7 +777,7 @@ async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult
 /// session starts, so a server reads the type of every critical stream. The
 /// QPACK stream order stays Chrome's: decoder, then encoder.
 fn typed_critical_streams() -> phantom_profile::Http3Settings {
-    let mut settings = phantom_profile::chromium::v154_http3();
+    let mut settings = phantom_profile::browser::chrome::v154_http3();
     settings.qpack_decoder_stream = phantom_profile::Http3QpackDecoderStream::Eager;
     settings.qpack_encoder_stream = phantom_profile::Http3QpackEncoderStream::Eager;
     settings

@@ -117,12 +117,12 @@ to join.
 
 | Recipe | Pooled capable H2 session | No H2 session | Session without the setting | Pooled session on a proxy route |
 | --- | --- | --- | --- | --- |
-| `chromium::v154_websocket` (Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154 and Brave 153 for Android) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session | Extended CONNECT on it, inside its tunnel (`Reuse`) |
+| `chrome::v154_websocket` (Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154 and Brave 153 for Android) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session | Extended CONNECT on it, inside its tunnel (`Reuse`) |
 | `firefox::v157_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade | Extended CONNECT on it, inside its tunnel (`Reuse`) |
 
 | Recipe | Refused CONNECT stream | Empty message with deflate | Handshake timeout |
 | --- | --- | --- | --- |
-| `chromium::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set | 240 seconds |
+| `chrome::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set | 240 seconds |
 | `firefox::v157_websocket` | Reported to the caller | Uncompressed, RSV1 clear | 20 seconds |
 
 Both recipes reuse capable H2 sessions on proxy routes. This policy and
@@ -139,7 +139,7 @@ separate `extended_connect_priority`:
 
 | H2 recipe | CONNECT priority | Ordinary request priority |
 | --- | --- | --- |
-| `chromium::v154_http2` | Exclusive on stream 0, weight 147 | Weight 256 |
+| `chrome::v154_http2` | Exclusive on stream 0, weight 147 | Weight 256 |
 | `firefox::v157_http2` | Non-exclusive on stream 0, weight 22 | Weight 42 |
 
 The H1 and H2 templates set header order, spelling, and fixed values.
@@ -167,7 +167,7 @@ Each paired H2 recipe sets its HPACK header compression choices in
 
 | H2 recipe | Kept out of the dynamic table | Repeated static name | Huffman-codes a literal |
 | --- | --- | --- | --- |
-| `chromium::v154_http2` | `:method` and `:protocol` | Lower entry: `:method` 2, `:path` 4 | Only when that shortens it, so `CONNECT` and `13` go raw |
+| `chrome::v154_http2` | `:method` and `:protocol` | Lower entry: `:method` 2, `:path` 4 | Only when that shortens it, so `CONNECT` and `13` go raw |
 | `firefox::v157_http2` | None; both are indexed incrementally | Higher entry: `:method` 3, `:path` 5 | Always |
 
 An HPACK encoder keeps these choices for the whole connection, so they apply

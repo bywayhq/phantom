@@ -43,13 +43,13 @@ Open several HTTP/1.1 connections to one server, up to a browser's limit,
 with the profile's `Http1Settings`.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{Client, HttpProtocol};
 
 async fn in_parallel() -> Result<(), Box<dyn std::error::Error>> {
     // Chromium keeps up to 6 H1 connections to each origin and route.
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http1(chromium::v154_http1());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http1(chrome::v154_http1());
     let client = Client::builder(profile).build()?;
 
     let first = client.get(HttpProtocol::Http1, "https://example.com/a")?.send();
@@ -71,11 +71,11 @@ Build a separate client for each identity, so cookies and connections from
 one never reach the other.
 
 ```rust
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{BuildError, Client};
 
 fn two_sessions() -> Result<(Client, Client), BuildError> {
-    let profile = || ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = || ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     // Each build starts with empty pools and stores of its own.
     let first = Client::builder(profile()).cookies().build()?;
     let second = Client::builder(profile()).cookies().build()?;
@@ -94,11 +94,11 @@ network interface.
 ```rust
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use phantom::profile::{chromium, ClientProfile};
+use phantom::profile::{ClientProfile, browser::chrome};
 use phantom::{BuildError, Client};
 
 fn bound_client() -> Result<Client, BuildError> {
-    let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     Client::builder(profile)
         .local_address(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10)))
         .local_address(IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 10)))

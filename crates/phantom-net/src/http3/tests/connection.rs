@@ -111,7 +111,7 @@ async fn static_trailers_follow_data_and_support_trailer_only_requests() -> Test
         ("/trailers-only", None),
     ] {
         let prepared = crate::http3::request::prepare_profiled_request_body_with_trailers(
-            &phantom_profile::chromium::v154_http3_request(),
+            &phantom_profile::browser::chrome::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
             crate::http3::OriginForm::parse(path)?,
@@ -168,7 +168,7 @@ async fn raw_custom_config_send_emits_body_and_duplicate_trailers() -> TestResul
             TEST_SERVER_NAME,
             client,
             &test_settings(),
-            &phantom_profile::chromium::v154_http3_request(),
+            &phantom_profile::browser::chrome::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
             crate::http3::OriginForm::parse("/raw-trailers")?,

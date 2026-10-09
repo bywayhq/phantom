@@ -5,8 +5,10 @@ use std::{path::PathBuf, time::Duration};
 
 use phantom_profile::{
     Http2RejectedConnect, Http2Setting, Http2Settings,
-    chromium::{v154_http2, v154_proxy_connect},
-    firefox::v157_http2,
+    browser::{
+        chrome::{v154_http2, v154_proxy_connect},
+        firefox::v157_http2,
+    },
 };
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},

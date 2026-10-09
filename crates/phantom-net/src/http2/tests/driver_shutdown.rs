@@ -12,7 +12,7 @@ use std::{
 
 use http::Response;
 use http_body::Body as _;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex},
     runtime::Builder,

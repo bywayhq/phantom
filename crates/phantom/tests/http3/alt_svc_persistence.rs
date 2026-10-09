@@ -16,7 +16,7 @@ use http_body_util::BodyExt;
 use phantom::{
     AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotErrorKind, Client, HttpProtocol,
     ResponseInfo,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
@@ -432,7 +432,7 @@ fn client(identity: &TestIdentity, maximum_origins: usize) -> TestResult<Client>
 
 fn upgrade_builder(identity: &TestIdentity) -> phantom::ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(client_settings());
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }

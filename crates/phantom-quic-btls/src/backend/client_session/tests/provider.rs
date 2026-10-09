@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use btls::x509::X509;
 use phantom_profile::{
-    CipherSuite, EchGreaseAead, EchGreasePayloadLength, NamedGroup, TlsVersion, chromium,
+    CipherSuite, EchGreaseAead, EchGreasePayloadLength, NamedGroup, TlsVersion, browser::chrome,
 };
 use quinn_proto::crypto;
 use quinn_proto::{
@@ -285,7 +285,7 @@ fn rejects_unsupported_versions_and_invalid_names_before_io() {
 fn profiled_transport_mismatch_has_a_truthful_connect_error() {
     let context = client_context(true);
     let config = test_ok(
-        QuicClientConfig::with_transport_profile(context.0, chromium::v154_quic()),
+        QuicClientConfig::with_transport_profile(context.0, chrome::v154_quic()),
         "profiled client config",
     );
 
@@ -538,7 +538,7 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
 /// The Chrome H3 recipe without tickets: these tests use contexts that are not
 /// prepared for resumption, which `resumption.rs` covers separately.
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
-    let mut settings = chromium::v154_http3_tls();
+    let mut settings = chrome::v154_quic_tls();
     settings.session_tickets = false;
     settings
 }

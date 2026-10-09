@@ -477,7 +477,7 @@ fn imported_cookies_are_evicted_before_held_ones() -> TestResult {
 
 #[test]
 fn client_round_trips_cookies_and_reports_a_missing_jar() -> TestResult {
-    let profile = || ClientProfile::new(chromium::v154_tls());
+    let profile = || ClientProfile::new(chrome::v154_tcp_tls());
     let without = Client::builder(profile()).build()?;
     assert!(without.export_cookies().is_none());
     let error = without

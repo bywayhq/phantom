@@ -20,7 +20,7 @@ use http_body_util::BodyExt;
 use phantom::{
     AddressResolver, Client, HttpProtocol, HttpProxy, Route,
     dns::HttpsRecordResolver,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use phantom_testkit::{
     dns::DnsServer,
@@ -72,10 +72,10 @@ impl Opening {
         let mut tls = ech_tls_settings();
         tls.ech_from_https_records = ech_from_https_records;
         let profile = ClientProfile::new(tls)
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(client_settings());
         #[cfg(feature = "websocket")]
-        let profile = profile.with_websocket(chromium::v154_websocket());
+        let profile = profile.with_websocket(chrome::v154_websocket());
         profile
     }
 

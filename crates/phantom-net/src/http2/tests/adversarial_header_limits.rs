@@ -1,4 +1,7 @@
-use phantom_profile::{Http2Setting, Http2Settings, chromium::v154_http2, firefox::v157_http2};
+use phantom_profile::{
+    Http2Setting, Http2Settings,
+    browser::{chrome::v154_http2, firefox::v157_http2},
+};
 use tokio::io::{AsyncWriteExt, DuplexStream, duplex};
 
 use super::adversarial_malformed::{

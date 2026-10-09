@@ -15,7 +15,7 @@ use std::env;
 
 use phantom::{
     Client, HttpProtocol, RequestHeader, ResponseInfo,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 
 const DEFAULT_URL: &str = "https://example.com/";
@@ -27,9 +27,9 @@ const BODY_LIMIT: usize = 1 << 20;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = env::args().nth(1).unwrap_or_else(|| DEFAULT_URL.to_owned());
 
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
 
     let response = client

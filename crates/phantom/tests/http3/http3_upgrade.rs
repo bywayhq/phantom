@@ -26,7 +26,7 @@ use phantom::{
     Client, HttpProtocol, RequestErrorKind, RequestHeader, RequestTrailerName, ResponseInfo,
     profile::{
         ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, Http3ClientSettings,
-        chromium, firefox,
+        browser::{chrome, firefox},
     },
 };
 use tokio::time::timeout;
@@ -499,7 +499,7 @@ async fn critical_ch_replay_keeps_one_stable_alt_used_field() -> TestResult<()> 
         let expected = format!("127.0.0.1:{}", fixture.alternative_address().port());
         let maximum_origins = NonZeroUsize::new(8).ok_or("Alt-Svc test capacity was zero")?;
         let profile = ClientProfile::new(tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(appending_alt_used(client_settings()))
             .with_client_hints(ClientHintSettings::new(vec![ClientHint::new(
                 "sec-ch-ua-arch",
@@ -672,7 +672,7 @@ fn upgrade_client_builder_with(
     http3: Http3ClientSettings,
 ) -> phantom::ClientBuilder {
     let profile = ClientProfile::new(tls_settings())
-        .with_http2(chromium::v154_http2())
+        .with_http2(chrome::v154_http2())
         .with_http3(http3);
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }

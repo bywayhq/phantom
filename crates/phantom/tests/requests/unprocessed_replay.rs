@@ -23,7 +23,7 @@ use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, HttpProtocol, RedirectPolicy, RequestError, RequestErrorKind, ResponseInfo,
     RetryPolicy,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use phantom_net::http2::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
 use tokio::{
@@ -300,7 +300,7 @@ async fn accept_tls(
 /// read and closes the connection when unanswered for 2 seconds. It sends
 /// no request again after the PING fails, so only the retry policy could.
 fn short_ping_timeout_client(identity: &TestIdentity) -> TestResult<Client> {
-    let mut http2 = chromium::v154_http2();
+    let mut http2 = chrome::v154_http2();
     http2.preface_ping_after = Some(Duration::from_secs(1));
     http2.ping_timeout = Some(Duration::from_secs(2));
     http2.ping_failure_retries = 0;

@@ -2,7 +2,7 @@ use std::{io, time::Duration};
 
 use phantom_profile::{
     TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy,
-    TcpPortRandomization, TcpSettings, chromium,
+    TcpPortRandomization, TcpSettings, browser::chrome,
 };
 use socket2::SockRef;
 use tokio::net::TcpListener;
@@ -190,7 +190,7 @@ fn host_check_requires_an_interval_where_windows_semantics_apply() {
 #[test]
 fn this_host_accepts_the_chromium_recipe() {
     assert_eq!(
-        check_host_support(&phantom_profile::chromium::v154_tcp()),
+        check_host_support(&phantom_profile::browser::chrome::v154_tcp()),
         Ok(())
     );
 }
@@ -343,7 +343,7 @@ async fn a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium() -
     let second: std::net::SocketAddr = "192.0.2.2:443".parse()?;
 
     let TcpAddressSelection::Backup(backup) =
-        phantom_profile::firefox::v157_tcp().address_selection
+        phantom_profile::browser::firefox::v157_tcp().address_selection
     else {
         return Err("the Firefox recipe has no backup connection".into());
     };
@@ -378,7 +378,7 @@ async fn a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium() -
     assert_eq!(*dialed.borrow(), [first, second]);
 
     assert!(matches!(
-        chromium::v154_tcp().address_selection,
+        chrome::v154_tcp().address_selection,
         TcpAddressSelection::Racing(_)
     ));
     let dialed = std::cell::RefCell::new(Vec::new());

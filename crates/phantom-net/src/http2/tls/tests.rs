@@ -14,7 +14,7 @@ use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
 use phantom_profile::{
     AlpsSettings, CipherSuite, ClientHelloExtensionOrder, NamedGroup, SessionTicketOrder,
-    SignatureScheme, TlsSettings, TlsVersion, chromium::v154_http2,
+    SignatureScheme, TlsSettings, TlsVersion, browser::chrome::v154_http2,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, duplex},

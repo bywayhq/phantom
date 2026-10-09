@@ -22,7 +22,7 @@ use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, Client, HttpProtocol, RequestErrorKind,
     ResponseInfo,
     dns::HttpsRecordResolver,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::{
@@ -316,15 +316,15 @@ async fn published_record() -> TestResult<DnsServer> {
 
 /// Chrome 154's HTTP/3 recipe, with `ech_from_https_records` as given.
 fn profile(ech_from_https_records: bool) -> ClientProfile {
-    let mut tls = chromium::v154_http3_tls();
+    let mut tls = chrome::v154_quic_tls();
     tls.ech_from_https_records = ech_from_https_records;
-    ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
+    ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(
             tls,
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         ))
 }
 

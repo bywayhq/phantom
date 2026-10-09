@@ -3,7 +3,7 @@
 //! upgrade, and HTTP/1.1 or HTTP/2 chosen by ALPN.
 
 use http_body_util::BodyExt as _;
-use phantom_profile::{chromium, firefox};
+use phantom_profile::browser::{chrome, firefox};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -71,7 +71,7 @@ async fn plaintext_requests_keep_one_short_lived_schedule() -> TestResult<()> {
     let (port, origin) = http1_origin(2).await?;
     observed::take();
     let connector =
-        Http1TlsConnector::new(&firefox::v157_tls())?.with_tcp_settings(&firefox::v157_tcp());
+        Http1TlsConnector::new(&firefox::v157_tcp_tls())?.with_tcp_settings(&firefox::v157_tcp());
 
     let (connection, _) = connector
         .connect(crate::route::Http1Route::Origin(
@@ -115,7 +115,7 @@ async fn a_switch_of_protocols_makes_keepalive_long_lived() -> TestResult<()> {
     });
     observed::take();
     let connector =
-        Http1TlsConnector::new(&firefox::v157_tls())?.with_tcp_settings(&firefox::v157_tcp());
+        Http1TlsConnector::new(&firefox::v157_tcp_tls())?.with_tcp_settings(&firefox::v157_tcp());
 
     let (target, mut headers) = get()?;
     headers.push(RequestHeader::new("Connection", "Upgrade"));
@@ -162,7 +162,7 @@ async fn negotiated(alpn: TestServerAlpn) -> TestResult<TcpKeepaliveControl> {
     });
     observed::take();
     let connector = Http1Or2TlsConnector::new_with_additional_roots(
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
         &firefox::v157_http2(),
         [identity.root_der()],
     )?
@@ -211,7 +211,7 @@ async fn a_chromium_profile_opens_no_schedule() -> TestResult<()> {
     let (port, origin) = http1_origin(1).await?;
     observed::take();
     let connector =
-        Http1TlsConnector::new(&chromium::v154_tls())?.with_tcp_settings(&chromium::v154_tcp());
+        Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_tcp_settings(&chrome::v154_tcp());
 
     let (connection, _) = connector
         .connect(crate::route::Http1Route::Origin(
@@ -268,13 +268,13 @@ async fn an_http2_proxy_connection_turns_keepalive_off() -> TestResult<()> {
     });
     observed::take();
     let proxy = HttpsProxyConnector::new_with_additional_roots(
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
         [identity.root_der()],
     )?
     .with_http2_settings(&firefox::v157_http2())
     .with_protocol(HttpsProxyProtocol::Http2)
     .with_tcp_settings(&firefox::v157_tcp());
-    let origin = Http1TlsConnector::new(&firefox::v157_tls())?;
+    let origin = Http1TlsConnector::new(&firefox::v157_tcp_tls())?;
 
     let _ = origin
         .connect(crate::route::Http1Route::Origin(

@@ -1912,7 +1912,7 @@ mod socks5_tests {
         task::{Context, Poll, Waker},
     };
 
-    use phantom_profile::chromium;
+    use phantom_profile::browser::chrome;
 
     use super::{Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind};
     use crate::proxy::{Socks5Auth, Socks5Error, Socks5ErrorKind};
@@ -2055,10 +2055,10 @@ mod socks5_tests {
 
     fn connector() -> Result<Http3Connector, Http3ConnectorError> {
         Http3Connector::new(
-            &chromium::v154_http3_tls(),
-            &chromium::v154_quic(),
-            &chromium::v154_http3(),
-            &chromium::v154_http3_request(),
+            &chrome::v154_quic_tls(),
+            &chrome::v154_quic(),
+            &chrome::v154_http3(),
+            &chrome::v154_http3_request(),
         )
     }
 

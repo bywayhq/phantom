@@ -14,7 +14,7 @@ use phantom::{
     RequestError, RequestErrorKind, Route,
     profile::{
         CipherSuite, ClientProfile, Http3ClientSettings, NamedGroup, SignatureScheme, TlsSettings,
-        TlsVersion, chromium,
+        TlsVersion, browser::chrome,
     },
 };
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
@@ -417,7 +417,7 @@ async fn certificate_leaves_the_chromium_client_hello_unchanged() -> TestResult<
     for certificate in [None, Some(identity.certificate()?)] {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let client = client(&server, chromium::v154_tls(), certificate)?;
+        let client = client(&server, chrome::v154_tcp_tls(), certificate)?;
         let capture = async {
             let (mut stream, _) = listener.accept().await?;
             let capture = capture_client_hello(
@@ -453,12 +453,12 @@ async fn certificate_leaves_the_chromium_quic_client_hello_unchanged() -> TestRe
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
         let address = endpoint.local_addr()?;
-        let builder = Client::builder(ClientProfile::new(chromium::v154_tls()).with_http3(
+        let builder = Client::builder(ClientProfile::new(chrome::v154_tcp_tls()).with_http3(
             Http3ClientSettings::new(
-                chromium::v154_http3_tls(),
-                chromium::v154_quic(),
-                chromium::v154_http3(),
-                chromium::v154_http3_request(),
+                chrome::v154_quic_tls(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                chrome::v154_http3_request(),
             ),
         ))
         .add_root_certificate_der(server.root_der.clone());

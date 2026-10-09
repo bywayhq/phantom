@@ -24,7 +24,7 @@ use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -285,8 +285,8 @@ fn second_runtime_waits_for_its_own_setup_to_an_origin_known_for_http2() -> Test
     // An HTTP/1.1 policy lets a first contact open connections in parallel.
     let client = Client::builder(
         ClientProfile::new(tls_settings())
-            .with_http1(chromium::v154_http1())
-            .with_http2(chromium::v154_http2()),
+            .with_http1(chrome::v154_http1())
+            .with_http2(chrome::v154_http2()),
     )
     .add_root_certificate_der(identity.root_der.clone())
     .build()?;

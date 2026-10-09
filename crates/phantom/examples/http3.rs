@@ -15,7 +15,7 @@ use std::env;
 
 use phantom::{
     Client, HttpProtocol, PreparedRequestTemplate, ResponseInfo,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 
 const DEFAULT_URL: &str = "https://example.com/";
@@ -28,18 +28,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = env::args().nth(1).unwrap_or_else(|| DEFAULT_URL.to_owned());
 
     let http3 = Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
     // The TLS recipe passed to `new` applies only to TCP connections; H3 uses
     // the TLS recipe inside `http3`.
-    let profile = ClientProfile::new(chromium::v154_tls())
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
         .with_http3(http3)
-        .with_client_hints(chromium::v154_windows_client_hints());
+        .with_client_hints(chrome::v154_windows_client_hints());
     let client = Client::builder(profile).build()?;
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
 
     let response = client
         .get(HttpProtocol::Http3, &url)?

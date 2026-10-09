@@ -113,13 +113,13 @@ mod tests {
     #[test]
     fn connect_udp_debug_omits_unmarked_headers_and_path() -> Result<(), Box<dyn std::error::Error>>
     {
-        use phantom_profile::chromium;
+        use phantom_profile::browser::chrome;
 
         let proxy = Http3Connector::new(
-            &chromium::v154_http3_tls(),
-            &chromium::v154_quic(),
-            &chromium::v154_http3(),
-            &chromium::v154_http3_request(),
+            &chrome::v154_quic_tls(),
+            &chrome::v154_quic(),
+            &chrome::v154_http3(),
+            &chrome::v154_http3_request(),
         )?;
         let password = format!("{:?}", std::time::Instant::now());
         let credentials = HttpBasicCredentials::new("private-user", &password)?;

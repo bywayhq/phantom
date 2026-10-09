@@ -6,7 +6,7 @@
 
 use std::{future::Future, io, net::SocketAddr, time::Duration};
 
-use phantom_profile::{UdpSettings, chromium};
+use phantom_profile::{UdpSettings, browser::chrome};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -24,10 +24,10 @@ const SERVER_NAME: &str = "server.phantom.test";
 
 fn http3(settings: Option<UdpSettings>) -> TestResult<Http3Connector> {
     let connector = Http3Connector::new(
-        &chromium::v154_http3_tls(),
-        &chromium::v154_quic(),
-        &chromium::v154_http3(),
-        &chromium::v154_http3_request(),
+        &chrome::v154_quic_tls(),
+        &chrome::v154_quic(),
+        &chrome::v154_http3(),
+        &chrome::v154_http3_request(),
     )?;
     Ok(match settings {
         Some(settings) => connector.with_udp_settings(&settings),
@@ -120,7 +120,7 @@ async fn direct_quic_sockets_apply_the_udp_settings() -> TestResult {
     let port = peer.local_addr()?.port();
     let source = SourceBinding::new().with_address(IPV4_LOOPBACK);
 
-    for settings in [Some(chromium::v154_udp()), None] {
+    for settings in [Some(chrome::v154_udp()), None] {
         let connector = http3(settings)?;
         let sockets = sockets_bound_by(connector.connect(
             crate::route::DatagramRoute::Direct(crate::route::Endpoint {
@@ -150,7 +150,7 @@ async fn direct_quic_sockets_apply_the_udp_settings() -> TestResult {
 async fn socks5_association_sockets_apply_the_udp_settings() -> TestResult {
     let proxy = Socks5Peer::bind().await?;
 
-    for settings in [Some(chromium::v154_udp()), None] {
+    for settings in [Some(chrome::v154_udp()), None] {
         let connector = http3(settings)?;
         let sockets = sockets_bound_by(connector.connect(
             crate::route::DatagramRoute::Socks5 {

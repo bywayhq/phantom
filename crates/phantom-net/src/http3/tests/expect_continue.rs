@@ -4,7 +4,7 @@ use bytes::{Buf, Bytes};
 use h3::ext::OrderedHeaders;
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
-use phantom_profile::chromium;
+use phantom_profile::browser::chrome;
 use tokio::{sync::oneshot, time::timeout};
 
 use super::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config, join_server};
@@ -28,7 +28,7 @@ fn prepare(
     headers: Vec<RequestHeader>,
 ) -> TestResult<Result<crate::http3::request::PreparedRequest, crate::http3::Http3Error>> {
     Ok(crate::http3::request::prepare_profiled_request_body(
-        &chromium::v154_http3_request(),
+        &chrome::v154_http3_request(),
         http::Method::POST,
         TEST_SERVER_NAME,
         OriginForm::parse("/upload")?,

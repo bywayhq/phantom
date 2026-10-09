@@ -5,7 +5,10 @@ use std::{net::Ipv4Addr, time::Duration};
 
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, HttpProxy, Route,
-    profile::{ClientProfile, Http3ClientSettings, TrustAnchorIds, chromium, opera},
+    profile::{
+        ClientProfile, Http3ClientSettings, TrustAnchorIds,
+        browser::{chrome, opera},
+    },
 };
 use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hello};
 use tokio::{net::TcpListener, sync::mpsc, time::timeout};
@@ -45,7 +48,7 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
         }
     });
 
-    let recipe_orders = opera::v136_tls()
+    let recipe_orders = opera::v136_tcp_tls()
         .requested_trust_anchor_ids
         .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
         .orders()
@@ -54,9 +57,9 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
         .collect::<Vec<_>>();
     let mut drawn = Vec::new();
     for _ in 0..12 {
-        let profile = ClientProfile::new(opera::v136_tls()).with_http2(chromium::v154_http2());
+        let profile = ClientProfile::new(opera::v136_tcp_tls()).with_http2(chrome::v154_http2());
         #[cfg(feature = "websocket")]
-        let profile = profile.with_websocket(chromium::v154_websocket());
+        let profile = profile.with_websocket(chrome::v154_websocket());
         let client = Client::builder(profile).build()?;
         let mut client_orders = Vec::new();
         let mut connections = 0;
@@ -125,7 +128,7 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
 /// fixing one of its orders.
 #[test]
 fn http3_per_client_orders_with_different_ids_fail_the_build() -> TestResult<()> {
-    let mut tls = opera::v136_http3_tls();
+    let mut tls = opera::v136_quic_tls();
     let order = tls
         .requested_trust_anchor_ids
         .as_ref()
@@ -139,11 +142,11 @@ fn http3_per_client_orders_with_different_ids_fail_the_build() -> TestResult<()>
     tls.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(vec![order, shorter]));
     let http3 = Http3ClientSettings::new(
         tls,
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     );
-    let profile = ClientProfile::new(opera::v136_tls()).with_http3(http3);
+    let profile = ClientProfile::new(opera::v136_tcp_tls()).with_http3(http3);
 
     let error = match Client::builder(profile).build() {
         Ok(_) => return Err("an undrawable HTTP/3 per-client list was accepted".into()),

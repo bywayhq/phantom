@@ -24,7 +24,10 @@ use http_body_util::BodyExt;
 use phantom::{
     Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestTimeouts, ResponseBody, ResponseInfo,
     RetryPolicy, Route,
-    profile::{ClientProfile, chromium, firefox},
+    profile::{
+        ClientProfile,
+        browser::{chrome, firefox},
+    },
 };
 use phantom_testkit::tcp::ReservedPort;
 use tokio::{
@@ -432,10 +435,10 @@ async fn fewer_requests_than_the_bound_open_one_connection_each() -> TestResult 
 async fn named_recipe_opens_six_negotiated_http1_connections() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        for recipe in [chromium::v154_http1(), firefox::v157_http1()] {
+        for recipe in [chrome::v154_http1(), firefox::v157_http1()] {
             let mut origin = Origin::start(&identity, Alpn::Http1, 0).await?;
             let profile = ClientProfile::new(tls_settings())
-                .with_http2(chromium::v154_http2())
+                .with_http2(chrome::v154_http2())
                 .with_http1(recipe);
             let client = Client::builder(profile)
                 .add_root_certificate_der(identity.root_der.clone())

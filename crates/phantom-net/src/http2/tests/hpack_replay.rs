@@ -43,7 +43,10 @@
 use std::collections::BTreeMap;
 
 use http::{HeaderName, HeaderValue, Method};
-use phantom_profile::{Http2RejectedConnect, Http2Settings, chromium, firefox};
+use phantom_profile::{
+    Http2RejectedConnect, Http2Settings,
+    browser::{chrome, firefox},
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex},
     time::timeout,
@@ -181,31 +184,25 @@ const FIREFOX_PROXY: &[(&str, &str)] = proxy_fixtures!("firefox/157.0/windows-11
 
 #[tokio::test]
 async fn chrome_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    replay_all(
-        &[CHROME_COOKIES],
-        chromium::v154_http2(),
-        Source::Cookies,
-        4,
-    )
-    .await
+    replay_all(&[CHROME_COOKIES], chrome::v154_http2(), Source::Cookies, 4).await
 }
 
 #[tokio::test]
 async fn edge_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    // Edge 154 uses the Chromium recipe (`phantom_profile::edge`).
-    replay_all(&[EDGE_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
+    // Edge 154 uses the Chromium recipe (`phantom_profile::browser::edge`).
+    replay_all(&[EDGE_COOKIES], chrome::v154_http2(), Source::Cookies, 3).await
 }
 
 #[tokio::test]
 async fn brave_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    // Brave 154 uses the Chromium recipe (`phantom_profile::brave`).
-    replay_all(&[BRAVE_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
+    // Brave 154 uses the Chromium recipe (`phantom_profile::browser::brave`).
+    replay_all(&[BRAVE_COOKIES], chrome::v154_http2(), Source::Cookies, 3).await
 }
 
 #[tokio::test]
 async fn opera_cookie_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    // Opera 136 uses the Chromium recipe (`phantom_profile::opera`).
-    replay_all(&[OPERA_COOKIES], chromium::v154_http2(), Source::Cookies, 3).await
+    // Opera 136 uses the Chromium recipe (`phantom_profile::browser::opera`).
+    replay_all(&[OPERA_COOKIES], chrome::v154_http2(), Source::Cookies, 3).await
 }
 
 #[tokio::test]
@@ -223,7 +220,7 @@ async fn firefox_cookie_sessions_match_the_captured_streams_and_hpack_bytes() ->
 async fn chrome_websocket_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
     replay_all(
         CHROME_WEBSOCKET,
-        chromium::v154_http2(),
+        chrome::v154_http2(),
         Source::WebSocket,
         18,
     )
@@ -232,33 +229,15 @@ async fn chrome_websocket_sessions_match_the_captured_streams_and_hpack_bytes() 
 
 #[tokio::test]
 async fn edge_websocket_sessions_match_the_captured_streams_and_hpack_bytes() -> TestResult<()> {
-    replay_all(
-        EDGE_WEBSOCKET,
-        chromium::v154_http2(),
-        Source::WebSocket,
-        18,
-    )
-    .await
+    replay_all(EDGE_WEBSOCKET, chrome::v154_http2(), Source::WebSocket, 18).await
 }
 
 #[tokio::test]
 async fn brave_and_opera_websocket_sessions_match_the_chromium_streams_and_hpack_bytes()
 -> TestResult<()> {
     // Brave 154 and Opera 136 use the Chromium recipe too.
-    replay_all(
-        BRAVE_WEBSOCKET,
-        chromium::v154_http2(),
-        Source::WebSocket,
-        18,
-    )
-    .await?;
-    replay_all(
-        OPERA_WEBSOCKET,
-        chromium::v154_http2(),
-        Source::WebSocket,
-        18,
-    )
-    .await
+    replay_all(BRAVE_WEBSOCKET, chrome::v154_http2(), Source::WebSocket, 18).await?;
+    replay_all(OPERA_WEBSOCKET, chrome::v154_http2(), Source::WebSocket, 18).await
 }
 
 #[tokio::test]
@@ -284,7 +263,7 @@ async fn chromium_family_proxy_sessions_match_the_captured_streams_and_hpack_fie
         (BRAVE_PROXY, "Brave"),
         (OPERA_PROXY, "Opera"),
     ] {
-        replay_all(files, chromium::v154_http2(), Source::Proxy, 27)
+        replay_all(files, chrome::v154_http2(), Source::Proxy, 27)
             .await
             .map_err(|error| format!("{name}: {error}"))?;
         assert_eq!(proxy_authorization_fields(files)?, 63, "{name}");
@@ -323,7 +302,7 @@ async fn firefox_proxy_sessions_match_the_captured_streams_and_hpack_fields() ->
 /// never-indexed literal, which no browser capture shows.
 #[tokio::test]
 async fn never_indexed_proxy_authorization_does_not_reproduce_a_proxy_session() -> TestResult<()> {
-    let mut settings = chromium::v154_http2();
+    let mut settings = chrome::v154_http2();
     settings.hpack.sensitive_proxy_authorization =
         phantom_profile::Http2SensitiveProxyAuthorization::NeverIndexed;
     let (name, text) = CHROME_PROXY[3];
@@ -368,7 +347,7 @@ async fn only_proxy_connections_index_a_sensitive_proxy_authorization() -> TestR
         ),
     ];
     for (recipe, settings) in [
-        ("Chromium", chromium::v154_http2()),
+        ("Chromium", chrome::v154_http2()),
         ("Firefox", firefox::v157_http2()),
     ] {
         for (kind, translate, expected) in connections {
@@ -422,11 +401,11 @@ async fn only_proxy_connections_index_a_sensitive_proxy_authorization() -> TestR
 /// Firefox does.
 #[tokio::test]
 async fn chromium_recipe_does_not_reproduce_a_firefox_session() -> TestResult<()> {
-    let mut renumbered = chromium::v154_http2();
+    let mut renumbered = chrome::v154_http2();
     renumbered.streams.first_stream_id = 3;
     for (settings, expected) in [
         (
-            chromium::v154_http2(),
+            chrome::v154_http2(),
             "was sent on stream 1, captured on stream 3",
         ),
         (renumbered, "HPACK block differs"),

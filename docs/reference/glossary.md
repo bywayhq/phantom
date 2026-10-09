@@ -247,7 +247,7 @@ Quinn with a BoringSSL TLS backend.
 
 ## Recipe
 
-A built-in profile component, such as `chromium::v154_tls()`. Its name
+A built-in profile component, such as `chrome::v154_tcp_tls()`. Its name
 records the browser, build, and layer. Some settings describe recorded
 traffic; others define policies such as socket options and connection limits.
 

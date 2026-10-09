@@ -8,10 +8,10 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
 
 - Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 154, Brave 154, and Opera 136 use the Chromium 154 HTTP/2, WebSocket, QUIC, and HTTP/3 recipes. That pairing is correct.
 - The Edge, Brave, and Opera request templates need your `User-Agent` header. Brave's templates also need your `Accept-Language`: pick one of `en-US,en;q=0.5` to `en-US,en;q=0.9` and keep it for the session.
-- Don't hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::{brave, brave_android, chrome_android, chromium, edge, edge_android, firefox, firefox_android, opera, opera_android}`.
-- `edge_android` has no WebSocket recipe. `opera_android` has only TLS and client hints. `firefox_android` has only TLS.
+- Don't hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::browser::{brave, chrome, edge, firefox, opera}`.
+- Edge for Android has no WebSocket recipe. Opera for Android has only TLS and client hints. Firefox for Android has only TLS.
 - The Chrome, Edge, and Opera for Android client hints send the model `"Pixel 7"`. Use the `_for_model` function to send another model.
-- For an Android browser, take the TLS recipe, client hints, and templates from its `*_android` module. Don't mix them with the desktop ones.
+- For an Android browser, take the TLS recipe, client hints, and templates with `_android_` in their names from its brand module. Don't mix them with the desktop ones.
 - Pick the protocol on every request: `HttpProtocol::Http1`, `Http2`, or `Http3` with `get` or `request`. Use `get_negotiated` to let TLS ALPN choose between HTTP/1.1 and HTTP/2.
 - Phantom never falls back on its own. An unsupported protocol, route, or proxy returns a typed error. Handle the error; don't retry with a different protocol. The one opt-in exception is `RetryPolicy::with_http2_fallback`: it sends an HTTP/3 request over HTTP/2 when no QUIC connection can be set up.
 - Redirects, timeouts, cookies, Alt-Svc, content decoding, and `RetryPolicy` retries are off until you turn them on in the `ClientBuilder` or on the request.
@@ -19,7 +19,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
   - A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is sent once more.
   - With a Chromium HTTP/2 profile, a request whose connection closed after an unanswered PING is sent again, any method, up to twice per redirect hop. Set `Http2Settings::ping_failure_retries` to 0 to turn this off.
   - A profile with client hints repeats a safe request once for `Critical-CH`.
-  - `chromium::v154_websocket` reopens a refused extended CONNECT stream once.
+  - `chrome::v154_websocket` reopens a refused extended CONNECT stream once.
 - Connection counts and waits default to browser values: one HTTP/2 or HTTP/3 connection per origin and route, and the profile's HTTP/1.1 limit. A server can see it when you raise them (`max_http2_connections_per_origin`, `max_http3_connections_per_origin`, `negotiated_setup_wait_limit`, and the others in the performance guide).
 - Phantom doesn't pace or rate-limit requests. Schedule them yourself.
 - Phantom adds no browser headers by itself. Prepare a `RequestTemplate` once with `PreparedRequestTemplate::new` and pass it to `RequestBuilder::template`. It sends `User-Agent`, `Accept`, `Sec-Fetch-*`, and the rest in browser order.

@@ -4,7 +4,7 @@ use http::Response;
 use http_body_util::BodyExt;
 use phantom_profile::{
     Http2HpackSettings, Http2IdleTimeout, Http2Priority, Http2PseudoHeader, Http2Setting,
-    Http2Settings, Http2StreamSettings, chromium::v154_http2,
+    Http2Settings, Http2StreamSettings, browser::chrome::v154_http2,
 };
 use phantom_testkit::http2::{
     CLIENT_CONNECTION_PREFACE, CaptureCompletion, CaptureLimits, capture_client_frames,

@@ -8,7 +8,7 @@ Before capturing, read the
 
 A [recipe](../reference/glossary.md#recipe) is the wire data for one browser
 build at one protocol layer, returned by a function such as
-`chromium::v154_tls`. The browser's layers together make its row in the
+`chrome::v154_tcp_tls`. The browser's layers together make its row in the
 [profile reference](../reference/profiles.md). The [roadmap](../roadmap.md)
 lists planned browsers.
 
@@ -111,7 +111,7 @@ section lists the Chrome 154 commands and launch arguments.
 - Launch headless unless the section says otherwise, and record any headful
   run. Captures in different launch modes are compared, never assumed equal.
 - Some layers cannot be captured. TCP socket options do not appear on the
-  wire, so `chromium::v154_tcp` rests on Chromium source at the release tag.
+  wire, so `chrome::v154_tcp` rests on Chromium source at the release tag.
   For a browser whose network source is not public, such as Edge or Opera,
   record its socket calls with
   [`socket_hooks.py`](../../scripts/capture/README.md#socket-hooks) and
@@ -136,34 +136,33 @@ placeholder.
 
 ## Step 3: write the recipe functions
 
-Recipes live in `crates/phantom-profile/src/<browser>.rs`, one module per
-browser family: `chromium.rs`, `edge.rs`, and `firefox.rs` today. A new
-module needs a `pub mod` line in `crates/phantom-profile/src/lib.rs`.
+Recipes live in `crates/phantom-profile/src/browser/<brand>.rs`. Android
+recipes live in `browser/<brand>/android.rs`. A new brand module needs a
+`pub mod` line in `crates/phantom-profile/src/browser.rs`.
 
-- Name each function `v<major>_<layer>`, such as `v154_tls`, `v154_http2`,
-  `v154_quic`, `v154_http3`, `v154_http3_request`, `v154_websocket`,
+- Name each function `v<major>_<layer>`, such as `v154_tcp_tls`, `v154_quic_tls`,
+  `v154_http2`, `v154_quic`, `v154_http3`, `v154_http3_request`, `v154_websocket`,
   `v154_tcp`, and `v154_cookie_placement`. Recipes whose values carry
   platform data keep the platform in the name:
   `v154_windows_client_hints`, `v154_windows_navigation_template`, and
   `v154_windows_fetch_no_store_template`, or `v154_macos_client_hints` for
   macOS. Where a platform's captures equal another platform's recipe, reuse
   it and say so in its rustdoc instead of adding a copy, as the Edge and
-  Opera templates do for macOS.
+  Opera templates do for macOS. Android layers use `v154_android_<layer>`.
 - The rustdoc of each function names the exact build and host it was captured
   on, and states what it shares with another recipe and why.
-- A complete recipe set is self-contained, as `chromium::v154_*` and
+- A complete recipe set is self-contained, as `chrome::v154_*` and
   `firefox::v157_*` are. A fork may build on the current Chromium recipes and
-  change only what its captures show. `edge::v154_tls` is
-  `chromium::v154_tls()` with `requested_trust_anchor_ids` set to `None`.
+  change only what its captures show. `edge::v154_tcp_tls` is
+  `chrome::v154_tcp_tls()` with `requested_trust_anchor_ids` set to `None`.
 - Leave `User-Agent` in a request template as a required caller slot
   (`RequestField::required_caller`) when no headful capture backs a literal
   value, as the Edge templates do.
 - Express a captured behavior through existing settings. If a setting cannot
   express it, add the setting to the profile type and apply it in the
   transport; never add a branch on the browser.
-- Re-export the public functions from the `profile` module of
-  `crates/phantom/src/lib.rs`, next to the `chromium`, `firefox`, and `edge`
-  modules there.
+- Re-export the `browser` module from the `profile` module of
+  `crates/phantom/src/lib.rs`.
 
 ## Step 4: replay the captures in tests
 
@@ -176,10 +175,10 @@ the recipe through the same public path users take. Name tests
 | TLS | `crates/phantom-net/src/tls/tests/` | `edge_153_tls_recipe_matches_windows_capture` |
 | TLS fixture metadata | `crates/phantom-testkit/tests/browser_client_hello_fixtures/` | `chrome_154_fixture_retains_exact_metadata_and_client_hello` |
 | HTTP/2 startup | `crates/phantom-net/tests/browser_http2_fixtures/` | `chrome_154_http2_recipe_matches_windows_capture` |
-| HTTP/2 from session captures | `crates/phantom-profile/src/<browser>/tests.rs` | `edge_153_http2_session_capture_matches_the_chromium_recipe` |
-| QUIC | `crates/phantom-profile/src/chromium/quic_tests.rs` and `crates/phantom-net/src/http3/tests/connector.rs` | `edge_153_quic_client_hello_recipe_matches_windows_capture` |
-| HTTP/3 | `crates/phantom-profile/src/chromium/http3_tests.rs` | `edge_153_h3_capture_matches_the_chromium_recipe` |
-| Client hints | `crates/phantom-profile/src/<browser>/tests.rs` | `edge_153_windows_client_hints_match_navigation_capture` |
+| HTTP/2 from session captures | `crates/phantom-profile/src/browser/<brand>/tests.rs` | `edge_153_http2_session_capture_matches_the_chromium_recipe` |
+| QUIC | `crates/phantom-profile/src/browser/chrome/quic_tests.rs` and `crates/phantom-net/src/http3/tests/connector.rs` | `edge_153_quic_client_hello_recipe_matches_windows_capture` |
+| HTTP/3 | `crates/phantom-profile/src/browser/chrome/http3_tests.rs` | `edge_153_h3_capture_matches_the_chromium_recipe` |
+| Client hints | `crates/phantom-profile/src/browser/<brand>/tests.rs` | `edge_153_windows_client_hints_match_navigation_capture` |
 | Request templates | `crates/phantom-profile/src/request_template/tests.rs` | `edge_153_navigation_matches_every_captured_page_request` |
 | WebSocket | `crates/phantom-profile/src/websocket/tests.rs` | `chromium_154_websocket_recipe_matches_chromium_family_captures` |
 | SSE reconnect | `crates/phantom/tests/streams/sse_browser_reconnect.rs` | Replays the SSE fixtures against the client |

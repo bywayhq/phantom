@@ -413,7 +413,7 @@ mod tests {
     {
         use crate::profile::{chromium, firefox};
 
-        let chrome = PerMessageDeflate::from_profile(&chromium::v154_websocket())?;
+        let chrome = PerMessageDeflate::from_profile(&chrome::v154_websocket())?;
         assert!(chrome.compresses_empty_messages());
         assert_eq!(
             chrome.parameters(),

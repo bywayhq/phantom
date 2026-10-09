@@ -4,7 +4,7 @@ mod tests {
 
     use phantom::profile::{
         Http2StreamSettings, QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportParameter,
-        QuicTransportParameterKind, QuicVarIntWidth, chromium,
+        QuicTransportParameterKind, QuicVarIntWidth, browser::chrome,
     };
     use phantom::{
         Bytes, RequestBuilder, RequestError, Response, ResponseBody, ResponseInfo, StatusCode,
@@ -15,7 +15,7 @@ mod tests {
 
     #[test]
     fn profile_fields_can_be_named_and_customized() -> TestResult {
-        let mut http2 = chromium::v154_http2();
+        let mut http2 = chrome::v154_http2();
         http2.streams = Http2StreamSettings {
             first_stream_id: 3,
             ..http2.streams
@@ -23,7 +23,7 @@ mod tests {
         http2.validate()?;
         assert_eq!(http2.streams.first_stream_id, 3);
 
-        let mut quic = chromium::v154_quic();
+        let mut quic = chrome::v154_quic();
         quic.initial_destination_connection_id = Some(QuicConnectionIdLength::Fixed(8));
         quic.min_ack_delay_us = Some(1_000);
         quic.wire_parameters.push(QuicTransportParameter {

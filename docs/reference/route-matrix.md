@@ -68,7 +68,7 @@ Notes:
   place the WebSocket on a pooled H2 session or open an HTTP/1.1 Upgrade
   connection. On an HTTP proxy or SOCKS5 route it joins a pooled session
   only under `WebSocketProxiedSession::Reuse`, as in
-  `chromium::v154_websocket` and `firefox::v157_websocket`, and then sends
+  `chrome::v154_websocket` and `firefox::v157_websocket`, and then sends
   no proxy CONNECT of its own.
   See [Profile connection policy](websocket.md#profile-connection-policy).
 

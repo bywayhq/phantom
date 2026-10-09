@@ -3,7 +3,7 @@ use std::{error::Error, future::poll_fn};
 use bytes::Bytes;
 use http::{HeaderMap, Response};
 use http_body_util::BodyExt;
-use phantom_profile::chromium::v154_http2;
+use phantom_profile::browser::chrome::v154_http2;
 use tokio::{
     io::{DuplexStream, duplex},
     sync::oneshot,

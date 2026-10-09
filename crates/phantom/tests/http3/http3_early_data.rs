@@ -27,7 +27,7 @@ use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
     BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo,
     TimeoutPhase,
-    profile::{ClientProfile, Http3ClientSettings, chromium},
+    profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
@@ -413,7 +413,7 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
         let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_url = format!("https://localhost:{}", origin.local_addr()?.port());
         let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
-        let client = Client::builder(chrome_profile().with_http2(chromium::v154_http2()))
+        let client = Client::builder(chrome_profile().with_http2(chrome::v154_http2()))
             .add_root_certificate_der(identity.root_der.clone())
             .alt_svc(NonZeroUsize::new(8).ok_or("zero Alt-Svc capacity")?)
             .alt_svc_policy(AltSvcPolicy::race(AltSvcRace::new(
@@ -518,12 +518,12 @@ async fn a_raced_alternative_whose_early_handshake_fails_falls_back_to_the_origi
         });
 
         let profile = ClientProfile::new(tls_settings())
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(Http3ClientSettings::new(
-                chromium::v154_http3_tls(),
-                chromium::v154_quic(),
-                chromium::v154_http3(),
-                chromium::v154_http3_request(),
+                chrome::v154_quic_tls(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                chrome::v154_http3_request(),
             ));
         let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
         let client = Client::builder(profile)
@@ -639,11 +639,11 @@ async fn a_caller_can_turn_off_the_recipe_early_data() -> TestResult<()> {
 
 /// The named Chrome 154 recipes, with HTTP/3.
 fn chrome_profile() -> ClientProfile {
-    ClientProfile::new(chromium::v154_tls()).with_http3(Http3ClientSettings::new(
-        chromium::v154_http3_tls(),
-        chromium::v154_quic(),
-        chromium::v154_http3(),
-        chromium::v154_http3_request(),
+    ClientProfile::new(chrome::v154_tcp_tls()).with_http3(Http3ClientSettings::new(
+        chrome::v154_quic_tls(),
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
     ))
 }
 

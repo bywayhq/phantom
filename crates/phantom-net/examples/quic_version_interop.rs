@@ -11,7 +11,7 @@ use std::{env, error::Error, fs, time::Duration};
 
 use http_body_util::BodyExt as _;
 use phantom_net::http3::{Http3Connector, OriginForm};
-use phantom_profile::firefox;
+use phantom_profile::browser::firefox;
 use tokio::time::{sleep, timeout};
 
 const SERVER_NAME: &str = "localhost";
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let requests: usize = args.next().map_or(Ok(3), |value| value.parse())?;
 
     let connector = Http3Connector::new_with_additional_roots(
-        &firefox::v157_http3_tls(),
+        &firefox::v157_quic_tls(),
         &firefox::v157_quic(),
         &firefox::v157_http3(),
         &firefox::v157_http3_request(),

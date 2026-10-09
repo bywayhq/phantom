@@ -15,7 +15,7 @@ use std::env;
 
 use phantom::{
     Client, HttpProtocol, PreparedRequestTemplate,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 
 const DEFAULT_URL: &str = "https://example.com/";
@@ -28,13 +28,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = env::args().nth(1).unwrap_or_else(|| DEFAULT_URL.to_owned());
 
     // The cookie placement puts the jar's `cookie` field where Chrome does.
-    let profile = ClientProfile::new(chromium::v154_tls())
-        .with_http2(chromium::v154_http2())
-        .with_client_hints(chromium::v154_windows_client_hints())
-        .with_cookie_placement(chromium::v154_cookie_placement());
+    let profile = ClientProfile::new(chrome::v154_tcp_tls())
+        .with_http2(chrome::v154_http2())
+        .with_client_hints(chrome::v154_windows_client_hints())
+        .with_cookie_placement(chrome::v154_cookie_placement());
     let client = Client::builder(profile).cookies().build()?;
     // Validate the template once and reuse it for both requests.
-    let navigation = PreparedRequestTemplate::new(chromium::v154_windows_navigation_template())?;
+    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
 
     for attempt in 1..=2 {
         if let Some(jar) = client.cookie_jar() {
