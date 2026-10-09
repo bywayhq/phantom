@@ -355,11 +355,20 @@ class RepositoryTests(unittest.TestCase):
             for group, (_, members) in groups.items():
                 with self.subTest(crate=crate_dir, group=group):
                     for member in members:
-                        self.assertNotIn(member, owners, "module names must be unique across groups")
+                        self.assertNotIn(
+                            member, owners, "module names must be unique across groups"
+                        )
                         owners[member] = group
                     main = REPO / crate_dir / "tests" / group / "main.rs"
-                    declared = {match["name"] for match in consolidator.MAIN_MOD.finditer(main.read_text())} - {"support"}
-                    self.assertEqual(declared, set(members), "the roster must preserve existing modules on a later consolidation")
+                    declared = {
+                        match["name"]
+                        for match in consolidator.MAIN_MOD.finditer(main.read_text())
+                    } - {"support"}
+                    self.assertEqual(
+                        declared,
+                        set(members),
+                        "the roster must preserve existing modules on a later consolidation",
+                    )
 
     def test_grouped_crates_have_no_top_level_test_files(self) -> None:
         for crate_dir, groups in consolidator.GROUPS.items():

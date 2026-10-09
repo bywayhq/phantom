@@ -1,3 +1,5 @@
+//! Public transport categories and preserved source chains.
+
 use std::error::Error;
 
 use bytes::Bytes;
