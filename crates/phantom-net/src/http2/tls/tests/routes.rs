@@ -1,7 +1,10 @@
+#[cfg(feature = "https-records")]
+use crate::route::ConnectedStream;
+
 use super::*;
 use crate::{
     proxy::{HttpBasicCredentials, HttpConnectError, HttpsProxyConnector, HttpsProxyProtocol},
-    route::{ConnectedStream, DirectTlsSetup, Http2Route, OriginRoute},
+    route::{DirectTlsSetup, Http2Route, OriginRoute},
     tcp::AddressFamilyMemory,
 };
 
