@@ -39,7 +39,7 @@ Android constructors use names such as `chrome::v154_android()` and
 `firefox::v156_android()`. They include only the available Android layers.
 No constructor fills a missing Android layer with desktop socket settings.
 
-These constructors leave request headers to you. Add a default
+These constructors leave the request template unset. Add a default
 [request template](request-templates.md), or choose one for each request.
 
 Each brand has one module under `phantom::profile::browser`, such as
