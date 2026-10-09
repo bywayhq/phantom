@@ -379,6 +379,41 @@ fn selected_protocols(
     protocols.into_iter().flatten()
 }
 
+pub(crate) fn place_prepared_content_length(
+    prepared: Option<&PreparedRequestTemplate>,
+    scope: ProtocolScope,
+    http2_fallback: bool,
+    caller: &mut Vec<RequestHeader>,
+    length: usize,
+) -> Result<bool, RequestError> {
+    if caller
+        .iter()
+        .any(|header| header.name().eq_ignore_ascii_case("content-length"))
+    {
+        // The transport's shared framing checks validate exactness, canonical
+        // spelling, and duplicate values before opening a connection.
+        return Ok(false);
+    }
+    let Some(prepared) = prepared else {
+        return Ok(false);
+    };
+    let any_slot = selected_protocols(scope, http2_fallback).any(|protocol| {
+        prepared.fields_for(protocol).is_some_and(|fields| fields.iter().any(|field| {
+            matches!(field, RequestField::Caller { name, .. } if name.eq_ignore_ascii_case("content-length"))
+        }))
+    });
+    if !any_slot {
+        return Ok(false);
+    }
+    if !caller_slot_is_declared(prepared, scope, http2_fallback, "content-length") {
+        return Err(RequestError::prepared_body_content_type(
+            "prepared body needs a Content-Length caller slot on every selected protocol",
+        ));
+    }
+    caller.push(RequestHeader::new("content-length", length.to_string()));
+    Ok(true)
+}
+
 pub(crate) fn caller_slot_is_declared(
     prepared: &PreparedRequestTemplate,
     scope: ProtocolScope,
