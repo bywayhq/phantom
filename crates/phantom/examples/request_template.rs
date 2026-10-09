@@ -128,7 +128,8 @@ mod tests {
     }
 
     #[test]
-    fn fetches_to_another_scheme_host_or_port_are_rejected() {
+    fn fetches_to_another_scheme_host_or_port_are_rejected()
+    -> Result<(), Box<dyn std::error::Error>> {
         for target in [
             "http://example.test/data.json",
             "https://other.test/data.json",
@@ -137,13 +138,15 @@ mod tests {
             "//example.test:8443/data.json",
             "https://other.test/private_path?token=private_query",
         ] {
-            let error = request_urls("https://example.test/", Some(target))
-                .expect_err("accepted a target outside the page origin");
+            let Err(error) = request_urls("https://example.test/", Some(target)) else {
+                return Err("accepted a target outside the page origin".into());
+            };
             assert_eq!(
                 error.to_string(),
                 "fetch URL must have the same origin as the page URL"
             );
         }
+        Ok(())
     }
 
     #[test]
