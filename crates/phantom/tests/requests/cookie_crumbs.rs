@@ -1,4 +1,4 @@
-//! Replays the retained two-request cookie captures over HTTP/2.
+//! Cookie splitting over HTTP/2 and HTTP/3.
 //!
 //! Each test serves the capture's `/start` response, which sets the probe
 //! cookies, and then sends the captured `/page`, `/fetch`, and `/done`
@@ -143,6 +143,91 @@ async fn whole_cookie_setting_keeps_one_field() -> TestResult<()> {
     assert_eq!(cookies.len(), 1);
     assert_eq!(cookies[0].value, capture.joined_cookie());
     assert_eq!(cookies[0].representation, "never-indexed");
+    Ok(())
+}
+
+#[tokio::test]
+async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult<()> {
+    use crate::support::h3 as h3_support;
+    use tokio::sync::oneshot;
+
+    let identity = TestIdentity::generate()?;
+    let (address, endpoint) = h3_support::server_endpoint(&identity)?;
+    let pairs = (0..101)
+        .map(|index| format!("k{index}=v{index}"))
+        .collect::<Vec<_>>();
+    let (client_done, done_received) = oneshot::channel();
+    let mut server = tokio::spawn(async move {
+        let (request, mut stream, _connection) = h3_support::accept_request(&endpoint).await?;
+        let observed = request
+            .headers()
+            .get_all("cookie")
+            .iter()
+            .map(|value| value.as_bytes().to_vec())
+            .collect::<Vec<_>>();
+        stream
+            .send_response(
+                Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        done_received
+            .await
+            .map_err(|_| "client stopped before collecting its response")?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
+    });
+
+    let response = timeout(TEST_TIMEOUT, async {
+        let mut tls = tls_support::tls_settings();
+        tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+        let profile = ClientProfile::new(tls).with_http3(h3_support::client_settings());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let response = client
+            .request(
+                HttpProtocol::Http3,
+                http::Method::GET,
+                &format!("https://{address}/cookies"),
+            )?
+            .header(RequestHeader::new("cookie", pairs.join("; ")))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+        client_done
+            .send(())
+            .map_err(|_| "server stopped before response collection")?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await;
+    let response = match response {
+        Ok(result) => result,
+        Err(_) => Err("HTTP/3 cookie request exceeded its deadline".into()),
+    };
+    if response.is_err() {
+        server.abort();
+    }
+    let observed = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(result) => result,
+        Err(_) => {
+            server.abort();
+            match server.await {
+                Ok(_) => {}
+                Err(error) if error.is_cancelled() => {}
+                Err(error) => return Err(error.into()),
+            }
+            return Err("HTTP/3 cookie server exceeded its deadline".into());
+        }
+    };
+    response?;
+    let observed = observed??;
+    assert_eq!(observed.len(), pairs.len());
+    for (observed, expected) in observed.iter().zip(&pairs) {
+        assert_eq!(observed, expected.as_bytes());
+    }
     Ok(())
 }
 

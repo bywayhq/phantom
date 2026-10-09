@@ -20,6 +20,11 @@ use phantom_profile::{
 use super::TestResult;
 use crate::http3::{OriginForm, RequestHeader};
 
+use crate::http3::request::{
+    MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, prepare_profiled_request_body,
+};
+use crate::request::RequestBody;
+
 const CHROME: &str = include_str!(
     "../../../../../fixtures/cookies/chrome/154.0.8037.58/windows-11-26200/crumbs-h3.txt"
 );
@@ -85,6 +90,198 @@ fn whole_cookie_setting_encodes_one_cookie_field() -> TestResult<()> {
         .collect::<Vec<_>>();
     assert_eq!(cookies, [page.joined_cookie().into_bytes()]);
     Ok(())
+}
+
+#[test]
+fn split_cookie_keeps_more_than_100_crumbs_in_place() -> TestResult<()> {
+    let pairs = cookie_pairs(MAX_REQUEST_HEADERS + 1);
+    let request = prepare_cookie_fields(
+        vec![
+            RequestHeader::new("x-before", "first"),
+            RequestHeader::new("cookie", pairs.join("; ")),
+            RequestHeader::new("x-after", "last"),
+        ],
+        None,
+        Http3CookieCrumbs::Split,
+    )?;
+    let fields = request
+        .extensions()
+        .get::<h3::ext::OrderedHeaders>()
+        .ok_or("prepared request omitted ordered fields")?
+        .as_slice();
+    assert_eq!(fields.len(), pairs.len() + 2);
+    assert_eq!(fields[0].0, "x-before");
+    assert_eq!(fields[0].1, "first");
+    for ((name, value), expected) in fields[1..fields.len() - 1].iter().zip(pairs) {
+        assert_eq!(name.as_str(), "cookie");
+        assert_eq!(value.as_bytes(), expected.as_bytes());
+    }
+    assert_eq!(fields[fields.len() - 1].0, "x-after");
+    assert_eq!(fields[fields.len() - 1].1, "last");
+    Ok(())
+}
+
+#[test]
+fn split_cookie_accepts_100_crumbs() -> TestResult<()> {
+    let pairs = cookie_pairs(MAX_REQUEST_HEADERS);
+    let request = prepare_cookie_fields(
+        vec![RequestHeader::new("cookie", pairs.join("; "))],
+        None,
+        Http3CookieCrumbs::Split,
+    )?;
+    assert_eq!(request.headers().get_all("cookie").iter().count(), 100);
+    Ok(())
+}
+
+#[test]
+fn split_cookie_applies_the_byte_limit_before_repeating_its_name() -> TestResult<()> {
+    let mut pairs = cookie_pairs(MAX_REQUEST_HEADERS);
+    let padding = MAX_REQUEST_HEADER_BYTES - "cookie".len() - pairs.join("; ").len();
+    pairs[MAX_REQUEST_HEADERS - 1].push_str(&"x".repeat(padding));
+    let joined = pairs.join("; ");
+    assert_eq!("cookie".len() + joined.len(), MAX_REQUEST_HEADER_BYTES);
+
+    for crumbs in [Http3CookieCrumbs::Whole, Http3CookieCrumbs::Split] {
+        let request =
+            prepare_cookie_fields(vec![RequestHeader::new("cookie", &joined)], None, crumbs)?;
+        let values = request.headers().get_all("cookie");
+        if crumbs == Http3CookieCrumbs::Whole {
+            assert_eq!(values.iter().count(), 1);
+            assert_eq!(
+                values.iter().next().map(|value| value.as_bytes()),
+                Some(joined.as_bytes())
+            );
+        } else {
+            assert_eq!(values.iter().count(), pairs.len());
+            for (value, expected) in values.iter().zip(&pairs) {
+                assert_eq!(value.as_bytes(), expected.as_bytes());
+            }
+            let emitted_bytes = request
+                .headers()
+                .iter()
+                .map(|(name, value)| name.as_str().len() + value.len())
+                .sum::<usize>();
+            assert!(emitted_bytes > MAX_REQUEST_HEADER_BYTES);
+        }
+        assert_request_limit(
+            prepare_cookie_fields(
+                vec![RequestHeader::new("cookie", format!("{joined}x"))],
+                None,
+                crumbs,
+            ),
+            "HTTP/3 request headers are too large",
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn supplied_header_count_keeps_its_exact_limit() -> TestResult<()> {
+    for crumbs in [Http3CookieCrumbs::Whole, Http3CookieCrumbs::Split] {
+        let fields = (0..MAX_REQUEST_HEADERS)
+            .map(|_| RequestHeader::new("x-field", "v"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            prepare_cookie_fields(fields.clone(), None, crumbs)?
+                .headers()
+                .len(),
+            MAX_REQUEST_HEADERS
+        );
+        let mut excessive = fields;
+        excessive.push(RequestHeader::new("x-field", "v"));
+        assert_request_limit(
+            prepare_cookie_fields(excessive, None, crumbs),
+            "HTTP/3 request has too many headers",
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn generated_framing_fields_count_toward_request_limits() -> TestResult<()> {
+    for wait in [None, Some(std::time::Duration::from_secs(1))] {
+        let body = || {
+            let body = RequestBody::from_bytes(Bytes::from_static(b"x"));
+            Some(match wait {
+                Some(wait) => body.expect_continue(wait),
+                None => body,
+            })
+        };
+        let generated = if wait.is_some() { 2 } else { 1 };
+        let fields = (0..MAX_REQUEST_HEADERS - generated)
+            .map(|_| RequestHeader::new("x-field", "v"))
+            .collect::<Vec<_>>();
+        let request = prepare_cookie_fields(fields.clone(), body(), Http3CookieCrumbs::Split)?;
+        assert_eq!(request.headers().len(), MAX_REQUEST_HEADERS);
+        assert_eq!(request.headers()["content-length"], "1");
+        assert_eq!(request.headers().contains_key("expect"), wait.is_some());
+        let mut excessive = fields;
+        excessive.push(RequestHeader::new("x-field", "v"));
+        assert_request_limit(
+            prepare_cookie_fields(excessive, body(), Http3CookieCrumbs::Split),
+            "HTTP/3 request has too many headers",
+        );
+
+        let framing_bytes = "content-length".len()
+            + 1
+            + if wait.is_some() {
+                "expect".len() + "100-continue".len()
+            } else {
+                0
+            };
+        let value = "x".repeat(MAX_REQUEST_HEADER_BYTES - "x-long".len() - framing_bytes);
+        prepare_cookie_fields(
+            vec![RequestHeader::new("x-long", &value)],
+            body(),
+            Http3CookieCrumbs::Split,
+        )?;
+        assert_request_limit(
+            prepare_cookie_fields(
+                vec![RequestHeader::new("x-long", format!("{value}x"))],
+                body(),
+                Http3CookieCrumbs::Split,
+            ),
+            "HTTP/3 request headers are too large",
+        );
+    }
+    Ok(())
+}
+
+fn cookie_pairs(count: usize) -> Vec<String> {
+    (0..count)
+        .map(|index| format!("k{index}=v{index}"))
+        .collect()
+}
+
+fn prepare_cookie_fields(
+    headers: Vec<RequestHeader>,
+    body: Option<RequestBody>,
+    crumbs: Http3CookieCrumbs,
+) -> TestResult<http::Request<()>> {
+    let mut settings = chrome::v154_http3_request();
+    settings.cookie_crumbs = crumbs;
+    let prepared = prepare_profiled_request_body(
+        &settings,
+        http::Method::GET,
+        "example.test",
+        OriginForm::parse("/")?,
+        headers,
+        body,
+    )?;
+    Ok(prepared.into_parts().0)
+}
+
+fn assert_request_limit(result: TestResult<http::Request<()>>, expected: &str) {
+    let Err(error) = result else {
+        panic!("request exceeded its supplied-field limit");
+    };
+    assert_eq!(
+        error
+            .downcast_ref::<crate::http3::Http3Error>()
+            .map(crate::http3::Http3Error::kind),
+        Some(crate::http3::Http3ErrorKind::Request)
+    );
+    assert_eq!(error.to_string(), expected);
 }
 
 fn assert_replay_matches(capture: &Capture) -> TestResult<()> {
