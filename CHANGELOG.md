@@ -25,7 +25,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: handle `quinn_proto::ConnectError::CryptoProvider` when matching
   startup errors. Invalid names, versions and local transport parameters
   keep their dedicated categories. The renamed Quinn forks move to
-  `-phantom.4`, and their H3 dependents move to `-phantom.9`.
+  `-phantom.4`, and their H3 dependents move to `-phantom.10`.
 
 - Validate custom Android model hints. Migrate: handle the `Result` from
   `chrome::v154_android_client_hints_for_model`,
@@ -2450,6 +2450,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject complete malformed HTTP/3 frame payloads before dispatch. Single-ID
+  frames cannot leave payload bytes to be parsed as another frame. Valid
+  fragmented frames and variable-length identifiers remain accepted.
+- Finish capture shutdown after individual cleanup failures or another
+  Ctrl+C. Report failed cleanup for its owner, preserve completed captures,
+  and prevent a failed cleanup from becoming a resumable success.
 - Apply HTTP/3 request header count and size limits before splitting cookies,
   including extended CONNECT. Large valid cookies can produce more than 100
   fields; peer field-section limits still apply to the emitted fields.
