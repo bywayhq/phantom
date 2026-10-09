@@ -263,7 +263,7 @@ def _write_container_log(container_id: str, destination: Path) -> None:
     )
     try:
         destination.write_text(result.stdout + result.stderr, encoding="utf-8")
-    except OSError as error:
+    except (OSError, KeyboardInterrupt) as error:
         if result.returncode:
             raise RuntimeError(
                 f"container log collection exited with status {result.returncode}: "
@@ -483,7 +483,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
             json.dumps(summary_document, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    except OSError as error:
+    except (OSError, KeyboardInterrupt) as error:
         if primary_error is None and not cleanup_failures:
             raise
         cleanup_failures.append(f"summary retention: {_failure_message(error)}")
