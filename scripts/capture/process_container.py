@@ -40,7 +40,31 @@ raise SystemExit(code if code < (1 << 31) else code - (1 << 32))
 
 
 def _bootstrap_command(command: Sequence[str]) -> list[str]:
-    return [sys.executable, "-I", "-S", "-c", _BOOTSTRAP, *command]
+    # A Windows venv executable redirects to a child before Python code runs.
+    # Attach the actual interpreter instead; keep the tool's command intact.
+    executable = _windows_interpreter() if sys.platform == "win32" else sys.executable
+    return [executable, "-I", "-S", "-c", _BOOTSTRAP, *command]
+
+
+def _windows_interpreter() -> str:
+    """Find this CPython process's executable, without a venv redirector."""
+    import ctypes
+    from ctypes import wintypes
+
+    if sys.implementation.name != "cpython":
+        raise OSError("Windows capture ownership requires CPython")
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GetModuleFileNameW.argtypes = (
+        wintypes.HMODULE,
+        wintypes.LPWSTR,
+        wintypes.DWORD,
+    )
+    kernel32.GetModuleFileNameW.restype = wintypes.DWORD
+    path = ctypes.create_unicode_buffer(32768)
+    length = kernel32.GetModuleFileNameW(None, path, len(path))
+    if not length or length >= len(path):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return path.value
 
 
 class ProcessContainer:
