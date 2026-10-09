@@ -1,0 +1,18 @@
+[
+  {
+    "path": "docker-compose.yml",
+    "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+    "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/docker-compose.yml",
+    "sha256": "be0cb079b0c41ad6d398daec6924b8ef8b8a689e4632434404d141b3c0267eec",
+    "purpose": "Exact source/config fixture; never executed by lifecycle tests.",
+    "fixture_path": "docker-compose.yml"
+  },
+  {
+    "path": "testcase.py",
+    "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+    "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/testcase.py",
+    "sha256": "e87106cbac52a66640fdca3e52dc936ff1c3cc6735dc61c376a6575e3a8cefcf",
+    "purpose": "Exact source/config fixture; never executed by lifecycle tests.",
+    "fixture_path": "testcase.py.txt"
+  }
+]
