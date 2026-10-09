@@ -13,7 +13,11 @@ use crate::RequestHeader;
 ///
 /// Client hooks run in registration order, then request hooks. They run once
 /// when sending begins, after prepared-body headers and before network I/O.
-/// Retries reuse the result. Redirects strip credentials without rerunning hooks.
+/// Retries reuse the result. Hooks do not rerun on redirects. Cross-origin
+/// redirects remove `Authorization`, `Cookie`, `Cookie2`, and
+/// `Proxy-Authorization`. Custom credential fields remain, even when sensitive.
+/// Check [`Self::uri`] before adding credentials. For custom credentials, disable
+/// automatic redirects and check each new request's origin yourself.
 /// Generated headers, cookies, hints, and template literals are added afterward.
 /// This is not the complete wire header list. Hooks do not receive the body.
 ///
