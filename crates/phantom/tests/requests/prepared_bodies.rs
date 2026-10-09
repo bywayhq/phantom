@@ -157,8 +157,46 @@ async fn preserved_body_redirect_checks_new_route_without_refilling_dropped_fiel
                 origin_peer.await??;
             }
             peer.await??;
-            Ok(())
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         }).await??;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn pinned_http3_alternative_keeps_h3_only_placement() -> TestResult {
+    let client = Client::builder(profile()).build()?;
+    for hook in [false, true] {
+        let body = PreparedRequestBody::form([("a", "b")], 128)?;
+        let content_type = body.content_type().to_owned();
+        let request = client
+            .request(
+                HttpProtocol::Http3,
+                Method::PUT,
+                "https://example.invalid/upload",
+            )?
+            .template(&template(false, true)?)
+            .alt_svc_alternative("127.0.0.1", 443)
+            .retry_policy(RetryPolicy::none().with_http2_fallback(true));
+        let request = if hook {
+            request.fill_slots(|slots| {
+                slots.fill(phantom::RequestHeader::new("content-type", content_type))
+            })?
+        } else {
+            request
+        };
+        let error = request
+            .prepared_body(body)
+            .timeouts(
+                phantom::RequestTimeoutOverrides::new()
+                    .total(phantom::TimeoutOverride::Limit(Duration::MAX)),
+            )
+            .send()
+            .await
+            .err()
+            .ok_or("unrepresentable timeout succeeded")?;
+        // Placement passes; the independently invalid timeout stops before I/O.
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTimeout);
     }
     Ok(())
 }

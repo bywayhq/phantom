@@ -384,7 +384,7 @@ pub(crate) fn place_prepared_content_length(
     scope: ProtocolScope,
     http2_fallback: bool,
     caller: &mut Vec<RequestHeader>,
-    length: usize,
+    length: u64,
 ) -> Result<bool, RequestError> {
     if caller
         .iter()

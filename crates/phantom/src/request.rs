@@ -254,7 +254,9 @@ impl RequestBuilder {
         let declared = template::caller_slots(
             prepared,
             self.slot_scope(),
-            policy.http2_fallback() && policy.max_retries() != Some(0),
+            policy.http2_fallback()
+                && policy.max_retries() != Some(0)
+                && self.alternative.is_none(),
         );
         let first = self.headers.len();
         fill(&mut crate::RequestSlots::new(&mut self.headers, &declared))?;
@@ -759,6 +761,7 @@ impl RequestBuilder {
     ) -> Result<Response<ResponseBody>, RequestError> {
         let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         let http2_fallback = retry_policy.http2_fallback() && retry_policy.max_retries() != Some(0);
+        let initial_fallback = http2_fallback && self.alternative.is_none();
         let scope = self.slot_scope();
         let mut filled_slots = std::mem::take(&mut self.filled_slots);
         if let Some(content_type) = &self.prepared_content_type {
@@ -773,26 +776,29 @@ impl RequestBuilder {
                         && self.selected_route().carries_quic_alternative(),
                     content_decoding: false,
                 },
-                http2_fallback,
+                initial_fallback,
                 &mut self.headers,
                 content_type,
             )? {
                 filled_slots.push(Box::<str>::from("content-type"));
             }
-            if template::place_prepared_content_length(
-                self.request.template.as_ref(),
-                scope,
-                http2_fallback,
-                &mut self.headers,
-                self.body.exact_length().unwrap_or(0),
-            )? {
+            if self.trailers.is_empty()
+                && !self.body.has_trailers()
+                && template::place_prepared_content_length(
+                    self.request.template.as_ref(),
+                    scope,
+                    initial_fallback,
+                    &mut self.headers,
+                    self.body.exact_length().unwrap_or(0),
+                )?
+            {
                 filled_slots.push(Box::<str>::from("content-length"));
             }
         }
         template::check_filled_slots(
             self.request.template.as_ref(),
             self.slot_scope(),
-            http2_fallback,
+            initial_fallback,
             &self.headers,
             &filled_slots,
         )?;
@@ -1014,7 +1020,7 @@ impl RequestBuilder {
                     alt_svc: client.alt_svc_enabled() && route.carries_quic_alternative(),
                     content_decoding: false,
                 },
-                http2_fallback,
+                http2_fallback && resolved.alternative.is_none(),
                 redirect.headers(),
                 &filled_slots,
             )
