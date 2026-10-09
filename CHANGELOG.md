@@ -36,15 +36,20 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and request authorities separate. Connection-based HTTP/2 and HTTP/3
   WebSocket operations remain available.
 
-- Remove endpoint-only HTTP CONNECT and SOCKS5 helpers and HTTPS forwarding
-  setup methods from `phantom-net`'s public API. Migrate: use protocol
-  connector operations with `TcpRoute::HttpConnect` or `TcpRoute::Socks5`,
-  or `Http2Route::Forward`. `connect_http_tunnel` remains available for a
-  CONNECT exchange over a supplied proxy stream.
+- Remove endpoint-only proxy setup helpers from `phantom-net`'s public API.
+  Migrate: replace `connect_http_tunnel_direct[_with_basic_auth]` and
+  `connect_socks5_tunnel_{direct,local}[_with_auth]` with protocol connector
+  operations using `TcpRoute::HttpConnect` or `TcpRoute::Socks5`. Replace
+  `HttpsProxyConnector::connect_forward_http2[_with_credentials]` with
+  `Http2TlsConnector::connect(Http2Route::Forward { ... })`.
+  `connect_http_tunnel` remains available for a supplied proxy stream.
 - Replace the six raw HTTP/3 one-shot helpers with `send_with_config`.
-  Migrate: pass the method explicitly, then supply body, ordered trailers,
-  and optional bounded qlog capture through `Http3SendOptions`. For routing
-  from profiles, use `Http3Connector::send`.
+  Migrate: replace `send_get`, `send_request`, `send_request_with_body`,
+  `send_request_with_body_and_trailers`, `send_request_with_qlog`, and
+  `send_request_with_body_and_qlog` with `send_with_config`. Pass the method
+  explicitly, then supply body, ordered trailers, and optional bounded qlog
+  capture through `Http3SendOptions`. For profile-based routing, use
+  `Http3Connector::send`.
 
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.

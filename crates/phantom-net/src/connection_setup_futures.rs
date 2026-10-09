@@ -38,6 +38,10 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
         ("Http3Connector::connect", future_size(&H3::connect)),
         ("Http3Connector::send", future_size(&H3::send)),
         (
+            "http3::send_with_config",
+            future_size(&crate::http3::send_with_config),
+        ),
+        (
             "HttpsProxyConnector::connect_forward_http2_with_credentials",
             future_size(&HttpsProxyConnector::connect_forward_http2_with_credentials),
         ),
