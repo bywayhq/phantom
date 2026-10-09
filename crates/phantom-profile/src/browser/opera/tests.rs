@@ -209,6 +209,10 @@ const ORDER_SOURCES: [(&str, &str); 35] = retained![
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 fn hex_bytes(value: &str) -> TestResult<Vec<u8>> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
     let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
     if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
@@ -562,7 +566,9 @@ fn opera_136_macos_http2_session_capture_matches_the_chromium_recipe()
 
 #[test]
 fn trust_anchor_hex_rejects_malformed_text() -> TestResult<()> {
-    for malformed in ["0", "410", "gg", "0\u{e9}0"] {
+    for malformed in [
+        "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0",
+    ] {
         assert!(hex_bytes(malformed).is_err(), "{malformed:?}");
         assert!(order_ids(&format!("count:1,ids:{malformed}")).is_err());
     }

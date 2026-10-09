@@ -204,6 +204,10 @@ fn is_number(text: &str) -> bool {
 }
 
 pub(super) fn decode_hex(value: &str) -> CaptureResult<String> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
     let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
     if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
@@ -221,7 +225,9 @@ mod tests {
 
     #[test]
     fn request_field_hex_rejects_malformed_text() -> CaptureResult<()> {
-        for malformed in ["0", "410", "gg", "0\u{e9}0", "ff"] {
+        for malformed in [
+            "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0", "ff",
+        ] {
             assert!(decode_hex(malformed).is_err(), "{malformed:?}");
         }
         assert_eq!(decode_hex("4a4A")?, "JJ");

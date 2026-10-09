@@ -277,6 +277,10 @@ fn request_fields(fixture: &str) -> Result<Vec<(String, String)>, Box<dyn std::e
 }
 
 fn decode_ascii_hex(value: &str) -> Result<String, Box<dyn std::error::Error>> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
     let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
     if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
@@ -631,7 +635,9 @@ fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
 
 #[test]
 fn request_header_hex_rejects_malformed_text() -> Result<(), Box<dyn std::error::Error>> {
-    for malformed in ["0", "410", "gg", "0\u{e9}0", "ff"] {
+    for malformed in [
+        "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0", "ff",
+    ] {
         assert!(decode_ascii_hex(malformed).is_err(), "{malformed:?}");
         let fixture = format!("request_header_0={malformed}:41");
         assert!(fixture_request_name(&fixture, 0).is_err());

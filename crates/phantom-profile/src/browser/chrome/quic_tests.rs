@@ -396,6 +396,10 @@ fn parse_quic_width(value: &str) -> Result<QuicVarIntWidth, Box<dyn std::error::
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
     let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
     if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
@@ -719,7 +723,9 @@ fn chromium_family_macos_quic_captures_match_the_chromium_recipe()
 
 #[test]
 fn transport_parameter_hex_rejects_malformed_text() -> Result<(), Box<dyn std::error::Error>> {
-    for malformed in ["0", "410", "gg", "0\u{e9}0"] {
+    for malformed in [
+        "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0",
+    ] {
         assert!(decode_hex(malformed).is_err(), "{malformed:?}");
     }
     assert_eq!(decode_hex("4a4A")?, b"JJ");
