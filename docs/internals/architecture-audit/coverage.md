@@ -129,6 +129,73 @@ does not resolve this separate parsing path. Three deterministic capture cleanup
 tests fail at `ec51ac17`; the initial correction passes its four focused tests,
 but repeated interruption remains under review. These are open repairs.
 
+The final malformed-frame correction passes 41 decoder and 53 connection
+tests, including the actual QUIC error control. Independent review approves
+its canonical source patch. The final capture correction passes 96 focused
+tests on Windows and native Linux, where eleven Windows-only tests skip.
+Independent review covers repeated SIGINT, exact owner attribution, completed
+results and invalidated resume records. These results apply to `0ad0d560` and
+do not replace final vendor or integration gates.
+
+The complete H3 vendor check passes on native Linux at `0ad0d560`, including
+the checksummed archive, canonical patch replay, byte comparison, formatting,
+all-target/all-feature Clippy, selected test groups and dependent builds.
+At that revision the later server-limit test patch still needed its final
+identity and repeated vendor check. Its two rejection and two exact-boundary
+tests pass at `0fdbaa16`; the subsequent `.11` verification is recorded below.
+
+The [consumer configuration review](consumer-configuration-coverage.json)
+records fourteen complete integration-owner reads, totaling 1,030 lines.
+It covers issue forms, ownership, license files, independent consumer source
+and the downstream checker. Windows path and Git consumer checks pass at
+`0ad0d560`: each runs eight default and ten optional-feature tests and validates
+the renamed dependency graph. The initial run fails because Git Bash resolves
+the Store Python alias; the rerun supplies pinned Python 3.10 for that command.
+Git reports normal CRLF conversion warnings in its temporary snapshot. This
+does not establish registry publication or final candidate verification.
+
+After the peer-limit test type corrections and loopback fixture repair, all
+377 H3 unit tests pass on Windows and native Linux with the `.11` identity.
+The native check at `70cf715d` also passes canonical archive replay, byte
+comparison, formatting, all-target/all-feature Clippy, selected test groups
+and dependent builds. This is a complete
+package unit-test run, rather than a filtered selection. Independent source
+review approves both test patches. The full integration gate remains pending.
+
+Eighteen further contract records add 62 complete and seven partial file
+reviews, with 31,916 lines across the complete records. Exact committed
+object IDs, SHA-256 values, line counts and inclusive ranges were verified.
+The records retain previous partial credit and distinguish cache/setup
+reinspection from first inspection. Net records describe `df2ae9b7`; the
+[public stream review](client-public-stream-continuation-coverage.json)
+describes `0ad0d560`. They establish source coverage, not new runtime results
+or final-candidate review. The port-zero and empty-stress corrections pass
+focused Windows and Linux controls; other assertion gaps remain open.
+
+The [resolver tests](net-resolver-tests-continuation-coverage.json),
+[upgrade and ALPS tests](net-upgrade-alps-continuation-coverage.json), and
+[TLS controls](net-tls-controls-continuation-coverage.json) add thirteen complete
+source reads, totaling 2,165 lines. Each source hash and inclusive range was
+verified against its recorded Git blob or Windows working bytes at `df2ae9b7`.
+Adjacent reports state test contracts, timing and platform assumptions, and
+remaining gaps. These are source reviews without execution evidence.
+
+The [network manifest, example and benchmark review](net-manifest-examples-bench-continuation-coverage.json)
+adds eighteen complete reads and 3,801 lines at `df2ae9b7`. Exact committed
+blob identities, hashes, line counts and inclusive ranges were checked.
+It covers the manifest, six benchmarks, seven examples and four external
+tests. The DNS capture lifecycle finding now has failing authenticated
+baseline controls and twenty passing corrected Windows and Linux tests. Remaining
+tool configuration and stale capture-label candidates stay open.
+
+Three retained independent reviews cover DNS capture ownership, cookie-cache
+diagnostics and image arguments. Their seventeen exact source identities,
+line counts and ranges were checked before import. Full and partial reads
+remain distinct. The [conformance continuation](new-tooling-source-pass-04-coverage.json)
+adds eighteen complete repository reads, two partial documentation reads and
+bounded pinned upstream source records. Its report separates manual counts,
+file ownership and external cleanup candidates from runtime observations.
+
 The [maintainer configuration record](maintainer-configuration-coverage.json)
 contains seven complete integration-owner reads covering optional command
 hooks, review duties, permissions, byte-preservation attributes, ignored

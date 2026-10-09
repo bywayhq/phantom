@@ -1,0 +1,935 @@
+{
+  "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+  "review": "manual/conformance lifecycle continuation checkpoint",
+  "records": [
+    {
+      "path": "scripts/conformance/aioquic_versions.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "7d7d9e76781f4e6aa508976a585d4e901f14456d",
+      "sha256": "9d192af3600aed229150c4c44968c7dc356f9896bf395191eef80f0864133546",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 182,
+      "read_ranges": [
+        [
+          1,
+          182
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/aioquic_versions.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "7d7d9e76781f4e6aa508976a585d4e901f14456d",
+          "sha256": "9d192af3600aed229150c4c44968c7dc356f9896bf395191eef80f0864133546",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 182,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              182
+            ]
+          ],
+          "contract": "Loopback QUIC version observer",
+          "limitations": "Loopback listen validation, four reserved-port attempts, owned ticket map, actual negotiated/first packet reports and response emission; done threshold counts HeadersReceived events without uniqueness. Server close starts only after port-file write; certificate temp directory persists. Requests parameter is unrestricted int; manual default three observation evidence preserved separately."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/quic_interop.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "489e44b703eea0c622b6c55cac34b1022f6aaab0",
+      "sha256": "c34df798da4b113171ab323f1faec16ccb097d5e428a7145dc7391a2e61754d5",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 433,
+      "read_ranges": [
+        [
+          1,
+          433
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/quic_interop.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "3315c2bb412e5ad3396208068c94ad5e56aad8a4",
+          "sha256": "f7267bf8c71e29bee458394d03cc18a475de680170914d5806021fd57affdec0",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 418,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              418
+            ]
+          ],
+          "contract": "Pinned QUIC runner orchestration",
+          "limitations": "Exact clean checkout check, bounded-name server role, image argument check, guarded mutation of three files, matching one-cell successful JSON plus zero process status. Writes failed summary on Exception and restores files in finally. See findings for shell image input and timeout ownership; log bound is post-collection artifact retention only."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/autobahn.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "6a8acd14937c021d2ee88b5e565d384da3c81735",
+      "sha256": "e13a33b67f068135946099771e1d56ceb07022f6cfb938736d0844dee67b8948",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 418,
+      "read_ranges": [
+        [
+          1,
+          418
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/autobahn.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "6a8acd14937c021d2ee88b5e565d384da3c81735",
+          "sha256": "e13a33b67f068135946099771e1d56ceb07022f6cfb938736d0844dee67b8948",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 418,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              418
+            ]
+          ],
+          "contract": "Pinned suite owner and independent outcome parser",
+          "limitations": "Exact agent, nonempty results, expected counts8/216/463, smoke set, typed warning/failure statuses, duplicate JSON keys rejected. Builds separate1800s, adapter mode timeout, loopback host port and unique named container, report copy deadline. Current cleanup ignores removal status; see finding. Container launch success flag set after detached command returns, uncertain-start cleanup unproven. JSON/log retention has no byte cap; report tmpfs128MiB is finite. OpenSSL helper source reviewed in first group."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/tests/test_aioquic_versions.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "faba7f33d059df87e6dc71e25c64fb60abc5aeab",
+      "sha256": "8c6cb775693de29bfd90b2b0a440b5cf83b2567d1272d13c6f9ae88375f02259",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 62,
+      "read_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/tests/test_aioquic_versions.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "faba7f33d059df87e6dc71e25c64fb60abc5aeab",
+          "sha256": "8c6cb775693de29bfd90b2b0a440b5cf83b2567d1272d13c6f9ae88375f02259",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 62,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              62
+            ]
+          ],
+          "contract": "Version-report controls",
+          "limitations": "Five independent tests assert exact report text, absent state, nonloopback rejection and finite 10055-only retry. No handshake runtime, unique stream counting or setup-file failure cleanup control."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/tests/test_quic_interop.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "19ae01263d9711213fb2d826f01479517e16313a",
+      "sha256": "4cda6c7c7b0b13082d2ee56a237c2679d4a5320ea35f697af3ce3e0b68ce6c1a",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 233,
+      "read_ranges": [
+        [
+          1,
+          233
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/tests/test_quic_interop.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "d9a1da09d5c67aafc2b33bfa60fb75e6e9d0a7a8",
+          "sha256": "b49bd20a4e901c7ad531cb3568f635db924983f1febf0cab92bbb27bf5a83a03",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 126,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              126
+            ]
+          ],
+          "contract": "QUIC result controls",
+          "limitations": "Four tests require role/name constraints, matching result sets, unsupported rejection and named successful cell; restore test manually restores returned bytes rather than testing run finally. No malformed duplicate-key, timeout, signal, returncode or mutation restoration fault injection."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/tests/test_autobahn.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "5953a67cb762fbb9f32db1ed1f21ca7a080c50ce",
+      "sha256": "95165ee3bbbaea86e22d37523aeebf8acdbd429def91da6945e0786d47c30f29",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 69,
+      "read_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/tests/test_autobahn.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "5953a67cb762fbb9f32db1ed1f21ca7a080c50ce",
+          "sha256": "95165ee3bbbaea86e22d37523aeebf8acdbd429def91da6945e0786d47c30f29",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 69,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              69
+            ]
+          ],
+          "contract": "Independent report classifications",
+          "limitations": "Three tests assert strict/informational success, exact warning/failure lists, missing count/set and wrong agent failure. No run/cleanup fault-injection, duplicate JSON or failure-summary publication control."
+        }
+      }
+    },
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "615959aaf781b31599f61d8784792ed5268e0ae6",
+      "sha256": "70f6f6a956e66a2db4cda2f52e4319a70e6c280f06116c3891d9651aede66d48",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 78,
+      "read_ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "crates/phantom-net/examples/quic_version_interop.rs",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "615959aaf781b31599f61d8784792ed5268e0ae6",
+          "sha256": "70f6f6a956e66a2db4cda2f52e4319a70e6c280f06116c3891d9651aede66d48",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 78,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              78
+            ]
+          ],
+          "contract": "Manual version interoperability caller",
+          "limitations": "Actual connector with Firefox recipe, isolated tickets, bounded connect/send/body/ticket waits and retained connections. Optional usize request count accepts zero then returns Ok without observation; reports version/resumption rather than asserting expected pattern."
+        }
+      }
+    },
+    {
+      "path": "crates/phantom/examples/autobahn_client.rs",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "7fcb61f62118347e747e5ee9e8cf82dfa7acc299",
+      "sha256": "816dbb58de2f9bbb2e71973d92dc671e66591365227dbd4b726ec3aee701f124",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 282,
+      "read_ranges": [
+        [
+          1,
+          282
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "crates/phantom/examples/autobahn_client.rs",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "7fcb61f62118347e747e5ee9e8cf82dfa7acc299",
+          "sha256": "816dbb58de2f9bbb2e71973d92dc671e66591365227dbd4b726ec3aee701f124",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 282,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              282
+            ]
+          ],
+          "contract": "WebSocket protocol exercise caller",
+          "limitations": "Typed root/wss config, query encoding, finite discovery and per-case/report deadlines, text/binary echo, protocol errors break case for independent server result, timeouts counted then adapter fails after report update. Case-count zero can succeed adapter alone but outer suite rejects absent/incorrect reports. No raw implementation-derived expected payload oracle; pinned peer report independent."
+        }
+      }
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/main.rs",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "b773ac81006e893ae54506b57a59981cfb298bd1",
+      "sha256": "e95f3583d9388837b73f6814d0725705e31c30d5d0b37ef773d7ac7d8e417ce3",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 368,
+      "read_ranges": [
+        [
+          1,
+          368
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "crates/phantom/examples/quic_interop/main.rs",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "b773ac81006e893ae54506b57a59981cfb298bd1",
+          "sha256": "e95f3583d9388837b73f6814d0725705e31c30d5d0b37ef773d7ac7d8e417ce3",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 368,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              368
+            ]
+          ],
+          "contract": "Real QUIC runner client",
+          "limitations": "Requires nonempty <=64 same-origin safe URLs, one root, HTTP/3 response metadata and status; joined bounded batch aborts/drains remaining tasks and removes partials on failure. Each file bounded16MiB; encoded environment input itself is not byte capped before splitting. Success does not independently compare downloaded content; upstream runner owns that check."
+        }
+      }
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/target.rs",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "a26838af05bd5b08592a9cd2f319856223b64413",
+      "sha256": "b916f25242966e16b71aabadc4ccc66f96509d7d5e48832b0a1a6494580f898a",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "crates/phantom/examples/quic_interop/target.rs",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "a26838af05bd5b08592a9cd2f319856223b64413",
+          "sha256": "b916f25242966e16b71aabadc4ccc66f96509d7d5e48832b0a1a6494580f898a",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 128,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              128
+            ]
+          ],
+          "contract": "Restricted download target",
+          "limitations": "HTTPS, credential-free, runner-host allowlist, default443, no query/fragment, one <=255 safe filename; positive and negative controls. URL normalization intentional for runner inputs; no production route behavior claim."
+        }
+      }
+    },
+    {
+      "path": ".github/workflows/quic-interop.yml",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "23cd13e413e4c54047cb25d6e8f3e9ceaa1c3453",
+      "sha256": "f7db0a2e433585b0ba961fd32b2bed7e414f9c6f8eaa337d9c0405b8fb0eb55f",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": ".github/workflows/quic-interop.yml",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "23cd13e413e4c54047cb25d6e8f3e9ceaa1c3453",
+          "sha256": "f7db0a2e433585b0ba961fd32b2bed7e414f9c6f8eaa337d9c0405b8fb0eb55f",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 141,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              141
+            ]
+          ],
+          "contract": "Interop workflow execution scope",
+          "limitations": "PR/main build image and unknown-case127 only; actual pinned HTTP/3 case restricted to schedule/manual, artifact paths selected. Documentation must not treat PR green as full interop execution. No CI executed."
+        }
+      }
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 97,
+      "read_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": ".github/workflows/autobahn.yml",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+          "sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 97,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              97
+            ]
+          ],
+          "contract": "Actual suite scheduling",
+          "limitations": "Pinned source checkout, Docker/OpenSSL prerequisite, schedulefull, PR/main smoke, explicit dispatch choice; uploads exact generated report paths. No workflow executed."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/quic-interop/Dockerfile",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "e36f7c5af7df774b8204c4fd3a70c487f05d9251",
+      "sha256": "5d643165c36200dbb28f8afad9b4427e0d9cbc87462aefe33653822ecec17f91",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 20,
+      "read_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/quic-interop/Dockerfile",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "e36f7c5af7df774b8204c4fd3a70c487f05d9251",
+          "sha256": "5d643165c36200dbb28f8afad9b4427e0d9cbc87462aefe33653822ecec17f91",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 20,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              20
+            ]
+          ],
+          "contract": "Endpoint image composition",
+          "limitations": "Pinned builder/base image digests and locked release example build; runtime copies correct executable and entrypoint. Apt indexes/packages are not digest pinned; no image build claim."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "4d385c10987598af7408713198b4a2a4c86685e8",
+      "sha256": "eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 11,
+      "read_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "4d385c10987598af7408713198b4a2a4c86685e8",
+          "sha256": "eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 11,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              11
+            ]
+          ],
+          "contract": "Container endpoint launch",
+          "limitations": "Client-only guard, setup and bounded simulator readiness precede exec client; set -euo pipefail preserves failure. Actual image-provided scripts not fully audited."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/loopback_tls.py",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "c4b62f5e45c9748c689d3022202aebde0edd4fe0",
+      "sha256": "96cb706298afd74f71e71363fbacb3295bbf069d7a73237eaf8816d84d8a2a84",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 132,
+      "read_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/loopback_tls.py",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "c4b62f5e45c9748c689d3022202aebde0edd4fe0",
+          "sha256": "96cb706298afd74f71e71363fbacb3295bbf069d7a73237eaf8816d84d8a2a84",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 132,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              132
+            ]
+          ],
+          "contract": "Ephemeral loopback certificate production",
+          "limitations": "OpenSSL argv lists avoid shell interpolation, check=True propagates failure; generated SAN is localhost/127.0.0.1. Caller supplies/owns directory. No subprocess deadline or descendant ownership of its own; actual OpenSSL not executed."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/autobahn/smoke.json",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "106252419294a16ebca0d46b25cdf07c921a90f9",
+      "sha256": "4089dfdd2a6508d213103842f5ac4520d74b5ea0d6ea340c1e368378cb066ee5",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 18,
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/autobahn/smoke.json",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "106252419294a16ebca0d46b25cdf07c921a90f9",
+          "sha256": "4089dfdd2a6508d213103842f5ac4520d74b5ea0d6ea340c1e368378cb066ee5",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 18,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              18
+            ]
+          ],
+          "contract": "Exact smoke cases",
+          "limitations": "Eight explicit case IDs, no exclusions; runner computes exactset and cardinality8 before trusting status results. Placeholder9001 is replaced by owned loopback port before Docker."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/autobahn/full.json",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "287eda868d30b0946c6a79ec13a576e2d9e5547e",
+      "sha256": "222f5dad03774303349cd9927d1c8a760f4555fd4c3c3daaba0907f0a377e549",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/autobahn/full.json",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "287eda868d30b0946c6a79ec13a576e2d9e5547e",
+          "sha256": "222f5dad03774303349cd9927d1c8a760f4555fd4c3c3daaba0907f0a377e549",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 9,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              9
+            ]
+          ],
+          "contract": "Full case selection",
+          "limitations": "Selects* excluding9.*; runner expects463 outcomes. Wildcard modes enforce count only, not exact expanded IDs; no independent count enumeration in this pass."
+        }
+      }
+    },
+    {
+      "path": "scripts/conformance/autobahn/compression.json",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "25f100baa6098422ced4c67555bbcebd2e00f0ef",
+      "sha256": "55db08da098656d9e6150d453eac35834700dac2b63d305e7a9dd9f599668abf",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "read_status": "full",
+      "coverage_kind": "fresh complete source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-02-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "scripts/conformance/autobahn/compression.json",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "25f100baa6098422ced4c67555bbcebd2e00f0ef",
+          "sha256": "55db08da098656d9e6150d453eac35834700dac2b63d305e7a9dd9f599668abf",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 9,
+          "read_kind": "full_source",
+          "reviewed_ranges": [
+            [
+              1,
+              9
+            ]
+          ],
+          "contract": "Compression case selection",
+          "limitations": "Pinned JSON selects12.* and13.* without exclusions, TLS config paths and temp report destination. Exact216 matches runner constant; case enumeration not independently executed."
+        }
+      }
+    },
+    {
+      "path": "docs/explanation/validation.md",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "2956563a6eea282f4ba83f53974f7a52a828a721",
+      "sha256": "398b0672d75dc35eb1d26005e42c6b1ccbb268441540941b441565315dc4b8ef",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 6910,
+      "read_ranges": [
+        [
+          1810,
+          1855
+        ]
+      ],
+      "read_status": "partial",
+      "coverage_kind": "fresh partial source read",
+      "prior_record": {
+        "record": "new-tooling-source-pass-01-coverage.json",
+        "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+        "record_data": {
+          "path": "docs/explanation/validation.md",
+          "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+          "git_oid": "2956563a6eea282f4ba83f53974f7a52a828a721",
+          "sha256": "398b0672d75dc35eb1d26005e42c6b1ccbb268441540941b441565315dc4b8ef",
+          "hash_basis": "raw committed Git blob bytes",
+          "line_count": 6910,
+          "read_kind": "partial_source",
+          "reviewed_ranges": [
+            [
+              1818,
+              1850
+            ]
+          ],
+          "contract": "Caller/configuration boundary",
+          "limitations": "Historical three-request manual version observation and exact reproduction command; not complete page review."
+        }
+      }
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "revision": "5fe62ee4c5b8c7a8e3aa0d34f37ad3d85a9cc757",
+      "git_blob_oid": "b875939295b6dedb363592e2a6f82e6e6dffc560",
+      "sha256": "b843d9111d7da93445413f486ec0f5cbbc15f07669697cf765cdf50434f47daf",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 373,
+      "read_ranges": [
+        [
+          250,
+          325
+        ]
+      ],
+      "read_status": "partial",
+      "coverage_kind": "fresh partial source read",
+      "prior_record": null
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-quic-image-boundary\\target\\quic-image-shell-boundary\\run.py",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/run.py",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "sha256": "e6242d2fc0ed77fc894976d656abcfd2b15283a546a5f1be5fa3c8fcdf0dde0e",
+      "line_count": 221,
+      "read_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "read_status": "full",
+      "content_origin": "exact primary raw bytes retained from prior authorized fetch; freshly reread here"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-quic-image-boundary\\target\\quic-image-shell-boundary\\interop.py",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/interop.py",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "sha256": "19bf7696ba0558a9d381b81ba7742a411a9a9ec47b328f6cfa684a0dedddf511",
+      "line_count": 611,
+      "read_ranges": [
+        [
+          94,
+          192
+        ],
+        [
+          347,
+          554
+        ],
+        [
+          549,
+          611
+        ]
+      ],
+      "read_status": "partial",
+      "content_origin": "exact primary raw bytes retained from prior authorized fetch; freshly reread here"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\conformance-lifecycle-upstream-compose.yml",
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/docker-compose.yml",
+      "revision": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "sha256": "be0cb079b0c41ad6d398daec6924b8ef8b8a689e4632434404d141b3c0267eec",
+      "line_count": 162,
+      "read_ranges": [
+        [
+          1,
+          162
+        ]
+      ],
+      "read_status": "full",
+      "content_origin": "primary raw bytes fetched read-only this pass"
+    }
+  ],
+  "full_file_count": 18,
+  "partial_file_count": 2,
+  "findings": [
+    {
+      "id": "manual-positive-count",
+      "severity": "minor",
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "line": 26,
+      "status": "source-supported; no runtime reproduction this pass",
+      "cause": "usize accepts 0, skips the whole request loop and returns Ok with no network observations",
+      "contract": "Manual interop tool documents sending requests; recorded reproduction uses 3. No documented dry-run mode. Python server zero does not immediately pass.",
+      "fix": "Require positive count before root-file or connector preparation in client and before certificate/listener preparation in server; preserve default 3.",
+      "reproduction": "Pure count parser controls absent/default, positive, 0, negative, malformed and overflow; root may execute client 0 with controlled root fixture and assert refusal without network. Do not claim recorded 3-request observations invalid."
+    },
+    {
+      "id": "autobahn-owner-cleanup",
+      "severity": "major",
+      "path": "scripts/conformance/autobahn.py",
+      "line": 391,
+      "status": "source-supported; no Docker or fake-process failure executed this pass",
+      "cause": "Removal check=False returncode discarded; logs/rm/inspect have no timeout; uncertain detach timeout never sets container_started; cleanup exceptions can replace primary failure",
+      "fix": "Establish a named owner before launch; finite checked cleanup always attempted for owned/uncertain launch; observe log and removal outcomes, preserve suite cause and mark final summary failed if cleanup fails. Bound readiness inspect and log collection too.",
+      "reproduction": "Mock build/cert/port/readiness/report functions and subprocess calls; independent valid exact smoke report plus rm status1 must fail. Inject log failure + rm failure and assert both attempts and primary cause; launch timeout must trigger scoped cleanup. Assert finite timeout args; never invoke Docker in these regression controls."
+    },
+    {
+      "id": "quic-outer-timeout-ownership",
+      "severity": "major",
+      "path": "scripts/conformance/quic_interop.py",
+      "line": 306,
+      "status": "source-supported owner gap; actual external container survival not reproduced",
+      "cause": "Outer subprocess timeout or interrupt can kill runner before upstream per-case stop; finally restores only files. Compliance stage has no internal timeout. Upstream compose fixed names complicate safe cleanup.",
+      "fix": "Give this invocation verifiable container/project ownership and supervised process-group cleanup; clean with finite checked operations before restoring configuration, preserve primary cause and report uncertainty. Do not blindly delete globally named containers.",
+      "reproduction": "Fake owned runner process/tree and fake container registry; forced timeout during compliance and case plus normal return/error must attempt owned cleanup, restore all original bytes, produce failed summary and retain timeout cause. Actual Docker survival remains a separate optional controlled reproduction."
+    },
+    {
+      "id": "A50",
+      "severity": "major",
+      "path": "crates/phantom/examples/quic_interop/main.rs",
+      "line": 221,
+      "status": "source-supported; root authorized regression lane, no Cargo execution",
+      "cause": "On create_new failure, download_one removes the pre-existing partial; batch cleanup unconditionally removes all planned partial paths, even never-created ones",
+      "fix": "Track actual successfully created ownership through cancellation and cleanup. Preserve create_new refusal and never delete caller-owned pre-existing partials.",
+      "reproduction": "Sentinel .first.part must survive download_one AlreadyExists; existing final first plus .first.part must survive batch early-refusal before partial creation. Distinct owned-created partial and positive download controls should retain intended behavior."
+    }
+  ],
+  "tests_executed": false,
+  "builds_executed": false,
+  "subprocess_fixtures_executed": false,
+  "docker_executed": false,
+  "source_only_network": "Read-only primary source/docs fetch only; no containers or conformance targets contacted.",
+  "remaining_tooling_gaps": [
+    {
+      "path": "scripts/conformance/quic-interop/requirements.txt",
+      "prior_disposition": "new partial source read",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tests/test_tls_anvil.py",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tests/test_wpt_eventsource.py",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/Dockerfile",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/client.json",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/expected.json",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/profiles/phantom-smoke.json",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tls-anvil/trigger.sh",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/tls_anvil.py",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/full.json",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/smoke.json",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    },
+    {
+      "path": "scripts/conformance/wpt_eventsource.py",
+      "prior_disposition": "genuinely unread in this continuation",
+      "prior_revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "fresh_read_this_pass": false
+    }
+  ],
+  "capture_scope": "75 original capture rows stay with separate capture owner; this report does not close them.",
+  "rejected_candidates": [
+    {
+      "candidate": "Python --requests 0 succeeds without any traffic",
+      "reason": "done is initially unset; no packet means 60-second timeout. First observed request sets done for expected0. This remains invalid configuration but not a zero-observation pass."
+    },
+    {
+      "candidate": "Autobahn receive error being swallowed automatically makes the suite pass",
+      "reason": "Malformed-protocol cases intentionally end on error; independent exact peer report and adapter exit status determine outcome. Missing/empty reports are rejected."
+    },
+    {
+      "candidate": "Any ordinary QUIC timeout always leaves running containers",
+      "reason": "Upstream has a per-case TimeoutExpired stop path. Supported gap is outer timeout/interruption skipping that path; normal survival was not executed."
+    },
+    {
+      "candidate": "All current QUIC image strings still reach shell expansion",
+      "reason": "Current aggregate has A47 shell-safe image validation; previous causally reproduced defect is not reintroduced. This author does not independently approve own regression stage."
+    },
+    {
+      "candidate": "PR QUIC workflow success proves upstream HTTP3 peer execution",
+      "reason": "Actual case and runner installation are gated to schedule/manual dispatch. Push/PR job build and unsupported-case check only."
+    }
+  ],
+  "additional_source_limits": [
+    "aioquic_versions.py uses mkdtemp without cleanup and port-file publication occurs before server-close finally. These resource ownership follow-ups remain source-traced, not reproduced or added to prioritized findings.",
+    "QUIC runner captures all stdout/stderr into RAM before trimming retained logs to 1MiB; retention bound is not a live memory bound.",
+    "Compression/full Autobahn use case counts, not independent exact expanded case IDs; retained counts alone are not complete inventory provenance.",
+    "No whole upstream runner or Docker engine audit: interop.py remains partial as recorded."
+  ],
+  "readability": "Current tools have coherent domain/function grouping and explicit CLI entry points. Ownership flags and separated cleanup/error construction obscure the lifecycle; a bounded owned run/cleanup scope is justified. No generic runner abstraction or formatting-only reorganization prescribed."
+}

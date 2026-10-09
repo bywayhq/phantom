@@ -1,0 +1,390 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "root_head_observed": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "The 18 actual unrecorded phantom-net manifest/bench/example/external-test files from the disposition index snapshot",
+  "previous_coverage": "net-review-disposition-index.json",
+  "files": [
+    {
+      "path": "crates/phantom-net/Cargo.toml",
+      "git_blob_oid": "40c534203db9d8c45bfec349a3ff639ef69d8e85",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "1abbae2f0bdfc42467085b62a62121e20a261b4f5ccdd61e56a6aa6d5a03c896",
+      "working_tree_sha256": "5eac0e1c96704c8ed438845c7f7dcf29f6aaae0c661b5173ebe267f708f0dfff",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 112,
+      "reviewed_ranges": [
+        [
+          1,
+          112
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed all package metadata, opt-in features, platform-specific BTLS/libc/windows-sys boundaries, production/dev dependency features, transport bench and TLS-Anvil feature requirement, and lint inheritance/authorized unsafe deny override. This source review does not certify current fork pins, compilation, optional feature combinations or target platforms.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport.rs",
+      "git_blob_oid": "995fecaf99154c047e124a9ef972661ab6c19062",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "84ccb94dbda5603037df12d3a6ccf162f7655895502445719b078f670c2746f1",
+      "working_tree_sha256": "592688cac450c0622793d21e9e5c6793b678159cf6e05ac2d664c3f22df6dc37",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 37,
+      "reviewed_ranges": [
+        [
+          1,
+          37
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed Criterion registration and current-thread runtime construction. The suite registers H1 and H2 CPU transport paths, not H3 or real network/TLS performance. Child modules have concrete harness responsibilities.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http1.rs",
+      "git_blob_oid": "06720fdf01617bf4aea6daa32e0cd7bf201978e3",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "40680c40ee858804b4495ffc16e6220aa3031bbffc747d438842f5ec58665d80",
+      "working_tree_sha256": "ed5621898c07234bbbf26e4f7ee2db6a25c4cfbeee4b8b58e7d031d769ca4be2",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 226,
+      "reviewed_ranges": [
+        [
+          1,
+          226
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed constructor, response-head, warm-reuse, content-length and chunked-body benchmarks end to end. Cold samples include connection/startup/send/collect work; warm samples reuse one duplex connection. The peer bounds request heads to 32 KiB. Fixed response fixtures determine expected payload, but H1 samples do not assert body contents/length. The warm peer is aborted without a join. These are measurement/ownership limits, not a newly proved production failure.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http2.rs",
+      "git_blob_oid": "61208525588f23b4c5ae19f1ccc12b13f44c3c34",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "5dbf118c643060e9ea5c7dfa26eefc3888dc8702ead668225a68389d4b3b9005",
+      "working_tree_sha256": "54427dbdeb4ce0ae207028eda09a2e9cf145d66dade4c3bcd9d969bcc22372b3",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 225,
+      "reviewed_ranges": [
+        [
+          1,
+          225
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed response/frame builders, batch preparation, driver subscriber scope and complete_response lifecycle. Samples require status/body length, transport drop and supervised driver completion before black_box. The synthetic peer has fixed stream 1, startup write gating and a GOAWAY, rather than independent socket backpressure. Four 16 KiB body frames are constructed. No sample deadline is present.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http2_replay.rs",
+      "git_blob_oid": "e153ef2298a23f411d45814e27e478bace043469",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "f1a6ca92ec6b909096e01185af3e30eef5a537e26f306e96f369804f3855b00d",
+      "working_tree_sha256": "ade4c19e83df82d67bf403e25b9c659745f3d0b4851000326cbd537ca39d0f04",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 110,
+      "reviewed_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed write-count gating, bounded response copying/EOF, vectored writes and completion-on-drop ownership. The synthetic stream accepts all writes, uses saturating byte accounting and wakes the write poll context; it is used by the one connection driver, not claimed as a general cross-task stream. Receiver drop after a failed sample is allowed. No live network claim is made.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/http2_supervisor.rs",
+      "git_blob_oid": "f112e259350e79231cdcb4178d549806297a708e",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "fa63364645e5fa383db867d5a6209730bc35f8a4550e8483916a8e5e0380bdb1",
+      "working_tree_sha256": "7902937c37794c727850b193c61b9f4d8aeac81076679119fee29ac882310092",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 234,
+      "reviewed_ranges": [
+        [
+          1,
+          234
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed observer Dispatch lifetime, FIFO sample registration, exact driver span name/outcome recognition, span reference counting and final observer send. Driver finish is distinct from transport drop. Queue state is drained by completed samples; a rejected/missing outcome terminates the bench by panic. Completion waits have no deadline. This review does not independently test the custom observer itself.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/benches/transport/replay_stream.rs",
+      "git_blob_oid": "92d1e9c36a32e2649793dc3e0e5b9a70535ead5c",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "53bf520987524d3a7ab674082d81e621122b5718efc06b1d0cf2d336a9ca647f",
+      "working_tree_sha256": "d8472bd4e1a5fde14d11120705b6391d90264d4595e9926c1eef478900c5a081",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 75,
+      "reviewed_ranges": [
+        [
+          1,
+          75
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed prefix-offset read/EOF, request-start write gate, immediate flush/shutdown and vectored writes. The fixture stream makes a fixed response readable after the first write and accepts all bytes. It measures synthetic parsing/transport CPU work; it does not emulate partial writes, peer errors or network flow control.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_alps_accept_ch.rs",
+      "git_blob_oid": "b51bbf8fa483a3d6fc7e6f034fe7772c6b451403",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "0e4940d835551a1bdc7a363b73b8d36c61a67f9ab01efbf06166cd1d564cdbe8",
+      "working_tree_sha256": "8e5c9e7f9288299a590f31e13adf9f8261ebc1e31511d3398294161a6e744d93",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 172,
+      "reviewed_ranges": [
+        [
+          1,
+          172
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed exact loopback bind guard, origin-specific bounded-length ALPS frame builder, generated TLS identity, ALPN callback, per-connection HTTP2 server, field/hint reporting, page/fetch/done transitions and 60-second main deadline. Connection tasks are detached and rely on runtime shutdown; /done sender rejection is explicitly justified. Header keys are reported after the server HeaderMap decoder, not independently captured raw HPACK. Arbitrarily many local connections can be admitted during the run.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "git_blob_oid": "d3a28ded4643a62a3e2dc1def33929e86639e7f6",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "b5d3fb2fc67376dfa0322e5d92b9222b859970813bac28e3f9e58918de1e3f82",
+      "working_tree_sha256": "90d30360d17cf5a10f51146be123b736161b13088c5ee5520380636c897ad26f",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 1078,
+      "reviewed_ranges": [
+        [
+          1,
+          1078
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed all argument validation, generated identity/SPKI, published versus reject ECH keys, loopback TCP/QUIC/DoH setup, eight-origin arrival slots, captured-state publication, TCP prefix replay/handshake/page serving, QUIC handshake data/errors/H3 serving, DNS-over-HTTPS HTTP framing/DNS/SVCB/base64 encoders and fixture output. Test keys are deliberately public testkit fixtures, and only public keys/config/captured hellos are emitted. Origin work is bounded by eight arrivals and operation/run/grace deadlines. DoH task count and query metadata are not bounded independently; per-connection TLS/read waits have no deadlines. Explicit detailed follow-up is recorded below. No example unit tests are present.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_http2_tls.rs",
+      "git_blob_oid": "a1a4e635cd3b48b4abfead957276bd3721a5cd4f",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "1199c476d5d42a32b1ad73a4a5166832300aa74311cfa8bed44ff3f8d00d1296",
+      "working_tree_sha256": "7806abec8fc0509d52ee3f522ad50b1e72284cb31d3c2435c13aff5f9a6d401b",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 286,
+      "reviewed_ranges": [
+        [
+          1,
+          286
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed exact argument count, single-line/nonempty metadata checks, loopback listener/peer guards, one accepted connection, independent accept/handshake/frame deadlines, TLS1.3/ALPN/SNI constraints, 64 KiB/128 KiB/16-frame capture limits and fixture publication after success. Argument tests check valid and selected invalid metadata; they do not execute a browser or fixture capture.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_http2_tls/fixture.rs",
+      "git_blob_oid": "007b580a0e72dece2897a3699df33f32df1a5e88",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "d755cd092997a91fb6602204a7e2c958f2aa97a5e5f6608a60f3d5bc48c4cf6a",
+      "working_tree_sha256": "8d772ea17433e3f5fcde7d80fe26d6bf5777a0ce916393d0d34fc5ecc42d6cc0",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 160,
+      "reviewed_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed first-frame SETTINGS and stream-zero WINDOW_UPDATE summary checks, exact ordered v2 output metadata and raw frame hex, ALPS absent/empty/nonempty distinction, checked output errors and lowercase hex encoding. Tests independently compare representative bytes and all three ALPS metadata states. This helper is not a public hostile-input parser.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_http3_request.rs",
+      "git_blob_oid": "6934783a6fc7deac3510d8a8290bf69002ec7b0e",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "d077025efd3d6ec86221380dedd200426c6851fd7cb1477d27506ea90716ff43",
+      "working_tree_sha256": "1769dc462ef2b12d3fc1a7991ce1eb3b6c27532bbdd8e50fe015dd0162b2b727",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 178,
+      "reviewed_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed exact argument count/nonempty single-line hostname, loopback remote guard, additional root loading, Chrome154 transport recipe selection, explicit direct UDP route, status and exact ok body assertions, separate 30-second send/body deadlines and fixed 13-header request. Tests check argument rejection, IPv4/IPv6 loopback and first/last/lowercase header names, but not full header values. Chrome152 identity values are still hard-coded while the opening comment says Chrome154; this is recorded as a bounded wording/fixture-shape candidate, not a transport parity failure.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "git_blob_oid": "615959aaf781b31599f61d8784792ed5268e0ae6",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "70f6f6a956e66a2db4cda2f52e4319a70e6c280f06116c3891d9651aede66d48",
+      "working_tree_sha256": "528a4f0937ff63cf9bfa78827422988e8bf443452600a6e3ac11c1e533a4cd64",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 78,
+      "reviewed_ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed explicit Firefox157 recipes, isolated session cache, fresh direct loopback connections, separate 10-second connect/send/body/ticket deadlines, retained prior connection handles and required ticket availability between requests. Status/body/resumed state are printed for the external peer report; they are not asserted here. The optional usize request count accepts zero. The documented default reproduction uses three requests, so zero does not invalidate the recorded interop observations or existing CI.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/examples/tls_anvil_client.rs",
+      "git_blob_oid": "11da7b4c1a4566baf82910355a5f35beb5cea807",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "231932a99e9f09bb872f8c222c259fa5f66c177384dbc953d933e773aeba73d2",
+      "working_tree_sha256": "190de74d7a55a23b1ece7d456896ea7597414fd18480df5a397e8bdda2dd3fcf",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 114,
+      "reviewed_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed named argument parser, required host/port/server name, explicit danger-disabled TLS verification, H1-only ALPN and disabled ALPS, route construction and five-second connect deadline, followed by connection drop. The manifest requires the danger feature for this harness. Tests independently check parsed fields and missing/unknown options. This is an intentional one-handshake conformance adapter, not an example of authenticated production usage.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/tests/browser_http2_fixtures.rs",
+      "git_blob_oid": "daf49df36f06402d5787b4890745870637d8bb4e",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "6a40cb80e9108186d8af0068b660f4beb7aa68af4eab1338f6dbaa8aa8cdb693",
+      "working_tree_sha256": "5dba2ecec74c1ac76defcb9168cae2f3719ea31b5819a2f82a5c8c0b96842744",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 157,
+      "reviewed_ranges": [
+        [
+          1,
+          157
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed fixture-wire reconstruction, bounded independent frame parser, exact preface/count/every-frame comparison and parsed settings/window summary checks. The public client emits startup into a duplex peer, remains pending while the peer is held, then returns Protocol after peer drop with a join deadline. Malformed fixture controls change key order/duplicates/unknown/missing/frame numbering and line breaks. Capture failure before final join relies on runtime teardown, not a scoped abort-and-join guard.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/tests/browser_http2_fixtures/chrome.rs",
+      "git_blob_oid": "f088fe7343e157035ee05818358c5fedfeba3bbd",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "5325b2fea76ee5e284869cb4328a5c6051045827a6dd95bc7fe94f1408ee8cb9",
+      "working_tree_sha256": "4d389a10f1bc98d3d0ef1d1112e88dbe24c4843cb56941b82c982563e3461001",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 147,
+      "reviewed_ranges": [
+        [
+          1,
+          147
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed all eight fixed browser/version/platform fixture paths, selected exact provenance assertions, full raw-startup checks and actual public-recipe startup comparisons. Chrome/Edge/Brave/Opera desktop and Android controls retain independent capture bytes. Tests assert recipe aliases where promised; they do not make a new live browser or HTTP3/TLS parity claim.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/tests/browser_http2_fixtures/fixture.rs",
+      "git_blob_oid": "6baa1926d77438afa89a0fd44079d70ae3a0fba3",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "207c642ebf450321489107dfae929f034a7e6a871b852c29a62a395735b9716c",
+      "working_tree_sha256": "d2eb7aea149854e8217c49d02404294abc75bfda16f1f671f13424151a60ab65",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 206,
+      "reviewed_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed complete ordered fixture parser: positive capture timestamp, hostname/loopback, exact capture deadlines/limits/ALPN, ALPS state/length consistency, exact 24-byte preface, bounded nonzero frame count, numbered frame keys, lowercase even-length hex, required fields and trailing-data rejection. Individual payload byte lengths are enforced by the subsequent bounded frame parser rather than before hex allocation; the input is a trusted include_str fixture, not an externally exposed network parser.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/tests/error_categories.rs",
+      "git_blob_oid": "6c7b917199a86103d72b0dfff891a541b43f7479",
+      "hash_basis": "exact Git blob bytes at revision",
+      "sha256": "ba086985bfd3a91ed34590720ad3b057daf8a407009487396cf03adb70510be3",
+      "working_tree_sha256": "9e740f978317ff9da696c20947a4fa872abcae9a4ed6ef5044fa6e66e43f01db",
+      "working_tree_hash_basis": "exact working bytes at checkpoint; CRLF may differ",
+      "total_lines": 206,
+      "reviewed_ranges": [
+        [
+          1,
+          206
+        ]
+      ],
+      "status": "complete",
+      "independent_contracts_and_limits": "Reviewed public validators for missing Host and uppercase H2 field, category distinctions, invalid local ALPN configuration, peer ALPN/application-setting categories, exact Bytes body metadata/payload conversion, typed nested proxy and IO source preservation, single cause-message occurrence, invalid TLS validator source and compile-time Copy/Eq/Debug/Send/Sync category requirements. Some mapping cases construct enum variants directly; the suite also exercises actual validators/connectors. It is not a complete network-error execution matrix.",
+      "contracts_record": "net-manifest-examples-bench-continuation-report.md"
+    }
+  ],
+  "source_findings": [
+    {
+      "classification": "source-supported capture resource/ownership defect; no runtime reproduction in this read-only pass",
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "ranges": [
+        [
+          106,
+          118
+        ],
+        [
+          144,
+          197
+        ],
+        [
+          856,
+          877
+        ],
+        [
+          880,
+          928
+        ]
+      ],
+      "cause": "The parent DoH listener task spawns a detached task for every accepted loopback connection. Child TLS handshakes and repeated request loops have no timeout or task-count reservation. Every valid DNS query appends a String to the shared log without a count or byte bound. MAX_CONNECTIONS bounds only origin tasks, and aborting the listener does not explicitly join its previously spawned children.",
+      "observable_contract": "A local peer can keep arbitrarily many accepted DoH handshakes/read futures pending or append arbitrarily many DNS query records during the capture run. The origin accept deadline bounds time but not retained work/metadata. Process/runtime shutdown eventually drops the tasks; this is not a persistent net library leak.",
+      "regression_proposal": "Use a controlled DoH listener with a small explicit concurrency/log allowance. Hold multiple TLS handshakes pending and prove later arrivals cannot increase active futures beyond the allowance; complete/drop a child and prove reuse. Send more valid DNS requests than the log allowance on a kept-alive TLS connection and assert deliberate overflow/failure instead of unlimited append. Abort the capture and assert all owned child futures are dropped/joined. Preserve successful accept/reject capture output and report a listener/child failure with operation context.",
+      "proposed_remedy": "Own DoH children in a bounded task set; bound capture query metadata and TLS/request waits; deliberate shutdown aborts and drains children. Preserve public test-capture semantics and avoid introducing a transport API knob."
+    },
+    {
+      "classification": "bounded example documentation/fixture-shape inconsistency; no browser differential",
+      "path": "crates/phantom-net/examples/capture_http3_request.rs",
+      "ranges": [
+        [
+          1,
+          5
+        ],
+        [
+          24,
+          30
+        ],
+        [
+          98,
+          130
+        ],
+        [
+          163,
+          176
+        ]
+      ],
+      "cause": "The example claims a Chrome154 request but retains Chromium/HeadlessChrome152 client hints and user agent values. Its header test checks count/boundary/lowercase names only.",
+      "observable_contract": "The actual helper emits a Chrome154 transport profile with explicitly supplied Chrome152 identity headers. No caller/fixture reference for this exact helper was found in the bounded docs/scripts/workflow search; manual uses remain possible.",
+      "regression_proposal": "Decide the intended recorded browser request before changing data. If this is an old capture helper, qualify its opening comment or remove the unused harness after checking consumers. If it should represent Chrome154, use the corresponding recorded request identity and compare the full ordered field list to that independent fixture.",
+      "proposed_remedy": "Clarify the helper contract or update it from a matching retained fixture; do not invent browser header values or alter the general transport behavior."
+    }
+  ],
+  "remaining_paths_in_this_index_subset": [],
+  "coverage_boundary": "All 18 files have complete manual baseline reads. This does not import the 35 legacy/hashed gaps, freshly review changed aggregate source, dispose findings, cover all dependency code, or establish a whole-repository zero-remaining result.",
+  "verification": "Manual source review and exact Git blob/working-byte comparison only. No builds, Cargo, browser runs, conformance runs or benchmark measurements. Parent owns runtime validation.",
+  "integration_owner_validation": "Git blob SHA-256, object ID, line count and declared read ranges verified; source review only, no runtime claim"
+}

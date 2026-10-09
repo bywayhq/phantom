@@ -42,8 +42,24 @@ No finding is resolved by an assignment or a proposed fix.
 | A33 | P3 | Short tests stay with their module | AcceptCh's 51-line tests use a separate directory and path annotation | Inline move independently approved; all three tests pass |
 | A34 | P2 | HTTP/3 control parsing bounds retained payloads | Control decoding waits for an entire peer-declared non-DATA payload | Red/green tests; 36 decoder and 52 peer tests pass; review approved; packaging pending |
 | A35 | P2 | HTTP/3 cookie limits apply before splitting | Semantic validation repeats supplied-field limits over emitted crumbs | Red/green tests; 185 transport HTTP/3 and seven facade cookie tests pass; review approved |
-| A36 | P2 | Known frame fields consume exactly their declared payload | Single-ID parsing leaves trailing bytes or treats a complete truncated field as partial input | Two decoder and one real-peer regressions fail; valid controls pass; canonical repair in progress |
-| A37 | P2 | Capture shutdown continues after individual cleanup errors | First close or profile-sweep failure skips later owners and reporting | Three regressions fail; initial repair passes four controls; repeated interruption still open |
+| A36 | P2 | Known frame fields consume exactly their declared payload | Single-ID parsing leaves trailing bytes or treats a complete truncated field as partial input | Independently reviewed correction passes 41 decoder and 53 connection tests; final vendor gate pending |
+| A37 | P2 | Capture shutdown continues after individual cleanup errors | First close or profile-sweep failure skips later owners and reporting | Final independent review approves owner attribution and repeated interruption; 96 capture tests pass on Windows and Linux |
+| A38 | P3 | Server field-section tests use actual peer limits | Simulated limits are replaced by real SETTINGS before server assertions | Corrected controls pass; independent review and final Linux vendor check pass |
+| A39 | P2 | CONNECT-UDP target ports meet the protocol contract | Template expansion accepts target port zero | Red/green Windows and Linux regressions; independent review approved |
+| A40 | P3 | Shared H3 test endpoints bind loopback and handle reserved ports | Both endpoint constructors bind wildcard IPv6 with no Windows bind retry | Review approved; all 377 H3 unit tests pass on Windows and Linux; vendor replay passes |
+| A41 | P3 | Stress tests execute at least one iteration | Zero iterations produce a passing test with four zero outcome counts | Actual zero now fails; parser and positive/default controls pass on Windows and Linux; independent review approved |
+| A42 | P3 | Vendor checks and refresh instructions select the actual forks | Formatter commands include dependencies and notes name old package identities | Correction committed; selected formatting and ShellCheck pass; independent source review approved |
+| A43 | P2 | DNS capture work is owned, bounded and observed | Detached children, unbounded query records and no operation deadlines | Authenticated baseline has three passes and nine failures; all 20 corrected tests pass on Windows and Linux; independent review approved |
+| A44 | P1 | TLS message callback ownership survives an SNI context switch | Lookup uses the replacement context instead of the original callback owner | Actual process-abort regression red/green; independent review approved; native vendor checks pass; Windows staging warning qualified below |
+| A45 | P2 | TLS message Debug omits message bytes | Derived Debug exposes an actual ClientHello canary as decimal bytes | Canary regression red/green; independent review approved; native vendor checks pass; Windows staging warning qualified below |
+| A46 | P2 | Sensitive cookie crumbs retain diagnostic protection | Crumb policy overwrites sensitivity before dynamic-table insertion | Four regressions red/green; independent review approved; 14 captured HPACK replays pass; Windows and Linux vendor checks pass |
+| A47 | P2 | Conformance image arguments cannot execute shell syntax | Whitespace-only validation forwards shell substitutions into the pinned runner | Marker reproduction and 18 failed baseline subcases; corrected eight-method suite passes; independent review approved |
+| A48 | P2 | HPACK indexing arithmetic accepts legal peer limits | Three-quarter selection multiplies a peer u32 table limit in usize | Actual 32-bit debug panic and release mismatch; all three corrected tests pass in both builds; independent review and packaging pending |
+| A49 | P2 | WebSocket compression negotiation follows HTTP grammar | Unicode trim accepts non-HTTP whitespace around parameters | Two intended baseline failures and seven passes; all nine corrected tests pass; independent review approved; packaging pending |
+| A50 | P2 | Failed downloads preserve files owned by another invocation | Failed create_new and batch cleanup remove planned partial paths | Source candidate; pre-existing sentinel regression pending |
+| A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Source candidate; positive-count controls pending |
+| A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Source candidate; controlled lifecycle regressions being prepared |
+| A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Source candidate; ownership design and bounded reproduction pending |
 
 ## Initial source evidence
 
@@ -354,6 +370,14 @@ peer regression receives GOAWAY instead of the required frame error.
 Independent review approves the regression stage; the runtime repair is in
 progress through its separate canonical patch.
 
+The A36 correction at `05357b29` maps inner truncation to a frame error only
+after the declared outer payload is complete. Successful known-frame parsing
+must consume that payload. Independent review approves the source and its
+canonical patch. With the H3 family identity updated to `.10`, 41 decoder
+tests and 53 connection tests pass. The latter includes the actual QUIC peer
+that previously received GOAWAY. Final canonical vendor checks and integration
+gates remain required.
+
 A37 uses controlled failures in capture shutdown. At `ec51ac17`, both a first
 container-close failure and a first profile-sweep failure leave the second
 container unclosed. Two other tests show interruption propagating the cleanup
@@ -365,6 +389,230 @@ The first repair at `0afa0f4e` passes all four focused tests, including a succes
 racing interrupted cleanup and removal of its completion record. Independent
 review identifies a remaining second-interruption path during cleanup or join
 that can still skip reporting. That path remains open.
+
+The final A37 correction at `e7ac6f87` protects main-thread cleanup and joins
+from another SIGINT, then restores the previous handler. It matches the whole
+owner name before the final attempt suffix, preserving overlapping names such
+as `foo` and `foo.1`. Completed owners keep their results and resume records;
+an active owner whose cleanup fails loses its success record. Independent
+review approves the final source. All 96 focused capture tests pass on Windows
+and native Linux at `0ad0d560`; eleven Windows-only cases skip on Linux.
+The controls cover both cleanup operations, per-owner attribution, reporting,
+resume, completion races and actual repeated SIGINT. Full integration remains
+pending.
+
+A38 examines the two historical server field-section failures. Both tests
+install simulated peer limits before server accept polls real client SETTINGS.
+The application-settings patch changed first-write state into replaceable
+state, so actual default settings correctly replace those simulated limits.
+The server still checks encoded field-section sizes before response and
+trailer writes. The existing vendor caveat and roadmap interpret these mocks
+as absent runtime enforcement without sufficient evidence. Corrected tests
+must advertise real limits, assert their receipt and retain the client through
+the server assertion. No production repair is supported by this source trace.
+
+The historical two tests fail at `0ad0d560`. The first corrected source stage
+does not compile because the generic builder needs a buffer type and a borrowed
+header value cannot compare directly with a String. The follow-up at `0fdbaa16`
+fixes both test type errors. Its two oversized-section rejections and two exact
+42/539-byte acceptance controls pass on native Linux, with unchanged production
+code. Independent review covers the original test design; the small compiler
+correction is independently approved. Vendor notes and the roadmap now distinguish
+the stale mock from actual enforcement. Final fork identity and vendor gates
+remain required.
+
+A39 traces `ConnectUdpProxy::expand`, the shared HTTP/3 proxy-path preparation,
+and origin authority parsing. Explicit port zero reaches template expansion
+and produces a `target_port` of zero. [RFC 9298 section 3](https://www.rfc-editor.org/rfc/rfc9298.html#section-3)
+requires a target port from 1 through 65535. A pre-I/O request regression and
+inclusive endpoint controls are still needed. Direct-route port policy is
+outside this candidate's proposed remedy.
+
+A40 reads the actual shared H3 `Pair` fixture. Its server and client endpoints
+bind `[::]:0`, while their connection target is IPv6 loopback. This violates
+the host guidance for loopback-only tests and bypasses the bounded Windows
+reserved-port retry used by first-party fixtures. A standalone canonical
+test-harness repair must bind loopback, retry only Windows error 10055 and
+preserve every other error. This is a fixture defect, not a production listener
+or fresh browser-fidelity finding.
+
+The canonical A40 correction at `256b034a` prebinds both endpoints on IPv6
+loopback, then constructs their existing Quinn configuration over those
+sockets. Independent review confirms equivalent TLS and transport setup and
+unchanged error returns. All 377 H3 unit tests pass on Windows with the `.11`
+identity, including seven socket controls, the four real peer-limit controls,
+and the earlier decoder and connection regressions. Native Linux and full
+canonical vendor verification also pass at `70cf715d`: 377 package tests,
+all-target/all-feature Clippy, canonical archive replay, byte comparison,
+selected regression groups and dependent builds. Final integration remains
+pending.
+
+At `6b495664`, A39's unit test accepts zero instead of returning an error.
+Five related template controls pass. All three public request regressions
+observe an incoming proxy connection: TCP on the HTTP/1 and HTTP/2 legs,
+and QUIC on the HTTP/3 leg. These are explicit failed I/O observations,
+rather than timeouts or unrelated network failures. Independent review
+approves the test design. The remedy rejects zero during shared preflight
+with InvalidTarget and retains a distinct private cause.
+
+A41 runs the real multi-thread stress test with
+`PHANTOM_H3_STRESS_ITERATIONS=0` at `6b495664`. The runner reports success,
+zero iterations, and zero outcomes for both scenarios. Invalid strings also
+silently select the default in the current parser. Configuration must reject
+zero and malformed values while retaining ten iterations when absent.
+This is a test validity defect, not a production protocol failure.
+
+A39's correction passes 17 focused unit tests and all 28 CONNECT-UDP
+integration tests on Windows at `9f63a129`. The unit controls include private
+typed causes and preserved origin-form errors. The three previously failed
+requests now return InvalidTarget without the observed proxy connections;
+valid requests still exercise every outer protocol. Independent review
+approves the source, and its InvalidTarget documentation finding is fixed
+at `779f28ea`.
+
+A41's correction at `2cb59371` passes five parser controls on Windows.
+The real stress test now fails immediately for zero. With seed 41, one
+iteration observes each scenario once; the absent setting observes each
+scenario ten times. These positive controls pass. Independent review
+approves the function and confirms the Rust 1.88 APIs from resolved source;
+that is not an executed MSRV check. The grouping finding is fixed at
+`779f28ea`. Native verification initially stops on missing Cargo in PATH,
+then on missing CMake before building. After supplying Cargo's path and
+installing CMake 3.28.3, all A39 and A41 controls run on Linux at `2cb59371`:
+17 unit and 28 CONNECT-UDP tests pass, as do five stress parser tests.
+Zero exits 101 with its configuration error before either scenario runs.
+The one-iteration and absent-setting controls observe both scenarios once
+and ten times respectively. This remains focused evidence, not a full gate.
+
+A42 corrects the selected fork formatter commands and package/lockfile
+instructions at `01574f2e`. HTTP/2 notes now state the split-cookie and
+explicit proxy-authorization exceptions to the sensitivity rule. Independent
+review confirms the exceptions against the applied encoder and public docs.
+The three selected package formatter checks and ShellCheck 0.11.0 pass on
+native Linux. The documentation checker reports no errors or warnings.
+
+A43 imports eleven real TLS fixture controls in `3e8d694e` and `8ab9482f`.
+The initial compile fails because an example crate root needs an explicit
+path to its companion test module. The corrected source compiles, but ten
+controls fail while verifying the generated self-signed certificate, before
+they reach the proposed resource contracts. The stalled-handshake control
+reaches its outer timeout without a server operation deadline. Fixture
+authentication must be corrected and positive controls must pass before
+these failures can establish the remaining production defects.
+
+A44 and A45 use canonical wrapper regression patches at `a16ab215`.
+The isolated SNI test aborts inside `raw_msg_callback`: the replacement
+context contains no data for the retained native callback. The test
+executable exits with `0xc0000409`; the outer command reports 127. This
+is an observed non-unwinding callback panic, not an observation timeout.
+The separate Debug test exits 101 because the decimal ClientHello canary
+appears in formatted output. The existing key-update control passes.
+
+The production correction at `cb98b391` retrieves callback data from the
+original context owned by `Ssl::new`, as the session callback already does.
+`SslMessage` Debug retains direction, version, content type and byte length,
+while the public message bytes remain accessible. All three controls pass
+on Windows. Independent review verifies ownership against the pinned
+native construction and context-switch paths and reconstructs the canonical
+patch. `a80d417c` advances both wrapper-family identities to `.6`, updates
+their exact pins and three lockfiles, and documents the changes. Final
+native vendor checks pass, including all-target Clippy, nine selected test
+groups and Rust 1.85 checks. Windows checks also exit zero and pass those
+tests, but Git emits a README symlink permission error during staging.
+The staging script verifies that exact link target and materializes its
+contents as a regular file on Windows. Full patched-tree byte comparison
+then passes. This explains the flagged line; it does not make the log clean.
+Final composed gates and CI remain pending.
+
+After fixture authentication is corrected at `03e712bc`, A43's positive
+EOF, released-slot and wrong-CA controls pass. Nine production regressions
+fail for the intended resource and ownership contracts. The correction at
+`5fe62ee4` passes all 20 Windows and Linux tests, including actual TLS peers, corrupt
+TLS versus speculative EOF, origin-error cleanup, shutdown failure retention
+and a sustained body drip. Independent production review approves the
+ownership and error paths. Cancellation Drop aborts owned tasks; awaited shutdown
+explicitly drains them. Fixture encoding and DNS answers remain unchanged.
+
+A46's four independent cookie-cache regressions fail at `625c85d8` because
+formatted retained entries expose their canary. The canonical correction
+at `bc27b126` and `5584135e` marks inserted and reused dynamic entries after
+encoding, preserving the wire policy. All four tests pass. Independent
+review approves the index-to-slot mapping, lookup equality and proxy rules.
+With the `.11` identities, all 14 first-party captured HPACK replay tests
+pass on Windows at `56fd2cf7` plus the restored lock selections committed
+in `0407bc1a`. These checks do not promise redaction of every connection
+buffer. Final `.11` HTTP/2 and HTTP/1 dependent vendor checks pass on Windows
+and Linux at `5fe62ee4`, including canonical archive replay, byte comparison,
+selected formatting and Clippy. HTTP/2 runs 47 client controls and all 157
+packaged non-fixture unit tests, with one existing ignored test; HTTP/1 runs
+all 61 unit tests. Whole integration and platform CI remain pending.
+
+A47's baseline executes a harmless marker substitution through both image
+roles in the exact pinned runner shell boundary. No real Docker command is
+executed. The regression suite has 18 failed subcases at `e6447d5b`.
+The correction at `a678ec76` permits only shell-safe image characters before
+either registry mutation. All eight test methods pass, including atomic
+failure and legal spelling controls. Independent source review approves
+the actual assignment contexts. This validates a shell boundary, rather
+than every Docker reference or an external interoperability run. All 25
+conformance tests and pinned Ruff checks pass on Windows at `5fe62ee4`.
+
+A48 traces a legal `SETTINGS_HEADER_TABLE_SIZE = u32::MAX` through frame
+decode, peer settings, the writer and HPACK resize. The profile's three-quarter
+choice evaluates `max_size * 3`, which can overflow usize on 32-bit targets.
+Current CI uses 64-bit hosts; no explicit 64-bit-only restriction was found.
+At test-only `14110f94`, the actual i686 build passes its threshold control
+and fails both large-table tests with multiplication overflow. A release
+build also fails the smaller large-table control: the encoded field begins
+with 0 rather than the independently expected incremental-indexing byte 64.
+No large allocation is needed. The correction must preserve the declared
+Rust 1.68 source API and existing inclusive/fractional thresholds. The first
+release launcher fails before Cargo; the corrected launcher produces this
+actual optimized-build result.
+
+The focused correction at `9f62282e` replaces both multiplications with an
+exact integer threshold using subtraction and division. All three tests
+pass on actual i686 debug and release builds, including maximum peer size
+and twelve inclusive/fractional boundary cases. The source retains the
+fork's declared Rust 1.68 API. Independent review and final composed fork
+identity, replay and integration checks remain required.
+
+A49 traces raw WebSocket extension responses from the HTTP/1, HTTP/2 and
+HTTP/3 callers into compression negotiation. Unicode `str::trim` can remove
+NBSP around a recognized parameter name or numeric value. RFC 6455 section
+9.1 requires HTTP whitespace and token or quoted-string grammar. The
+tests at `13e89d3a` pass seven controls and fail two cases because NBSP is
+accepted in recognized names and values. The focused correction at
+`d1319fc3` trims only space/tab and passes all nine controls. Independent
+review approves the canonical source and direct handshake callers. This is
+configuration/parser execution, rather than actual opening over all three
+protocols. Inherited full-file formatting outside the changed block remains
+unchanged. Fork identity, full replay and integration gates remain pending.
+
+A50 traces the QUIC interoperability example's partial-file cleanup.
+`create_new` rejects an existing partial file before a request starts, but
+the caller then deletes that same path. Batch cleanup also removes every
+planned partial path, including paths this invocation never created.
+A pre-existing sentinel test can establish this without a network request.
+The remedy must retain exclusive creation and clean up only owned files.
+
+A51 is the manual Rust version-report client accepting a zero request count.
+It exits successfully without a request. The Python peer does not share that
+zero-pass path. Default three-request observations remain valid; a positive
+configuration bound and invalid-input controls are required.
+
+A52 traces successful Autobahn results into a finally block that ignores
+the force-removal exit code. Inspect, log collection and removal also lack
+operation deadlines. A detached launch timeout occurs before the cleanup
+flag is set. Controlled subprocess failures must establish these paths
+before a remedy. No Docker failure or surviving-container claim is made.
+
+A53 traces the outer QUIC runner timeout into file restoration without an
+external resource owner. The pinned runner's ordinary timeout does stop
+its case, but compliance can be interrupted before that path. Fixed global
+container names make blind removal unsafe for concurrent owners. A remedy
+needs verifiable ownership and scoped cleanup; actual container survival
+has not been measured.
 
 ## Rejected candidates
 

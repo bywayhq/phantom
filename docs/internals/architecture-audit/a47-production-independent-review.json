@@ -1,0 +1,108 @@
+{
+  "finding": "A47",
+  "reviewed_commit": "a678ec76432e583ce9ed52727f019864d3d2609e",
+  "verdict": "Source approved; no actionable correctness or scope findings.",
+  "coverage": [
+    {
+      "path": "scripts/conformance/quic_interop.py",
+      "basis": "a678ec76432e583ce9ed52727f019864d3d2609e",
+      "sha256": "c34df798da4b113171ab323f1faec16ccb097d5e428a7145dc7391a2e61754d5",
+      "lines": 433,
+      "reviewed_ranges": [
+        [
+          1,
+          433
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "scripts/conformance/tests/test_quic_interop.py",
+      "basis": "a678ec76432e583ce9ed52727f019864d3d2609e",
+      "sha256": "4cda6c7c7b0b13082d2ee56a237c2679d4a5320ea35f697af3ce3e0b68ce6c1a",
+      "lines": 233,
+      "reviewed_ranges": [
+        [
+          1,
+          233
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-quic-image-boundary\\target\\quic-image-shell-boundary\\run.py",
+      "basis": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "sha256": "e6242d2fc0ed77fc894976d656abcfd2b15283a546a5f1be5fa3c8fcdf0dde0e",
+      "lines": 221,
+      "reviewed_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-quic-image-boundary\\target\\quic-image-shell-boundary\\implementations.py",
+      "basis": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "sha256": "3dfc6732176a80e8b055f708b327596eedc831d68b760e281e5690db839f71ee",
+      "lines": 59,
+      "reviewed_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-quic-image-boundary\\target\\quic-image-shell-boundary\\interop.py",
+      "basis": "740c05a10b61d65e8abd3ad38d60898004d335d9",
+      "sha256": "19bf7696ba0558a9d381b81ba7742a411a9a9ec47b328f6cfa684a0dedddf511",
+      "lines": 611,
+      "reviewed_ranges": [
+        [
+          99,
+          193
+        ],
+        [
+          387,
+          461
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-quic-image-boundary\\target\\quic-image-shell-boundary\\reference-regexp.go",
+      "basis": "0965666a6ade2e06035fe352e38344be1e68951a",
+      "sha256": "e1e9c7e02ff7a69b8f8ab2e04d4f4c6b8fad549e54ca0f968cfcf91b2bfdc4b3",
+      "lines": 169,
+      "reviewed_ranges": [
+        [
+          1,
+          169
+        ]
+      ],
+      "status": "complete"
+    }
+  ],
+  "contracts": [
+    "ASCII alphanumeric plus ._:/@+[]- excludes shell substitutions, metacharacters, quote/escape syntax, whitespace, controls and nonASCII; empty/leading-option strings reject.",
+    "Both client registration and server pin validate before registry writes; run finally restores original registry/compose/testcase after either path fails.",
+    "Pinned implementations and run preserve image strings; actual compliant and ordinary paths interpolate them in POSIX CLIENT=/SERVER= assignment words before shell=True.",
+    "Assignment context suppresses field splitting/pathname globbing; IPv6 bracket spelling remains literal. Plus is retained for reference digest-algorithm syntax, not asserted Docker-supported algorithm.",
+    "Input boundary is deliberately not complete Docker grammar validation; fake sha256:digest existing test is preserved, genuine invalid references still reach Docker validation."
+  ],
+  "rejected_hypotheses": [
+    "Bracket characters cause shell pathname expansion: rejected because selected receive context is assignment RHS, not ordinary command argument.",
+    "issalnum accepts Unicode: rejected because character.isascii() is required conjunctively before alnum/allowlist acceptance.",
+    "Malformed input changes registry before rejection: rejected by both source placement and test byte-equality atomicity oracles.",
+    "Permitting colon/slash/at/plus/hyphen injects commands: rejected for selected fixed assignment context; none begins command/parameter substitution or shell operators."
+  ],
+  "verification_limits": "No tests, shell, Docker, network probes or builds executed by this reviewer. Root retained eight-method Windows unittest log is OK; baseline report describes18 prior red subtests. No full runner/container/end-to-end interoperability or entire upstream audit claim.",
+  "remaining_gates": [
+    "full integration gate",
+    "pinned Ruff check and format",
+    "scripts/conformance unittest suite; native runner boundary tests when applicable"
+  ]
+}

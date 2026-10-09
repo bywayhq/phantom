@@ -1,0 +1,222 @@
+{
+  "revision": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+  "reviewer": "integration owner",
+  "scope": "Downstream contracts, workflow consumer, ownership, issue forms, root licenses and consumer verification script",
+  "files": [
+    {
+      "path": ".github/CODEOWNERS",
+      "sha256": "f3e3da0180336bdd8b125a3045254196a19afc88b04abaeeeb8a1203fc705f4f",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 3,
+      "reviewed_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "sha256": "8a01216f785d13c70ab17a84eeb3104ac264e4b14cb63dcd65a1922f71ad4406",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 50,
+      "reviewed_ranges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "sha256": "34772060d22cd8140880de89d9174b035c4b762b565027d9812c00ce2531eb15",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 5,
+      "reviewed_ranges": [
+        [
+          1,
+          5
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/proposal.yml",
+      "sha256": "2fa28a2cfd169ab7314e2ccda6d0c89005180a0609ed6d54e54bdc2c6a150df6",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 37,
+      "reviewed_ranges": [
+        [
+          1,
+          37
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sha256": "3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 202,
+      "reviewed_ranges": [
+        [
+          1,
+          202
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "LICENSE-MIT",
+      "sha256": "1d8d1e5d9aa94dd4d3c649d072fdbef38e731404e48ebc9e2bc7b28b0ea44bdc",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 7,
+      "reviewed_ranges": [
+        [
+          1,
+          7
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/.gitattributes",
+      "sha256": "b16e7781063ee9e2ff3e6a654589f792da61155550ad3c181f1b0eecece144b0",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 1,
+      "reviewed_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/.gitignore",
+      "sha256": "3372c21f56a8250624a394cb4418001fff841f3979fd106ca0e13d6f803f07f1",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 2,
+      "reviewed_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/Cargo.toml",
+      "sha256": "57e14c6667ed20ea2db1b3c55e290360121621c4ed877f32a2ec2f58d2cd2fc7",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 20,
+      "reviewed_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/src/lib.rs",
+      "sha256": "544cfe8901d26a4cb4fca06925f9d84f2079cc7151ca8ae1db25a853881ef9ee",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 157,
+      "reviewed_ranges": [
+        [
+          1,
+          157
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/src/wire.rs",
+      "sha256": "dd1f24a251292fa6a7f71604523a3774e0d917dcd57ebb4150f3bd34c3608910",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 176,
+      "reviewed_ranges": [
+        [
+          1,
+          176
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/src/workflows.rs",
+      "sha256": "e4531e9b5bdfb21dae4393bfb5f924a5b8e011c87bf6e84da537c9bbf0e0ad38",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 121,
+      "reviewed_ranges": [
+        [
+          1,
+          121
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "tests/downstream/public-api/fixtures/http1/README.md",
+      "sha256": "4c3a69f331a5e8f9a4d1673473cd2e1ca623eae64b7dbdae4f5d0b68c393f4ad",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 35,
+      "reviewed_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    },
+    {
+      "path": "scripts/ci/check-downstream.sh",
+      "sha256": "b416d54c808ac451fc81248f904862601a02ced72866c9e9ae93c4ff5293ef69",
+      "hash_basis": "Windows working bytes",
+      "total_lines": 214,
+      "reviewed_ranges": [
+        [
+          1,
+          214
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "consumer-configuration-report.md",
+      "verification": "manual source review; consumer runtime checks recorded separately"
+    }
+  ],
+  "limits": [
+    "No remote permission enforcement or legal compliance conclusion",
+    "Raw browser fixtures inspected only in selected sections; not claimed complete",
+    "Public API snapshots and complete lock graph remain separate review work"
+  ]
+}

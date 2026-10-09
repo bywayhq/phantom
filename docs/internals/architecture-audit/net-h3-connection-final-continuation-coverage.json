@@ -1,0 +1,28 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "root_head_observed": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "Final remaining baseline H3 connection/upload/body lifecycle test file",
+  "previous_coverage": "net-h3-connector-request-continuation-coverage.json",
+  "files": [
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "git_blob_oid": "ec4aec34731a6a8614ef64f5817c0dc496b20038",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "983b51b2405690502408c47ced063f6e0c2a2beb78879e54734933baf2af5c13",
+      "working_tree_sha256": "7d27aff27150367ee0732b46bfb1a220dd5abc26ef207ff7195e2365a0d00551",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 1252,
+      "reviewed_ranges": [
+        [
+          1,
+          1252
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "net-h3-connection-final-continuation-report.md"
+    }
+  ],
+  "remaining_paths_in_this_agent_reports": [],
+  "verification": "Manual source review only. No execution. Zero remaining applies to this accumulated baseline inventory, not all dependency source or whole repository audit.",
+  "integration_owner_validation": "Git blob SHA-256, object ID, line count and declared read ranges verified; source review only, no runtime claim"
+}

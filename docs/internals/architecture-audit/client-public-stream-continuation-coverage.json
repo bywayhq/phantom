@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "review": "client public stream continuation",
+  "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+  "working_head_at_review": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "source_access": "git show of the exact snapshot, not working-tree source",
+  "verification": {
+    "source_only": true,
+    "cargo_run": false,
+    "runtime_tests_run": false,
+    "source_mutations": false,
+    "only_outputs_written": [
+      "target/architecture-audit/client-public-stream-continuation-report.md",
+      "target/architecture-audit/client-public-stream-continuation-coverage.json"
+    ]
+  },
+  "prior_records_inspected": [
+    {
+      "path": "target/architecture-audit/client-lifecycle-continuation-review.md",
+      "use": "Prior lifecycle coverage and explicit remaining public-flow paths; not promoted to this snapshot."
+    },
+    {
+      "path": "target/architecture-audit/client-lifecycle-continuation-coverage.json",
+      "use": "Current scope paths were remaining paths, not earlier complete reads."
+    },
+    {
+      "path": "target/architecture-audit/docs-contract-coverage.json",
+      "use": "SSE event_source/request.rs previously partial at 1e44399e, ranges 1-160 and 300-588. This pass independently rereads all 600 lines at 0ad0d560."
+    },
+    {
+      "path": "target/architecture-audit/client-remaining-coverage.json",
+      "use": "Baseline df2 inventory only; its older client reads are not fresh aggregate coverage."
+    }
+  ],
+  "files": [
+    {
+      "path": "crates/phantom/src/link.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "0ac76312cb23c6e532037a155a6d6a88f710f9f7",
+      "sha256": "db40f61c7f1892433a9266eb7a8786a51c4ee9be0b80f10408f20de23e595546",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 604,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          604
+        ]
+      ],
+      "scope_note": "Ordered data parser, aggregate byte budget, URI-reference syntax, atomic failure, redacted formatting.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/link/tests.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "1395a1256ab3fa6ef4e293202c787478fe3545d1",
+      "sha256": "9ff0bf9334b4176d9c5476d3532612b2170f83aef76ba48443f7914855b56d81",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 448,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          448
+        ]
+      ],
+      "scope_note": "Independent grammar, ordered duplicate, budget, offset, all-byte quoted-pair, URI-reference and redaction assertions.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/route/connect_udp.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "f535ec6f737a2db23113340f3144db4c1fbaf1e0",
+      "sha256": "f08be144a1e65384775ea8f11176e67b810fcc11fc97b7b2259edf8a3b4c0be1",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 539,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          539
+        ]
+      ],
+      "scope_note": "Owned template, credentials and leg selection; template parsing and target expansion; target-port zero candidate.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/route/connect_udp/tests.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "37b48a10106b5482ab2fac84daf49099820acadb",
+      "sha256": "596f2ce514dd9cb4515bd5982e953a5adc52b0e0f01b71e68a5eaeb7db503712",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 280,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          280
+        ]
+      ],
+      "scope_note": "Exact domain/IP/query expansion, rejected configurations, credential and route identity, redaction controls.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/route/socks5.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "cac72d50ec45cae9ee2d89e3632b6cc524e16e41",
+      "sha256": "deb5c598cdea47ebbddb0dfb1eb510ab1a311ead3b2b758103ab1cce61c562ad",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 418,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          418
+        ]
+      ],
+      "scope_note": "Endpoint parsing, explicit local/remote DNS, owned credentials, route identity, errors, inline controls.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/sse.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "ebc29c00abc873c9cd4b666fd39ebf25c553c885",
+      "sha256": "5efbae3b675c3f52555a0adc2d2f3c2cea819a86ce9c4bbe29ef7449c36ba5d1",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 622,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          622
+        ]
+      ],
+      "scope_note": "Response validation, owned body, decoder polling, idle timer precedence, terminal outcomes, cancellation and formatting.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/sse/decoder.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "0c651030ac2b6561d4cc25293929794dd8b7ad59",
+      "sha256": "da896ddbbe33d41cbcdeb1354614f780d860e9800f7cbbe2877d05d21f8e5e40",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 169,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          169
+        ]
+      ],
+      "scope_note": "Line/block limits, CR/LF and BOM state, UTF-8 conversion, ID commit/reset, retry parsing and EOF discard.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/sse/tests.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "e162458fa9e81200a44279da42e9d680a3bcdd2a",
+      "sha256": "96883015ac94edbd1352434757a95e614fc3852b6c6960705fcd346a5e28eb6f",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 151,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          151
+        ]
+      ],
+      "scope_note": "Byte fragmentation, committed IDs, bounds, EOF and typed-source/redaction assertions.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/sse/event_source.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "42ae2b7f2503977fd568c7e99ccc585749fc0977",
+      "sha256": "7b2365d9a9950af054b92230135596a543e89493c84a1e8d5730f7a62d2eabb9",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 501,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          501
+        ]
+      ],
+      "scope_note": "Pull-owned reconnect future/timer, failure eligibility, committed state, close/drop and reconnect budget.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/sse/event_source/request.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "967d28528434524f8fc1e02a69d11aa921bf4c83",
+      "sha256": "a0e7024d7687b9391a1963366a703f8199ab67e0b4b08d0d797148064315bb6f",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 600,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          600
+        ]
+      ],
+      "scope_note": "Initial and reconnect request construction, managed headers, selected protocol/fallback conditions, hints, routes, timeout overrides.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/sse/event_source/request/tests.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "5b15f545e7759f9dd8e4d9766a90c30288f4d4ba",
+      "sha256": "83cd8c952f993cbcfc63bea31f5ed00c2f9e6baea5db7c15354a9e05302ce201",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 552,
+      "read_status": "full",
+      "reviewed_ranges": [
+        [
+          1,
+          552
+        ]
+      ],
+      "scope_note": "Managed ID order, selected/default/hint conditions, fallback eligibility, base URL and environment route controls.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/authority.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "dfee04a40274a72764cd838377b8c348644d7ab4",
+      "sha256": "179a512328f46b6195181cb2a8d168f1c92a4a667dd65af0e0666b7100e3de63",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 330,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          1,
+          260
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "963f3a5daa5c0ceb799dd1e9dedf7036da0fb12c",
+      "sha256": "c04a84017369af6665152cdb7e5a69d5142d180681d30d99b887425592531cab",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 1697,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          38,
+          78
+        ],
+        [
+          121,
+          206
+        ],
+        [
+          706,
+          896
+        ],
+        [
+          1236,
+          1440
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "a34c6137cde55c6107bd5d766c66a070b4979950",
+      "sha256": "9bf21a3a7eb6abd8f3a1179f1a5fc1d345c8b32a4abaea16685ae70a55bcff93",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 2208,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          1271,
+          1368
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "sha256": "88034c1a13e742ad2fd4445a8ad9bc02f2e0eec6053360ae4bafeba745725fda",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 1038,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          559,
+          648
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 240,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "6eb41051aada3c7b80fe8f363189056a65ad5077",
+      "sha256": "18269f15e31bd11bdc17bbe38606a3c63451f0119ba46de6b6060cd05fa3c011",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 2360,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          295,
+          374
+        ],
+        [
+          1508,
+          1627
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "snapshot": "0ad0d5609a8a65291e5ab1082a310e67b418fa84",
+      "git_blob": "877a214b9d20a39d46578067f46d04675a1e8669",
+      "sha256": "14b2bde462cefef3620b1df4ecb00db409f0731c04cb2cedacaa40ab3d690634",
+      "hash_mode": "raw committed Git blob bytes from git show; no normalization",
+      "lines": 709,
+      "read_status": "partial",
+      "reviewed_ranges": [
+        [
+          320,
+          485
+        ]
+      ],
+      "scope_note": "Supporting caller or validator read only; no whole-file coverage claim.",
+      "contracts_record": "client-public-stream-continuation-report.md"
+    }
+  ],
+  "findings": [
+    {
+      "id": "connect_udp_zero_target_port",
+      "severity": "major",
+      "status": "source-supported candidate; runtime reproduction pending with integration owner",
+      "path": "crates/phantom/src/route/connect_udp.rs",
+      "line": 300,
+      "problem": "ConnectUdpProxy::expand serializes port 0 without rejecting it. The shared HTTP/3 pool forwards that path through each selected CONNECT-UDP leg. RFC 9298 section 3 requires target_port in 1..65535.",
+      "trace": [
+        "authority.rs:215-228 parses explicit :0 into u16",
+        "session/http3_pool.rs:38-78 preserves the endpoint port in Http3TransportTarget",
+        "session/http3_pool.rs:1392-1401 expands the target path",
+        "route/connect_udp.rs:300-307 stringifies port without range validation",
+        "session/http3_pool.rs:121-206 validates path shape and HTTP request fields, not the UDP port variable",
+        "session/http3_pool.rs:706-896 constructs the chosen datagram route and starts its connector"
+      ],
+      "recommendation": "Reject zero UDP target ports with the existing typed input/target error before proxy I/O. Add a quiet-peer zero-port negative control and 1/65535 positive controls for each applicable leg. Keep direct HTTP port-zero policy separate.",
+      "runtime_executed": false,
+      "standard": "https://www.rfc-editor.org/rfc/rfc9298.html#section-3"
+    }
+  ],
+  "remaining_gaps": [
+    "Full current request.rs/client.rs attempt, retry and redirect implementation was not reread in this pass; listed request.rs ranges are supporting partial reads only.",
+    "Live public SSE integration tests under crates/phantom/tests/streams/sse and the complete live CONNECT-UDP/proxy harness were not read here. The local unit tests reviewed here do not substitute for those contracts.",
+    "Full lower-layer CONNECT-UDP transport, stream/tunnel lease cancellation and all WebSocket operations remain outside this bounded pass; selected caller ranges are explicitly partial.",
+    "No runtime scheduling, idle timer race, reconnect cancellation, ready-stream fairness, network acceptance or actual proxy I/O claim follows from this source pass.",
+    "Configured parser/event limits bound their owned parsing state; this pass does not prove a whole transport-chunk retention bound or universal allocator bound."
+  ],
+  "integration_owner_validation": "Git blob SHA-256, object ID, line count and declared read ranges verified; source review only, no runtime claim"
+}

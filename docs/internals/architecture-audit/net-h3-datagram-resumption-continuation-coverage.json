@@ -1,0 +1,273 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "root_head_observed": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "HTTP/3 parent lifecycle controls, datagram isolation and resumption tests",
+  "previous_coverage": "net-tls-profile-alps-continuation-coverage.json",
+  "files": [
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "git_blob_oid": "ece5208c118d7ad76cf9700e8f151b9cca14139e",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "6f605556147c307080eef062d52e0c5d7ad9df6af2b6ee8b2caf84b5670ebfcf",
+      "working_tree_sha256": "5cc4a9ecb944e0e05a21ebca88edcb1e869a199d312c2ad0aeb5d623371f2d70",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 724,
+      "reviewed_ranges": [
+        [
+          1,
+          724
+        ]
+      ],
+      "status": "complete",
+      "newly_reviewed_ranges": [
+        [
+          1,
+          613
+        ]
+      ],
+      "prior_reviewed_ranges": [
+        [
+          614,
+          724
+        ]
+      ],
+      "contracts_record": "net-h3-datagram-resumption-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/datagram.rs",
+      "git_blob_oid": "bb695ae729b76c70923c7f95b8c28fb8290fb26b",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "50e90fcb04f6592472c0a8fdba7311d3b67b202be8552c1220d5e08b31841b30",
+      "working_tree_sha256": "d291a39dfc4138849d044f8f52c26b378200fb83c4bcc5c9d2caf9508e9485bc",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 314,
+      "reviewed_ranges": [
+        [
+          1,
+          314
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "net-h3-datagram-resumption-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/resumption.rs",
+      "git_blob_oid": "980274c35a462da1b0afb204180eae65aec761ec",
+      "hash_basis": "exact git blob bytes at revision",
+      "sha256": "e2bbb60138cb32efeb9348442b7121d625ab420f659a0497770b5bbad9ce7398",
+      "working_tree_sha256": "027310ea1355ba9ba1886acd1240275805505b0b0fbdc81e5c82ed778ed49ead",
+      "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+      "total_lines": 530,
+      "reviewed_ranges": [
+        [
+          1,
+          530
+        ]
+      ],
+      "status": "complete",
+      "contracts_record": "net-h3-datagram-resumption-continuation-report.md"
+    }
+  ],
+  "remaining_paths_in_this_agent_reports": [
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "sha256": "37dc200503632024b5a1aba3fe18e996c9d3cd094e4d2000765cee8152bb1ec7",
+      "total_lines": 661,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "sha256": "5b52a3479341f9cf45a580ad694f1df6fcb0c4e53e72710f7d03b468434e4258",
+      "total_lines": 454,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+      "sha256": "686a0ff5fcd62c34b424409b264cc5a791459b534cf8606331f937e35b86cd9f",
+      "total_lines": 1250,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+      "sha256": "94ec5b9ebabede24c22a83896bc63d73363bacdfc0ace59029c286f44e46fcb7",
+      "total_lines": 663,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/hpack_replay.rs",
+      "sha256": "511d14a6cbce88b9b83a1216f23915943ca08b82b0da3885a3224e3c77eec991",
+      "total_lines": 1104,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "sha256": "7d27aff27150367ee0732b46bfb1a220dd5abc26ef207ff7195e2365a0d00551",
+      "total_lines": 1252,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connector.rs",
+      "sha256": "4d1e48cca863749aee07427a9237ebb440de7447861e14fc32f079ebca26fa15",
+      "total_lines": 938,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_data.rs",
+      "sha256": "24d8b2a59fae588901c8d72d829a3f67010711dd05aea5ea3ba884bbc8a7ef18",
+      "total_lines": 967,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_streams.rs",
+      "sha256": "d8a9ba22e93fc27795f81175ae36ddf0c940e7f1aad98d80db4fe7073e754419",
+      "total_lines": 1089,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [
+        [
+          1,
+          430
+        ]
+      ],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/ech.rs",
+      "sha256": "99001115e3d63811858414a59229727d03d653e1873c8bf035a794d6348f750e",
+      "total_lines": 498,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+      "sha256": "7ef932a4c9441d4deb18efed10d8938ffe5bf43f29ddde6fb284fe337d7c70ac",
+      "total_lines": 799,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/firefox.rs",
+      "sha256": "32213922c8b9aeb0f880286cea314e19344e7b213909d5b69a780cb55a1d9b76",
+      "total_lines": 876,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/profile.rs",
+      "sha256": "9cede4eb4e3c95631af2852a83fe56b30bfb1db19de0cc8cfaf890f907f812c8",
+      "total_lines": 464,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/qpack.rs",
+      "sha256": "34ef311c6150aa59d34c5707cdef8733c0411115cd7141c661174171fe983750",
+      "total_lines": 557,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "sha256": "63a031eb6dc489a28cc95527b9f5bf370b6e89ed22a8b72e5ca844c2c7deb474",
+      "total_lines": 1121,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http2_pool/tests.rs",
+      "sha256": "bdec7cc7e09f39305c23369cb9045f85348fb4a4d3709bc46b9831737eb472f7",
+      "total_lines": 222,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_challenge.rs",
+      "sha256": "e8c7569fc8dfe1fcf535ee328d778d11367e29e8cac59d6908100cfc91921f59",
+      "total_lines": 497,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_challenge_frames.rs",
+      "sha256": "94b0bb66a9daa1775d882eaf6bb16e32c09cf7e5f2dec64cd7124b641b737955",
+      "total_lines": 486,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/resumption.rs",
+      "sha256": "55e11c930b6922e92185965e95e654fb6cb8f0cd8511d0c701b585c89ac4af21",
+      "total_lines": 742,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/session_cache.rs",
+      "sha256": "2169ddea87575c418fe4c2c1e7cd28b7f371bc828b1ec4609cab0aa511804f2b",
+      "total_lines": 641,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    },
+    {
+      "path": "crates/phantom-net/src/tracing_test.rs",
+      "sha256": "174d5658d72e7fdd1fd11b339e12aab7a5083277fcd51ae8df7d6b45c359ad20",
+      "total_lines": 345,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [],
+      "hash_basis": "working file bytes at this checkpoint"
+    }
+  ],
+  "limits": [
+    "Read-only, no tests executed.",
+    "Parent test file completion combines new 1\u2013613 with prior 614\u2013724, not all newly read.",
+    "Selected qlog secret absence and outer braces do not establish full JSON validation."
+  ],
+  "integration_owner_validation": "Git blob SHA-256, object ID, line count and declared read ranges verified; source review only, no runtime claim"
+}

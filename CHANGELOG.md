@@ -2450,6 +2450,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Avoid HTTP/2 HPACK indexing arithmetic overflow on 32-bit targets when a
+  peer advertises a large legal header-table size.
+- Reject non-HTTP whitespace around WebSocket compression parameters.
+  Space, tab and valid quoted values remain accepted.
+
+- Bound DNS capture connections, query records and operation deadlines.
+  Capture shutdown joins owned work and reports child failures before output.
+
 - Hide caller-marked sensitive cookie crumbs in HTTP/2 encoder-cache Debug
   output while retaining the profile's initial and repeated wire encoding.
 
