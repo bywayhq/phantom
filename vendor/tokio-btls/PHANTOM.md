@@ -42,7 +42,7 @@ fork, `tokio-btls` would resolve the wrapper from the dependency fork instead of
   upstream adapter exposes only a shared reference. It is the one Rust source
   change.
 - `publish-identity.patch` renames the package to `phantom-tokio-btls` at
-  `0.5.6-phantom.5`, keeps the `tokio_btls` library name, points `btls` at
+  `0.5.6-phantom.6`, keeps the `tokio_btls` library name, points `btls` at
   `phantom-btls` by exact version and path, removes the upstream documentation
   link, keeps Cargo's reserved archive files out of the packaged crate, and
   records the upstream source under `[package.metadata.phantom]`.

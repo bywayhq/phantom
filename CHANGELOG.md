@@ -2450,6 +2450,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep TLS message callbacks attached to their original context when SNI
+  changes the active context, preventing a callback lookup from aborting
+  the process. Hide message bytes in `SslMessage` Debug output.
+
 - Correct vendor-refresh instructions for renamed local packages and limit
   formatter checks to the selected fork.
 

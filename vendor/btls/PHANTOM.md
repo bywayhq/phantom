@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.5`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.6`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -217,6 +217,12 @@ The patches are additive:
   observations without leaking raw FFI into Phantom.
 - `src/ssl/test/key_update.rs` proves a requested update is emitted, answered
   with a non-requested update, and followed by application traffic.
+- `message-callback-tests.patch` adds an actual SNI context-switch exchange
+  and a runtime ClientHello canary for compact and pretty Debug output.
+- `message-callback-context.patch` retrieves the message callback from the
+  original context retained by `Ssl::new`. Changing the active context during
+  SNI does not change the native callback. `SslMessage` Debug keeps metadata
+  and byte length while omitting the message bytes.
 - `SslSessionScope`, `ScopedSslSession`,
   `SslConnectorBuilder::enable_scoped_client_sessions`, and
   `ConnectConfiguration::into_ssl_with_scoped_session` keep session
