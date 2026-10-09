@@ -26,6 +26,7 @@ use super::{
 };
 
 /// Result of an HTTP/1.1 request that may switch protocols.
+#[non_exhaustive]
 pub enum Http1UpgradeOutcome {
     /// The peer accepted the protocol switch and yielded the underlying stream.
     Upgraded(Response<Http1Upgrade>),

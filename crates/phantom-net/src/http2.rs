@@ -38,7 +38,7 @@ pub use crate::request::{OriginForm, RequestBody, RequestBodyMetadata, RequestHe
 pub use alt_svc::{AltSvcFrame, AltSvcFrameScope, AltSvcFrames};
 pub use body::Http2Body;
 pub use connection::Http2Connection;
-pub use error::{Http2Error, Http2ProtocolError, Http2ProtocolErrorKind};
+pub use error::{Http2Error, Http2ErrorKind, Http2ProtocolError, Http2ProtocolErrorKind};
 pub(crate) use request::{prepare_classic_connect, prepare_connect_udp};
 pub(crate) use tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream, Http2RejectedStream};
 pub use tunnel::{Http2ExtendedConnectOutcome, Http2ExtendedConnectStream};
@@ -67,23 +67,12 @@ pub fn validate_get(
 ///
 /// Returns [`Http2Error`] when the authority, origin-form target, or ordered
 /// HTTP/2 fields are invalid.
-pub fn validate_extended_connect(
+fn validate_extended_connect(
     authority: &str,
     target: &OriginForm,
     headers: &[RequestHeader],
 ) -> Result<(), Http2Error> {
     prepare_extended_connect(authority, target.clone(), headers.to_vec()).map(drop)
-}
-
-/// Validates settings for an exact extended CONNECT connection without I/O.
-///
-/// # Errors
-///
-/// Returns [`Http2Error`] when settings are invalid or omit an observed
-/// five-field extended CONNECT pseudo-header order.
-pub fn validate_extended_connect_settings(settings: &Http2Settings) -> Result<(), Http2Error> {
-    settings.validate().map_err(Http2Error::InvalidSettings)?;
-    translate_extended_connect_settings(settings).map(drop)
 }
 
 /// Validates one HTTP/2 request without touching a connection.
@@ -117,7 +106,7 @@ pub fn validate_request(
 ///
 /// Returns [`Http2Error`] when the method, authority, target, ordered fields,
 /// or body metadata cannot be represented by this HTTP/2 transport.
-pub fn validate_request_body(
+fn validate_request_body(
     method: &Method,
     authority: &str,
     target: &OriginForm,
@@ -136,7 +125,7 @@ pub fn validate_request_body(
 ///
 /// Returns [`Http2Error`] when the request or trailer fields cannot be
 /// represented by this HTTP/2 transport.
-pub fn validate_request_body_with_trailers(
+fn validate_request_body_with_trailers(
     method: &Method,
     authority: &str,
     target: &OriginForm,
@@ -753,7 +742,9 @@ mod request;
 mod tls;
 mod tunnel;
 
-pub use tls::{EchFailure, Http2TlsConnector, Http2TlsError, TlsError, TlsErrorKind};
+pub use tls::{
+    EchFailure, Http2TlsConnector, Http2TlsError, Http2TlsErrorKind, TlsError, TlsErrorKind,
+};
 pub(crate) use tls::{connect_selected, connect_selected_extended, validate_http2};
 
 #[cfg(test)]

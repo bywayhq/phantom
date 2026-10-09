@@ -31,6 +31,7 @@ const MAX_REQUEST_TRAILER_BYTES: usize = 32 * 1024;
 
 /// Stable category of a caller-provided request-body failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum RequestBodyErrorKind {
     /// The caller-provided body returned an error.
     Source,
@@ -316,6 +317,12 @@ impl RequestBody {
 
     pub(crate) fn take_ordered_trailers(&mut self) -> Option<Vec<RequestHeader>> {
         self.ordered_trailers.take()
+    }
+}
+
+impl From<Bytes> for RequestBody {
+    fn from(body: Bytes) -> Self {
+        Self::from_bytes(body)
     }
 }
 

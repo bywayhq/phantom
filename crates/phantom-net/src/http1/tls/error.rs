@@ -3,8 +3,31 @@ use std::{error::Error as StdError, fmt};
 use super::{EchFailure, Http1Error, TlsError, trace_alpn};
 use crate::proxy::{HttpConnectError, Socks5Error};
 
+/// Stable category of HTTP/1 TLS or proxy setup failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http1TlsErrorKind {
+    /// The operation requires a Tokio runtime.
+    RuntimeUnavailable,
+    /// Opening the direct TCP connection failed.
+    Connect,
+    /// Opening or negotiating the HTTP proxy connection failed.
+    HttpProxy,
+    /// SOCKS5 connection setup failed.
+    Socks5Proxy,
+    /// TLS setup or the handshake failed.
+    Tls,
+    /// HTTP/1 preparation or protocol setup failed.
+    Http1,
+    /// The peer selected an unsupported application protocol.
+    UnsupportedAlpn,
+    /// The TLS profile cannot negotiate HTTP/1.1.
+    InvalidConfiguration,
+}
+
 /// Error returned before an HTTP/1 response is available.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Http1TlsError {
     /// The network request was polled outside a Tokio runtime.
     RuntimeUnavailable,
@@ -71,6 +94,21 @@ impl StdError for Http1TlsError {
 }
 
 impl Http1TlsError {
+    /// Returns the stable failure category.
+    #[must_use]
+    pub const fn kind(&self) -> Http1TlsErrorKind {
+        match self {
+            Self::RuntimeUnavailable => Http1TlsErrorKind::RuntimeUnavailable,
+            Self::Connect(_) => Http1TlsErrorKind::Connect,
+            Self::Proxy(_) | Self::ForwardProxyConnect(_) => Http1TlsErrorKind::HttpProxy,
+            Self::Socks5Proxy(_) => Http1TlsErrorKind::Socks5Proxy,
+            Self::Tls(_) => Http1TlsErrorKind::Tls,
+            Self::Http1(_) => Http1TlsErrorKind::Http1,
+            Self::UnsupportedAlpn { .. } => Http1TlsErrorKind::UnsupportedAlpn,
+            Self::MissingHttp1Alpn => Http1TlsErrorKind::InvalidConfiguration,
+        }
+    }
+
     /// Returns why a connection that offered Encrypted Client Hello failed,
     /// when that is the cause.
     #[must_use]

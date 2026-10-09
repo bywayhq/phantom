@@ -31,6 +31,7 @@ pub use crate::tls::EchFailure;
 
 /// An established connection selected from one TLS ALPN negotiation.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Http1Or2Connection {
     /// HTTP/1.1 was selected, or the peer did not negotiate ALPN.
     Http1(Http1Connection),
@@ -40,6 +41,7 @@ pub enum Http1Or2Connection {
 
 /// Stable category of HTTP/1.1-or-HTTP/2 connection failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Http1Or2TlsErrorKind {
     /// The request lacks a Tokio runtime with network I/O enabled.
     RuntimeUnavailable,
@@ -63,6 +65,7 @@ pub enum Http1Or2TlsErrorKind {
 
 /// Error returned while selecting HTTP/1.1 or HTTP/2 over one TLS connection.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Http1Or2TlsError {
     /// The network operation was polled without a Tokio I/O runtime.
     RuntimeUnavailable,

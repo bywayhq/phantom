@@ -1004,6 +1004,7 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
         let Err(error) = result else {
             panic!("malformed response must fail");
         };
+        assert_eq!(error.kind(), crate::http1::Http1ErrorKind::Protocol);
         let Http1Error::Protocol(protocol) = &error else {
             panic!("expected protocol failure: {error:?}");
         };

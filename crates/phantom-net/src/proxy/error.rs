@@ -7,6 +7,7 @@ use crate::{
 
 /// Stable category of HTTP proxy setup or negotiation failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum HttpConnectErrorKind {
     /// TLS or HTTP/2 settings cannot support the selected proxy protocol.
     InvalidConfiguration,
@@ -34,6 +35,7 @@ pub enum HttpConnectErrorKind {
 
 /// Error returned while establishing or negotiating an HTTP proxy connection.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum HttpConnectError {
     /// TLS settings do not offer HTTP/1.1 to the proxy.
     MissingHttp1Alpn,

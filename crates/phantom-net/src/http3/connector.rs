@@ -1660,6 +1660,7 @@ fn validate_quic_runtime(crypto: &Arc<QuicClientConfig>) -> Result<(), Http3Conn
 
 /// Stable category of an HTTP/3 connector failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Http3ConnectorErrorKind {
     /// Supplied profile values are internally inconsistent.
     InvalidProfile,

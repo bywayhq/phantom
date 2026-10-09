@@ -18,6 +18,7 @@ const MAX_WRITE_CHUNK: usize = 16 * 1024;
 
 /// Terminal response to an HTTP/2 extended CONNECT request.
 #[must_use = "an accepted stream or rejected response body must be handled"]
+#[non_exhaustive]
 pub enum Http2ExtendedConnectOutcome {
     /// The peer accepted the tunnel with a successful response status.
     Accepted {

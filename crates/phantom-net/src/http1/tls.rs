@@ -30,7 +30,7 @@ use crate::{
 };
 
 pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
-pub use error::Http1TlsError;
+pub use error::{Http1TlsError, Http1TlsErrorKind};
 
 /// A reusable connector for profiled HTTP/1.1 TLS and proxy-forwarded requests.
 #[derive(Clone, Debug)]

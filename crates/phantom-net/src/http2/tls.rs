@@ -778,8 +778,33 @@ where
     connect_selected_kind(stream, client, extended_connect).await
 }
 
+/// Stable category of HTTP/2 TLS or proxy setup failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2TlsErrorKind {
+    /// The operation requires a Tokio runtime.
+    RuntimeUnavailable,
+    /// Opening the direct TCP connection failed.
+    Connect,
+    /// Opening or negotiating the HTTP proxy connection failed.
+    HttpProxy,
+    /// SOCKS5 connection setup failed.
+    Socks5Proxy,
+    /// TLS setup or the handshake failed.
+    Tls,
+    /// HTTP/2 preparation or protocol setup failed.
+    Http2,
+    /// The peer selected no protocol or a protocol other than HTTP/2.
+    UnsupportedAlpn,
+    /// The peer sent invalid HTTP/2 application settings.
+    PeerApplicationSettings,
+    /// The TLS profile cannot negotiate HTTP/2.
+    InvalidConfiguration,
+}
+
 /// Error returned while establishing HTTP/2 over TLS or opening a request.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Http2TlsError {
     /// The network request was polled outside a Tokio runtime.
     RuntimeUnavailable,
@@ -878,6 +903,26 @@ impl From<ConnectionLegError> for Http2TlsError {
 }
 
 impl Http2TlsError {
+    /// Returns the stable failure category.
+    #[must_use]
+    pub const fn kind(&self) -> Http2TlsErrorKind {
+        match self {
+            Self::RuntimeUnavailable => Http2TlsErrorKind::RuntimeUnavailable,
+            Self::Connect(_) => Http2TlsErrorKind::Connect,
+            Self::Proxy(_) => Http2TlsErrorKind::HttpProxy,
+            Self::Socks5Proxy(_) => Http2TlsErrorKind::Socks5Proxy,
+            Self::Tls(_) => Http2TlsErrorKind::Tls,
+            Self::Http2(_) => Http2TlsErrorKind::Http2,
+            Self::MissingNegotiatedAlpn | Self::UnsupportedAlpn { .. } => {
+                Http2TlsErrorKind::UnsupportedAlpn
+            }
+            Self::InvalidPeerApplicationSettings { .. } => {
+                Http2TlsErrorKind::PeerApplicationSettings
+            }
+            Self::MissingHttp2Alpn => Http2TlsErrorKind::InvalidConfiguration,
+        }
+    }
+
     /// Returns why a connection that offered Encrypted Client Hello failed,
     /// when that is the cause.
     #[must_use]

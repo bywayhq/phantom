@@ -47,6 +47,7 @@ impl Http3ExtendedProtocol {
 
 /// Terminal response to an HTTP/3 extended CONNECT request.
 #[must_use = "an accepted stream or rejected response body must be handled"]
+#[non_exhaustive]
 pub enum Http3ExtendedConnectOutcome {
     /// The peer accepted the tunnel with a successful response status.
     Accepted {

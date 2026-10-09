@@ -37,6 +37,7 @@ const MAX_LABEL_LENGTH: usize = 63;
 /// query; any other priority is a ServiceMode record describing an endpoint
 /// (RFC 9460 section 2.4).
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum HttpsRecord {
     /// An AliasMode record.
     Alias(AliasRecord),
@@ -244,6 +245,7 @@ impl ServiceRecord {
 
 /// A record's `TargetName`.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum TargetName {
     /// The root name `.`, which stands for the record's owner name in
     /// ServiceMode and for "service unavailable" in AliasMode.

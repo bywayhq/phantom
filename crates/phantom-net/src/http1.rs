@@ -49,8 +49,27 @@ impl StdError for Http1ProtocolError {
     }
 }
 
+/// Stable category of an HTTP/1 connection or request failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http1ErrorKind {
+    /// The request fields, target, body metadata, or trailers are invalid.
+    Request,
+    /// The response fields or framing are invalid or exceed a limit.
+    Response,
+    /// The connection cannot accept another request.
+    ConnectionClosed,
+    /// A reused connection closed before any response byte arrived.
+    ReusedConnectionClosed,
+    /// The operation requires a Tokio runtime.
+    RuntimeUnavailable,
+    /// The HTTP/1 protocol driver failed.
+    Protocol,
+}
+
 /// Error returned by an HTTP/1.1 connection or request.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Http1Error {
     /// The request contained more headers than the fixed safety bound.
     TooManyHeaders {
@@ -330,6 +349,45 @@ impl StdError for Http1Error {
 }
 
 impl Http1Error {
+    /// Returns the stable failure category.
+    #[must_use]
+    pub const fn kind(&self) -> Http1ErrorKind {
+        match self {
+            Self::TooManyHeaders { .. }
+            | Self::HeadersTooLarge { .. }
+            | Self::TooManyTrailers { .. }
+            | Self::TrailersTooLarge { .. }
+            | Self::InvalidHeaderName { .. }
+            | Self::InvalidHeaderValue { .. }
+            | Self::InvalidTrailerName { .. }
+            | Self::InvalidTrailerValue { .. }
+            | Self::ForbiddenTrailer { .. }
+            | Self::InvalidTrailerDeclaration { .. }
+            | Self::RequestTrailersWithContentLength { .. }
+            | Self::ConflictingRequestTrailers
+            | Self::BodyTrailerPlanRequired
+            | Self::MissingHost
+            | Self::MultipleHost
+            | Self::MismatchedHost { .. }
+            | Self::ConnectionNominatesCriticalField { .. }
+            | Self::ConnectUnsupported
+            | Self::RequestFramingHeader { .. }
+            | Self::InvalidContentLength { .. }
+            | Self::DuplicateContentLength { .. } => Http1ErrorKind::Request,
+            Self::TooManyResponseHeaders { .. }
+            | Self::ResponseHeadTooLarge { .. }
+            | Self::TooManyInformationalResponses { .. }
+            | Self::ChunkSizeLineTooLarge { .. }
+            | Self::AmbiguousResponseFraming
+            | Self::UnexpectedUpgrade
+            | Self::MissingResponseHeaderOrder => Http1ErrorKind::Response,
+            Self::ConnectionClosed => Http1ErrorKind::ConnectionClosed,
+            Self::ReusedConnectionClosed(_) => Http1ErrorKind::ReusedConnectionClosed,
+            Self::RuntimeUnavailable => Http1ErrorKind::RuntimeUnavailable,
+            Self::Protocol(_) => Http1ErrorKind::Protocol,
+        }
+    }
+
     fn protocol(error: wreq_proto::Error) -> Self {
         if error.is_chunk_size_line_too_large() {
             Self::ChunkSizeLineTooLarge {
@@ -407,7 +465,7 @@ pub fn validate_request(
 }
 
 /// Validates an HTTP/1.1 request and body framing metadata without performing I/O.
-pub fn validate_request_body(
+fn validate_request_body(
     method: &Method,
     target: &OriginForm,
     headers: &[RequestHeader],
@@ -417,7 +475,8 @@ pub fn validate_request_body(
 }
 
 /// Validates an HTTP/1.1 request, body framing, and exact ordered trailers.
-pub fn validate_request_body_with_trailers(
+#[cfg(test)]
+fn validate_request_body_with_trailers(
     method: &Method,
     target: &OriginForm,
     headers: &[RequestHeader],
@@ -455,7 +514,8 @@ pub fn validate_request_body_source_with_trailers(
 }
 
 /// Validates an HTTP/1.1 absolute-form request without performing I/O.
-pub fn validate_forward_request(
+#[cfg(test)]
+fn validate_forward_request(
     method: &Method,
     target: &AbsoluteForm,
     headers: &[RequestHeader],
@@ -470,33 +530,14 @@ pub fn validate_forward_request(
 }
 
 /// Validates an absolute-form request and body framing metadata without I/O.
-pub fn validate_forward_request_body(
+#[cfg(test)]
+fn validate_forward_request_body(
     method: &Method,
     target: &AbsoluteForm,
     headers: &[RequestHeader],
     body: Option<RequestBodyMetadata>,
 ) -> Result<(), Http1Error> {
     PreparedRequest::validate_forward(method.clone(), target.clone(), headers.to_vec(), body)
-}
-
-/// Validates an absolute-form request, body framing, and ordered trailers.
-pub fn validate_forward_request_body_with_trailers(
-    method: &Method,
-    target: &AbsoluteForm,
-    headers: &[RequestHeader],
-    body: Option<RequestBodyMetadata>,
-    trailers: &[RequestHeader],
-) -> Result<(), Http1Error> {
-    if body.is_some_and(RequestBodyMetadata::has_trailers) {
-        return Err(Http1Error::BodyTrailerPlanRequired);
-    }
-    PreparedRequest::validate_forward_with_trailers(
-        method.clone(),
-        target.clone(),
-        headers.to_vec(),
-        body,
-        trailers.to_vec(),
-    )
 }
 
 /// Validates an absolute-form request, its body source, and ordered static or
@@ -574,4 +615,6 @@ mod upgrade;
 
 #[cfg(test)]
 pub(crate) use tls::slower_plaintext;
-pub use tls::{EchFailure, Http1TlsConnector, Http1TlsError, TlsError, TlsErrorKind};
+pub use tls::{
+    EchFailure, Http1TlsConnector, Http1TlsError, Http1TlsErrorKind, TlsError, TlsErrorKind,
+};

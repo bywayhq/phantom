@@ -8,6 +8,7 @@ use crate::request::RequestBodyError;
 
 /// Stable classification of an HTTP/2 protocol-driver failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Http2ProtocolErrorKind {
     /// The underlying byte transport failed.
     Transport,
@@ -104,8 +105,35 @@ impl StdError for Http2ProtocolError {
     }
 }
 
+/// Stable category of an HTTP/2 connection or request failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Http2ErrorKind {
+    /// The profile or connection setup cannot represent this operation.
+    Configuration,
+    /// The request fields, target, priority, or trailers are invalid.
+    Request,
+    /// Pulling the caller body failed or returned an unsupported frame.
+    RequestBody,
+    /// The peer closed the request stream before its body was sent.
+    ConnectionClosed,
+    /// The response fields are missing or exceed a receive limit.
+    Response,
+    /// The peer did not enable extended CONNECT.
+    ExtendedConnectUnavailable,
+    /// An unanswered PING closed the connection.
+    PingTimeout,
+    /// The connection closed before any of this request was sent.
+    ReusedConnectionClosed,
+    /// The Tokio runtime or a required timer is unavailable.
+    RuntimeUnavailable,
+    /// The HTTP/2 protocol driver failed.
+    Protocol,
+}
+
 /// Error returned by a one-shot HTTP/2 transaction.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Http2Error {
     /// The HTTP/2 profile is internally inconsistent.
     InvalidSettings(InvalidHttp2Settings),
@@ -423,6 +451,50 @@ impl StdError for Http2Error {
 }
 
 impl Http2Error {
+    /// Returns the stable failure category.
+    #[must_use]
+    pub const fn kind(&self) -> Http2ErrorKind {
+        match self {
+            Self::InvalidSettings(_)
+            | Self::UnsupportedSetting
+            | Self::MissingExtendedConnectPseudoHeaderOrder
+            | Self::ExtendedConnectConnectionRequired => Http2ErrorKind::Configuration,
+            Self::InvalidPriorityDependency { .. }
+            | Self::InvalidPriority { .. }
+            | Self::InvalidAuthority(_)
+            | Self::AuthorityContainsUserinfo
+            | Self::ConnectUnsupported
+            | Self::InvalidRequestUri(_)
+            | Self::TooManyHeaders { .. }
+            | Self::HeadersTooLarge { .. }
+            | Self::TooManyTrailers { .. }
+            | Self::TrailersTooLarge { .. }
+            | Self::ConflictingRequestTrailers
+            | Self::BodyTrailerPlanRequired
+            | Self::InvalidHeaderName { .. }
+            | Self::InvalidHeaderValue { .. }
+            | Self::InvalidTrailerName { .. }
+            | Self::InvalidTrailerValue { .. }
+            | Self::ForbiddenHeader { .. }
+            | Self::ForbiddenTrailer { .. }
+            | Self::InvalidTe
+            | Self::InvalidContentLength { .. }
+            | Self::DuplicateContentLength { .. }
+            | Self::ContentLengthRequiresExactBody { .. }
+            | Self::HeaderMapCapacity => Http2ErrorKind::Request,
+            Self::RequestBody(_) | Self::UnsupportedRequestBodyFrame => Http2ErrorKind::RequestBody,
+            Self::RequestBodyClosed => Http2ErrorKind::ConnectionClosed,
+            Self::MissingResponseHeaderOrder
+            | Self::ResponseHeaderListTooLarge
+            | Self::TooManyInformationalResponses { .. } => Http2ErrorKind::Response,
+            Self::ExtendedConnectProtocolDisabled => Http2ErrorKind::ExtendedConnectUnavailable,
+            Self::PingTimeout => Http2ErrorKind::PingTimeout,
+            Self::ReusedConnectionClosed => Http2ErrorKind::ReusedConnectionClosed,
+            Self::RuntimeUnavailable => Http2ErrorKind::RuntimeUnavailable,
+            Self::Protocol(_) => Http2ErrorKind::Protocol,
+        }
+    }
+
     pub(super) fn protocol(error: ::http2::Error) -> Self {
         if error.is_header_list_too_large() {
             return Self::ResponseHeaderListTooLarge;

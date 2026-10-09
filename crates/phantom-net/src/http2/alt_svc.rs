@@ -6,6 +6,7 @@ use bytes::Bytes;
 
 /// Where an ALTSVC frame applies.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum AltSvcFrameScope {
     /// Received on stream 0 with this serialized `Origin`, unvalidated.
     Connection(Bytes),

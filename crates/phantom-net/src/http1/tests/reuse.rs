@@ -580,6 +580,10 @@ async fn reused_connection_closed_before_response_is_typed() -> TestResult {
         let Err(error) = result else {
             panic!("closed reused connection must fail");
         };
+        assert_eq!(
+            error.kind(),
+            crate::http1::Http1ErrorKind::ReusedConnectionClosed
+        );
         let Http1Error::ReusedConnectionClosed(protocol) = &error else {
             panic!("expected reused connection failure: {error:?}");
         };

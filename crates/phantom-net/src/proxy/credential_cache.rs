@@ -16,6 +16,7 @@ pub const MAX_PROXY_CREDENTIAL_ENTRIES: usize = 128;
 
 /// Scheme a client uses to reach an HTTP proxy.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
 pub enum ProxyScheme {
     /// Plaintext `http://` proxy.
     Http,
