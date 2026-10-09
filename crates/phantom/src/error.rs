@@ -445,6 +445,10 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn prepared_body_content_type(message: &'static str) -> Self {
+        Self::without_source(RequestErrorKind::InvalidHeader, message)
+    }
+
     pub(crate) fn invalid_uri(source: http::uri::InvalidUri) -> Self {
         Self::with_source(
             RequestErrorKind::InvalidUri,

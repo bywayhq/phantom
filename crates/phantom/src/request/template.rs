@@ -326,6 +326,52 @@ pub(crate) struct ProtocolScope {
     pub(crate) content_decoding: bool,
 }
 
+/// Fills a declared caller slot, or validates a header explicitly placed by
+/// the caller. No content type is appended without declared placement.
+pub(crate) fn place_prepared_content_type(
+    prepared: Option<&PreparedRequestTemplate>,
+    scope: ProtocolScope,
+    caller: &mut Vec<RequestHeader>,
+    content_type: &str,
+) -> Result<(), RequestError> {
+    let mut existing = caller
+        .iter()
+        .filter(|header| header.name().eq_ignore_ascii_case("content-type"));
+    if let Some(first) = existing.next() {
+        if existing.next().is_some() || first.value() != content_type.as_bytes() {
+            return Err(RequestError::prepared_body_content_type(
+                "prepared body needs one matching Content-Type field",
+            ));
+        }
+        return Ok(());
+    }
+    let Some(prepared) = prepared else {
+        return Err(RequestError::prepared_body_content_type(
+            "prepared body needs a Content-Type caller slot or explicit field",
+        ));
+    };
+    let has_slot = |protocol| {
+        prepared.fields_for(protocol).is_some_and(|fields| fields.iter().any(|field| {
+        matches!(field, RequestField::Caller { name, .. } if name.eq_ignore_ascii_case("content-type"))
+    }))
+    };
+    let declared = match scope.exact {
+        Some(protocol) => has_slot(protocol),
+        None => {
+            has_slot(HttpProtocol::Http1)
+                && has_slot(HttpProtocol::Http2)
+                && (!scope.alt_svc || has_slot(HttpProtocol::Http3))
+        }
+    };
+    if !declared {
+        return Err(RequestError::prepared_body_content_type(
+            "prepared body needs a Content-Type caller slot on every selected protocol",
+        ));
+    }
+    caller.push(RequestHeader::new("content-type", content_type));
+    Ok(())
+}
+
 /// Checks the prepared template against the request before any I/O.
 ///
 /// # Errors

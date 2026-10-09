@@ -75,6 +75,7 @@ pub struct RequestBuilder {
     headers: Vec<RequestHeader>,
     trailers: Vec<RequestHeader>,
     body: RequestBodySource,
+    prepared_content_type: Option<Box<str>>,
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
@@ -158,6 +159,7 @@ impl RequestBuilder {
             headers: Vec::new(),
             trailers: Vec::new(),
             body: RequestBodySource::Absent,
+            prepared_content_type: None,
             route: None,
             timeouts: None,
             retry_policy: None,
@@ -300,7 +302,24 @@ impl RequestBuilder {
     /// field when the caller did not supply one. Caller-supplied lengths must
     /// be canonical and exact.
     pub fn body(mut self, body: impl Into<Bytes>) -> Self {
+        self.prepared_content_type = None;
         self.body = RequestBodySource::Bytes(body.into());
+        self.body_declares_alt_used_trailer = false;
+        self
+    }
+
+    /// Sets bounded, replayable bytes with an exact content type.
+    ///
+    /// At send time, a declared `Content-Type` caller slot receives the value.
+    /// Without that slot, supply one matching header in your chosen position.
+    /// Existing headers keep their order. Missing placement, duplicates, or
+    /// a different value fail with [`crate::RequestErrorKind::InvalidHeader`]
+    /// before I/O. Later body setters replace both bytes and this requirement.
+    #[must_use]
+    pub fn prepared_body(mut self, body: crate::PreparedRequestBody) -> Self {
+        let (bytes, content_type) = body.into_parts();
+        self.body = RequestBodySource::Bytes(bytes);
+        self.prepared_content_type = Some(content_type);
         self.body_declares_alt_used_trailer = false;
         self
     }
@@ -325,6 +344,7 @@ impl RequestBuilder {
         B: Body<Data = Bytes> + Send + 'static,
         B::Error: StdError + Send + Sync + 'static,
     {
+        self.prepared_content_type = None;
         self.body = RequestBodySource::Streaming(Some(RequestBody::streaming(body)));
         self.body_declares_alt_used_trailer = false;
         self
@@ -346,6 +366,7 @@ impl RequestBuilder {
         B: Body<Data = Bytes> + Send + 'static,
         B::Error: StdError + Send + Sync + 'static,
     {
+        self.prepared_content_type = None;
         self.body_declares_alt_used_trailer = declares_alt_used_trailer(&trailer_names);
         self.body = RequestBodySource::Streaming(Some(RequestBody::streaming_with_trailers(
             body,
@@ -379,6 +400,7 @@ impl RequestBuilder {
         B: Body<Data = Bytes> + Send + 'static,
         B::Error: StdError + Send + Sync + 'static,
     {
+        self.prepared_content_type = None;
         self.body = RequestBodySource::Buffered(ReplayBuffer::new(body, Vec::new(), maximum_bytes));
         self.body_declares_alt_used_trailer = false;
         self
@@ -402,6 +424,7 @@ impl RequestBuilder {
         B: Body<Data = Bytes> + Send + 'static,
         B::Error: StdError + Send + Sync + 'static,
     {
+        self.prepared_content_type = None;
         self.body_declares_alt_used_trailer = declares_alt_used_trailer(&trailer_names);
         self.body =
             RequestBodySource::Buffered(ReplayBuffer::new(body, trailer_names, maximum_bytes));
@@ -676,7 +699,26 @@ impl RequestBuilder {
         result
     }
 
-    async fn send_inner(self, request_span: &Span) -> Result<Response<ResponseBody>, RequestError> {
+    async fn send_inner(
+        mut self,
+        request_span: &Span,
+    ) -> Result<Response<ResponseBody>, RequestError> {
+        if let Some(content_type) = &self.prepared_content_type {
+            template::place_prepared_content_type(
+                self.request.template.as_ref(),
+                template::ProtocolScope {
+                    exact: match self.selection {
+                        ProtocolSelection::Exact(protocol) => Some(protocol),
+                        ProtocolSelection::Http1Or2 => None,
+                    },
+                    alt_svc: self.client.alt_svc_enabled()
+                        && self.selected_route().carries_quic_alternative(),
+                    content_decoding: false,
+                },
+                &mut self.headers,
+                content_type,
+            )?;
+        }
         let timeout_budget = crate::timeout::TimeoutBudget::new(
             self.timeouts
                 .unwrap_or_default()
@@ -787,6 +829,7 @@ impl RequestBuilder {
             headers: request_headers,
             trailers: request_trailers,
             body,
+            prepared_content_type: _,
             route,
             timeouts: _,
             retry_policy: _,

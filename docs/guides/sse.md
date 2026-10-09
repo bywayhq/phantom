@@ -30,6 +30,18 @@ It must be uncompressed, even if you enabled `ContentDecoding`.
 Nothing runs between calls to `next_event`. You can cancel a pending call
 in `tokio::select!` and read again without losing data.
 
+`SseStream` and `SseEventSource` also implement `phantom::Stream` with items
+of type `Result<SseEvent, SseError>`. Use a stream extension library to call
+`next()`, or pass either value to a generic stream consumer. You can mix
+`next_event()` and trait polling on the same value. A terminal error appears
+once, then polling returns `None`.
+
+Dropping a pending read preserves partial events, deadlines, and any
+in-flight reconnect. Dropping the stream releases its response body and
+reconnect request. A cancelled `next_event()` records a cancelled trace
+outcome. Trait polling keeps its trace span until the operation finishes or
+the stream is dropped.
+
 ## Reconnect with Last-Event-ID
 
 Use `Client::event_source` to reconnect after a disconnect:

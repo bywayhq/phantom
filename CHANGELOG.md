@@ -993,6 +993,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Prepare bounded, replayable JSON, ordered form, and multipart request
+  bodies with `PreparedRequestBody`. `RequestBuilder::prepared_body` fills
+  a declared `Content-Type` caller slot or checks an explicitly placed
+  matching header. Multipart boundaries are caller-supplied.
+- Read `SseStream` and `SseEventSource` through the re-exported `Stream`
+  trait. Both polling APIs retain partial events, deadlines, and reconnect
+  state across cancelled reads. Terminal errors are yielded once.
+
 - Opt in to environment proxy routing with a validated
   `EnvironmentProxies` snapshot. Explicit client and request routes,
   including direct routes, take precedence. Each redirect target checks
