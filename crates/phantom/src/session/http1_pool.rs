@@ -596,26 +596,26 @@ impl PoolEntry {
                 port: endpoint.port(),
             })
         };
+        // Bound the connector's `Send` proof separately from pool setup;
+        // see `box_send`.
         #[cfg(feature = "https-records")]
         if connector.ech_from_https_records()
             && let Some(discovery) = &self.https_records
         {
             let mut ech = std::pin::pin!(discovery.tcp_ech(endpoint, connector.alpn_protocols()));
-            return connector
-                .connect(Http1Route::Origin(OriginRoute::Tls {
-                    tcp: tcp(),
-                    server_name: endpoint.host(),
-                    setup: DirectTlsSetup::Ech(ech.as_mut()),
-                }))
-                .await;
-        }
-        connector
-            .connect(Http1Route::Origin(OriginRoute::Tls {
+            return super::box_send(connector.connect(Http1Route::Origin(OriginRoute::Tls {
                 tcp: tcp(),
                 server_name: endpoint.host(),
-                setup: DirectTlsSetup::KeepSlower(&self.connections.family),
-            }))
-            .await
+                setup: DirectTlsSetup::Ech(ech.as_mut()),
+            })))
+            .await;
+        }
+        super::box_send(connector.connect(Http1Route::Origin(OriginRoute::Tls {
+            tcp: tcp(),
+            server_name: endpoint.host(),
+            setup: DirectTlsSetup::KeepSlower(&self.connections.family),
+        })))
+        .await
     }
 
     async fn acquire(
