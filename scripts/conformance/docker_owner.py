@@ -5,10 +5,16 @@ from __future__ import annotations
 import json
 import math
 import subprocess
+from collections.abc import Mapping
 
 
 def verified_container_id(
-    name: str, owner_label: str, owner: str, *, timeout: float
+    name: str,
+    owner_label: str,
+    owner: str,
+    *,
+    timeout: float,
+    env: Mapping[str, str] | None = None,
 ) -> str | None:
     """Return the full ID with the expected label, or None for a missing name."""
 
@@ -28,6 +34,7 @@ def verified_container_id(
         text=True,
         check=False,
         timeout=timeout,
+        env=env,
     )
     if result.returncode == 1 and result.stderr.strip() in {
         f"Error: No such object: {name}",
@@ -56,7 +63,9 @@ def verified_container_id(
     return lines[0]
 
 
-def remove_container(container_id: str, *, timeout: float) -> None:
+def remove_container(
+    container_id: str, *, timeout: float, env: Mapping[str, str] | None = None
+) -> None:
     """Remove a previously verified immutable ID within a finite deadline."""
 
     _require_deadline(timeout)
@@ -69,6 +78,7 @@ def remove_container(container_id: str, *, timeout: float) -> None:
         text=True,
         check=False,
         timeout=timeout,
+        env=env,
     )
     _require_success(result, "container removal")
 
