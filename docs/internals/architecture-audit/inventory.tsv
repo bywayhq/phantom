@@ -7,42 +7,42 @@ path	surface	review	evidence
 .claude/skills/lane/SKILL.md	documentation	pending	
 .claude/skills/phantom-docs/SKILL.md	documentation	pending	
 .claude/skills/vendor-refresh/SKILL.md	documentation	pending	
-.config/nextest.toml	configuration	pending	
-.dockerignore	configuration	pending	
-.gitattributes	configuration	pending	
+.config/nextest.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.dockerignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.gitattributes	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/CODEOWNERS	configuration	pending	
 .github/ISSUE_TEMPLATE/bug_report.yml	configuration	pending	
 .github/ISSUE_TEMPLATE/config.yml	configuration	pending	
 .github/ISSUE_TEMPLATE/proposal.yml	configuration	pending	
-.github/codeql/codeql-config.yml	configuration	pending	
-.github/dependabot.yml	configuration	pending	
+.github/codeql/codeql-config.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/dependabot.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/pull_request_template.md	documentation	pending	
-.github/workflows/autobahn.yml	configuration	pending	
-.github/workflows/benchmarks.yml	configuration	pending	
-.github/workflows/boringssl-native.yml	configuration	pending	
-.github/workflows/ci.yml	configuration	pending	
-.github/workflows/fuzz.yml	configuration	pending	
-.github/workflows/quic-interop.yml	configuration	pending	
-.github/workflows/release.yml	configuration	pending	
-.github/workflows/sanitizers.yml	configuration	pending	
-.github/workflows/scorecard.yml	configuration	pending	
-.github/workflows/tls-anvil.yml	configuration	pending	
-.github/workflows/upstream-freshness.yml	configuration	pending	
-.github/workflows/wpt-eventsource.yml	configuration	pending	
-.gitignore	configuration	pending	
+.github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/benchmarks.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/boringssl-native.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/ci.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/fuzz.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | docs-contract-coverage.json#.github/workflows/fuzz.yml
+.github/workflows/quic-interop.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/release.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/sanitizers.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/scorecard.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/tls-anvil.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/upstream-freshness.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.github/workflows/wpt-eventsource.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.gitignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 AGENTS.md	documentation	pending	
 CHANGELOG.md	documentation	pending	
 CLAUDE.md	documentation	pending	
 CONTRIBUTING.md	documentation	pending	
-Cargo.lock	configuration	pending	
-Cargo.toml	configuration	pending	
+Cargo.lock	configuration	source-partial	tooling-coverage.json: Selected dependency pins and sources traced in prior transport and tooling reads; generated lockfile not reviewed end to end.
+Cargo.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 LICENSE-APACHE	configuration	pending	
 LICENSE-MIT	configuration	pending	
-README.md	documentation	pending	
+README.md	documentation	source-complete	docs-contract-coverage.json#README.md
 SECURITY.md	documentation	pending	
-clippy.toml	configuration	pending	
+clippy.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 crates/phantom-net/Cargo.toml	crate	pending	
-crates/phantom-net/README.md	crate	pending	
+crates/phantom-net/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom-net/README.md
 crates/phantom-net/benches/transport.rs	crate	pending	
 crates/phantom-net/benches/transport/http1.rs	crate	pending	
 crates/phantom-net/benches/transport/http2.rs	crate	pending	
@@ -62,25 +62,25 @@ crates/phantom-net/src/address_cache.rs	crate	pending
 crates/phantom-net/src/address_cache/tests.rs	crate	pending	
 crates/phantom-net/src/address_cache/tests/routes.rs	crate	pending	
 crates/phantom-net/src/authorization.rs	crate	pending	
-crates/phantom-net/src/connection_leg.rs	crate	pending	
+crates/phantom-net/src/connection_leg.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs
 crates/phantom-net/src/connection_setup_futures.rs	crate	pending	
-crates/phantom-net/src/direct.rs	crate	pending	
-crates/phantom-net/src/dns.rs	crate	pending	
-crates/phantom-net/src/dns/address_lookup.rs	crate	pending	
+crates/phantom-net/src/direct.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/direct.rs
+crates/phantom-net/src/dns.rs	crate	source-partial	net-remaining-coverage.json#crates/phantom-net/src/dns.rs
+crates/phantom-net/src/dns/address_lookup.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/address_lookup.rs
 crates/phantom-net/src/dns/address_lookup/tests.rs	crate	pending	
 crates/phantom-net/src/dns/ech_config.rs	crate	pending	
 crates/phantom-net/src/dns/ech_config/tests.rs	crate	pending	
 crates/phantom-net/src/dns/https_record.rs	crate	pending	
-crates/phantom-net/src/dns/query_sockets.rs	crate	pending	
+crates/phantom-net/src/dns/query_sockets.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/query_sockets.rs
 crates/phantom-net/src/dns/tests.rs	crate	pending	
-crates/phantom-net/src/host_resolver.rs	crate	pending	
+crates/phantom-net/src/host_resolver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs
 crates/phantom-net/src/host_resolver/tests.rs	crate	pending	
 crates/phantom-net/src/http1.rs	crate	pending	
 crates/phantom-net/src/http1/body.rs	crate	pending	
 crates/phantom-net/src/http1/connection.rs	crate	pending	
 crates/phantom-net/src/http1/driver.rs	crate	pending	
 crates/phantom-net/src/http1/limits.rs	crate	pending	
-crates/phantom-net/src/http1/request.rs	crate	pending	
+crates/phantom-net/src/http1/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/request.rs
 crates/phantom-net/src/http1/response_head.rs	crate	pending	
 crates/phantom-net/src/http1/tests.rs	crate	pending	
 crates/phantom-net/src/http1/tests/driver_lifecycle.rs	crate	pending	
@@ -91,9 +91,9 @@ crates/phantom-net/src/http1/tests/response_limits.rs	crate	pending
 crates/phantom-net/src/http1/tests/reuse.rs	crate	pending	
 crates/phantom-net/src/http1/tests/upgrade.rs	crate	pending	
 crates/phantom-net/src/http1/tls.rs	crate	pending	
-crates/phantom-net/src/http1/tls/error.rs	crate	pending	
+crates/phantom-net/src/http1/tls/error.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs
 crates/phantom-net/src/http1/tls/tests.rs	crate	pending	
-crates/phantom-net/src/http1/upgrade.rs	crate	pending	
+crates/phantom-net/src/http1/upgrade.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/upgrade.rs
 crates/phantom-net/src/http1_or_2.rs	crate	pending	
 crates/phantom-net/src/http1_or_2/tests.rs	crate	pending	
 crates/phantom-net/src/http1_or_2/tests/early_data.rs	crate	pending	
@@ -107,7 +107,7 @@ crates/phantom-net/src/http2/connection.rs	crate	pending
 crates/phantom-net/src/http2/driver.rs	crate	pending	
 crates/phantom-net/src/http2/error.rs	crate	pending	
 crates/phantom-net/src/http2/limits.rs	crate	pending	
-crates/phantom-net/src/http2/request.rs	crate	pending	
+crates/phantom-net/src/http2/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs
 crates/phantom-net/src/http2/tests.rs	crate	pending	
 crates/phantom-net/src/http2/tests/adversarial_data_frames.rs	crate	pending	
 crates/phantom-net/src/http2/tests/adversarial_header_limits.rs	crate	pending	
@@ -145,7 +145,7 @@ crates/phantom-net/src/http2/tls/tests/key_update.rs	crate	pending
 crates/phantom-net/src/http2/tls/tests/ping_close.rs	crate	pending	
 crates/phantom-net/src/http2/tls/tests/record_shape.rs	crate	pending	
 crates/phantom-net/src/http2/tls/tests/routes.rs	crate	pending	
-crates/phantom-net/src/http2/tunnel.rs	crate	pending	
+crates/phantom-net/src/http2/tunnel.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs
 crates/phantom-net/src/http2/upload.rs	crate	pending	
 crates/phantom-net/src/http3.rs	crate	pending	
 crates/phantom-net/src/http3/alps.rs	crate	pending	
@@ -155,15 +155,15 @@ crates/phantom-net/src/http3/body/task.rs	crate	pending
 crates/phantom-net/src/http3/capsule.rs	crate	pending	
 crates/phantom-net/src/http3/connect_udp.rs	crate	pending	
 crates/phantom-net/src/http3/connect_udp/tests.rs	crate	pending	
-crates/phantom-net/src/http3/connection.rs	crate	pending	
+crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs
 crates/phantom-net/src/http3/connector.rs	crate	pending	
-crates/phantom-net/src/http3/datagram.rs	crate	pending	
-crates/phantom-net/src/http3/driver.rs	crate	pending	
-crates/phantom-net/src/http3/early_data.rs	crate	pending	
-crates/phantom-net/src/http3/early_streams.rs	crate	pending	
+crates/phantom-net/src/http3/datagram.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs
+crates/phantom-net/src/http3/driver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs
+crates/phantom-net/src/http3/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_data.rs
+crates/phantom-net/src/http3/early_streams.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_streams.rs
 crates/phantom-net/src/http3/error.rs	crate	pending	
-crates/phantom-net/src/http3/extended_connect.rs	crate	pending	
-crates/phantom-net/src/http3/qlog.rs	crate	pending	
+crates/phantom-net/src/http3/extended_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/extended_connect.rs
+crates/phantom-net/src/http3/qlog.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/qlog.rs
 crates/phantom-net/src/http3/request.rs	crate	pending	
 crates/phantom-net/src/http3/settings.rs	crate	pending	
 crates/phantom-net/src/http3/tests.rs	crate	pending	
@@ -174,7 +174,7 @@ crates/phantom-net/src/http3/tests/connector.rs	crate	pending
 crates/phantom-net/src/http3/tests/cookie_crumbs.rs	crate	pending	
 crates/phantom-net/src/http3/tests/datagram.rs	crate	pending	
 crates/phantom-net/src/http3/tests/early_data.rs	crate	pending	
-crates/phantom-net/src/http3/tests/early_streams.rs	crate	pending	
+crates/phantom-net/src/http3/tests/early_streams.rs	crate	source-partial	net-remaining-coverage.json#crates/phantom-net/src/http3/tests/early_streams.rs
 crates/phantom-net/src/http3/tests/ech.rs	crate	pending	
 crates/phantom-net/src/http3/tests/expect_continue.rs	crate	pending	
 crates/phantom-net/src/http3/tests/extended_connect.rs	crate	pending	
@@ -190,17 +190,17 @@ crates/phantom-net/src/lib.rs	crate	pending
 crates/phantom-net/src/proxy.rs	crate	pending	
 crates/phantom-net/src/proxy/authentication.rs	crate	pending	
 crates/phantom-net/src/proxy/challenged_connection.rs	crate	pending	
-crates/phantom-net/src/proxy/connect_udp.rs	crate	pending	
-crates/phantom-net/src/proxy/connect_udp/tests.rs	crate	pending	
+crates/phantom-net/src/proxy/connect_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/connect_udp.rs
+crates/phantom-net/src/proxy/connect_udp/tests.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/connect_udp/tests.rs
 crates/phantom-net/src/proxy/credential_cache.rs	crate	pending	
 crates/phantom-net/src/proxy/error.rs	crate	pending	
-crates/phantom-net/src/proxy/http2_connect.rs	crate	pending	
+crates/phantom-net/src/proxy/http2_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/proxy/http2_connect.rs
 crates/phantom-net/src/proxy/http2_pool.rs	crate	pending	
 crates/phantom-net/src/proxy/http2_pool/tests.rs	crate	pending	
-crates/phantom-net/src/proxy/http_connect.rs	crate	pending	
-crates/phantom-net/src/proxy/https_connect.rs	crate	pending	
-crates/phantom-net/src/proxy/socks5.rs	crate	pending	
-crates/phantom-net/src/proxy/socks5_udp.rs	crate	pending	
+crates/phantom-net/src/proxy/http_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/proxy/http_connect.rs
+crates/phantom-net/src/proxy/https_connect.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/https_connect.rs
+crates/phantom-net/src/proxy/socks5.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/socks5.rs
+crates/phantom-net/src/proxy/socks5_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/socks5_udp.rs
 crates/phantom-net/src/proxy/tests.rs	crate	pending	
 crates/phantom-net/src/proxy/tests/authentication.rs	crate	pending	
 crates/phantom-net/src/proxy/tests/challenged_connection.rs	crate	pending	
@@ -210,22 +210,22 @@ crates/phantom-net/src/proxy/tests/http2_challenge_frames.rs	crate	pending
 crates/phantom-net/src/proxy/tests/http2_connect.rs	crate	pending	
 crates/phantom-net/src/proxy/tests/http2_pool.rs	crate	pending	
 crates/phantom-net/src/proxy/tests/http2_raw_proxy.rs	crate	pending	
-crates/phantom-net/src/proxy/tests/https_connect.rs	crate	pending	
-crates/phantom-net/src/proxy/tests/socks5.rs	crate	pending	
-crates/phantom-net/src/proxy/tests/socks5/auth.rs	crate	pending	
-crates/phantom-net/src/proxy/tests/socks5_udp.rs	crate	pending	
-crates/phantom-net/src/proxy/tunnel.rs	crate	pending	
-crates/phantom-net/src/request.rs	crate	pending	
-crates/phantom-net/src/request/continue_gate.rs	crate	pending	
-crates/phantom-net/src/response.rs	crate	pending	
+crates/phantom-net/src/proxy/tests/https_connect.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tests/https_connect.rs
+crates/phantom-net/src/proxy/tests/socks5.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tests/socks5.rs
+crates/phantom-net/src/proxy/tests/socks5/auth.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tests/socks5/auth.rs
+crates/phantom-net/src/proxy/tests/socks5_udp.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tests/socks5_udp.rs
+crates/phantom-net/src/proxy/tunnel.rs	crate	source-complete	net-proxy-continuation-coverage.json#crates/phantom-net/src/proxy/tunnel.rs
+crates/phantom-net/src/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/request.rs
+crates/phantom-net/src/request/continue_gate.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/request/continue_gate.rs
+crates/phantom-net/src/response.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/response.rs
 crates/phantom-net/src/route.rs	crate	pending	
 crates/phantom-net/src/route/connected.rs	crate	pending	
 crates/phantom-net/src/route/datagram.rs	crate	pending	
 crates/phantom-net/src/shutdown_timer.rs	crate	pending	
 crates/phantom-net/src/socket_ffi.rs	crate	pending	
 crates/phantom-net/src/socket_ffi/interface.rs	crate	pending	
-crates/phantom-net/src/socket_ffi/port_randomization.rs	crate	pending	
-crates/phantom-net/src/source_binding.rs	crate	pending	
+crates/phantom-net/src/socket_ffi/port_randomization.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/socket_ffi/port_randomization.rs
+crates/phantom-net/src/source_binding.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs
 crates/phantom-net/src/source_binding/tests.rs	crate	pending	
 crates/phantom-net/src/tcp.rs	crate	pending	
 crates/phantom-net/src/tcp/address_racing.rs	crate	pending	
@@ -240,11 +240,11 @@ crates/phantom-net/src/tcp/tests/keepalive_paths.rs	crate	pending
 crates/phantom-net/src/tcp/tests/paths.rs	crate	pending	
 crates/phantom-net/src/tcp/tests/port_randomization.rs	crate	pending	
 crates/phantom-net/src/tcp/tests/slower_connection.rs	crate	pending	
-crates/phantom-net/src/tls.rs	crate	pending	
-crates/phantom-net/src/tls/client_certificate.rs	crate	pending	
-crates/phantom-net/src/tls/compression.rs	crate	pending	
-crates/phantom-net/src/tls/configuration.rs	crate	pending	
-crates/phantom-net/src/tls/early_data.rs	crate	pending	
+crates/phantom-net/src/tls.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls.rs
+crates/phantom-net/src/tls/client_certificate.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/client_certificate.rs
+crates/phantom-net/src/tls/compression.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/compression.rs
+crates/phantom-net/src/tls/configuration.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/configuration.rs
+crates/phantom-net/src/tls/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/early_data.rs
 crates/phantom-net/src/tls/key_log.rs	crate	pending	
 crates/phantom-net/src/tls/session_cache.rs	crate	pending	
 crates/phantom-net/src/tls/test_support.rs	crate	pending	
@@ -264,7 +264,7 @@ crates/phantom-net/src/tls/tests/session_cache.rs	crate	pending
 crates/phantom-net/src/tls/tests/tracing.rs	crate	pending	
 crates/phantom-net/src/tls/tests/websocket_early_data.rs	crate	pending	
 crates/phantom-net/src/tracing_test.rs	crate	pending	
-crates/phantom-net/src/udp.rs	crate	pending	
+crates/phantom-net/src/udp.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/udp.rs
 crates/phantom-net/src/udp/tests.rs	crate	pending	
 crates/phantom-net/src/udp/tests/paths.rs	crate	pending	
 crates/phantom-net/src/udp/tests/port_randomization.rs	crate	pending	
@@ -273,39 +273,39 @@ crates/phantom-net/tests/browser_http2_fixtures/chrome.rs	crate	pending
 crates/phantom-net/tests/browser_http2_fixtures/fixture.rs	crate	pending	
 crates/phantom-net/tests/error_categories.rs	crate	pending	
 crates/phantom-profile/Cargo.toml	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/README.md	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
+crates/phantom-profile/README.md	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/README.md
 crates/phantom-profile/src/browser.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/browser/brave.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/brave/android.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/brave/android/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/brave/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome/android.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome/android/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome/hook_tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome/http3_tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome/quic_tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/chrome/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/edge.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/edge/android.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/edge/android/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/edge/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/firefox.rs	crate	source-partial	profile-quic-coverage.json: Lines 1-185; remaining recipe definitions unread
-crates/phantom-profile/src/browser/firefox/android.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/firefox/hook_tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/firefox/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/opera.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/opera/android.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/opera/android/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/opera/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/src/browser/opera/tests/hash_set_order.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
+crates/phantom-profile/src/browser/brave.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/brave/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/brave/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/brave/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/chrome.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/chrome/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/src/browser/chrome/android.rs
+crates/phantom-profile/src/browser/chrome/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/chrome/hook_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
+crates/phantom-profile/src/browser/chrome/http3_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
+crates/phantom-profile/src/browser/chrome/quic_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
+crates/phantom-profile/src/browser/chrome/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/edge.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/edge/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/src/browser/edge/android.rs
+crates/phantom-profile/src/browser/edge/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/edge/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/firefox.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/firefox/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/firefox/hook_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
+crates/phantom-profile/src/browser/firefox/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/opera.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/src/browser/opera/android.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-profile/src/browser/opera/android.rs
+crates/phantom-profile/src/browser/opera/android/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/opera/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
+crates/phantom-profile/src/browser/opera/tests/hash_set_order.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-profile/src/client.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/client_hints.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/client_hints/navigation_capture.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/client_hints/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
+crates/phantom-profile/src/client_hints/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
 crates/phantom-profile/src/cookie.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/dns_cache.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/dns_cache/tests.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
+crates/phantom-profile/src/dns_cache/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
 crates/phantom-profile/src/http1.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/http1/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/http2.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -315,12 +315,12 @@ crates/phantom-profile/src/http3.rs	crate	source-complete	profile-quic-coverage.
 crates/phantom-profile/src/http3/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/lib.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/proxy_connect.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/proxy_connect/tests.rs	crate	source-partial	profile-quic-coverage.json: Initial 85 lines and new canary regression in isolated audit-profile-debug lane; remaining baseline tests unread
+crates/phantom-profile/src/proxy_connect/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-profile/src/quic.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/quic/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/request_template.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-profile/src/request_template.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed | client-remaining-coverage.json#crates/phantom-profile/src/request_template.rs
 crates/phantom-profile/src/request_template/capture.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/request_template/tests.rs	crate	source-partial	profile-quic-coverage.json: Initial imports/macros and first tests; new canary regression reviewed in isolated audit-profile-debug lane; remaining baseline tests unread
+crates/phantom-profile/src/request_template/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
 crates/phantom-profile/src/tcp.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/tcp/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/tls.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -329,15 +329,15 @@ crates/phantom-profile/src/udp.rs	crate	source-complete	profile-quic-coverage.js
 crates/phantom-profile/src/url_trust.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/validation.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-profile/src/websocket.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-profile/src/websocket/tests.rs	crate	source-partial	profile-quic-coverage.json: Initial 110 lines and new canary regression in isolated audit-profile-debug lane; remaining baseline tests unread
-crates/phantom-profile/tests/public_api/api_policy.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/tests/public_api/browser_profiles.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/tests/public_api/http3_public_api.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/tests/public_api/main.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/tests/public_api/quic_public_api.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-profile/tests/public_api/traits.rs	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
+crates/phantom-profile/src/websocket/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
+crates/phantom-profile/tests/public_api/api_policy.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/tests/public_api/browser_profiles.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/tests/public_api/http3_public_api.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/tests/public_api/main.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/tests/public_api/quic_public_api.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution
+crates/phantom-profile/tests/public_api/traits.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained fixture/source/public contract inspection only, no new captures or test execution
 crates/phantom-quic-btls/Cargo.toml	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/README.md	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
+crates/phantom-quic-btls/README.md	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; retained recipe/provenance and contract inspection only, no new capture or test execution | docs-contract-coverage.json#crates/phantom-quic-btls/README.md
 crates/phantom-quic-btls/src/backend.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/callback_state.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/callback_state/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -348,8 +348,8 @@ crates/phantom-quic-btls/src/backend/client_session/tests.rs	crate	source-comple
 crates/phantom-quic-btls/src/backend/client_session/tests/lifecycle.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/client_session/tests/post_handshake.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/client_session/tests/provider.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/backend/client_session/tests/resumption.rs	crate	source-partial	profile-quic-coverage.json: Lines 1-530; remaining baseline tests unread; three new regression tests reviewed in isolated audit-quic-tickets lane
-crates/phantom-quic-btls/src/backend/client_session/tests/support.rs	crate	source-partial	profile-quic-coverage.json: Lines 1-85; remaining harness unread
+crates/phantom-quic-btls/src/backend/client_session/tests/resumption.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
+crates/phantom-quic-btls/src/backend/client_session/tests/support.rs	crate	source-complete	profile-quic-coverage.json: Entire baseline file read in bounded chunks; retained fixture and manual contract/state/FFI inspection only, no test execution
 crates/phantom-quic-btls/src/backend/quic_callbacks.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/quic_callbacks/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/server.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -376,46 +376,46 @@ crates/phantom-quic-btls/src/transport_parameters.rs	crate	source-complete	profi
 crates/phantom-quic-btls/src/transport_parameters/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/transport_parameters/wire.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/version_2_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/testdata/rfc9001-client-initial.hex	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-quic-btls/testdata/rfc9001-server-initial.hex	crate	pending	profile-quic-coverage.json: Unreviewed; no source coverage claimed
-crates/phantom-testkit/.gitattributes	crate	pending	
-crates/phantom-testkit/Cargo.toml	crate	pending	
-crates/phantom-testkit/README.md	crate	pending	
-crates/phantom-testkit/examples/capture_client_hello.rs	crate	pending	
-crates/phantom-testkit/fixtures/README.md	fixture	pending	
-crates/phantom-testkit/fixtures/http1/README.md	fixture	pending	
-crates/phantom-testkit/fixtures/http1/chrome-154-windows-h1-accept.txt	fixture	pending	
-crates/phantom-testkit/fixtures/http1/firefox-157-windows-h1-accept.txt	fixture	pending	
-crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt	fixture	pending	
-crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-2.txt	fixture	pending	
-crates/phantom-testkit/fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt	fixture	pending	
-crates/phantom-testkit/fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt	fixture	pending	
-crates/phantom-testkit/src/dns.rs	crate	pending	
-crates/phantom-testkit/src/future_size.rs	crate	pending	
-crates/phantom-testkit/src/http1.rs	crate	pending	
-crates/phantom-testkit/src/http1/expectation.rs	crate	pending	
-crates/phantom-testkit/src/http1/expectation/tests.rs	crate	pending	
-crates/phantom-testkit/src/http1/tests.rs	crate	pending	
-crates/phantom-testkit/src/http2.rs	crate	pending	
-crates/phantom-testkit/src/http2/frame.rs	crate	pending	
-crates/phantom-testkit/src/http2/tests.rs	crate	pending	
-crates/phantom-testkit/src/http2/tests/capture.rs	crate	pending	
-crates/phantom-testkit/src/http2/tests/frame_decoding.rs	crate	pending	
-crates/phantom-testkit/src/lib.rs	crate	pending	
-crates/phantom-testkit/src/tcp.rs	crate	pending	
-crates/phantom-testkit/src/tls.rs	crate	pending	
-crates/phantom-testkit/src/tls/client_hello.rs	crate	pending	
-crates/phantom-testkit/src/tls/client_hello/tests.rs	crate	pending	
-crates/phantom-testkit/src/tls/ech.rs	crate	pending	
-crates/phantom-testkit/src/tls/tests.rs	crate	pending	
-crates/phantom-testkit/src/udp.rs	crate	pending	
-crates/phantom-testkit/tests/browser_client_hello_fixtures.rs	crate	pending	
-crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome.rs	crate	pending	
-crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs	crate	pending	
-crates/phantom-testkit/tests/browser_client_hello_fixtures/firefox.rs	crate	pending	
-crates/phantom-testkit/tests/browser_client_hello_fixtures/fixture.rs	crate	pending	
+crates/phantom-quic-btls/testdata/rfc9001-client-initial.hex	crate	source-complete	profile-quic-coverage.json: Whole raw hex asset read; decoder and independent RFC9001 packet/header expected-vector assertions in src/tests.rs and server adapter assertion in src/quinn.rs read. No new execution or cryptographic proof
+crates/phantom-quic-btls/testdata/rfc9001-server-initial.hex	crate	source-complete	profile-quic-coverage.json: Whole raw hex asset read; decoder and independent RFC9001 packet/header expected-vector assertions in src/tests.rs and server adapter assertion in src/quinn.rs read. No new execution or cryptographic proof
+crates/phantom-testkit/.gitattributes	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/Cargo.toml	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/Cargo.toml
+crates/phantom-testkit/README.md	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/README.md
+crates/phantom-testkit/examples/capture_client_hello.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/examples/capture_client_hello.rs
+crates/phantom-testkit/fixtures/README.md	fixture	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/fixtures/README.md
+crates/phantom-testkit/fixtures/http1/README.md	fixture	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/fixtures/http1/README.md
+crates/phantom-testkit/fixtures/http1/chrome-154-windows-h1-accept.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
+crates/phantom-testkit/fixtures/http1/firefox-157-windows-h1-accept.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
+crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
+crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-2.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
+crates/phantom-testkit/fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
+crates/phantom-testkit/fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt	fixture	partial	testkit-fuzz-coverage.json: manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/dns.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/src/dns.rs
+crates/phantom-testkit/src/future_size.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http1.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http1/expectation.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http1/expectation/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http1/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http2.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http2/frame.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http2/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http2/tests/capture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/http2/tests/frame_decoding.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/lib.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tcp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tls.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tls/client_hello.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tls/client_hello/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tls/ech.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/tls/tests.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/src/udp.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/tests/browser_client_hello_fixtures.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs
+crates/phantom-testkit/tests/browser_client_hello_fixtures/firefox.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+crates/phantom-testkit/tests/browser_client_hello_fixtures/fixture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom/Cargo.toml	crate	pending	
-crates/phantom/examples/README.md	crate	pending	
+crates/phantom/examples/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom/examples/README.md
 crates/phantom/examples/autobahn_client.rs	crate	pending	
 crates/phantom/examples/cookies.rs	crate	pending	
 crates/phantom/examples/first_request.rs	crate	pending	
@@ -429,66 +429,66 @@ crates/phantom/examples/websocket.rs	crate	pending
 crates/phantom/examples/wpt_eventsource/main.rs	crate	pending	
 crates/phantom/examples/wpt_eventsource/request_cases.rs	crate	pending	
 crates/phantom/examples/wpt_eventsource/stream_cases.rs	crate	pending	
-crates/phantom/src/authority.rs	crate	pending	
-crates/phantom/src/base_url.rs	crate	pending	
+crates/phantom/src/authority.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs
+crates/phantom/src/base_url.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/base_url.rs | docs-contract-coverage.json#crates/phantom/src/base_url.rs
 crates/phantom/src/body.rs	crate	pending	
-crates/phantom/src/client.rs	crate	pending	
-crates/phantom/src/client/certificate_origin_tests.rs	crate	pending	
-crates/phantom/src/client/dns_cache_tests.rs	crate	pending	
-crates/phantom/src/client/option_tests.rs	crate	pending	
-crates/phantom/src/content_coding.rs	crate	pending	
+crates/phantom/src/client.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs
+crates/phantom/src/client/certificate_origin_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/certificate_origin_tests.rs
+crates/phantom/src/client/dns_cache_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/dns_cache_tests.rs
+crates/phantom/src/client/option_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/option_tests.rs
+crates/phantom/src/content_coding.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/content_coding.rs
 crates/phantom/src/content_coding/brotli_stream.rs	crate	pending	
 crates/phantom/src/content_coding/field.rs	crate	pending	
 crates/phantom/src/content_coding/gzip.rs	crate	pending	
 crates/phantom/src/content_coding/inflate.rs	crate	pending	
 crates/phantom/src/content_coding/tests.rs	crate	pending	
 crates/phantom/src/content_coding/zstd_stream.rs	crate	pending	
-crates/phantom/src/diagnostics.rs	crate	pending	
-crates/phantom/src/environment_proxy.rs	crate	pending	
-crates/phantom/src/environment_proxy/tests.rs	crate	pending	
-crates/phantom/src/error.rs	crate	pending	
-crates/phantom/src/header_hook.rs	crate	pending	
+crates/phantom/src/diagnostics.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/diagnostics.rs
+crates/phantom/src/environment_proxy.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy.rs | docs-contract-coverage.json#crates/phantom/src/environment_proxy.rs
+crates/phantom/src/environment_proxy/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy/tests.rs
+crates/phantom/src/error.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/error.rs
+crates/phantom/src/header_hook.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/header_hook.rs | docs-contract-coverage.json#crates/phantom/src/header_hook.rs
 crates/phantom/src/lib.rs	crate	pending	
 crates/phantom/src/link.rs	crate	pending	
 crates/phantom/src/link/tests.rs	crate	pending	
-crates/phantom/src/redirect.rs	crate	pending	
-crates/phantom/src/redirect/tests.rs	crate	pending	
-crates/phantom/src/request.rs	crate	pending	
-crates/phantom/src/request/alt_svc_attempt.rs	crate	pending	
+crates/phantom/src/redirect.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect.rs | docs-contract-coverage.json#crates/phantom/src/redirect.rs
+crates/phantom/src/redirect/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect/tests.rs | docs-contract-coverage.json#crates/phantom/src/redirect/tests.rs
+crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs
+crates/phantom/src/request/alt_svc_attempt.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs
 crates/phantom/src/request/alt_svc_attempt/tests.rs	crate	pending	
-crates/phantom/src/request/attempt.rs	crate	pending	
-crates/phantom/src/request/field_lists.rs	crate	pending	
+crates/phantom/src/request/attempt.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/request/attempt.rs
+crates/phantom/src/request/field_lists.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/field_lists.rs | docs-contract-coverage.json#crates/phantom/src/request/field_lists.rs
 crates/phantom/src/request/field_lists/tests.rs	crate	pending	
 crates/phantom/src/request/replay.rs	crate	pending	
-crates/phantom/src/request/replay_buffer.rs	crate	pending	
-crates/phantom/src/request/replay_buffer/tests.rs	crate	pending	
-crates/phantom/src/request/secure_context.rs	crate	pending	
-crates/phantom/src/request/template.rs	crate	pending	
-crates/phantom/src/request/template/tests.rs	crate	pending	
-crates/phantom/src/request_body.rs	crate	pending	
+crates/phantom/src/request/replay_buffer.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer.rs
+crates/phantom/src/request/replay_buffer/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs
+crates/phantom/src/request/secure_context.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/secure_context.rs | docs-contract-coverage.json#crates/phantom/src/request/secure_context.rs
+crates/phantom/src/request/template.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/template.rs | docs-contract-coverage.json#crates/phantom/src/request/template.rs
+crates/phantom/src/request/template/tests.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/request/template/tests.rs | docs-contract-coverage.json#crates/phantom/src/request/template/tests.rs
+crates/phantom/src/request_body.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_body.rs | docs-contract-coverage.json#crates/phantom/src/request_body.rs
 crates/phantom/src/request_body/tests.rs	crate	pending	
 crates/phantom/src/request_body/tests/json.rs	crate	pending	
-crates/phantom/src/request_slots.rs	crate	pending	
-crates/phantom/src/response.rs	crate	pending	
+crates/phantom/src/request_slots.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_slots.rs | docs-contract-coverage.json#crates/phantom/src/request_slots.rs
+crates/phantom/src/response.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/response.rs
 crates/phantom/src/retry.rs	crate	pending	
 crates/phantom/src/retry/retry_after.rs	crate	pending	
-crates/phantom/src/route.rs	crate	pending	
+crates/phantom/src/route.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/route.rs
 crates/phantom/src/route/connect_udp.rs	crate	pending	
 crates/phantom/src/route/connect_udp/tests.rs	crate	pending	
 crates/phantom/src/route/socks5.rs	crate	pending	
 crates/phantom/src/session.rs	crate	pending	
-crates/phantom/src/session/address_families.rs	crate	pending	
+crates/phantom/src/session/address_families.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/address_families.rs
 crates/phantom/src/session/admission.rs	crate	pending	
 crates/phantom/src/session/alt_svc.rs	crate	pending	
 crates/phantom/src/session/alt_svc/https_records.rs	crate	pending	
 crates/phantom/src/session/alt_svc/https_records/tests.rs	crate	pending	
-crates/phantom/src/session/alt_svc/policy.rs	crate	pending	
+crates/phantom/src/session/alt_svc/policy.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/alt_svc/policy.rs
 crates/phantom/src/session/alt_svc/snapshot.rs	crate	pending	
 crates/phantom/src/session/alt_svc/tests.rs	crate	pending	
-crates/phantom/src/session/client_hints.rs	crate	pending	
-crates/phantom/src/session/client_hints/tests.rs	crate	pending	
-crates/phantom/src/session/cookies.rs	crate	pending	
-crates/phantom/src/session/cookies/snapshot.rs	crate	pending	
+crates/phantom/src/session/client_hints.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs
+crates/phantom/src/session/client_hints/tests.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/client_hints/tests.rs
+crates/phantom/src/session/cookies.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/cookies.rs
+crates/phantom/src/session/cookies/snapshot.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/cookies/snapshot.rs
 crates/phantom/src/session/cookies/snapshot/tests.rs	crate	pending	
 crates/phantom/src/session/cookies/tests.rs	crate	pending	
 crates/phantom/src/session/cookies/types.rs	crate	pending	
@@ -502,14 +502,14 @@ crates/phantom/src/session/http1_pool/tests/slower_connection.rs	crate	pending
 crates/phantom/src/session/http2_connections.rs	crate	pending	
 crates/phantom/src/session/http2_pool.rs	crate	pending	
 crates/phantom/src/session/http3_connections.rs	crate	pending	
-crates/phantom/src/session/http3_pool.rs	crate	pending	
+crates/phantom/src/session/http3_pool.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs
 crates/phantom/src/session/prune_timer.rs	crate	pending	
-crates/phantom/src/session/stream_count.rs	crate	pending	
+crates/phantom/src/session/stream_count.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/stream_count.rs
 crates/phantom/src/session/tests.rs	crate	pending	
 crates/phantom/src/sse.rs	crate	pending	
 crates/phantom/src/sse/decoder.rs	crate	pending	
 crates/phantom/src/sse/event_source.rs	crate	pending	
-crates/phantom/src/sse/event_source/request.rs	crate	pending	
+crates/phantom/src/sse/event_source/request.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/sse/event_source/request.rs
 crates/phantom/src/sse/event_source/request/tests.rs	crate	pending	
 crates/phantom/src/sse/tests.rs	crate	pending	
 crates/phantom/src/timeout.rs	crate	pending	
@@ -563,7 +563,7 @@ crates/phantom/tests/requests/client_certificates.rs	crate	pending
 crates/phantom/tests/requests/client_certificates/per_origin.rs	crate	pending	
 crates/phantom/tests/requests/client_hints.rs	crate	pending	
 crates/phantom/tests/requests/connection_retries.rs	crate	pending	
-crates/phantom/tests/requests/content_coding.rs	crate	pending	
+crates/phantom/tests/requests/content_coding.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/tests/requests/content_coding.rs
 crates/phantom/tests/requests/cookie_crumbs.rs	crate	pending	
 crates/phantom/tests/requests/cookies.rs	crate	pending	
 crates/phantom/tests/requests/diagnostics.rs	crate	pending	
@@ -650,50 +650,50 @@ crates/phantom/tests/support/tracing.rs	crate	pending
 crates/phantom/tests/support/tunnel_proxy.rs	crate	pending	
 crates/phantom/tests/support/websocket.rs	crate	pending	
 crates/phantom/tests/support/websocket_origin.rs	crate	pending	
-deny.toml	configuration	pending	
-docs/README.md	documentation	pending	
-docs/explanation/design.md	documentation	pending	
-docs/explanation/validation.md	documentation	pending	
-docs/fingerprinting.md	documentation	pending	
-docs/getting-started.md	documentation	pending	
-docs/guides/client.md	documentation	pending	
-docs/guides/coming-from-reqwest.md	documentation	pending	
-docs/guides/connections-and-state.md	documentation	pending	
-docs/guides/content-decoding.md	documentation	pending	
-docs/guides/cookies.md	documentation	pending	
-docs/guides/downstream.md	documentation	pending	
-docs/guides/http3-discovery.md	documentation	pending	
-docs/guides/http3.md	documentation	pending	
-docs/guides/name-resolution.md	documentation	pending	
-docs/guides/performance.md	documentation	pending	
-docs/guides/profiles.md	documentation	pending	
-docs/guides/redirects.md	documentation	pending	
-docs/guides/request-bodies.md	documentation	pending	
-docs/guides/request-customization.md	documentation	pending	
-docs/guides/request-templates.md	documentation	pending	
-docs/guides/responses.md	documentation	pending	
-docs/guides/retries.md	documentation	pending	
-docs/guides/routes-and-proxies.md	documentation	pending	
-docs/guides/socks-and-connect-udp.md	documentation	pending	
-docs/guides/sse.md	documentation	pending	
-docs/guides/troubleshooting.md	documentation	pending	
-docs/guides/websocket-fields.md	documentation	pending	
-docs/guides/websocket.md	documentation	pending	
-docs/internals/browser-recipes.md	documentation	pending	
-docs/internals/documentation.md	documentation	pending	
-docs/internals/http3.md	documentation	pending	
-docs/internals/vendoring.md	documentation	pending	
-docs/reference/cookies.md	documentation	pending	
-docs/reference/coverage.md	documentation	pending	
-docs/reference/environment-proxies.md	documentation	pending	
-docs/reference/glossary.md	documentation	pending	
-docs/reference/limits.md	documentation	pending	
-docs/reference/profiles.md	documentation	pending	
-docs/reference/route-matrix.md	documentation	pending	
-docs/reference/tracing.md	documentation	pending	
-docs/reference/websocket.md	documentation	pending	
-docs/roadmap.md	documentation	pending	
-docs/why-phantom.md	documentation	pending	
+deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+docs/README.md	documentation	source-complete	docs-contract-coverage.json#docs/README.md
+docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md
+docs/explanation/validation.md	documentation	source-partial	docs-contract-coverage.json#docs/explanation/validation.md
+docs/fingerprinting.md	documentation	source-complete	docs-contract-coverage.json#docs/fingerprinting.md
+docs/getting-started.md	documentation	source-complete	docs-contract-coverage.json#docs/getting-started.md
+docs/guides/client.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/client.md
+docs/guides/coming-from-reqwest.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/coming-from-reqwest.md
+docs/guides/connections-and-state.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/connections-and-state.md
+docs/guides/content-decoding.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/content-decoding.md
+docs/guides/cookies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/cookies.md
+docs/guides/downstream.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/downstream.md
+docs/guides/http3-discovery.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/http3-discovery.md
+docs/guides/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/http3.md
+docs/guides/name-resolution.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/name-resolution.md
+docs/guides/performance.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/performance.md
+docs/guides/profiles.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/profiles.md
+docs/guides/redirects.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/redirects.md
+docs/guides/request-bodies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/request-bodies.md
+docs/guides/request-customization.md	documentation	source-complete	client-remaining-coverage.json#docs/guides/request-customization.md | docs-contract-coverage.json#docs/guides/request-customization.md
+docs/guides/request-templates.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/request-templates.md
+docs/guides/responses.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/responses.md
+docs/guides/retries.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/retries.md
+docs/guides/routes-and-proxies.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/routes-and-proxies.md
+docs/guides/socks-and-connect-udp.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/socks-and-connect-udp.md
+docs/guides/sse.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/sse.md
+docs/guides/troubleshooting.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/troubleshooting.md
+docs/guides/websocket-fields.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket-fields.md
+docs/guides/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket.md
+docs/internals/browser-recipes.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/browser-recipes.md
+docs/internals/documentation.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/documentation.md
+docs/internals/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/http3.md
+docs/internals/vendoring.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/vendoring.md
+docs/reference/cookies.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/cookies.md
+docs/reference/coverage.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/coverage.md
+docs/reference/environment-proxies.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/environment-proxies.md
+docs/reference/glossary.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/glossary.md
+docs/reference/limits.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/limits.md
+docs/reference/profiles.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/profiles.md
+docs/reference/route-matrix.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/route-matrix.md
+docs/reference/tracing.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/tracing.md
+docs/reference/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/reference/websocket.md
+docs/roadmap.md	documentation	source-complete	docs-contract-coverage.json#docs/roadmap.md
+docs/why-phantom.md	documentation	source-complete	docs-contract-coverage.json#docs/why-phantom.md
 fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/broken-backoff.txt	fixture	pending	
 fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/existing-h2-session.txt	fixture	pending	
 fixtures/alt-svc/chrome/154.0.8037.58/windows-11-26200/quic-bad-alpn.txt	fixture	pending	
@@ -1172,39 +1172,39 @@ fixtures/websocket/opera/136.0.6008.52/windows-11-26200/h1-accept.txt	fixture	pe
 fixtures/websocket/opera/136.0.6008.52/windows-11-26200/no-connect-protocol.txt	fixture	pending	
 fixtures/websocket/opera/136.0.6008.52/windows-11-26200/refused-stream.txt	fixture	pending	
 fixtures/websocket/opera/136.0.6008.52/windows-11-26200/reject-403.txt	fixture	pending	
-fuzz/.gitignore	fuzz	pending	
-fuzz/Cargo.lock	fuzz	pending	
-fuzz/Cargo.toml	fuzz	pending	
-fuzz/README.md	fuzz	pending	
-fuzz/fuzz_targets/alt_svc_snapshot.rs	fuzz	pending	
-fuzz/fuzz_targets/client_hello.rs	fuzz	pending	
-fuzz/fuzz_targets/cookie_jar.rs	fuzz	pending	
-fuzz/fuzz_targets/cookie_snapshot.rs	fuzz	pending	
-fuzz/fuzz_targets/ech_config_list.rs	fuzz	pending	
-fuzz/fuzz_targets/http1_response.rs	fuzz	pending	
-fuzz/fuzz_targets/http2_frame.rs	fuzz	pending	
-fuzz/fuzz_targets/http_connect_response.rs	fuzz	pending	
-fuzz/fuzz_targets/https_record.rs	fuzz	pending	
-fuzz/fuzz_targets/proxy_basic_challenge.rs	fuzz	pending	
-fuzz/fuzz_targets/quic_transport_parameters.rs	fuzz	pending	
-fuzz/src/alt_svc_snapshot.rs	fuzz	pending	
-fuzz/src/alt_svc_snapshot/tests.rs	fuzz	pending	
-fuzz/src/cookie_jar.rs	fuzz	pending	
-fuzz/src/cookie_jar/tests.rs	fuzz	pending	
-fuzz/src/cookie_snapshot.rs	fuzz	pending	
-fuzz/src/cookie_snapshot/tests.rs	fuzz	pending	
-fuzz/src/ech_config_list.rs	fuzz	pending	
-fuzz/src/ech_config_list/tests.rs	fuzz	pending	
-fuzz/src/http1_response.rs	fuzz	pending	
-fuzz/src/http1_response/tests.rs	fuzz	pending	
-fuzz/src/https_record.rs	fuzz	pending	
-fuzz/src/https_record/tests.rs	fuzz	pending	
-fuzz/src/lib.rs	fuzz	pending	
-fuzz/src/seed.rs	fuzz	pending	
-llms.txt	configuration	pending	
-osv-scanner.toml	configuration	pending	
-pyproject.toml	configuration	pending	
-rust-toolchain.toml	configuration	pending	
+fuzz/.gitignore	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/Cargo.lock	fuzz	partial	testkit-fuzz-coverage.json: machine-parsed TOML dependency graph and checked relevant root/native/parser pins; not line-by-line manual review; baseline source inspection, not runtime proof
+fuzz/Cargo.toml	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/README.md	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/README.md
+fuzz/fuzz_targets/alt_svc_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/client_hello.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/cookie_jar.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/cookie_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/ech_config_list.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/http1_response.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/http2_frame.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/http_connect_response.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/https_record.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/proxy_basic_challenge.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/fuzz_targets/quic_transport_parameters.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/alt_svc_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/alt_svc_snapshot/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/cookie_jar.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/cookie_jar/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/cookie_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/cookie_snapshot/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/ech_config_list.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/ech_config_list/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/http1_response.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response.rs
+fuzz/src/http1_response/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/src/http1_response/tests.rs
+fuzz/src/https_record.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/https_record/tests.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/lib.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+fuzz/src/seed.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
+llms.txt	configuration	source-complete	docs-contract-coverage.json#llms.txt
+osv-scanner.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+pyproject.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+rust-toolchain.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/capture/README.md	tool	pending	
 scripts/capture/__init__.py	tool	pending	
 scripts/capture/alps_accept_ch.py	tool	pending	
@@ -1280,17 +1280,17 @@ scripts/capture/tests/test_startup_capture.py	tool	pending
 scripts/capture/tests/test_tls_resumption.py	tool	pending	
 scripts/capture/tls_resumption.py	tool	pending	
 scripts/capture/websocket_frames.py	tool	pending	
-scripts/ci/changed-paths.sh	tool	pending	
-scripts/ci/check-boringssl-native.sh	tool	pending	
-scripts/ci/check-downstream.sh	tool	pending	
-scripts/ci/check-tool-pins.sh	tool	pending	
-scripts/ci/check-unsafe-boundaries.sh	tool	pending	
-scripts/ci/check-vendor.sh	tool	pending	
-scripts/ci/probe-upstream-candidate.sh	tool	pending	
-scripts/ci/report-upstream-freshness.sh	tool	pending	
-scripts/ci/stage-btls-candidate.sh	tool	pending	
-scripts/ci/test-changed-paths.sh	tool	pending	
-scripts/ci/test-upstream-freshness.sh	tool	pending	
+scripts/ci/changed-paths.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/check-boringssl-native.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/check-downstream.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/check-tool-pins.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/check-unsafe-boundaries.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/check-vendor.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/probe-upstream-candidate.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/report-upstream-freshness.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/stage-btls-candidate.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/test-changed-paths.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/ci/test-upstream-freshness.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/conformance/__init__.py	tool	pending	
 scripts/conformance/aioquic_versions.py	tool	pending	
 scripts/conformance/autobahn.py	tool	pending	
@@ -1317,23 +1317,23 @@ scripts/conformance/tls_anvil.py	tool	pending
 scripts/conformance/wpt-eventsource/full.json	tool	pending	
 scripts/conformance/wpt-eventsource/smoke.json	tool	pending	
 scripts/conformance/wpt_eventsource.py	tool	pending	
-scripts/dev/README.md	tool	pending	
-scripts/dev/__init__.py	tool	pending	
-scripts/dev/consolidate_integration_tests.py	tool	pending	
-scripts/dev/gate.sh	tool	pending	
-scripts/dev/tests/__init__.py	tool	pending	
-scripts/dev/tests/test_consolidate_integration_tests.py	tool	pending	
-scripts/dev/tests/test_wsl_cargo.py	tool	pending	
-scripts/dev/with-cargo-lock.sh	tool	pending	
-scripts/dev/wsl-cargo.sh	tool	pending	
-scripts/docs/README.md	tool	pending	
+scripts/dev/README.md	tool	source-partial	tooling-coverage.json: Cargo lock contract and cleanup guidance only; remaining development documentation not reviewed.
+scripts/dev/__init__.py	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/consolidate_integration_tests.py	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/gate.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/tests/__init__.py	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/tests/test_consolidate_integration_tests.py	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/tests/test_wsl_cargo.py	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/with-cargo-lock.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/dev/wsl-cargo.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/docs/README.md	tool	source-complete	docs-contract-coverage.json#scripts/docs/README.md
 scripts/docs/__init__.py	tool	pending	
 scripts/docs/check_docs.py	tool	pending	
 scripts/docs/tests/__init__.py	tool	pending	
 scripts/docs/tests/test_check_docs.py	tool	pending	
-scripts/release/publish-crates.sh	tool	pending	
-scripts/requirements.in	tool	pending	
-scripts/requirements.txt	tool	pending	
+scripts/release/publish-crates.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/requirements.in	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+scripts/requirements.txt	tool	source-partial	tooling-coverage.json: Header and first requirement hashes read; complete resolver graph and individual hashes not reviewed.
 tests/downstream/public-api/.gitattributes	configuration	pending	
 tests/downstream/public-api/.gitignore	configuration	pending	
 tests/downstream/public-api/Cargo.toml	configuration	pending	
@@ -1343,7 +1343,7 @@ tests/downstream/public-api/fixtures/http1/firefox-157-windows-h1-accept.txt	fix
 tests/downstream/public-api/src/lib.rs	configuration	pending	
 tests/downstream/public-api/src/wire.rs	configuration	pending	
 tests/downstream/public-api/src/workflows.rs	configuration	pending	
-tests/public-api/README.md	documentation	pending	
+tests/public-api/README.md	documentation	source-complete	docs-contract-coverage.json#tests/public-api/README.md
 tests/public-api/phantom-http-all.txt	configuration	pending	
 tests/public-api/phantom-net-all.txt	configuration	pending	
 tests/public-api/phantom-profile-all.txt	configuration	pending	

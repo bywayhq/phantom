@@ -1,0 +1,1889 @@
+[
+  {
+    "path": ".github/workflows/fuzz.yml",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "4421834429ae4656e5d3edfb3f0cbb8c014983e97d32443297964ca2e62b6586",
+    "lines": 164,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        81,
+        110
+      ]
+    ],
+    "evidence": "Exact 941cad0c hunk and target bounds.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "CHANGELOG.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "1da375d5da5387b4cac7d1f87b26b0c023ddb5c0ad6fa9c6b89b412d430bb3f2",
+    "lines": 2624,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "5cd973627b2ce1b1ff157683112d9058abe206e8fb8384fd8be341fabdc567e2",
+    "lines": 373,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "d08b1da901c0f5fd36dfb92e7d87fc2f2d9ddaa56161dd0822a1a939099832dc",
+    "lines": 137,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        137
+      ]
+    ],
+    "evidence": "Full README and example read; feature table compared with current manifest and profile/HTTP caller contracts. No third-party endpoint requested.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-net/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "997d27cdf8f673e07758c50ecbded30f378da88b6ed01533a1cb2d4a68484688",
+    "lines": 26,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      26
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-profile/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "7c274ac642833c324296369ac011fc8f54de6c2f8b7bb809b4d3107e52ea5d9a",
+    "lines": 46,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        46
+      ]
+    ],
+    "evidence": "Full public profile boundary read against full earlier profile source review and current Android input constructors.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/android.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "b3f96e1fe61e2d3c3a886fb3d84d254fddab32e3817e74f7259e24b377d66e4e",
+    "lines": 259,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        175
+      ],
+      [
+        201,
+        259
+      ]
+    ],
+    "evidence": "Current fallible model constructor, printable ASCII grammar, quote/backslash escaping, frozen default model and source-defined omissions; earlier full recipe pass separately recorded.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/edge/android.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "f5dd67a4a9138cb04535502274c32043bc8b4a70a99bacd29bdcea8df4e2b1d9",
+    "lines": 185,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        114,
+        153
+      ]
+    ],
+    "evidence": "Current fallible model helper delegates exact Chrome-owned printable ASCII validation.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/opera/android.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "9a60a404f282e1ac49b8c9b558800a9a8e7abc05d2f11dacf67be35d4bbc2ff7",
+    "lines": 109,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        59,
+        95
+      ]
+    ],
+    "evidence": "Current fallible model helper delegates printable ASCII validation/escaped model serializer.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-quic-btls/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "f029db56022bdac40d00aabfc1e888085202bcd2673b66693f564e83bd2704ab",
+    "lines": 27,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        27
+      ]
+    ],
+    "evidence": "Full provider public dependency/privacy boundary read against earlier full provider source audit plus A13 canonical startup-error follow-up.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-testkit/Cargo.toml",
+    "source_checkout": "C:\\code\\phantom-worktrees\\audit-testkit",
+    "observed_head": "52e708d3a26755bf7b7a7be734f0d55c949d3c27",
+    "sha256": "a3e073a2ad068754a21522d3879d919b09aaa45f46b31a2b1defcfb67dc5b533",
+    "lines": 20,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        20
+      ]
+    ],
+    "evidence": "Complete manifest reviewed: runtime macros required for select, dev test-util only for paused tests.",
+    "verification": "Independent source review only. Parent reported baseline/fixed checks separately. Example source approval requires root helper repair, whose hunk is not part of this lane hash."
+  },
+  {
+    "path": "crates/phantom-testkit/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "a7c81f63ef15f8c9795e88de7a991941715c0591dfdb5d2a2aba2cee78fb237d",
+    "lines": 151,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      151
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-testkit/examples/capture_client_hello.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\audit-testkit",
+    "observed_head": "52e708d3a26755bf7b7a7be734f0d55c949d3c27",
+    "sha256": "4c2b9d5bd27e971a39dd1b679f43c1d6046a933be46cfe48b6be2d1e5ce04cd7",
+    "lines": 317,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        317
+      ]
+    ],
+    "evidence": "Complete source/tests read: prebind loopback SocketAddr check, UTF8/nonempty/single-line SNI before output, constructor fixtures, exact root uncommitted array.map(str::to_owned).into_iter lifetime correction reviewed.",
+    "verification": "Independent source review only. Parent reported baseline/fixed checks separately. Example source approval requires root helper repair, whose hunk is not part of this lane hash."
+  },
+  {
+    "path": "crates/phantom-testkit/fixtures/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "38a9a2bcd77f00fb8cb19e54c259e6c62138b71801d47372af6deeffe0a7f70e",
+    "lines": 23,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      23
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-testkit/fixtures/http1/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "667a8ee1a51d86555d5295f858911582014727b7b0c6e051f4dfa6af2eb222db",
+    "lines": 35,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      35
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom-testkit/src/dns.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\audit-testkit",
+    "observed_head": "52e708d3a26755bf7b7a7be734f0d55c949d3c27",
+    "sha256": "c11797b0fba34063dbe63257dd0847bd5afcb1d7d99197d45a6960eb6d8ed37c",
+    "lines": 448,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        448
+      ]
+    ],
+    "evidence": "Complete source/tests read: owned JoinSet children, cancellation/drop release, fair recv/reap select, ignored-reply failure invariant, paused real UDP owner barrier, delayed/immediate controls.",
+    "verification": "Independent source review only. Parent reported baseline/fixed checks separately. Example source approval requires root helper repair, whose hunk is not part of this lane hash."
+  },
+  {
+    "path": "crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "a5c5e96cdf9a03474d3c5de0d633c6acaddd89cda17bd46c7e05e7db4c5219c6",
+    "lines": 287,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        229,
+        287
+      ]
+    ],
+    "evidence": "Strict hexadecimal reader and all new regression cases.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/examples/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "9d986005ee546a7965781be4b09d1924712f81e6f5786b955e71f18c0b629b88",
+    "lines": 43,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      43
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/base_url.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "acfd278bcfa0a556eb5cb65f1b073bf3429c4a5dfa04664e8a720c218d934ea6",
+    "lines": 122,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        122
+      ]
+    ],
+    "evidence": "Complete implementation/unit tests; joined/absolute target behavior.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/client.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "7d262ddfa2805d022159414aa8f0ee007ab98d0041a3d03f285a632ebe42aa44",
+    "lines": 2750,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        770,
+        824
+      ]
+    ],
+    "evidence": "Public base_url and client hook rustdoc/implementation.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/error.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "79ad08e7f6fa984900717303891083f5b41e8193145e16a0b11add38e125d0f4",
+    "lines": 1928,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        150
+      ],
+      [
+        250,
+        281
+      ],
+      [
+        281,
+        430
+      ],
+      [
+        1486,
+        1537
+      ]
+    ],
+    "evidence": "Selected build/request categories and exact Display/Debug/source implementations read; constructors/mappings/tests not fully reread in this pass.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/header_hook.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "39e5317507df26a9912406b2426133cda2798ee5f200f6399cfa07553b9d70bd",
+    "lines": 257,
+    "status": "partial",
+    "reviewed_ranges": [
+      1,
+      257
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+        "sha256": "ec5cac109929e7bb289ba06cc28277709d4e820c8b62fc26ff77d3f2957cc24b",
+        "reviewed_ranges": [
+          [
+            1,
+            252
+          ]
+        ],
+        "evidence": "Complete aggregate source plus owning lane A22 rustdoc fix review; no source behavior change."
+      }
+    ]
+  },
+  {
+    "path": "crates/phantom/src/redirect.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "4a5bd5914d6420282323d31d3b203881a90c5bc297354d409c9e46bd9a283c2f",
+    "lines": 247,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        131,
+        156
+      ],
+      [
+        180,
+        247
+      ]
+    ],
+    "evidence": "Independent configured-hint stripping plus four credential names and method/body changes.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/redirect/tests.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "5dd5e51c71b9822de5407f836bfb119b813a8b127ceec59749c087e810b795a8",
+    "lines": 341,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        101,
+        134
+      ]
+    ],
+    "evidence": "Existing cross-origin regression retains ordinary headers/trailers.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/request.rs",
+    "source_checkout": "C:/code/phantom-worktrees/architecture-audit",
+    "observed_head": "8ca9c5d6d6ac6609fd14c71fa17c3493b599ada1",
+    "sha256": "18269f15e31bd11bdc17bbe38606a3c63451f0119ba46de6b6060cd05fa3c011",
+    "lines": 2360,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        952,
+        998
+      ],
+      [
+        1125,
+        1168
+      ],
+      [
+        1180,
+        1236
+      ]
+    ],
+    "evidence": "Exact A25 integration diff plus these full surrounding ranges; retained actual trust/forwarding/managed-name initial and redirect call arguments, per-hop decoding and redirect-state preservation reviewed.",
+    "verification": "Source review only; committed blob hash recorded. No Cargo compilation or test execution. Earlier broader range observations retain their own revision.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+        "sha256": "0b63e3bf360a23aa36d43a3ea8f0920e091430604bcf1ac75c3cde47e686a75e",
+        "reviewed_ranges": [
+          [
+            140,
+            189
+          ],
+          [
+            270,
+            314
+          ],
+          [
+            800,
+            944
+          ],
+          [
+            1235,
+            1334
+          ]
+        ],
+        "evidence": "Base URL resolution, per-request hooks, execution timing and selected validation; whole file not reread."
+      }
+    ]
+  },
+  {
+    "path": "crates/phantom/src/request/secure_context.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "41adbb7b57635f252388b25e634cb7170c8a28866b09c73f4b91c545bdd8912c",
+    "lines": 92,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        92
+      ]
+    ],
+    "evidence": "Full trustworthy host rules and existing loopback/local names/trailing-dot boundary tests read.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/request_slots.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "f44d0bfa11d7bde5d67f59b9391d58ffda181cb50a1f02475960e1a99b8f7d9d",
+    "lines": 337,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        110
+      ]
+    ],
+    "evidence": "Declared slot intersection/validation/duplication/redaction and arbitrary header name contract, remainder pending.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/session/client_hints.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "dec8cd5ff9a77bd2d92c9fabc7f3ba9be5102c13c9c6161a51f630e7b2ecd650",
+    "lines": 639,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        400,
+        505
+      ]
+    ],
+    "evidence": "prepare_fields managed-name exclusions and placement start; full prior production diff review separately recorded.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/session/client_hints/tests.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "70544d68d9d898e353cbefe94893a5486c7c9f52ec98e11f0cddfc364558279c",
+    "lines": 658,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        355,
+        399
+      ],
+      [
+        615,
+        658
+      ]
+    ],
+    "evidence": "Both changed prepare_fields calls and ordinary caller-slot controls.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/sse/event_source/request.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "82ba3844faaf57438a11600b06a1b3394e163e0288c58e3ffe145e39e7531e9c",
+    "lines": 600,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        160
+      ],
+      [
+        300,
+        588
+      ]
+    ],
+    "evidence": "New managed ID lifecycle/default/hints/route logic exact previous review plus current read; 161-299 need explicit current-pass reread.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "bd74327dbbbc9c1c2d0b74c8b2df8648a64b9c4fd1160078cf6e5cc49432c278",
+    "lines": 94,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        94
+      ]
+    ],
+    "evidence": "Full navigation/index read; links cross-checked by source discovery only, docs checker run in separate A22 lane.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/explanation/design.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "b5cbf07e158c52f62b7bd4dc7cded4b8e50a2b02",
+    "sha256": "f9fa08c9600745737e25c0a8e877c5bc56a66e61cc8e0911250711d28ff58b83",
+    "lines": 843,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      843
+    ],
+    "evidence": "Full prior page text read and exact final qualifier diff reviewed. Broken-state predicate, lease drop before early-data handshake, caller/template AE and configured-hint names compared to selected aggregate implementation ranges; no builds.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "209fe4d56f8744f9aebf8477b3d0130ca1f6f51d",
+        "sha256": "4cbeb5c11dba1d0874db6f6108e19dad587ffe5e436208768603ac733863f694",
+        "reviewed_ranges": [
+          1,
+          842
+        ],
+        "evidence": "Full page text manually read in bounded chunks; selected source checks only. No full independent transport, crypto, upstream/capture or runtime proof."
+      },
+      {
+        "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+        "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+        "sha256": "0d955937bdc09ff3d2f3d4fc43187081ce507d25074c9e5f4c1ecfa0dbf7ecbe",
+        "reviewed_ranges": [
+          1,
+          842
+        ],
+        "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof."
+      }
+    ]
+  },
+  {
+    "path": "docs/explanation/validation.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "d2a40fe290808f426417d301a1ad16b9bb78a6c09241bf44d747bc941ecc8de7",
+    "lines": 6910,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        28
+      ],
+      [
+        95,
+        125
+      ],
+      [
+        5443,
+        5517
+      ],
+      [
+        5541,
+        5650
+      ]
+    ],
+    "evidence": "Evidence ladder/provenance rules and selected TCP resumption clock/order sections read. Truncated table/combined middle output excluded from claimed ranges; remainder pending. No browser source refresh or new capture.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/fingerprinting.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "a7954be217b99e9c0aa7c8e2624e621fd6646e9f177479704d74eb79a8618839",
+    "lines": 185,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        185
+      ]
+    ],
+    "evidence": "Full conceptual page read; supported layers and Chrome/Firefox order values compared with previous full recipes audit. This is not an independent live browser differential.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/getting-started.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "c6375a0cb71117c14fc4d662c102cb33a919e899354fcee30f598919811087ba",
+    "lines": 191,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      191
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+        "sha256": "32d8e18856d084eca6f10cecd5ad27e909a0cc3c061e050f689a95d9ba689076",
+        "reviewed_ranges": [
+          [
+            1,
+            190
+          ]
+        ],
+        "evidence": "Full tutorial read; profile automatic hints and optional JSON feature gaps recorded. Examples not compiled by reviewer."
+      }
+    ]
+  },
+  {
+    "path": "docs/guides/client.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "d1699beb3f836c9b22ed1e766906fd7040131e335c24fb141afb3c8631a09368",
+    "lines": 199,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        199
+      ]
+    ],
+    "evidence": "Full API guide read in bounded chunks; query/auth/body/cert/protocol surfaces compared selectively with owned source audit and request.rs.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/coming-from-reqwest.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "09a1ca7a869a3f6627fec18e554a6f2cc15fe7cbaebfbbb92984e483e2a68e12",
+    "lines": 199,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      199
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+        "sha256": "95cc7e8b30ae55c15a237b2909f73ec81c7b87225a3c92ce81cba8e9b88c31ea",
+        "reviewed_ranges": [
+          1,
+          193
+        ],
+        "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied."
+      }
+    ]
+  },
+  {
+    "path": "docs/guides/connections-and-state.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "acef370811a165098bebad35d3e14b77553b2b1169f25d402f342425b9f2f808",
+    "lines": 152,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        152
+      ]
+    ],
+    "evidence": "Full guide read; source-binding/runtime/pool contracts compared with earlier implementation owner reports, not live platform checks.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/content-decoding.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "b754be372b85df88395fe4da94cfae5980e558fe3dc0303072e7ab3b4fdb33c6",
+    "lines": 78,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        78
+      ]
+    ],
+    "evidence": "Full guide read; advertised/final-response policy caller selected source checked, engine streaming limits not fully reaudited in this pass.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/cookies.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "c77a0f265b267e44ff3a8d5cba115094b81d97e90e9e8bb59f4ffbd6acb66b3a",
+    "lines": 123,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      123
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/downstream.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "fed2db62b0e18c502f38ad9f405b5e155bc536ac670e2201da03b64c325540c8",
+    "lines": 80,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        80
+      ]
+    ],
+    "evidence": "Full git/path/public package dependency instructions read; transitive A13 fork pins reviewed separately. No new downstream Cargo execution.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/http3-discovery.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "b2228c3fb8c6c686b7f2a6dae4058b396aa3dc85d920c1ce1ca292af92331840",
+    "lines": 127,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      127
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/http3.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "91985441da04ead4851c80552878898c94039e8a9c80db2575e31b984b88427c",
+    "lines": 156,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        156
+      ]
+    ],
+    "evidence": "Full guide read across bounded chunks; previously flagged four-second fallback wording already corrected. Actual provider/error interfaces independently reviewed in A13.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/name-resolution.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "2de77050e325de003aa1bac9a5bd6e58190d66aa30a31fb6d4a51a55631f4d65",
+    "lines": 147,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      147
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/performance.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "4eefc878394889f59225ccf62179a61f3016e3ab8c02b31b4bd0c61e20523da4",
+    "lines": 177,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      177
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/profiles.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "4af3b67d8b34374b99f13f00ba1787dad242639a14a31f292e8bff4f03bcc017",
+    "lines": 105,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        105
+      ]
+    ],
+    "evidence": "Composed-profile and Android omission/source-platform claims compared with profile source audit.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/redirects.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "cdcfdeed2c3a003b4f3dfe18ff00f1fab5f771ba995e703dff4627ce76614e99",
+    "lines": 81,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        81
+      ]
+    ],
+    "evidence": "Compared cross-origin credential names and redirect method transitions to redirect.rs 180-247. Cookie2 missing from guide list is completeness omission, not behavioral contradiction.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/request-bodies.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "a39cc1e64f215e3a14a51a5f8cce750fb601c505eead38f99dcd45ab413129b3",
+    "lines": 134,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        134
+      ]
+    ],
+    "evidence": "Full prepared-body guide read; header placement compared directly with send_inner; encoding claims need owning prepared-body source reviewer evidence.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/request-customization.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "9e35372d245a9f53f426ee6a97881e98eac6ff79e638c6dc2d92b574873dce05",
+    "lines": 96,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      96
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+        "sha256": "25d8ffcd99ef2c0207ba8d345774703e93d58828e57066e609f9ddf0b5df57bb",
+        "reviewed_ranges": [
+          [
+            1,
+            90
+          ]
+        ],
+        "evidence": "Compared BaseUrl resolve, HeaderHookContext mutation/ordering/redaction and send_inner hook invocation, redirect credential classification and SSE owned requests. A22 correction delegated and committed separately."
+      }
+    ]
+  },
+  {
+    "path": "docs/guides/request-templates.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "2d5288370429bbb5961f1f4516913e1cb047084c3cce0c9597c9c0815a775232",
+    "lines": 190,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      190
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+        "sha256": "463f989ead76cd2d4efa171614442066c7f634c8d51a804cff6f77dc01bbb09c",
+        "reviewed_ranges": [
+          [
+            1,
+            187
+          ]
+        ],
+        "evidence": "Full guide read; caller slots/trustworthy origin and credential wording checked directly and fixed in bounded A22 docs lane."
+      }
+    ]
+  },
+  {
+    "path": "docs/guides/responses.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "fc014314bb1ec5f135415aceec2858773bac3f1f216bbdad5f882b7ddf20f3aa",
+    "lines": 162,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        162
+      ]
+    ],
+    "evidence": "Full page read; error safe-origin/redaction contract cross-check selected; response helpers and Link parser implementation not yet fully reread.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/retries.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "0cb1c003b9b400f49bb92ff2a573815bdb34a7a3b4fe1b428e63754350a7f3a3",
+    "lines": 165,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        165
+      ]
+    ],
+    "evidence": "Full guide read; protocol/route/no-early-data fallback and typed lifecycle boundary selected checks; comprehensive retry implementation not yet reread.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/routes-and-proxies.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "4408d425cd6f9d210f745bb448ab8336e445fcdd1fd99482ecef7fd280bc5783",
+    "lines": 183,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      183
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/socks-and-connect-udp.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "07fa5cc958b45dba5630df1ce6ac3e94f078177778e3a563ee5950cbd6ff4644",
+    "lines": 115,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      115
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/sse.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "0b34538d27537d958691e6bc889a43963eac4790333789350a096c52b89a8088",
+    "lines": 169,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        169
+      ]
+    ],
+    "evidence": "Compared underlying request assembly, managed ID initial/committed/reset exclusion, initial retry budget and enabled fallback. Stream trait/cancellation source reviewed in previous SSE review; no new execution.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/troubleshooting.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "7f8d93eefa74e3c48aa077f2d3ac870213ea29ac3d9a8d366434b6e3464ebd79",
+    "lines": 200,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        200
+      ]
+    ],
+    "evidence": "Full page read against error categories, request/header validation and feature contracts; BoringSSL build claims not freshly rebuilt.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/websocket-fields.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "f76bd126a415eb87519a176fcc3cc921577213a9176367adb703d2d34cf6cd72",
+    "lines": 135,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        135
+      ]
+    ],
+    "evidence": "Compared ordering/extended CONNECT/compression contracts against previously reviewed profile and websocket source; no new browser measurements.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/guides/websocket.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "eb04c367b988d10f65bc7efc471ac57e250c832a5f36e0064c82c4dac4495f4e",
+    "lines": 181,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        181
+      ]
+    ],
+    "evidence": "Compared profile-policy/explicit connection contracts and terminal close handling reviewed in previous exact lanes; examples not compiled by this reviewer.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/architecture-audit.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "04b08cb0a7ac3845e227b2c29dacfd5d1fd7f6402d1cc08b96a9dd8074c8d41a",
+    "lines": 75,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/architecture-audit/coverage.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "2185bf123b53604dc790963d01a864a962503810dcca296556620735fb68bd5b",
+    "lines": 78,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/architecture-audit/findings.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "65b98a520de0e6b32a2d6d502061cb3acf566420a96a5e6f5a059a31c98bd3db",
+    "lines": 186,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "f631ab7dedeabe57d5ad20dbde6a464d0883e2b38d0ae985c7e4bf1b8d352ad5",
+    "lines": 1468,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Inventory discovered; not a current source review and not yet fully parsed.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/architecture-audit/profile-quic-coverage.json",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "2d45c17f2a0ada54f37d1746ac98ce97dec3b5b5c86ab088a6fe679431bb076e",
+    "lines": 532,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/browser-recipes.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "209fe4d56f8744f9aebf8477b3d0130ca1f6f51d",
+    "sha256": "4602ff25cf3e09b8ab28ac3a8ee237f1dee75c10e1275f6462ab31d679ce9038",
+    "lines": 233,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      233
+    ],
+    "evidence": "Full page text manually read in bounded chunks; selected source checks only. No full independent transport, crypto, upstream/capture or runtime proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/documentation.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "5b163b932317766497e0ea05b86e3906610bc46fc26afe4076f07136f60bd96f",
+    "lines": 204,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        204
+      ]
+    ],
+    "evidence": "Writing rules read in full; no runtime contract.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/internals/http3.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "b5cbf07e158c52f62b7bd4dc7cded4b8e50a2b02",
+    "sha256": "3e5762f81866c690e5df17e3b94fcbb0eb9fb27d572028a22863e9e3d504b994",
+    "lines": 900,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      900
+    ],
+    "evidence": "Full prior page text read and exact final qualifier diff reviewed. Broken-state predicate, lease drop before early-data handshake, caller/template AE and configured-hint names compared to selected aggregate implementation ranges; no builds.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "209fe4d56f8744f9aebf8477b3d0130ca1f6f51d",
+        "sha256": "9ee9aba4a09605665835342e6ef3a257a8eaabef7c251a10fb6bb2de0c58789f",
+        "reviewed_ranges": [
+          1,
+          892
+        ],
+        "evidence": "Full page text manually read in bounded chunks; selected source checks only. No full independent transport, crypto, upstream/capture or runtime proof."
+      },
+      {
+        "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+        "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+        "sha256": "3c894688cc4f625ecd8f0de811d8006f18aa89be58417f0e67dbca00c3adbca3",
+        "reviewed_ranges": [
+          1,
+          899
+        ],
+        "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof."
+      }
+    ]
+  },
+  {
+    "path": "docs/internals/vendoring.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "209fe4d56f8744f9aebf8477b3d0130ca1f6f51d",
+    "sha256": "b4e8dc91a17b65d240931800260cf662be3189d7e4617b69db31190c1c183740",
+    "lines": 90,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      90
+    ],
+    "evidence": "Full page text manually read in bounded chunks; selected source checks only. No full independent transport, crypto, upstream/capture or runtime proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/cookies.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "31b4d16129da523945ac49c61eca1e9095b90e7c2b8e5ecde6f80ae2ec6249de",
+    "lines": 132,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      132
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/coverage.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "b5cbf07e158c52f62b7bd4dc7cded4b8e50a2b02",
+    "sha256": "9a41901502e084f8211ae13be8dcdd73e282ff38d75377293f58aa2af7799be5",
+    "lines": 1167,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      1167
+    ],
+    "evidence": "Full prior page text read and exact final qualifier diff reviewed. Broken-state predicate, lease drop before early-data handshake, caller/template AE and configured-hint names compared to selected aggregate implementation ranges; no builds.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "209fe4d56f8744f9aebf8477b3d0130ca1f6f51d",
+        "sha256": "836cf80265517338f95ae63bc8a269475db9b37d1915d516ef43fc59a1e99346",
+        "reviewed_ranges": [
+          1,
+          1163
+        ],
+        "evidence": "Full page text manually read in bounded chunks; selected source checks only. No full independent transport, crypto, upstream/capture or runtime proof."
+      },
+      {
+        "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+        "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+        "sha256": "aa369357740b54db1d79ad66e4bc0228bbe5b6d1d2551b172647544d68daf34f",
+        "reviewed_ranges": [
+          1,
+          1167
+        ],
+        "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof."
+      }
+    ]
+  },
+  {
+    "path": "docs/reference/environment-proxies.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "e0980f909d2cd6266be02c12ef8fe7e3311c5599f661f9a9277ac3d36c0d708b",
+    "lines": 119,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      119
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/glossary.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "490466d7b7693ab9776fdac5f667af2e20cebd2631f9c5bc7c420516e9ebf1d0",
+    "lines": 321,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      321
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/limits.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "b18b34ee18372ee7cdce04e6f5d3d1d63e2d5e6d0efd0ea25436efe94e1c5e05",
+    "lines": 319,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        319
+      ]
+    ],
+    "evidence": "Full bounds/reference read. Selective direct checks for SSE, WebSocket, QUIC ticket cache and fallback; transport/per-client store comprehensive checks remain respective owner responsibility.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/profiles.md",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "695763ee32805629f5485c57280114a72d8864bd6ddc84e8ac338828c0bbfb2a",
+    "lines": 872,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      872
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+        "sha256": "d4fe8aed3e9a722808d8d30566389919385034e1efa4b89207206c5c68159ed4",
+        "reviewed_ranges": [
+          [
+            1,
+            872
+          ]
+        ],
+        "evidence": "Full reference read; full profile source/recipes previously audited at df2 plus explicit Android fallible models, ticket behavior and GREASE fixes reviewed. Template/managed ID caller cross-check selected."
+      }
+    ]
+  },
+  {
+    "path": "docs/reference/route-matrix.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "d3ef7fd3b19b68f864e808e9b894b7270568778d",
+    "sha256": "6d5c4280ef291d61bbd7f9f0b621f7bd75151d6f41f44fbd824bcfe1384e1b54",
+    "lines": 171,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      171
+    ],
+    "evidence": "Full page text manually read. Selected contracts compared with owned cookie/snapshot, environment route selection, bounded request/response helper and Alt-Svc policy source. No exhaustive transport proof, independent upstream/capture hash check or example execution implied.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/tracing.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "cd14ee1cdff5c40570d58c3c5933b23d75a3ad58bbe57ec1e664cf2a012f5eef",
+    "lines": 181,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        181
+      ]
+    ],
+    "evidence": "Full facade tracing contract read; error source privacy checked directly, SSE and websocket inherent/trait trace ownership checked in earlier exact source review. Request event list not independently exhaustively reread.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/reference/websocket.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "05eedda2a6765ec496a853984b41efc8587bfb6bad63864744cb976539ad4f93",
+    "lines": 224,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        224
+      ]
+    ],
+    "evidence": "Full routes/templates/response-policy/compression reference read; production counterparts reviewed in prior independent SSE/WS passes, broader route code independently owned by transport reviewer.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/roadmap.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "ee80c12b43757bdc7de4e04cf107a99c0481bb42b202d51db4f6e69560782e46",
+    "lines": 793,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        793
+      ]
+    ],
+    "evidence": "Full roadmap read; distinguish shipped Phase 1/2 from historical 438f8de6 counts and deferred work. Architecture audit now admits public API changes.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "docs/why-phantom.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+    "sha256": "27f181daedde1d1e0420debae04b5f9378b9ae2b3ad067e8e60b11582642f060",
+    "lines": 66,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        66
+      ]
+    ],
+    "evidence": "Full page read; current Phantom semantics compared selectively. Peer table is explicitly dated 2026-09-24; no fresh external verification.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation."
+  },
+  {
+    "path": "fuzz/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "2901245014e311d55e13da2244794654b573f09db2bc120905a3d578cde9b54e",
+    "lines": 188,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        188
+      ]
+    ],
+    "evidence": "Full page read; corrected head/count limits compared with short-header constructor, bounds and harness control prefix. Other target parser coverage read by independent testkit/fuzz owner.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "fuzz/src/http1_response.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "dfd06e7e70b786338d5e36be7b6debef2a6183795dd4a7a0cf0dce491760b3c6",
+    "lines": 214,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        160
+      ]
+    ],
+    "evidence": "Harness control prefix and in-memory response delivery; remainder not part of this new pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "fuzz/src/http1_response/tests.rs",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "507d038c845aed44e923e41d79ca59553f2cad5d6b6212f36778dc02baefe539",
+    "lines": 110,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        110
+      ]
+    ],
+    "evidence": "Full deterministic head/count limit tests.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "llms.txt",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "bf5b1d0ee3237039e5cac1b41b045c123ed34d49",
+    "sha256": "4d463a7cab00c79cb3bf413ea51064a6fa918f257cbfbcd68273874d5cc0d4a3",
+    "lines": 95,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      95
+    ],
+    "evidence": "Full prior page/file text reads plus exact delegated correction diffs manually reviewed; latest signed narrow docs head. Source contracts checked selectively as report details. No builds or independent whole-implementation proof.",
+    "verification": "Manual page/source reading; no Cargo builds, external browser/peer verification or inventory regeneration. Complete denotes page text read, not independent proof of every linked implementation.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+        "observed_head": "70b96d296d7e24b2217d5f9cf3b7c5ac342f601a",
+        "sha256": "91dc5d4f0aa57381caffb1375689478c304701adb654c4d79297e026ecbaf4e9",
+        "reviewed_ranges": [
+          [
+            1,
+            94
+          ]
+        ],
+        "evidence": "Full dependency guidance read; feature table misses json; API naming/profile contracts compared selectively. No external peer verification."
+      }
+    ]
+  },
+  {
+    "path": "scripts/capture/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "ea1df32d6e4b03d15cb2849e4d842363c1634e13750eba0c3b5ac7630889680f",
+    "lines": 1844,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "scripts/capture/android/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "19943ae1264efd7a23d16fc980d8eee66b67685e4e6887823a3eb636e6042c99",
+    "lines": 213,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "scripts/dev/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "a9dfe10237649543866c419fb37d49095904ec390c4646ab67efd69828777700",
+    "lines": 348,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "scripts/docs/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "209fe4d56f8744f9aebf8477b3d0130ca1f6f51d",
+    "sha256": "d9bedf526adfc3e476daf056f54392a9825df834813d1e19fff8b2d9697d61b5",
+    "lines": 51,
+    "status": "complete",
+    "reviewed_ranges": [
+      1,
+      51
+    ],
+    "evidence": "Full page text manually read in bounded chunks; selected source checks only. No full independent transport, crypto, upstream/capture or runtime proof.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/downstream/public-api/fixtures/http1/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "4c3a69f331a5e8f9a4d1673473cd2e1ca623eae64b7dbdae4f5d0b68c393f4ad",
+    "lines": 35,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/README.md",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "e53f5c9f641bfdad6e98f4665fb693e96703dc8c23e8499f427ae5830da6417c",
+    "lines": 57,
+    "status": "complete",
+    "reviewed_ranges": [
+      [
+        1,
+        57
+      ]
+    ],
+    "evidence": "Full metadata/dependency table read; preserve historical checkpoint snapshots. Current signature spot checks identify required new checkpoint inventory; no regeneration or build.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-http-all.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "9d79d429fb388e1dd9dfa6faacda6db0dfaeb632f7ef6af1c19751f4a0ae85dd",
+    "lines": 1043,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-net-all.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "53b47e3e7f1054c3e8617561721c20c6b1726cb2e7f16b4f077be82248a6f71e",
+    "lines": 1364,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-profile-all.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "c7c41ad476f1da88017016a1df30d0605dacf7380daa88bdd580d9b27d1c65b6",
+    "lines": 1578,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-quic-btls-all.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "f7fa6373de3936c47df9c775c9461149870e237326ab14cdbf664ad2937e4f35",
+    "lines": 191,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-quic-btls-default.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "f13944c7afc480f6443a1fba38127d77d08bdd3d104b465e0092f191b23e544e",
+    "lines": 150,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-quic-btls-keylog.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "b51ad57bc545f3552f5e07ba0a0a8c22969cdac2fd825772a25ac3334d7be1ff",
+    "lines": 173,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-quic-btls-server.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "ad08017ccf21e6e9e7aaac6714464577e07a9a6845ad84267fbd54fd7649cf32",
+    "lines": 168,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "tests/public-api/phantom-testkit-all.txt",
+    "source_checkout": "C:\\code\\phantom-worktrees\\architecture-audit",
+    "observed_head": "1e44399e55d750ffa3fecad95378429411b5d3fb",
+    "sha256": "2efe35f3e2d1299d4981e5e5da4598039f010a1683258be13a8a6d6c5eda1138",
+    "lines": 410,
+    "status": "unreviewed",
+    "reviewed_ranges": [],
+    "evidence": "Not manually read in this documentation pass.",
+    "verification": "Read-only source comparison; no Cargo/build/browser execution. Complete means page text read, not exhaustive independent proof of every linked implementation."
+  },
+  {
+    "path": "crates/phantom/src/session/cookies.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "b8458cd2eb323040d68549e82aa37daa3c3db92871f8dbb8ca62dd80111ea175",
+    "lines": 776,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        155
+      ],
+      [
+        161,
+        188
+      ],
+      [
+        320,
+        392
+      ]
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/session/alt_svc/policy.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "bd0f821c0b848bee56ba6ba89503f6b1feb6dae9502f345f74477d7173ac4d58",
+    "lines": 368,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        12
+      ],
+      [
+        80,
+        90
+      ],
+      [
+        96,
+        218
+      ],
+      [
+        330,
+        369
+      ]
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/route.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "33f46c70dac50bf73b2c9a6214807e79ab09c2a202e1a0fbe6ab98e83b525e42",
+    "lines": 982,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        65
+      ],
+      [
+        539,
+        577
+      ]
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/response.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "f56dd56ccbb28f0f5e1a85e52fead8a005a85dae134597d7b67ed756ad1814f6",
+    "lines": 383,
+    "status": "partial",
+    "reviewed_ranges": [
+      78,
+      178
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/session/cookies/snapshot.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "d449a65a0d3cc38bd74c95e94aee3afd3f0351d0debdea87d91edab18422a447",
+    "lines": 701,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        145
+      ],
+      [
+        501,
+        541
+      ],
+      [
+        561,
+        700
+      ]
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/request/field_lists.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "1fbf15d27178f54dd9803fac3a8a8a31b6f30a381d37336ebeae83f58d7165a1",
+    "lines": 230,
+    "status": "partial",
+    "reviewed_ranges": [
+      1,
+      146
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+    "source_checkout": "C:/code/phantom-worktrees/architecture-audit",
+    "observed_head": "8ca9c5d6d6ac6609fd14c71fa17c3493b599ada1",
+    "sha256": "ecb35de779c4d463e25483cbd23c79a961caba3a9aadcc650f6ea45945976474",
+    "lines": 1162,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        761,
+        818
+      ]
+    ],
+    "evidence": "Full bounded continue_alternative context at this candidate reviewed; drops Http3Lease before early-data handshake await and only invalidating setup errors mark alternative broken. Earlier full-file text observation preserved separately.",
+    "verification": "Source review only; committed blob hash recorded. No Cargo compilation or test execution. Earlier broader range observations retain their own revision.",
+    "previous_observations": [
+      {
+        "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+        "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+        "sha256": "dbeb667e9c1d96007efb3bce012ff60e1a619eb198698a0f48c638e1cb9a360a",
+        "reviewed_ranges": [
+          1,
+          1162
+        ],
+        "evidence": "Complete file text read: plan, race_setup, settle_losers, early winner, orphan continuation, dispatch/replay. Source review supports candidate-count/cancellation/broken-state prose; dependent pools, error/source and all tests not exhaustively re-reviewed."
+      }
+    ]
+  },
+  {
+    "path": "crates/phantom/src/request_body.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "7a1e3a929bed8fd3d798648174b5d27581eff1ccd32790c0d1675cbd4cf1d958",
+    "lines": 576,
+    "status": "partial",
+    "reviewed_ranges": [
+      1,
+      118
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/authority.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "2225889e7d0b7fcd31e0dcc847930d7251f0cea684686b46572862df49d745f6",
+    "lines": 330,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1,
+        145
+      ],
+      [
+        231,
+        263
+      ]
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/environment_proxy.rs",
+    "source_checkout": "C:/code/phantom-worktrees/audit-hook-docs",
+    "observed_head": "c16f1a60a42741044d3b04e7e360de3ab2621437",
+    "sha256": "cfcffe94b328b807ed1e94724926b3e2d3dfbf8e2655f2466e834476bba23ccf",
+    "lines": 550,
+    "status": "partial",
+    "reviewed_ranges": [
+      1,
+      135
+    ],
+    "evidence": "Selected exact implementation ranges read for documentation contracts; remaining file sections not audited in this pass.",
+    "verification": "Manual source comparison; no execution, crypto proof or exhaustive upstream audit."
+  },
+  {
+    "path": "crates/phantom/src/request/template.rs",
+    "source_checkout": "C:/code/phantom-worktrees/architecture-audit",
+    "observed_head": "8ca9c5d6d6ac6609fd14c71fa17c3493b599ada1",
+    "sha256": "c43ce9a2c5db94cafeae49a44416f334604d004f0684db5beedb3dd3a180e470",
+    "lines": 685,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        206,
+        295
+      ],
+      [
+        316,
+        367
+      ],
+      [
+        465,
+        531
+      ],
+      [
+        558,
+        636
+      ]
+    ],
+    "evidence": "Exact A25 integration diff plus these full surrounding ranges; managed-default tuple unchanged, forwarding-index AE agreement, cache constructor diff and test-only wrapper reviewed. Private cache Debug leak remains separate confirmed preexisting finding.",
+    "verification": "Source review only; committed blob hash recorded. No Cargo compilation or test execution. Earlier broader range observations retain their own revision."
+  },
+  {
+    "path": "crates/phantom/src/request/template/tests.rs",
+    "source_checkout": "C:/code/phantom-worktrees/architecture-audit",
+    "observed_head": "8ca9c5d6d6ac6609fd14c71fa17c3493b599ada1",
+    "sha256": "1994bcd108051a6b541cc11d6e952896f85d910a75e2ba35f5d0baba92a5d708",
+    "lines": 785,
+    "status": "partial",
+    "reviewed_ranges": [],
+    "evidence": "Exact A25 committed diff only; new forwarding/trust and active-agreement tests, Result/? repair and all changed existing argument calls read. Complete test file was not read in this pass; later dirty root formatting was not reviewed.",
+    "verification": "Source review only; committed blob hash recorded. No Cargo compilation or test execution. Earlier broader range observations retain their own revision."
+  },
+  {
+    "path": "crates/phantom/tests/requests/content_coding.rs",
+    "source_checkout": "C:/code/phantom-worktrees/architecture-audit",
+    "observed_head": "8ca9c5d6d6ac6609fd14c71fa17c3493b599ada1",
+    "sha256": "fc2de0bd956aa97ddcf7fb66682735e7a7f8ffa89ceda31dda5bb07ff2f89d58",
+    "lines": 893,
+    "status": "partial",
+    "reviewed_ranges": [],
+    "evidence": "Exact A25 committed diff source-reviewed together with original f4 lane tests and bounded helper context recorded in report. Full test file not read; no execution.",
+    "verification": "Source review only; committed blob hash recorded. No Cargo compilation or test execution. Earlier broader range observations retain their own revision."
+  },
+  {
+    "path": "crates/phantom/src/session/http3_pool.rs",
+    "source_checkout": "C:/code/phantom-worktrees/architecture-audit",
+    "observed_head": "8ca9c5d6d6ac6609fd14c71fa17c3493b599ada1",
+    "sha256": "c04a84017369af6665152cdb7e5a69d5142d180681d30d99b887425592531cab",
+    "lines": 1697,
+    "status": "partial",
+    "reviewed_ranges": [
+      [
+        1015,
+        1040
+      ]
+    ],
+    "evidence": "Bounded Http3Lease constructor/definition/connection accessor; lease owns AdmissionPermit and ordinary drop releases ownership. No complete pool implementation read in this docs pass.",
+    "verification": "Source review only; committed blob hash recorded. No Cargo compilation or test execution. Earlier broader range observations retain their own revision."
+  }
+]

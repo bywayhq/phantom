@@ -1,0 +1,1193 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": [
+    "crates/phantom-testkit tracked files",
+    "fuzz tracked files"
+  ],
+  "tracked_files": [
+    {
+      "path": "crates/phantom-testkit/.gitattributes",
+      "lines": 1,
+      "bytes": 19,
+      "sha256": "b16e7781063ee9e2ff3e6a654589f792da61155550ad3c181f1b0eecece144b0",
+      "reviewed_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/Cargo.toml",
+      "lines": 20,
+      "bytes": 615,
+      "sha256": "0a6534f3948692d64f955213a710e6d0e4ae153736451e27618e33dc16758567",
+      "reviewed_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/README.md",
+      "lines": 151,
+      "bytes": 6019,
+      "sha256": "a7c81f63ef15f8c9795e88de7a991941715c0591dfdb5d2a2aba2cee78fb237d",
+      "reviewed_ranges": [
+        [
+          1,
+          151
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/examples/capture_client_hello.rs",
+      "lines": 232,
+      "bytes": 7496,
+      "sha256": "2cf2cc6802dab5f61116c12dc2a5de3dfaf8bd11bec0a9c9fb4bac718e54b65a",
+      "reviewed_ranges": [
+        [
+          1,
+          232
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/README.md",
+      "lines": 23,
+      "bytes": 1530,
+      "sha256": "38a9a2bcd77f00fb8cb19e54c259e6c62138b71801d47372af6deeffe0a7f70e",
+      "reviewed_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/http1/README.md",
+      "lines": 35,
+      "bytes": 1862,
+      "sha256": "667a8ee1a51d86555d5295f858911582014727b7b0c6e051f4dfa6af2eb222db",
+      "reviewed_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/http1/chrome-154-windows-h1-accept.txt",
+      "lines": 255,
+      "bytes": 24086,
+      "sha256": "0a10349caf479b72631725c12a5ef495f12411e0f832e1f0c3f3e284c40849ce",
+      "reviewed_ranges": [
+        [
+          1,
+          255
+        ]
+      ],
+      "mode": "manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/http1/firefox-157-windows-h1-accept.txt",
+      "lines": 246,
+      "bytes": 19812,
+      "sha256": "41ee523a20a8cc6cc1416877395eba53ae498216955086cb743f09e254561dbb",
+      "reviewed_ranges": [
+        [
+          1,
+          246
+        ]
+      ],
+      "mode": "manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt",
+      "lines": 13,
+      "bytes": 4516,
+      "sha256": "9085b2a9a9d2a0e2a9f2ab286981442f7774585080f9104317258cf89a51edcf",
+      "reviewed_ranges": [
+        [
+          1,
+          13
+        ]
+      ],
+      "mode": "manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-2.txt",
+      "lines": 13,
+      "bytes": 4710,
+      "sha256": "a1391bdc5e7f1641c26dc44faa59fcd77a85b85037cf65e1112755de85ef2062",
+      "reviewed_ranges": [
+        [
+          1,
+          13
+        ]
+      ],
+      "mode": "manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt",
+      "lines": 21,
+      "bytes": 5182,
+      "sha256": "ef45aa180204c4c2e7c1b65f77967971c2a17296c15763e03392336575f8ba86",
+      "reviewed_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "mode": "manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte"
+    },
+    {
+      "path": "crates/phantom-testkit/fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt",
+      "lines": 21,
+      "bytes": 4813,
+      "sha256": "12e4d0fd942f055d2152fab0fa6c492d647e8ac8bf6613620b2c1e7a6c8b76bd",
+      "reviewed_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "mode": "manual review of all metadata/record structure; machine strict-hex syntax and source-copy/documented SHA-256 verification; raw payload bytes not manually decoded byte by byte"
+    },
+    {
+      "path": "crates/phantom-testkit/src/dns.rs",
+      "lines": 305,
+      "bytes": 9781,
+      "sha256": "41a83b297e03810b54663c8db213327bf12c886d5f137533324eaa90903fed48",
+      "reviewed_ranges": [
+        [
+          1,
+          305
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/future_size.rs",
+      "lines": 132,
+      "bytes": 5116,
+      "sha256": "c78d4438cd0f0596408613df341c13f26f29a91b721652cf6bf79635bc6cb9ec",
+      "reviewed_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http1.rs",
+      "lines": 361,
+      "bytes": 12676,
+      "sha256": "2b35e3d9e7d313ced89c65c15cf1806fd6287e6a6cc5cf7ec7ae37931f6e0c62",
+      "reviewed_ranges": [
+        [
+          1,
+          361
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http1/expectation.rs",
+      "lines": 540,
+      "bytes": 18857,
+      "sha256": "523693f0d8acefdcd77ce61071a1e308878832185388c6319598db59ce7aef1e",
+      "reviewed_ranges": [
+        [
+          1,
+          540
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http1/expectation/tests.rs",
+      "lines": 395,
+      "bytes": 13868,
+      "sha256": "92221b50d3a7217837a3c8c0965241f7726c5d8d4ac24b11b69db1c2f9413d64",
+      "reviewed_ranges": [
+        [
+          1,
+          395
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http1/tests.rs",
+      "lines": 224,
+      "bytes": 7391,
+      "sha256": "8f45b28d702c1801f148bf53bc6406e6a275f86e6eaff2f166b4e7c565dd7fd7",
+      "reviewed_ranges": [
+        [
+          1,
+          224
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http2.rs",
+      "lines": 428,
+      "bytes": 14855,
+      "sha256": "6354db3e5cc59b898fd52925a9f3c3d49470949a58c91baed9fe8a749e29e496",
+      "reviewed_ranges": [
+        [
+          1,
+          428
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http2/frame.rs",
+      "lines": 455,
+      "bytes": 15039,
+      "sha256": "fadf712c426581296ac8e879b4b456eeebaca9167839a372cca29f4c93701a37",
+      "reviewed_ranges": [
+        [
+          1,
+          455
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http2/tests.rs",
+      "lines": 103,
+      "bytes": 2702,
+      "sha256": "31d20b3616770f82a9370219b2133b52cbd13fa7d61c5db343a9161718ad66fb",
+      "reviewed_ranges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http2/tests/capture.rs",
+      "lines": 263,
+      "bytes": 8374,
+      "sha256": "9da46196677154c917255538306d28e9b5d2528726c023b218ae58cfbbfc58dc",
+      "reviewed_ranges": [
+        [
+          1,
+          263
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/http2/tests/frame_decoding.rs",
+      "lines": 343,
+      "bytes": 11355,
+      "sha256": "d36b9cee25e26954948578b5c4583ed35b3b3f7b0b1004f2e1eada04a5959fd2",
+      "reviewed_ranges": [
+        [
+          1,
+          343
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/lib.rs",
+      "lines": 27,
+      "bytes": 819,
+      "sha256": "33d5addb7fbab33bbc6848f460a6d6000abf107b36849c1ea1c600d4a265a7b8",
+      "reviewed_ranges": [
+        [
+          1,
+          27
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "lines": 140,
+      "bytes": 5002,
+      "sha256": "dfd5f39adc729bd94bfa99d40799a5308a4402edb920082802fbe5ad3a40231f",
+      "reviewed_ranges": [
+        [
+          1,
+          140
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls.rs",
+      "lines": 394,
+      "bytes": 14082,
+      "sha256": "c6e4202ba7feaf8c014fce00fa65bc5e2736cc05d10cca7f7a54c13343d8cce0",
+      "reviewed_ranges": [
+        [
+          1,
+          394
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/client_hello.rs",
+      "lines": 690,
+      "bytes": 24267,
+      "sha256": "56411b751413c7181c8d45878871d6cbf1391621eb07f8d76daccb52292c07e9",
+      "reviewed_ranges": [
+        [
+          1,
+          690
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/client_hello/tests.rs",
+      "lines": 395,
+      "bytes": 13037,
+      "sha256": "5e14b2051c89b6bcfa5e12823362d63365705434a26ac79b43f273425957054d",
+      "reviewed_ranges": [
+        [
+          1,
+          395
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/ech.rs",
+      "lines": 186,
+      "bytes": 7084,
+      "sha256": "eed094e3082c14bfc151c1277a438256d9e685a5e9c08b40949d05a66dbd6971",
+      "reviewed_ranges": [
+        [
+          1,
+          186
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/tests.rs",
+      "lines": 373,
+      "bytes": 11604,
+      "sha256": "a640ff7f3b9efd3a6515f27bf7b43b5c0e3885401fc5c20fa07cbca36ee9f37a",
+      "reviewed_ranges": [
+        [
+          1,
+          373
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/src/udp.rs",
+      "lines": 125,
+      "bytes": 4093,
+      "sha256": "a9aa4d9c9baf4257c61ea91ea6b890d35e70145e6e3d09db3679562fdc04fea4",
+      "reviewed_ranges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/tests/browser_client_hello_fixtures.rs",
+      "lines": 96,
+      "bytes": 3039,
+      "sha256": "628864feebfeb8522469b1fbb14ccc4d83764178b5c13dbc24a612e854292f47",
+      "reviewed_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome.rs",
+      "lines": 141,
+      "bytes": 4198,
+      "sha256": "0bab5768c3c673157457251a9f6d65e7d00cf260de72b63689e7ffc181899334",
+      "reviewed_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/tests/browser_client_hello_fixtures/chrome_quic.rs",
+      "lines": 266,
+      "bytes": 9678,
+      "sha256": "f34c2e558276d7a39117c52304247303af24a4e730ac980b2b32adb294f912d7",
+      "reviewed_ranges": [
+        [
+          1,
+          266
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/tests/browser_client_hello_fixtures/firefox.rs",
+      "lines": 94,
+      "bytes": 3217,
+      "sha256": "9430e1f2cab392db12224e511696d6a23df9cdda19e60bf3e291dc0139299cb4",
+      "reviewed_ranges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "crates/phantom-testkit/tests/browser_client_hello_fixtures/fixture.rs",
+      "lines": 294,
+      "bytes": 9480,
+      "sha256": "06de9c9f06f43dc26809d4e222c579e2677db791dfc4577b33f8ca68a1cbdcd3",
+      "reviewed_ranges": [
+        [
+          1,
+          294
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/.gitignore",
+      "lines": 4,
+      "bytes": 45,
+      "sha256": "08f811146efca93c32118f29cb16f57be06c4d68878f87b1938610a62d64efca",
+      "reviewed_ranges": [
+        [
+          1,
+          4
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/Cargo.lock",
+      "lines": 2276,
+      "bytes": 58362,
+      "sha256": "3b6295c93274f850e67828efbb1ea1bbb1f9b8bf1c5b94644b8f2fed3e58f91c",
+      "reviewed_ranges": [
+        [
+          1,
+          2276
+        ]
+      ],
+      "mode": "machine-parsed TOML dependency graph and checked relevant root/native/parser pins; not line-by-line manual review"
+    },
+    {
+      "path": "fuzz/Cargo.toml",
+      "lines": 96,
+      "bytes": 2063,
+      "sha256": "dedf376edecea696888045da221a959a2067a50b841a6ea73b6a0d4220a07589",
+      "reviewed_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/README.md",
+      "lines": 189,
+      "bytes": 10652,
+      "sha256": "c3e770e8dfae9ddb4095a281efec7a6de35e0ea7448a331be21c0029f9ff3c32",
+      "reviewed_ranges": [
+        [
+          1,
+          189
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/alt_svc_snapshot.rs",
+      "lines": 12,
+      "bytes": 419,
+      "sha256": "511c437e0f7fb924383546fe60aa447e9b81d0c99492ac18c74a8b0e52cc9765",
+      "reviewed_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/client_hello.rs",
+      "lines": 83,
+      "bytes": 3071,
+      "sha256": "d37ca88ae9d09ac422aa660256e93df8fc4b661e72a2a0baf0fe251147e21d9e",
+      "reviewed_ranges": [
+        [
+          1,
+          83
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/cookie_jar.rs",
+      "lines": 12,
+      "bytes": 427,
+      "sha256": "f65b9e03d1063cd502710725c67533297ad88088f7d2b918dcce3cc3991ebf24",
+      "reviewed_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/cookie_snapshot.rs",
+      "lines": 12,
+      "bytes": 414,
+      "sha256": "d14e61164a32745174ff3a7155174047c648dc41a07d072bd078f866df5fbd61",
+      "reviewed_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/ech_config_list.rs",
+      "lines": 12,
+      "bytes": 388,
+      "sha256": "4c84d92d2c5f88bfde35448b09004bcc23923bd056eacb2efc14e78fcacf7e79",
+      "reviewed_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/http1_response.rs",
+      "lines": 12,
+      "bytes": 380,
+      "sha256": "011e5513ec2a9cfdb4b13ee6e1ab1fe059751df76d6a4c023729445ca6fff316",
+      "reviewed_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/http2_frame.rs",
+      "lines": 50,
+      "bytes": 1645,
+      "sha256": "2fcdbb42e66a6f38cb86e9e1f09f911ae6a36171850469a2e6ab68da95547ba4",
+      "reviewed_ranges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/http_connect_response.rs",
+      "lines": 96,
+      "bytes": 3069,
+      "sha256": "f1150c6d9e08ed5a06dfa499f8a7f3455c3d25c7a458e7e042f009d5bc9e45aa",
+      "reviewed_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/https_record.rs",
+      "lines": 12,
+      "bytes": 405,
+      "sha256": "eabc82ebd274cad4abed7aea4fb74e803f9d0950593a532473b57a0ad1a2630c",
+      "reviewed_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/proxy_basic_challenge.rs",
+      "lines": 45,
+      "bytes": 1638,
+      "sha256": "a2bc192b69792790760efc348784ec6025bc6863404de2080f6b17c22b46bb0a",
+      "reviewed_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/fuzz_targets/quic_transport_parameters.rs",
+      "lines": 52,
+      "bytes": 1702,
+      "sha256": "e6d08418f2ad647b57d492ba684e2dbaaf9bbbeeda416be72b8a07d42fee4b6e",
+      "reviewed_ranges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/alt_svc_snapshot.rs",
+      "lines": 123,
+      "bytes": 5011,
+      "sha256": "6580830e6942345ea9eaeb5c86ccbeb3d2502cdcac768a3b09c0d38860d78bb3",
+      "reviewed_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/alt_svc_snapshot/tests.rs",
+      "lines": 25,
+      "bytes": 1086,
+      "sha256": "e2f8ab0209d168628a354fe31af925e86b9993098c1e2b0643631f271943bcfd",
+      "reviewed_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/cookie_jar.rs",
+      "lines": 177,
+      "bytes": 7754,
+      "sha256": "1c49c9561ec13de8a709a34046b0a3de529a401a337f1908664de449deead672",
+      "reviewed_ranges": [
+        [
+          1,
+          177
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/cookie_jar/tests.rs",
+      "lines": 35,
+      "bytes": 1122,
+      "sha256": "b1bbb7824a7b37ca08a556a6af3b78643ed1df773173e06e28419254e6a88e67",
+      "reviewed_ranges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/cookie_snapshot.rs",
+      "lines": 190,
+      "bytes": 7659,
+      "sha256": "b7e7a87d369535968079d5f413ff7bd64a98ba6ca70003ba4e7b6e662ef357d0",
+      "reviewed_ranges": [
+        [
+          1,
+          190
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/cookie_snapshot/tests.rs",
+      "lines": 66,
+      "bytes": 2811,
+      "sha256": "276e6953da1d1fa899aecd1724723dcbea51850d722ecd130d265500b5396f8c",
+      "reviewed_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/ech_config_list.rs",
+      "lines": 66,
+      "bytes": 2650,
+      "sha256": "bed031df2789e006b6d45fc6ac516317bcd021a437fa732cbb19c198120f4eea",
+      "reviewed_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/ech_config_list/tests.rs",
+      "lines": 32,
+      "bytes": 1100,
+      "sha256": "e94b7feaa6296c891ed1f21615165860254a9d00942bbffd5c87be494d615165",
+      "reviewed_ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/http1_response.rs",
+      "lines": 214,
+      "bytes": 8206,
+      "sha256": "dfd06e7e70b786338d5e36be7b6debef2a6183795dd4a7a0cf0dce491760b3c6",
+      "reviewed_ranges": [
+        [
+          1,
+          214
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/http1_response/tests.rs",
+      "lines": 110,
+      "bytes": 4363,
+      "sha256": "e808a176584178a9fe25a9a9ada6d2993b0ab09f2439afab7da25b4c100aff8a",
+      "reviewed_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/https_record.rs",
+      "lines": 178,
+      "bytes": 7323,
+      "sha256": "6cd086a3f47d24215ced8821b2e5f9a87874298ad8334671bf626fd282abd128",
+      "reviewed_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/https_record/tests.rs",
+      "lines": 57,
+      "bytes": 2241,
+      "sha256": "b83435dc9ee64758518a916054d2320d67b194ba0ac36fbffbb725d6b58dfbd7",
+      "reviewed_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/lib.rs",
+      "lines": 15,
+      "bytes": 583,
+      "sha256": "fa2be1496cff15473f8bbeb4de83da054149948bd12d78ab816e6337b8014c46",
+      "reviewed_ranges": [
+        [
+          1,
+          15
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    },
+    {
+      "path": "fuzz/src/seed.rs",
+      "lines": 22,
+      "bytes": 1045,
+      "sha256": "aacca0310711d42a0c815b3a35f19f6a9db2f0f2aebdc1053cfa598d89ef8ff8",
+      "reviewed_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "mode": "full manual source/configuration/documentation review"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "Cargo.toml",
+      "lines": 80,
+      "sha256": "24b3b4c193b28b7e9c0bfd92cd5ef1868119f3609223d225702e951bd1c6fe3a",
+      "reviewed_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": ".github/workflows/fuzz.yml",
+      "lines": 164,
+      "sha256": "121cc91f2c62cf74727be34a6173f7382eb9db5e18ae946c34ff374c6225fb2b",
+      "reviewed_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "scripts/ci/check-unsafe-boundaries.sh",
+      "lines": 73,
+      "sha256": "1f482d4496f16cfd16c6842cac93a3cb54951c9f1d4fa2b8396a0a8e06f91634",
+      "reviewed_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "scripts/dev/gate.sh",
+      "lines": 495,
+      "sha256": "0ee126debd628bb577635d6638b9b2756df289b4a7e923d82a8bab5dab19833f",
+      "reviewed_ranges": [
+        [
+          311,
+          334
+        ],
+        [
+          387,
+          403
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/connection.rs",
+      "lines": 654,
+      "sha256": "b871229ad3357bece3cba7168ef0e2d11310bb9e1c9a5c67125137db1b1fd186",
+      "reviewed_ranges": [
+        [
+          1,
+          170
+        ],
+        [
+          591,
+          623
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/driver.rs",
+      "lines": 213,
+      "sha256": "43cdd5d76e74981ff2c74f99984f9308dd36a194ea8cea02600703733eae4b54",
+      "reviewed_ranges": [
+        [
+          1,
+          179
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/limits.rs",
+      "lines": 19,
+      "sha256": "30f0d6f7a84252a8648d8da2d558f68487e107393833d0a8b846f22f3464e9af",
+      "reviewed_ranges": [
+        [
+          1,
+          19
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http_connect.rs",
+      "lines": 764,
+      "sha256": "b338a19e6a226ceb68e2a321f4069349887f1659694be7163f8de1feac68cca7",
+      "reviewed_ranges": [
+        [
+          95,
+          329
+        ],
+        [
+          370,
+          535
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/authentication.rs",
+      "lines": 373,
+      "sha256": "0fa1334a4328a4892e06675a5f3e5ad1941c1c92cabd6f78c04ba7ea416604af",
+      "reviewed_ranges": [
+        [
+          1,
+          210
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/dns.rs",
+      "lines": 645,
+      "sha256": "faa4ea6106c8db74d2e33cbe797ac2f1d3ab8cc12d1ac03291b03f161b4f6596",
+      "reviewed_ranges": [
+        [
+          299,
+          406
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/https_record.rs",
+      "lines": 520,
+      "sha256": "263f5a38312ca5e9a56acbd2cb18ecec1ea35d124195b462bb95a0275233effc",
+      "reviewed_ranges": [
+        [
+          1,
+          150
+        ],
+        [
+          173,
+          337
+        ],
+        [
+          430,
+          514
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/ech_config.rs",
+      "lines": 376,
+      "sha256": "adc698180c029fde023cb1c00b84608816a5750f1d97db988544669e416e334c",
+      "reviewed_ranges": [
+        [
+          221,
+          340
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/dns/address_lookup/tests.rs",
+      "lines": 421,
+      "sha256": "ffc4bd9ceb86e72a25214956ad3bfb1fdcd12ab0b2d8d9bf5439ec6e5514f679",
+      "reviewed_ranges": [
+        [
+          117,
+          161
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+      "lines": 388,
+      "sha256": "d10a53fbb689709d1e68666649a41c056fe246023772549ae5f5e63ec4b4dfe8",
+      "reviewed_ranges": [
+        [
+          110,
+          160
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/snapshot.rs",
+      "lines": 332,
+      "sha256": "35451852c1e559fce1145f8e0eacdc84a76254d2812b545c22e65d15359f5f3d",
+      "reviewed_ranges": [
+        [
+          229,
+          332
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/src/session/cookies.rs",
+      "lines": 776,
+      "sha256": "b8458cd2eb323040d68549e82aa37daa3c3db92871f8dbb8ca62dd80111ea175",
+      "reviewed_ranges": [
+        [
+          88,
+          322
+        ],
+        [
+          386,
+          451
+        ],
+        [
+          483,
+          646
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/src/session/cookies/snapshot.rs",
+      "lines": 701,
+      "sha256": "d449a65a0d3cc38bd74c95e94aee3afd3f0351d0debdea87d91edab18422a447",
+      "reviewed_ranges": [
+        [
+          330,
+          439
+        ],
+        [
+          490,
+          681
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom-net/src/connection_setup_futures.rs",
+      "lines": 82,
+      "sha256": "2eb81cfc72583dfd8d51929ad1238f245aac1bcf9e381d6b70063d9674d5c017",
+      "reviewed_ranges": [
+        [
+          1,
+          82
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "lines": 2317,
+      "sha256": "caada6b80b1de05835b08904f1b371f7891c88dd20ea4ebab6e42b38248a8ec2",
+      "reviewed_ranges": [
+        [
+          2255,
+          2316
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "lines": 116,
+      "sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "reviewed_ranges": [
+        [
+          60,
+          105
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/tests/requests/source_binding.rs",
+      "lines": 562,
+      "sha256": "c56c28bd5a77fd922f21fa4a53d0de95806c4813988db75c8d7ce473b4c07ea1",
+      "reviewed_ranges": [
+        [
+          187,
+          209
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "crates/phantom/tests/streams/sse/reconnect.rs",
+      "lines": 576,
+      "sha256": "1ab05bea7658442e780661ef01eba27ecad49ba91adc9bd58cdcac07facc8051",
+      "reviewed_ranges": [
+        [
+          240,
+          291
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "vendor/quinn-proto/PHANTOM.md",
+      "lines": 266,
+      "sha256": "9a75e5eb2e73fa9549e16f50200a67f690ded6dc8391da60313207fa9a03b9c9",
+      "reviewed_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    },
+    {
+      "path": "vendor/quinn-proto/src/transport_parameters.rs",
+      "lines": 1162,
+      "sha256": "4e42c4e572291207c54e2821d2e3d02ddf717040875bc36f198c70edd79b6e45",
+      "reviewed_ranges": [
+        [
+          455,
+          651
+        ]
+      ],
+      "mode": "partial caller/callee trace, not complete module review"
+    }
+  ],
+  "verification": {
+    "cargo_commands_run": false,
+    "rust_tests_run": false,
+    "fuzz_targets_executed": false,
+    "fixture_hex_syntax": "all packaged fields checked with none sentinel and comma-separated ALPN handled",
+    "fixture_provenance": "six packaged files matched root originals and hashes printed in provenance READMEs",
+    "fuzz_manifest": "all eleven declared target source paths exist",
+    "native_pin": "fuzz/root btls-sys Git revision matches f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
+  },
+  "limits": [
+    "Reading entire source is not proof of all behaviors.",
+    "Outside-scope callers/callees were traced only at recorded ranges.",
+    "No live captures, ASan run, builds, platform execution, fuzz coverage measurement or runtime lifecycle reproduction.",
+    "Native FFI/key/decryption/socket implementation not reviewed in this pass.",
+    "Cargo.lock was machine-parsed rather than manually read line by line.",
+    "Raw fixture payload bytes were syntax/hash checked rather than independently decoded manually."
+  ]
+}

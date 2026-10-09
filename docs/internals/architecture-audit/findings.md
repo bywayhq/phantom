@@ -5,22 +5,36 @@ No finding is resolved by an assignment or a proposed fix.
 
 ## Findings
 
-| ID | Contract | Evidence | State |
-| --- | --- | --- | --- |
-| A01 | Total deadline covers body reads | Raw and decoded ready-frame paths differ | Red/green tests; review approved |
-| A02 | Invalid admission settings return a build error | Caller counts reach `Semaphore::new` above its maximum | Red/green tests; review approved |
-| A03 | Disabled QUIC tickets prevent resumption | Changing the TLS profile retains an isolated cache | Red/green tests; review approved |
-| A04 | Address cache bounds shared background work | Clear removes pending bookkeeping without ending work | Red/green tests; review approved |
-| A05 | Proxy setup waiters receive their attempt's failure | A newer failure overwrites an older attempt's result | Fix prepared; tests pending |
-| A06 | EventSource owns Last-Event-ID | Templates and automatic hints can supply an unmanaged ID | Fix in progress |
-| A07 | WebSocket receive errors close the connection | Close-stream shutdown error retains the socket and pending control message | Needs regression |
-| A08 | Debug output protects arbitrary header values | Three profile field enums derive Debug over literal values | Red/green tests; review approved |
-| A09 | QUIC key-update documentation matches its interface | Comment still describes an infallible interface | Needs source reconciliation |
-| A10 | GREASE parameter IDs fit their configured width | Full-range IDs overflow accepted narrow widths | Fix in progress |
-| A11 | A failed boundary scan cannot report success | Manifest scan failure is lost through process substitution | Reproduced; fix pending |
-| A12 | Malformed capture hex returns an error | Byte slicing can panic on non-ASCII text | Test harness fix pending |
-| A13 | QUIC setup errors retain meaningful categories | Local provider failures map to an endpoint-stopping error | Contract investigation |
-| A14 | Cargo lock holders retain exclusive ownership | Stale reclamation can move a new holder's directory | Isolated race reproduction pending |
+| ID | Priority | Contract | Evidence | State |
+| --- | --- | --- | --- | --- |
+| A01 | P1 | Total deadline covers body reads | Raw and decoded ready-frame paths differ | Red/green tests; review approved |
+| A02 | P1 | Invalid admission settings return a build error | Caller counts reach `Semaphore::new` above its maximum | Red/green tests; review approved |
+| A03 | P1 | Disabled QUIC tickets prevent resumption | Changing the TLS profile retains an isolated cache | Red/green tests; review approved |
+| A04 | P1 | Address cache bounds shared background work | Clear removes pending bookkeeping without ending work | Red/green tests; review approved |
+| A05 | P2 | Proxy setup waiters receive their attempt's failure | A newer failure overwrites an older attempt's result | Red/green tests; review approved |
+| A06 | P2 | EventSource owns Last-Event-ID | Templates and automatic hints can supply an unmanaged ID | Red/green tests; review approved |
+| A07 | P1 | Failed WebSocket close releases ownership | Close errors retain the socket and admission | Red/green tests; review approved |
+| A08 | P2 | Debug output protects arbitrary header values | Three profile field enums derive Debug over literal values | Red/green tests; review approved |
+| A09 | P3 | QUIC key-update documentation matches its interface | Comment still describes an infallible interface | Source reconciled; review approved |
+| A10 | P2 | GREASE parameter IDs fit their configured width | Full-range IDs overflow accepted narrow widths | Red/green tests; review approved |
+| A11 | P1 | A failed boundary scan cannot report success | Manifest scan failure is lost through process substitution | Red/green tests; review approved |
+| A12 | P2 | Malformed capture hex returns an error | UTF-8 slicing panics and radix parsing accepts signed pairs | Red/green tests; review approved |
+| A13 | P2 | QUIC setup errors retain categories and release IDs | Provider failures report endpoint shutdown and retain an allocated ID | Red/green tests; review approved; native vendor checks pass |
+| A14 | P1 | Cargo lock holders retain exclusive ownership | Stale reclamation can move a new holder's directory | Red/green tests; review approved |
+| A15 | P2 | Android model constructors produce structured strings | Generic header validation accepts an embedded tab | Red/green tests; review approved |
+| A16 | P2 | Tool-pin scans must finish before reporting agreement | Search status 2 is swallowed | Red/green tests; review approved |
+| A17 | P2 | Freshness reports include validated fixture paths | Function-local paths are referenced outside their scope | Red/green offline tests; review approved |
+| A18 | P2 | DNS test-server replies belong to their server | Detached reply tasks retain the socket after server drop | Red/green tests; review approved |
+| A19 | P2 | Capture listeners accept loopback before binding | Wildcard arguments create a listener before rejection | Red/green tests; review approved |
+| A20 | P2 | Captured SNI preserves the document format | UTF-8 SNI with CR/LF introduces metadata lines | Red/green tests; review approved |
+| A21 | P3 | Fuzz documentation states reachable limits accurately | Short fields reach the count limit below 16 KiB | Source correction; review approved |
+| A22 | P2 | Hook docs describe credential stripping precisely | Generic wording overstates protection of custom fields | Source correction; review approved |
+| A23 | P1 | HTTPS discovery bounds outstanding lookup work | Pending eviction retains tasks and permits duplicate lookups | Red/green tests; review approved; lint passes |
+| A24 | P1 | Replay byte limits also constrain retained metadata | Empty DATA frames grow a deque without consuming the byte budget | Three regressions red/green; breaking fix and review approved |
+| A25 | P2 | Response decoding uses the actual template encoding | Forwarding-condition defaults differ from cached trust defaults | Proxy wire regression red; direct control passes; fix and composed source review approved |
+| A26 | P2 | Prepared-template debug protects cached header values | Derived Debug prints copied Accept-Encoding values | Canary regression red; nested builder control passes; fix and review approved |
+| A27 | P2 | SOCKS CONNECT errors retain their negotiation category | Upstream UnknownAuthMethod also denotes an unknown CONNECT reply | Red/green test; review approved; proxy suite and lint pass |
+| A28 | P2 | ACK_FREQUENCY validates the selected wire format | A one-byte flag is decoded as a variable-length integer | Source candidate; receive-format investigation pending |
 
 ## Initial source evidence
 
@@ -66,6 +80,47 @@ No finding is resolved by an assignment or a proposed fix.
   owner check and later rename do not establish that the renamed directory
   still belongs to that owner. Reproduce the interleaving in an isolated
   repository before selecting the replacement ownership mechanism.
+- A15: `crates/phantom-profile/src/browser/chrome/android.rs`,
+  `model_value`, and the Edge and Opera constructors that use it. An
+  embedded tab is a valid generic header value but not a structured string.
+- A16: `scripts/ci/check-tool-pins.sh`, `search`, and its
+  process-substitution loops. An injected ShellCheck search failure leaves
+  the checker reporting agreement with exit status 0.
+- A17: `scripts/ci/report-upstream-freshness.sh`,
+  `built_in_chrome_recipe`, and the report arguments. The validated local
+  fixture paths are unavailable in the caller. Valid mocked upstream inputs
+  reach an unbound-variable failure before producing the report.
+- A18: `crates/phantom-testkit/src/dns.rs`, `Drop` and `serve`.
+  Aborting the main task does not abort detached delayed replies.
+- A19 and A20: `crates/phantom-testkit/examples/capture_client_hello.rs`.
+  Check parsed listener addresses before binding, and validate decoded SNI
+  as single-line metadata before writing the capture document.
+- A21: `fuzz/README.md`, `fuzz/src/http1_response/tests.rs`, and the
+  fuzz workflow. The byte bound excludes the head-byte limit, but 101 short
+  fields fit below 16 KiB. This is a coverage claim, not a parser defect.
+- A22: `crates/phantom/src/header_hook.rs` and the customization/template
+  guides. Redirect stripping names four credential headers; custom fields
+  are not protected by that rule. Configured hint names have separate
+  stripping, so the correction must not promise categorical retention.
+- A23: `crates/phantom/src/session/alt_svc/https_records.rs`, `state` and
+  `Cache::complete`. A custom resolver can remain pending indefinitely.
+  Cache churn drops its bookkeeping without stopping or counting its work.
+- A24: `crates/phantom/src/request/replay_buffer.rs`, `Shared::keep`.
+  Examine replay cursor and wire contracts before dropping empty frames.
+- A25: `crates/phantom/src/request/template.rs`, cached encodings and
+  `expand_on_route`. Compare active forwarding defaults with response
+  decoder policy, including malformed active values before I/O.
+- A26: `crates/phantom/src/request/template.rs`, public prepared-template
+  Debug. Its private cache copies arbitrary template header values, which
+  bypass the profile field formatter's redaction.
+- A27: `crates/phantom-net/src/proxy/socks5.rs`, `from_socks_error`.
+  The resolved dependency uses `UnknownAuthMethod` both during method
+  selection and for an unknown CONNECT reply status.
+- A28: `vendor/quinn-proto/src/frame.rs`, ACK_FREQUENCY decoding and
+  `read_as_draft02`. The older format's flag occupies one byte in
+  [the IETF wire description](https://www.ietf.org/archive/id/draft-ietf-quic-ack-frequency-00.html#section-4).
+  Investigate the advertised receive format and parsing boundaries before
+  changing the canonical patch series or public format names.
 
 ## Executed evidence
 
@@ -80,6 +135,121 @@ client, 949 in the transport crate, and 171 in the QUIC backend. Independent
 review approved their changed paths and test controls. A08's three
 redaction regressions fail on the starting implementation and pass after
 the fix. The documentation checker reports zero errors and warnings.
+
+A05's original failure is replaced by a later attempt in the baseline
+regression. The fixed proxy pool passes all seven unit tests, including
+failure ownership and cancelled-setup controls. A10's baseline accepts a
+narrow width but fails encoding. The fixed QUIC crate passes all 174 unit
+tests, including the original captured-parameter and version fixtures.
+
+A07's real reset HTTP/2 stream makes the post-Close shutdown fail while
+the original WebSocket retains its socket and admission. The corrected
+HTTP client passes 585 unit tests. A09 removes stale broad dead-code
+allowances, confines the unused alternate constructor to tests, and
+documents the implemented fallible key-update boundary. The QUIC crate's
+174 unit tests also pass with that cleanup. Independent source review
+approved both changes and the later Sink close-error repair. Both Sink
+regressions fail on the original implementation; all three close-error
+tests pass together and all-target, all-feature Clippy passes.
+
+The isolated A14 race permits two live commands in one configured slot,
+then deletes a live holder's lock when the displaced holder exits. No
+Cargo command or active repository lock participates in this reproduction.
+Recovery must not assume that a dead wrapper means its child work ended.
+
+A06's original inherited-default regression stalls in network setup rather
+than rejecting the default. The fixed stream binary passes all 40 SSE
+tests, including active and inactive defaults, redirect activation, optional
+slot order, ID reset, client-hint controls, and cross-origin redirects.
+The composed client passes 593 unit tests and all-target, all-feature
+Clippy. Two existing unit-test callers needed the new managed-field argument.
+
+A12's six original profile readers fail malformed-input controls. The
+corrected profile passes 307 unit tests and all-target, all-feature Clippy.
+A seventh testkit reader accepts `+1` on the baseline; its strict-hex fix
+passes all ten browser ClientHello fixture tests. These are fixture reader
+contracts, not production TLS parsing claims.
+
+A15's baseline accepts a tab in a model string. The checked constructors
+pass the same 307 profile tests, including ASCII, quoting, escaping and
+captured default-model controls. Independent source review approved them.
+
+The complete development-tool suite passes all 35 tests on Windows and on
+a native Linux checkout. The Linux run includes the offline freshness report
+with jq. An initial WSL run against the Windows worktree failed because of
+Windows Git paths and line endings. The native checkout also needed an
+installed rustfmt toolchain; it passes with Rust 1.99.0. These failures and
+the successful runs remain in the local logs.
+
+A13's actual verification-disabled provider returns endpoint shutdown on
+the original implementation. The corrected provider passes all 177 QUIC
+unit tests, including invalid ECH safe formatting and valid startup.
+The separate endpoint regression fails with one retained CID after failed
+startup. The corrected endpoint passes its three Initial-key tests, with
+repeated failures, existing connections and subsequent startup controls.
+Independent source review approved the categories and CID cleanup.
+Canonical archive replay and complete vendor builds remain separate checks.
+
+The complete `quinn-proto`, `quinn`, and H3 vendor checks pass in a native
+Linux checkout at `1e44399e`. That checkout preserves the four H3 license
+symlinks that were flattened in Windows. These are real archive replay,
+Clippy, build and selected-test checks, with no mocked Cargo steps. They
+resolve the previously recorded H3 replay mismatch for this revision.
+
+A18's baseline retains one reply socket owner after the main server task
+is aborted. Its independent normal-delay control passes. A19's original
+argument parser accepts a wildcard listener. A20's original UTF-8-only SNI
+logic, extracted unchanged into a test helper, accepts both CR and LF.
+The fixed testkit passes 88 library tests, ten fixture tests and six capture
+example tests, plus a normal library build and all-target, all-feature
+Clippy. The capture test iterator needed an owned-array correction to
+compile, and the fixture test now returns an error rather than using a
+forbidden panic shortcut. Independent review approved the production fix
+and the owned-array correction.
+
+A23's baseline starts another lookup with the configured capacity of one
+while the first origin's lookup is still pending. The proposed remedy bounds
+work per runtime, preserves sharing until a task ends, and keeps completed
+records in the globally bounded cache. Runtime independence remains an
+explicit contract; no global bound across caller-created runtimes is claimed.
+
+The A23 fix passes all 597 client unit tests, seven HTTPS-discovery request
+tests, and its 17 focused lookup tests after a fixture lint correction.
+Independent review approved its task reservations and cancellation paths.
+
+A24's baseline retains the first empty DATA frame at a zero-byte allowance.
+All three new controls fail before the fix; the corrected buffer passes all
+15 replay tests. This deliberately changes replayed empty-frame behavior,
+with a breaking commit and migration note for both buffered APIs.
+
+A25's loopback proxy captures `Accept-Encoding: deflate`, while the original
+response reports no selected decoding. Its direct gzip control passes.
+A26's generated canary appears in the original prepared-template Debug;
+the nested builder control already passes after A08. The composed fixes pass
+604 client unit tests, 21 response-decoding request tests, and 48 selected
+SSE stream tests, plus all-target, all-feature Clippy. An initial stream
+filter selected zero tests; only the corrected run supplies SSE evidence.
+
+A27's actual no-auth SOCKS connection then receives an unknown CONNECT reply
+and reports Authentication instead of Negotiation. The regression fails on
+the starting implementation. The correction passes 98 proxy tests and
+all-target, all-feature transport Clippy. Explicit authentication rejection
+retains its category and typed source. Independent review approved the change.
+
+## Rejected candidates
+
+- Nonempty `Bytes` may share a larger backing allocation. The replay limit
+  explicitly counts data bytes, so this is a documented boundary rather than
+  proof of a violated whole-allocation limit.
+- An empty relayed datagram has stride zero. The pinned Quinn endpoint skips
+  its processing loop for length zero, so this path does not divide by zero
+  or spin. This is source evidence, without a new runtime test.
+- TLS profile Debug includes ECH configuration. Those records contain public
+  server configuration, and inspection did not establish a private-key or
+  password disclosure. Arbitrary request header values remain a separate
+  redaction contract.
+
+## Integration state
 
 All local verification so far applies to the audit lane. Integration main
 remains at the starting revision. No audit change has been pushed or merged.

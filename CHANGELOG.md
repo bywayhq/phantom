@@ -14,6 +14,30 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound replay frame metadata as well as retained body bytes. Migrate:
+  `buffered_streaming_body` and `buffered_streaming_body_with_trailers`
+  now omit previously read empty DATA frames on another attempt. They keep
+  nonempty frame boundaries, body bytes and trailers. If every empty source
+  frame is required, use `streaming_body` or `streaming_body_with_trailers`
+  for one attempt, without buffered replay.
+
+- Distinguish QUIC provider startup failures from endpoint shutdown.
+  Migrate: handle `quinn_proto::ConnectError::CryptoProvider` when matching
+  startup errors. Invalid names, versions and local transport parameters
+  keep their dedicated categories. The renamed Quinn forks move to
+  `-phantom.3`, and their H3 dependents move to `-phantom.8`.
+
+- Validate custom Android model hints. Migrate: handle the `Result` from
+  `chrome::v154_android_client_hints_for_model`,
+  `edge::v153_android_client_hints_for_model`, and
+  `opera::v102_android_client_hints_for_model`, for example with `?`.
+  These constructors reject characters outside printable ASCII. Quotes and
+  backslashes remain escaped, and captured default models are unchanged.
+- Preserve abandoned Cargo lock slots for manual recovery. Migrate: when
+  `scripts/dev/with-cargo-lock.sh` exits with status 75, verify that the
+  recorded command and its children have stopped before removing that slot.
+  The helper no longer reclaims a dead wrapper's lock automatically.
+
 - Allow transport enums to grow and retire unused validator wrappers.
   Migrate: keep a fallback arm when matching public `phantom-net` enums.
   Replace `http1::validate_request_body` and `_with_trailers` with
@@ -2426,6 +2450,38 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep HTTPS-record lookup work within its origin limit for each runtime.
+  Cancelling waiters and replacing completed cache entries no longer start
+  duplicate outstanding lookups. Runtime shutdown releases their reservations.
+- Correct the guides' header-hook, JSON, client-hint and response-helper
+  descriptions to match the public APIs and redirect rules.
+- Decode responses using the template's `Accept-Encoding` for the actual
+  forwarding route. Invalid values activated by a redirect fail before
+  sending that hop; caller values still override template defaults.
+- Keep arbitrary template header values out of prepared-template debug
+  output. Counts and placement flags remain visible.
+- Report unknown SOCKS CONNECT replies and unsupported method selections as
+  negotiation errors. Explicit authentication rejection keeps its category
+  and the original error remains available through the source chain.
+
+- Keep each HTTP/2 proxy setup failure available to its original waiters
+  when another setup finishes before they resume.
+- Generate QUIC GREASE transport parameter identifiers within their
+  configured wire width. Captured eight-byte identifiers keep their draw.
+- Release the WebSocket transport and admission when close-frame delivery
+  or stream shutdown fails. Later operations report the closed connection.
+- Keep EventSource's managed `Last-Event-ID` out of inherited defaults and
+  automatic client hints. Reject active defaults before sending their hop,
+  and preserve committed IDs across origin redirects. Optional caller slots
+  retain their order and omit the field when the ID is empty.
+- Fail unsafe-boundary and tool-pin checks when their source scans fail.
+- Include validated local fixture paths in upstream-freshness reports.
+- Retire an allocated QUIC connection ID when provider startup fails,
+  preserving existing connections and the original startup error.
+- Cancel delayed DNS test-server replies when their server drops. Runtime
+  polling releases their sockets, while ordinary replies remain concurrent.
+- Reject non-loopback listener arguments before binding in the ClientHello
+  capture example. Reject SNI line breaks before writing capture metadata.
 - Reject client admission bounds above the runtime semaphore limit with
   `BuildErrorKind::InvalidPolicy`, including the effective HTTP/1.1 profile
   bound, before preparing a connection.

@@ -1,0 +1,389 @@
+{
+  "baseline": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "workspace": "C:/code/phantom",
+  "mode": "read_only_source_review",
+  "runtime_verification": "No Cargo, builds, or runtime tests performed.",
+  "previous_report": "target/architecture-audit/client-report.md",
+  "report": "target/architecture-audit/client-remaining-report.md",
+  "files": [
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "828aeb6efc52840d6bb152900ce059364ba9ca5cdf9603576a83619fd399e213",
+      "physical_lines": 2726,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        2726
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/client/certificate_origin_tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "8a986cc19a70b5fbc3828b08baffb2313e5899ea4cfbe355a409ea942f243cf7",
+      "physical_lines": 134,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        134
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/client/option_tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "916031a5ffd749b76f19fa02456facbe49f84935262c180c3156a8ebe65b531e",
+      "physical_lines": 154,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        154
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/client/dns_cache_tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "76aefbc9b9d9a7374e697cdb2fde9fdd4ded5b2b89c03d08649b237e5ea7d99b",
+      "physical_lines": 374,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        374
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/environment_proxy.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "cfcffe94b328b807ed1e94724926b3e2d3dfbf8e2655f2466e834476bba23ccf",
+      "physical_lines": 550,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        550
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/environment_proxy/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "5a6b061b6ee50b6f3fb033e0ea37034fec8dac30d9ca4a109e0891cd7e386746",
+      "physical_lines": 530,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        530
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/authority.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "2225889e7d0b7fcd31e0dcc847930d7251f0cea684686b46572862df49d745f6",
+      "physical_lines": 330,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        330
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/base_url.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "acfd278bcfa0a556eb5cb65f1b073bf3429c4a5dfa04664e8a720c218d934ea6",
+      "physical_lines": 122,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        122
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/diagnostics.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "bd84de684a0c5c4a266c0d11f0d0d8ae537146bd0160dd018317c176ac2bc97b",
+      "physical_lines": 69,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        69
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request_body.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "7a1e3a929bed8fd3d798648174b5d27581eff1ccd32790c0d1675cbd4cf1d958",
+      "physical_lines": 576,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        576
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request_slots.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "f44d0bfa11d7bde5d67f59b9391d58ffda181cb50a1f02475960e1a99b8f7d9d",
+      "physical_lines": 337,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        337
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "caada6b80b1de05835b08904f1b371f7891c88dd20ea4ebab6e42b38248a8ec2",
+      "physical_lines": 2317,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        2317
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/replay_buffer.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "292306cdc1d98a672bc93c6ab92857d9efcbb81738aff295bb0c116ce7964a34",
+      "physical_lines": 456,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        456
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/replay_buffer/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "6540584f8248bcafa0965236ffdd0e0fc586815710e8ad53333599806f6e7e52",
+      "physical_lines": 304,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        304
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/field_lists.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "1fbf15d27178f54dd9803fac3a8a8a31b6f30a381d37336ebeae83f58d7165a1",
+      "physical_lines": 230,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        230
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/secure_context.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "41adbb7b57635f252388b25e634cb7170c8a28866b09c73f4b91c545bdd8912c",
+      "physical_lines": 92,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        92
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "b765a201d430467e2f14b01c5401c2c4255c0ad0871d2d2c5b10da5d4db16874",
+      "physical_lines": 571,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        571
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/stream_count.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "7f3c638425f710082b6d8c12ae9f83b8c7a762219e04e5965968ff9c08692042",
+      "physical_lines": 61,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        61
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/address_families.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "4c85829d023d6141fd0f0b675acbcea18d22ddfbe1092ba117e7633373e9b3e6",
+      "physical_lines": 75,
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        75
+      ],
+      "claim": "Every source line and inline test read. Child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "e797348e398942443c6c1709ffcc6bf559d1567647dbb5e56631b4e98dcb00a2",
+      "physical_lines": 1406,
+      "read_kind": "partial_source",
+      "ranges": [
+        735,
+        811
+      ],
+      "claim": "Additional concrete forwarding expansion and prepared-attempt caller path, on top of older report partial coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "fa510c031a683a6b0141d94251b8165e1f60ff6ffe95033aea207af716c802ad",
+      "physical_lines": 475,
+      "read_kind": "partial_source",
+      "ranges": [
+        1,
+        210
+      ],
+      "claim": "Content policy, advertised codings and final response decoding plan; remaining decoder implementation not read in this pass."
+    },
+    {
+      "path": "crates/phantom-profile/src/request_template.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "f86df0488267da823d317f4378e9881a381ec9d98a7898810cd10ac36e57eeea",
+      "physical_lines": 807,
+      "read_kind": "partial_source",
+      "ranges": [
+        [
+          241,
+          271
+        ],
+        [
+          601,
+          716
+        ]
+      ],
+      "claim": "Default value semantics and generic field validation only; read as callee."
+    },
+    {
+      "path": "crates/phantom/src/request/template/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "feafade2f60c3c1595e28c072ce79f7e2ec6bb3d3b4113c1cf1d98faa21aee62",
+      "physical_lines": 731,
+      "read_kind": "partial_source",
+      "ranges": [
+        392,
+        446
+      ],
+      "claim": "Protocol agreement policy and trust expansion controls only. Discovery matches elsewhere do not count as full suite reads."
+    },
+    {
+      "path": "crates/phantom/src/header_hook.rs",
+      "workspace": "C:/code/phantom-worktrees/audit-hook-docs",
+      "revision": "bc9736fa56e16787871fcd090cca4fed1803f7cb",
+      "sha256": "39e5317507df26a9912406b2426133cda2798ee5f200f6399cfa07553b9d70bd",
+      "physical_lines": 257,
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        257
+      ],
+      "claim": "Full file read at da293ecc for header_hook, redirect and tests and request-customization; every subsequent bc9736fa changed hunk read. secure_context and header_hook reread fully at bc9736fa."
+    },
+    {
+      "path": "crates/phantom/src/request/secure_context.rs",
+      "workspace": "C:/code/phantom-worktrees/audit-hook-docs",
+      "revision": "bc9736fa56e16787871fcd090cca4fed1803f7cb",
+      "sha256": "41adbb7b57635f252388b25e634cb7170c8a28866b09c73f4b91c545bdd8912c",
+      "physical_lines": 92,
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        92
+      ],
+      "claim": "Full file read at da293ecc for header_hook, redirect and tests and request-customization; every subsequent bc9736fa changed hunk read. secure_context and header_hook reread fully at bc9736fa."
+    },
+    {
+      "path": "crates/phantom/src/redirect.rs",
+      "workspace": "C:/code/phantom-worktrees/audit-hook-docs",
+      "revision": "bc9736fa56e16787871fcd090cca4fed1803f7cb",
+      "sha256": "d6911913293b861196c6c79ae20fc0887177097424559016f3738d4e24bbced5",
+      "physical_lines": 246,
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        246
+      ],
+      "claim": "Full file read at da293ecc for header_hook, redirect and tests and request-customization; every subsequent bc9736fa changed hunk read. secure_context and header_hook reread fully at bc9736fa."
+    },
+    {
+      "path": "crates/phantom/src/redirect/tests.rs",
+      "workspace": "C:/code/phantom-worktrees/audit-hook-docs",
+      "revision": "bc9736fa56e16787871fcd090cca4fed1803f7cb",
+      "sha256": "097d7ff1dd5f340a252d2693b22ed225df58ed6cf94c79875d1cbce74456a8fc",
+      "physical_lines": 341,
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        341
+      ],
+      "claim": "Full file read at da293ecc for header_hook, redirect and tests and request-customization; every subsequent bc9736fa changed hunk read. secure_context and header_hook reread fully at bc9736fa."
+    },
+    {
+      "path": "docs/guides/request-customization.md",
+      "workspace": "C:/code/phantom-worktrees/audit-hook-docs",
+      "revision": "bc9736fa56e16787871fcd090cca4fed1803f7cb",
+      "sha256": "9e35372d245a9f53f426ee6a97881e98eac6ff79e638c6dc2d92b574873dce05",
+      "physical_lines": 96,
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        96
+      ],
+      "claim": "Full file read at da293ecc for header_hook, redirect and tests and request-customization; every subsequent bc9736fa changed hunk read. secure_context and header_hook reread fully at bc9736fa."
+    }
+  ],
+  "docs_commits_reviewed": [
+    "da293ecc41d7e604a0f4e93147399c5e2e4f2467",
+    "bc9736fa56e16787871fcd090cca4fed1803f7cb"
+  ],
+  "docs_changed_hunks_read": [
+    "crates/phantom/src/header_hook.rs",
+    "docs/guides/request-customization.md",
+    "docs/guides/request-templates.md",
+    "docs/reference/profiles.md"
+  ],
+  "findings": [
+    "C-R1 forwarding Accept-Encoding decoder metadata divergence",
+    "C-R2 empty replay frame metadata accumulation"
+  ],
+  "gaps": [
+    "Complete pools and concurrency suites",
+    "Full session.rs and cache lifecycle",
+    "Cookies/Alt-Svc/hints snapshots and tests",
+    "Remaining request attempt/alternative modules",
+    "Decoder stages and all-feature tests",
+    "Response/error/link/retry APIs",
+    "Request-body and template/field-list child test suites",
+    "Complete integration tests/support",
+    "SSE decoder/task lifecycle",
+    "Complete WebSocket transports/handshake/compression/retry"
+  ],
+  "limitations": [
+    "Full file read is not a complete behavior proof.",
+    "Discovery searches and inventories are not counted as source review.",
+    "Prior report coverage remains separate.",
+    "No tracked source changed."
+  ]
+}
