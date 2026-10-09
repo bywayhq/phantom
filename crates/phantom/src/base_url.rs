@@ -92,10 +92,14 @@ mod tests {
     #[test]
     fn invalid_configuration_and_ambiguous_references_are_recoverable()
     -> Result<(), Box<dyn std::error::Error>> {
+        let canary = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos();
+        let credential_url = format!("https://user:{canary:x}@example.test/");
         for value in [
             "/api/",
             "ftp://example.test/",
-            "https://user:secret@example.test/",
+            credential_url.as_str(),
             "https://example.test/#part",
             "https://example.test:65536/",
         ] {
@@ -103,9 +107,10 @@ mod tests {
         }
         let base = BaseUrl::new("https://example.test/private?secret=canary")?;
         assert!(!format!("{base:?}").contains("canary"));
+        let credential_reference = format!("//user:{canary:x}@other.test/");
         for reference in [
             "#part",
-            "//user:secret@other.test/",
+            credential_reference.as_str(),
             "\\\\other.test/path",
             "users\n",
             " users",

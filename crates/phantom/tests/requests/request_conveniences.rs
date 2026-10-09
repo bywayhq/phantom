@@ -100,6 +100,12 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
         let target = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let source_address = source.local_addr()?;
         let target_address = target.local_addr()?;
+        let canary = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos();
+        let authorization = format!("Bearer {canary:x}");
+        let hook_authorization = authorization.clone();
+        let cookie = format!("private={canary:x}");
         let first = tokio::spawn(async move {
             let (mut stream, _) = source.accept().await?;
             let head = String::from_utf8(read_head(&mut stream).await?)?;
@@ -119,13 +125,13 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
             .header_hook(move |context| {
                 hook_calls.fetch_add(1, Ordering::Relaxed);
-                context.append(RequestHeader::new("Authorization", "Bearer private").sensitive())?;
-                context.append(RequestHeader::new("Cookie", "private=value").sensitive())
+                context.append(RequestHeader::new("Authorization", hook_authorization.clone()).sensitive())?;
+                context.append(RequestHeader::new("Cookie", cookie.clone()).sensitive())
             }).build()?;
         client.get(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
         let first = first.await??;
         let second = second.await??;
-        assert!(first.contains("Authorization: Bearer private\r\n"));
+        assert!(first.contains(&format!("Authorization: {authorization}\r\n")));
         assert!(!second.to_ascii_lowercase().contains("authorization:"));
         assert!(!second.to_ascii_lowercase().contains("cookie:"));
         assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -234,24 +240,36 @@ async fn status_retries_reuse_the_hook_result() -> TestResult<()> {
 #[cfg(feature = "sse")]
 #[tokio::test]
 async fn event_source_hooks_cannot_change_the_managed_event_id() -> TestResult<()> {
-    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-    let client = Client::builder(ClientProfile::new(tls_settings()))
-        .header_hook(|context| context.append(RequestHeader::new("Last-Event-ID", "injected")))
-        .build()?;
-    let error = client
-        .event_source(
-            HttpProtocol::Http1,
-            &format!("http://{}/events", listener.local_addr()?),
-        )?
-        .connect()
-        .await
-        .err()
-        .ok_or("managed field changed")?;
-    assert!(std::error::Error::source(&error).is_some());
-    assert!(
-        timeout(Duration::from_millis(50), listener.accept())
+    timeout(Duration::from_secs(10), async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let calls = Arc::new(AtomicUsize::new(0));
+        let hook_calls = calls.clone();
+        let client = Client::builder(ClientProfile::new(tls_settings()))
+            .header_hook(move |context| {
+                hook_calls.fetch_add(1, Ordering::Relaxed);
+                context.append(RequestHeader::new("Last-Event-ID", "injected"))
+            })
+            .build()?;
+        let error = client
+            .event_source(
+                HttpProtocol::Http1,
+                &format!("http://{}/events", listener.local_addr()?),
+            )?
+            .connect()
             .await
-            .is_err()
-    );
-    Ok(())
+            .err()
+            .ok_or("managed field changed")?;
+        let source = std::error::Error::source(&error)
+            .and_then(|source| source.downcast_ref::<phantom::RequestError>())
+            .ok_or("missing request error source")?;
+        assert_eq!(source.kind(), RequestErrorKind::HeaderHook);
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+        assert!(
+            timeout(Duration::from_millis(50), listener.accept())
+                .await
+                .is_err()
+        );
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await?
 }

@@ -4,6 +4,8 @@ Review the library exports in these generated files. They record the
 Phase 2 API checkpoint `44ffae95`, shipped in
 [PR 187](https://github.com/bywayhq/phantom/pull/187) at `b2cf66d0`.
 Its full gate, PR checks, and all ten workflows on `main` passed.
+The HTTP inventory also includes the base URL and header hook APIs added
+after that checkpoint.
 
 Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 `x86_64-pc-windows-msvc`. `-sss` omits blanket, auto-trait, and derived
@@ -21,7 +23,7 @@ feature-gated documentation links need separate checks from all-feature docs.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,018 | Application client, ordered requests, responses, state |
+| `phantom-http` | 1,043 | Application client, ordered requests, responses, state |
 | `phantom-net` | 1,364 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 1,578 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 191 | Quinn crypto provider, handshake state, typed errors |

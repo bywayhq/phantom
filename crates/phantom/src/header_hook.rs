@@ -49,7 +49,8 @@ impl HeaderHookContext<'_> {
     /// Appends a header after the current caller headers, keeping duplicates.
     ///
     /// # Errors
-    /// Invalid HTTP names or values fail without changing any headers.
+    /// Invalid HTTP names or values, or a managed SSE `Last-Event-ID` field,
+    /// fail without changing any headers.
     pub fn append(&mut self, header: RequestHeader) -> Result<(), HeaderHookError> {
         self.check_name(header.name())?;
         validate(&header)?;
@@ -63,7 +64,8 @@ impl HeaderHookContext<'_> {
     /// still supply matching headers' position and spelling during expansion.
     ///
     /// # Errors
-    /// Invalid HTTP names or values fail without changing any headers.
+    /// Invalid HTTP names or values, or a managed SSE `Last-Event-ID` field,
+    /// fail without changing any headers.
     pub fn set(&mut self, header: RequestHeader) -> Result<(), HeaderHookError> {
         self.check_name(header.name())?;
         validate(&header)?;

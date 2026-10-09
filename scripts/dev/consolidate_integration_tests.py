@@ -53,6 +53,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "prepared_bodies",
                 "query_authorization",
                 "redirects",
+                "request_conveniences",
                 "request_templates",
                 "response_conveniences",
                 "send_futures",

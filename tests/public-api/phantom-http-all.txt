@@ -148,6 +148,7 @@ pub phantom::AltSvcSnapshotErrorKind::Disabled
 pub phantom::AltSvcSnapshotErrorKind::InvalidAlternative
 pub phantom::AltSvcSnapshotErrorKind::NoncanonicalOrigin
 #[non_exhaustive] pub enum phantom::BuildErrorKind
+pub phantom::BuildErrorKind::InvalidBaseUrl
 pub phantom::BuildErrorKind::InvalidPolicy
 pub phantom::BuildErrorKind::InvalidProfile
 pub phantom::BuildErrorKind::NoSupportedProtocol
@@ -234,6 +235,7 @@ pub phantom::ProxyConfigErrorKind::UnsupportedTransport
 pub phantom::RequestErrorKind::Capacity
 pub phantom::RequestErrorKind::Connect
 pub phantom::RequestErrorKind::ContentDecoding
+pub phantom::RequestErrorKind::HeaderHook
 pub phantom::RequestErrorKind::Http1
 pub phantom::RequestErrorKind::Http2
 pub phantom::RequestErrorKind::Http3
@@ -466,6 +468,7 @@ pub fn phantom::ClientBuilder::add_proxy_root_certificate_der(self, impl core::c
 pub fn phantom::ClientBuilder::add_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
 pub fn phantom::ClientBuilder::alt_svc(self, core::num::nonzero::NonZeroUsize) -> Self
 pub fn phantom::ClientBuilder::alt_svc_policy(self, phantom::AltSvcPolicy) -> Self
+pub fn phantom::ClientBuilder::base_url(self, &str) -> core::result::Result<Self, phantom::BuildError>
 pub fn phantom::ClientBuilder::build(self) -> core::result::Result<phantom::Client, phantom::BuildError>
 pub fn phantom::ClientBuilder::client_certificate(self, phantom_net::tls::client_certificate::ClientCertificate) -> Self
 pub fn phantom::ClientBuilder::client_certificate_for(self, &str, phantom_net::tls::client_certificate::ClientCertificate) -> Self
@@ -474,6 +477,7 @@ pub fn phantom::ClientBuilder::cookies(self) -> Self
 pub fn phantom::ClientBuilder::dns_cache(self, phantom_profile::dns_cache::DnsCacheSettings) -> Self
 pub fn phantom::ClientBuilder::dns_resolver(self, phantom_net::host_resolver::AddressResolver) -> Self
 pub fn phantom::ClientBuilder::environment_proxies(self, phantom::EnvironmentProxies) -> Self
+pub fn phantom::ClientBuilder::header_hook<F>(self, F) -> Self where F: core::ops::function::Fn(&mut phantom::HeaderHookContext<'_>) -> core::result::Result<(), phantom::HeaderHookError> + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::ClientBuilder::http3_early_data(self, bool) -> Self
 pub fn phantom::ClientBuilder::https_record_discovery(self, phantom_net::dns::HttpsRecordResolver) -> Self
 pub fn phantom::ClientBuilder::interface(self, &str) -> Self
@@ -603,6 +607,25 @@ impl core::fmt::Debug for phantom::EnvironmentProxyError
 pub fn phantom::EnvironmentProxyError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for phantom::EnvironmentProxyError
 pub fn phantom::EnvironmentProxyError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::HeaderHookContext<'a>
+impl phantom::HeaderHookContext<'_>
+pub fn phantom::HeaderHookContext<'_>::append(&mut self, phantom_net::request::RequestHeader) -> core::result::Result<(), phantom::HeaderHookError>
+pub fn phantom::HeaderHookContext<'_>::headers(&self) -> &[phantom_net::request::RequestHeader]
+pub fn phantom::HeaderHookContext<'_>::method(&self) -> &http::method::Method
+pub fn phantom::HeaderHookContext<'_>::remove(&mut self, &str) -> core::result::Result<(), phantom::HeaderHookError>
+pub fn phantom::HeaderHookContext<'_>::set(&mut self, phantom_net::request::RequestHeader) -> core::result::Result<(), phantom::HeaderHookError>
+pub fn phantom::HeaderHookContext<'_>::uri(&self) -> &http::uri::Uri
+impl core::fmt::Debug for phantom::HeaderHookContext<'_>
+pub fn phantom::HeaderHookContext<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::HeaderHookError(_)
+impl phantom::HeaderHookError
+pub fn phantom::HeaderHookError::new(impl core::error::Error + core::marker::Send + core::marker::Sync + 'static) -> Self
+impl core::error::Error for phantom::HeaderHookError
+pub fn phantom::HeaderHookError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::HeaderHookError
+pub fn phantom::HeaderHookError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::HeaderHookError
+pub fn phantom::HeaderHookError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::HttpProxy
 impl phantom::HttpProxy
 pub fn phantom::HttpProxy::connect_headers(self, alloc::vec::Vec<phantom_net::proxy::http_connect::HttpConnectHeader>) -> Self
@@ -720,6 +743,7 @@ pub fn phantom::RequestBuilder::content_decoding(self, phantom::ContentDecoding)
 pub fn phantom::RequestBuilder::expect_continue(self, core::time::Duration) -> Self
 pub fn phantom::RequestBuilder::fill_slots<F>(self, F) -> core::result::Result<Self, phantom::RequestSlotError> where F: core::ops::function::FnOnce(&mut phantom::RequestSlots<'_>) -> core::result::Result<(), phantom::RequestSlotError>
 pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
+pub fn phantom::RequestBuilder::header_hook<F>(self, F) -> Self where F: core::ops::function::Fn(&mut phantom::HeaderHookContext<'_>) -> core::result::Result<(), phantom::HeaderHookError> + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
 pub fn phantom::RequestBuilder::prepared_body(self, phantom::PreparedRequestBody) -> Self
 pub fn phantom::RequestBuilder::query_pairs<I, K, V>(self, I) -> core::result::Result<Self, phantom::RequestError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
@@ -731,6 +755,7 @@ pub fn phantom::RequestBuilder::streaming_body_with_trailers<B>(self, B, alloc::
 pub fn phantom::RequestBuilder::template(self, &phantom::PreparedRequestTemplate) -> Self
 pub fn phantom::RequestBuilder::timeouts(self, phantom::RequestTimeoutOverrides) -> Self
 pub fn phantom::RequestBuilder::trailers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::without_header_hooks(self) -> Self
 pub fn phantom::RequestBuilder::without_template(self) -> Self
 impl core::fmt::Debug for phantom::RequestBuilder
 pub fn phantom::RequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
