@@ -961,6 +961,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Append ordered query pairs with `RequestBuilder::query_pairs`. Existing
+  path and query bytes stay unchanged; new pairs retain order and duplicates.
+  Construct sensitive authorization fields with
+  `RequestHeader::basic_authorization` and `bearer_authorization`. Both
+  validate their input and stay where you place them in the header list.
+
+
 - `error_for_status` checks 4xx/5xx responses and retains the unread response
   in `StatusError`. `response_bytes` and strict UTF-8 `response_text` collect
   with an explicit decoded-byte limit while preserving status, headers, and

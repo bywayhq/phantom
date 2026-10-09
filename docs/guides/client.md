@@ -120,6 +120,31 @@ streaming body from `streaming_body` is sent once, unless you
 Trailers keep their order on every protocol. HTTP/2 and HTTP/3 need
 lowercase trailer names.
 
+## Add query pairs and authorization
+
+Use `query_pairs` to append query fields in order, including repeated names.
+Only new pairs are encoded. Existing path and query bytes stay unchanged.
+
+Authorization constructors validate the value and hide it in debug output.
+Add the resulting header where it belongs in your ordered header list.
+They do not replace an existing header.
+
+```rust
+use phantom::{Client, HttpProtocol, RequestBuilder, RequestHeader};
+
+fn authorized(
+    client: &Client,
+    token: &str,
+) -> Result<RequestBuilder, Box<dyn std::error::Error>> {
+    Ok(client.get(HttpProtocol::Http2, "https://example.com/?tag=old")?
+        .query_pairs([("tag", "new"), ("tag", "last")])?
+        .header(RequestHeader::bearer_authorization(token)?))
+}
+```
+
+Use `basic_authorization(username, password)` for Basic authentication.
+Both constructors return `InvalidAuthorization` for invalid values.
+
 ## Present a client certificate
 
 Give the client a certificate and its private key for servers that ask for

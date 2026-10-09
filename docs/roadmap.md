@@ -444,7 +444,8 @@ the wire, capture evidence.
 
 Track implementation and acceptance criteria in the
 [Phase 2 checklist](internals/phase2.md). The workspace lint baseline is
-merged; route API consolidation is next.
+merged, and route API consolidation is complete. Profiles, settings,
+response helpers, and request workflows are in progress.
 
 Phase 2 settles the public API before the first release, so it starts with
 the structural changes that would otherwise break published crates. They

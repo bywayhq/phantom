@@ -63,6 +63,22 @@ mod tests {
         assert_send_sync::<phantom::ResponseReadErrorKind>();
     }
 
+    #[test]
+    fn authorization_errors_have_public_typed_categories() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<phantom::InvalidAuthorization>();
+        assert_send_sync::<phantom::InvalidAuthorizationKind>();
+        let error: phantom::InvalidAuthorization =
+            phantom::RequestHeader::bearer_authorization("").unwrap_err();
+        let kind: phantom::InvalidAuthorizationKind = error.kind();
+        assert_eq!(kind, phantom::InvalidAuthorizationKind::BearerToken);
+    }
+
+    #[allow(dead_code)]
+    fn ordered_query(builder: RequestBuilder) -> Result<RequestBuilder, RequestError> {
+        builder.query_pairs([("tag", "first"), ("tag", "second")])
+    }
+
     #[allow(dead_code)]
     async fn bounded_read(
         response: Response<ResponseBody>,

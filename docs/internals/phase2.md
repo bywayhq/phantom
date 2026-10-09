@@ -29,17 +29,18 @@ gate passed all 23 steps and 2,862 tests on that commit. All 43 PR checks
 passed, including Windows, macOS, and security scanning. Path/git downstream
 consumers and ShellCheck passed before the final test-only redaction repair.
 Fixtures, vendored sources, and the lockfile are unchanged. Push CI on
-`main` is still running.
+`main` passed all nine triggered workflows. The native BoringSSL push
+workflow's path filter did not select this change; its PR check passed.
 
-- [ ] One route value for each transport path, accepted by protocol
+- [x] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
   are removed, with migration notes.
-- [ ] One owner constructs each connection leg. Pools and WebSocket code
+- [x] One owner constructs each connection leg. Pools and WebSocket code
   use that owner instead of repeating route dispatch.
-- [ ] DNS ownership, proxy authentication, forwarding versus tunneling,
+- [x] DNS ownership, proxy authentication, forwarding versus tunneling,
   ECH, source binding, origin identity, and address-race behavior remain
   unchanged. Unsupported combinations still fail before dispatch.
-- [ ] Existing wire fixture replays are byte-identical. Route, protocol,
+- [x] Existing wire fixture replays are byte-identical. Route, protocol,
   and fingerprint never change as an implicit fallback.
 
 ### 2. Public API boundaries
