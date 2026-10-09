@@ -37,10 +37,6 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H1::connect_via),
         ),
         (
-            "Http1TlsConnector::connect_direct",
-            future_size(&H1::connect_direct),
-        ),
-        (
             "Http1TlsConnector::connect_plaintext_direct",
             future_size(&H1::connect_plaintext_direct),
         ),
@@ -51,30 +47,6 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
         (
             "Http1TlsConnector::connect_https_forward_proxy",
             future_size(&H1::connect_https_forward_proxy),
-        ),
-        (
-            "Http1TlsConnector::connect_http_connect",
-            future_size(&H1::connect_http_connect),
-        ),
-        (
-            "Http1TlsConnector::connect_http_connect_with_basic_auth",
-            future_size(&H1::connect_http_connect_with_basic_auth),
-        ),
-        (
-            "Http1TlsConnector::connect_https_connect",
-            future_size(&H1::connect_https_connect),
-        ),
-        (
-            "Http1TlsConnector::connect_https_connect_with_basic_auth",
-            future_size(&H1::connect_https_connect_with_basic_auth),
-        ),
-        (
-            "Http1TlsConnector::connect_socks5_remote_with_auth",
-            future_size(&H1::connect_socks5_remote_with_auth),
-        ),
-        (
-            "Http1TlsConnector::connect_socks5_local_with_auth",
-            future_size(&H1::connect_socks5_local_with_auth),
         ),
         (
             "Http1TlsConnector::connect_plaintext_socks5_remote_with_auth",
@@ -101,34 +73,6 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H2::connect_via),
         ),
         (
-            "Http2TlsConnector::connect_direct",
-            future_size(&H2::connect_direct),
-        ),
-        (
-            "Http2TlsConnector::connect_http_connect",
-            future_size(&H2::connect_http_connect),
-        ),
-        (
-            "Http2TlsConnector::connect_http_connect_with_basic_auth",
-            future_size(&H2::connect_http_connect_with_basic_auth),
-        ),
-        (
-            "Http2TlsConnector::connect_https_connect",
-            future_size(&H2::connect_https_connect),
-        ),
-        (
-            "Http2TlsConnector::connect_https_connect_with_basic_auth",
-            future_size(&H2::connect_https_connect_with_basic_auth),
-        ),
-        (
-            "Http2TlsConnector::connect_socks5_remote_with_auth",
-            future_size(&H2::connect_socks5_remote_with_auth),
-        ),
-        (
-            "Http2TlsConnector::connect_socks5_local_with_auth",
-            future_size(&H2::connect_socks5_local_with_auth),
-        ),
-        (
             "Http2TlsConnector::send_extended_connect_direct",
             future_size(&H2::send_extended_connect_direct),
         ),
@@ -147,34 +91,6 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
         (
             "Http1Or2TlsConnector::connect_via",
             future_size(&H12::connect_via),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_direct",
-            future_size(&H12::connect_direct),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_http_connect",
-            future_size(&H12::connect_http_connect),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_http_connect_with_basic_auth",
-            future_size(&H12::connect_http_connect_with_basic_auth),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_https_connect",
-            future_size(&H12::connect_https_connect),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_https_connect_with_basic_auth",
-            future_size(&H12::connect_https_connect_with_basic_auth),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_socks5_remote_with_auth",
-            future_size(&H12::connect_socks5_remote_with_auth),
-        ),
-        (
-            "Http1Or2TlsConnector::connect_socks5_local_with_auth",
-            future_size(&H12::connect_socks5_local_with_auth),
         ),
         (
             "Http3Connector::connect_direct",

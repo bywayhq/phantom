@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `phantom-net`'s HTTP/1.1, HTTP/2, and negotiated TLS connectors use
+  `connect_via(route, server_name)` instead of ordinary direct, HTTP CONNECT,
+  HTTPS CONNECT, and SOCKS5 connection methods. Migrate: construct a
+  `phantom_net::route::TcpRoute` for the connection path and pass the origin
+  TLS name separately. The route holds ordered CONNECT headers, optional
+  proxy credentials, and local or remote SOCKS5 DNS selection.
+
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.
   `Http2Connection::idle_time_left` is new, and `is_reusable` returns
@@ -881,10 +888,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
-- Typed TCP routes in `phantom-net::route` and `connect_via` on the
-  HTTP/1.1, HTTP/2, and negotiated TLS connectors. HTTP CONNECT and SOCKS5
-  connections share connection setup while keeping their authentication,
-  DNS ownership, and socket settings.
 
 - `ClientBuilder::client_certificate_for(origin, certificate)` presents
   `certificate` to one host and port, such as `"https://api.example:8443"`,

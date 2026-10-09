@@ -354,25 +354,6 @@ impl Http2TlsConnector {
         .await
     }
 
-    /// Establishes HTTP/2 over a new direct TCP and TLS connection.
-    ///
-    /// This method never falls back to another HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] when connection setup, TLS negotiation, ALPS
-    /// decoding, or the HTTP/2 handshake fails.
-    ///
-    pub async fn connect_direct(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(TcpRoute::Direct(Endpoint { host, port }), server_name)
-            .await
-    }
-
     /// Establishes HTTP/2 over a new direct TCP and TLS connection that
     /// offers Encrypted Client Hello with the `ECHConfigList` that `ech`
     /// yields, as Chrome 154 does for an origin's HTTPS record.
@@ -380,7 +361,7 @@ impl Http2TlsConnector {
     /// The bounded wait for `ech`, the check of the list, and the one retry
     /// after a rejection are those of
     /// [`Http1Or2TlsConnector::connect_direct_with_ech`](crate::http1_or_2::Http1Or2TlsConnector::connect_direct_with_ech).
-    /// With `None` the handshake is the one [`Self::connect_direct`] makes.
+    /// With `None` the handshake is the one [`Self::connect_via`] makes.
     /// This method never falls back to another HTTP protocol.
     ///
     /// # Errors
@@ -419,7 +400,7 @@ impl Http2TlsConnector {
     /// DNS or TCP I/O. The connection is configured with the profile's
     /// dedicated five-field pseudo-header order and never falls back to H1.
     ///
-    /// The handshake offers early data as [`Self::connect_direct`] does. The
+    /// The handshake offers early data as [`Self::connect_via`] does. The
     /// connection preface and SETTINGS travel in it, and the CONNECT waits
     /// for the server's answer: Firefox 157 starts its HTTP/2 session in
     /// early data and holds the WebSocket transaction until the session is
@@ -788,240 +769,6 @@ impl Http2TlsConnector {
         .await?;
         self.send_prepared_extended_connect(stream, server_name, client, authority, target, headers)
             .await
-    }
-
-    /// Establishes HTTP/2 through a plaintext HTTP CONNECT proxy.
-    ///
-    /// The CONNECT request is validated before DNS resolution or TCP I/O.
-    /// Proxy failure never falls back to a direct connection or another HTTP
-    /// protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] when proxy negotiation, TLS negotiation, ALPS
-    /// decoding, or the HTTP/2 handshake fails.
-    ///
-    pub async fn connect_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                }),
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: None,
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 through a plaintext proxy using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_http_connect_with_basic_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                }),
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: Some(credentials),
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 origin TLS through an HTTP/1.1 CONNECT tunnel to an
-    /// HTTPS proxy.
-    ///
-    /// CONNECT validation finishes before the proxy TCP connection begins.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_https_connect(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tls {
-                    endpoint: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    server_name: proxy_server_name,
-                    connector: proxy_connector,
-                },
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: None,
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 through an HTTPS proxy using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_https_connect_with_basic_auth(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tls {
-                    endpoint: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    server_name: proxy_server_name,
-                    connector: proxy_connector,
-                },
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: Some(credentials),
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 through a SOCKS5 proxy using remote DNS.
-    ///
-    /// Proxy failure never falls back to a direct connection or another HTTP
-    /// protocol.
-    pub async fn connect_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_socks5_remote_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 through a remote-DNS proxy with configured credentials.
-    ///
-    /// Proxy failure never falls back to a direct connection or another HTTP
-    /// protocol.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(
-            TcpRoute::Socks5 {
-                proxy: Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                },
-                target: Socks5Target::RemoteDns(Endpoint {
-                    host: target_host,
-                    port: target_port,
-                }),
-                auth,
-            },
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 through a SOCKS5 proxy using local DNS.
-    ///
-    /// Proxy failure never falls back to a direct connection or another HTTP
-    /// protocol.
-    pub async fn connect_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_socks5_local_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-        )
-        .await
-    }
-
-    /// Establishes HTTP/2 through a local-DNS proxy with configured credentials.
-    ///
-    /// Proxy failure never falls back to a direct connection or another HTTP
-    /// protocol.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.connect_via(
-            TcpRoute::Socks5 {
-                proxy: Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                },
-                target: Socks5Target::LocalDns(Endpoint {
-                    host: target_host,
-                    port: target_port,
-                }),
-                auth,
-            },
-            server_name,
-        )
-        .await
     }
 
     /// Sends one empty-body HTTP/2 GET after an exact `h2` TLS negotiation.

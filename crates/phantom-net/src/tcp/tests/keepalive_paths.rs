@@ -151,7 +151,13 @@ async fn negotiated(alpn: TestServerAlpn) -> TestResult<TcpKeepaliveControl> {
     .with_tcp_settings(&firefox::v157_tcp());
 
     let connection = connector
-        .connect_direct("127.0.0.1", address.port(), "server.phantom.test")
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: address.port(),
+            }),
+            "server.phantom.test",
+        )
         .await;
     if let Ok(Http1Or2Connection::Http1(connection)) = &connection {
         let (target, headers) = get()?;
@@ -244,13 +250,20 @@ async fn an_http2_proxy_connection_turns_keepalive_off() -> TestResult<()> {
     let origin = Http1TlsConnector::new(&firefox::v157_tls())?;
 
     let _ = origin
-        .connect_https_connect(
-            &proxy,
-            "127.0.0.1",
-            address.port(),
-            TEST_SERVER_NAME,
-            "server.phantom.test:443",
-            &[HttpConnectHeader::authority("Host")],
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tls {
+                    endpoint: crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    },
+                    server_name: TEST_SERVER_NAME,
+                    connector: &proxy,
+                },
+                authority: "server.phantom.test:443",
+                headers: &[HttpConnectHeader::authority("Host")],
+                credentials: None,
+            }),
             TEST_SERVER_NAME,
         )
         .await;

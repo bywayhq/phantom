@@ -88,7 +88,15 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
     };
 
     let (recorder, http1) = connector()?;
-    let _ = http1.connect_direct(ORIGIN, peer.port, ORIGIN).await;
+    let _ = http1
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: ORIGIN,
+                port: peer.port,
+            }),
+            ORIGIN,
+        )
+        .await;
     assert_eq!(names(&recorder), [ORIGIN], "direct TLS");
 
     let (recorder, http1) = connector()?;
@@ -101,19 +109,56 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_http_connect(PROXY, peer.port, AUTHORITY, &connect_headers, ORIGIN)
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                }),
+                authority: AUTHORITY,
+                headers: &connect_headers,
+                credentials: None,
+            }),
+            ORIGIN,
+        )
         .await;
     assert_eq!(names(&recorder), [PROXY], "HTTP CONNECT");
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_socks5_remote(PROXY, peer.port, ORIGIN, 443, ORIGIN)
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            ORIGIN,
+        )
         .await;
     assert_eq!(names(&recorder), [PROXY], "SOCKS5 remote DNS");
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_socks5_local(PROXY, peer.port, ORIGIN, 443, ORIGIN)
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            ORIGIN,
+        )
         .await;
     assert_eq!(names(&recorder), [ORIGIN, PROXY], "SOCKS5 local DNS");
     Ok(())
@@ -126,12 +171,41 @@ async fn http2_and_negotiated_connectors_resolve_through_the_cache() -> TestResu
     let http2 = Http2TlsConnector::new(&chromium::v154_tls(), &chromium::v154_http2())?
         .with_host_resolver(cache);
 
-    let _ = http2.connect_direct(ORIGIN, peer.port, ORIGIN).await;
     let _ = http2
-        .connect_socks5_remote_with_auth(PROXY, peer.port, Socks5Auth::None, ORIGIN, 443, ORIGIN)
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: ORIGIN,
+                port: peer.port,
+            }),
+            ORIGIN,
+        )
+        .await;
+    let _ = http2
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: 443,
+                }),
+                auth: Socks5Auth::None,
+            },
+            ORIGIN,
+        )
         .await;
     let negotiated = Http1Or2TlsConnector::from_http2(&http2)?;
-    let _ = negotiated.connect_direct(ORIGIN, peer.port, ORIGIN).await;
+    let _ = negotiated
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: ORIGIN,
+                port: peer.port,
+            }),
+            ORIGIN,
+        )
+        .await;
 
     assert_eq!(names(&recorder), [ORIGIN, PROXY], "each name resolved once");
     assert!(negotiated.host_resolver().is_some());
@@ -148,13 +222,20 @@ async fn https_proxy_host_resolves_through_the_proxy_connector() -> TestResult {
     let connect_headers = [HttpConnectHeader::authority("Host")];
 
     let _ = origin
-        .connect_https_connect(
-            &proxy,
-            PROXY,
-            peer.port,
-            PROXY,
-            AUTHORITY,
-            &connect_headers,
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tls {
+                    endpoint: crate::route::Endpoint {
+                        host: PROXY,
+                        port: peer.port,
+                    },
+                    server_name: PROXY,
+                    connector: &proxy,
+                },
+                authority: AUTHORITY,
+                headers: &connect_headers,
+                credentials: None,
+            }),
             ORIGIN,
         )
         .await;

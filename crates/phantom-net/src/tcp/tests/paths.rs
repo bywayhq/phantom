@@ -90,7 +90,13 @@ async fn connectors_without_tcp_settings_keep_os_defaults() -> TestResult {
 
     let connector = Http1TlsConnector::new(&chromium::v154_tls())?;
     let _ = connector
-        .connect_direct("127.0.0.1", peer.port, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: peer.port,
+            }),
+            SERVER_NAME,
+        )
         .await;
 
     let sockets = observed::take();
@@ -119,7 +125,13 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
     observed::take();
 
     let _ = connector
-        .connect_direct("127.0.0.1", peer.port, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: peer.port,
+            }),
+            SERVER_NAME,
+        )
         .await;
     assert_profiled("direct TLS", &observed::take());
 
@@ -134,35 +146,70 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
     assert_profiled("forward proxy", &observed::take());
 
     let _ = connector
-        .connect_http_connect(
-            "127.0.0.1",
-            peer.port,
-            AUTHORITY,
-            &connect_headers,
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                }),
+                authority: AUTHORITY,
+                headers: &connect_headers,
+                credentials: None,
+            }),
             SERVER_NAME,
         )
         .await;
     assert_profiled("HTTP CONNECT", &observed::take());
 
     let _ = connector
-        .connect_http_connect_with_basic_auth(
-            "127.0.0.1",
-            peer.port,
-            AUTHORITY,
-            &basic_headers,
-            &credentials,
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                }),
+                authority: AUTHORITY,
+                headers: &basic_headers,
+                credentials: Some(&credentials),
+            }),
             SERVER_NAME,
         )
         .await;
     assert_profiled("HTTP CONNECT with Basic", &observed::take());
 
     let _ = connector
-        .connect_socks5_remote("127.0.0.1", peer.port, SERVER_NAME, 443, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: SERVER_NAME,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            SERVER_NAME,
+        )
         .await;
     assert_profiled("SOCKS5 remote DNS", &observed::take());
 
     let _ = connector
-        .connect_socks5_local("127.0.0.1", peer.port, "127.0.0.1", 443, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            SERVER_NAME,
+        )
         .await;
     assert_profiled("SOCKS5 local DNS", &observed::take());
     Ok(())
@@ -183,13 +230,20 @@ async fn https_proxy_connections_apply_the_proxy_connectors_tcp_settings() -> Te
     assert_profiled("HTTPS forward proxy", &observed::take());
 
     let _ = origin
-        .connect_https_connect(
-            &proxy,
-            "127.0.0.1",
-            peer.port,
-            SERVER_NAME,
-            AUTHORITY,
-            &connect_headers,
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tls {
+                    endpoint: crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: peer.port,
+                    },
+                    server_name: SERVER_NAME,
+                    connector: &proxy,
+                },
+                authority: AUTHORITY,
+                headers: &connect_headers,
+                credentials: None,
+            }),
             SERVER_NAME,
         )
         .await;
@@ -206,28 +260,45 @@ async fn http2_connect_paths_apply_tcp_settings() -> TestResult {
     observed::take();
 
     let _ = connector
-        .connect_direct("127.0.0.1", peer.port, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: peer.port,
+            }),
+            SERVER_NAME,
+        )
         .await;
     assert_profiled("HTTP/2 direct", &observed::take());
 
     let _ = connector
-        .connect_http_connect(
-            "127.0.0.1",
-            peer.port,
-            AUTHORITY,
-            &connect_headers,
+        .connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                }),
+                authority: AUTHORITY,
+                headers: &connect_headers,
+                credentials: None,
+            }),
             SERVER_NAME,
         )
         .await;
     assert_profiled("HTTP/2 over HTTP CONNECT", &observed::take());
 
     let _ = connector
-        .connect_socks5_remote_with_auth(
-            "127.0.0.1",
-            peer.port,
-            Socks5Auth::None,
-            SERVER_NAME,
-            443,
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: SERVER_NAME,
+                    port: 443,
+                }),
+                auth: Socks5Auth::None,
+            },
             SERVER_NAME,
         )
         .await;
@@ -236,7 +307,13 @@ async fn http2_connect_paths_apply_tcp_settings() -> TestResult {
     let negotiated = Http1Or2TlsConnector::from_http2(&connector)?;
     assert_eq!(negotiated.tcp_settings(), Some(&settings));
     let _ = negotiated
-        .connect_direct("127.0.0.1", peer.port, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: peer.port,
+            }),
+            SERVER_NAME,
+        )
         .await;
     assert_profiled("HTTP/1.1-or-HTTP/2 direct", &observed::take());
     Ok(())
@@ -249,7 +326,20 @@ async fn socks5_udp_control_connection_applies_tcp_settings() -> TestResult {
     observed::take();
 
     let _ = connector
-        .connect_socks5_remote("127.0.0.1", peer.port, SERVER_NAME, 443, SERVER_NAME)
+        .connect_via(
+            crate::route::TcpRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: SERVER_NAME,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            SERVER_NAME,
+        )
         .await;
     assert_profiled("SOCKS5 UDP control", &observed::take());
     Ok(())

@@ -215,11 +215,16 @@ async fn a_connection_through_a_proxy_offers_no_early_data() -> TestResult<()> {
     let authority = format!("{TEST_SERVER_NAME}:{}", address.port());
     let connection = tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_http_connect(
-            "127.0.0.1",
-            address.port(),
-            &authority,
-            &[HttpConnectHeader::authority("Host")],
+        connector.connect_via(
+            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                }),
+                authority: &authority,
+                headers: &[HttpConnectHeader::authority("Host")],
+                credentials: None,
+            }),
             TEST_SERVER_NAME,
         ),
     )
@@ -410,7 +415,13 @@ async fn send_http2(connector: &Http1Or2TlsConnector, port: u16, method: Method)
 async fn connect(connector: &Http1Or2TlsConnector, port: u16) -> TestResult<Http1Or2Connection> {
     Ok(tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct("127.0.0.1", port, TEST_SERVER_NAME),
+        connector.connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: port,
+            }),
+            TEST_SERVER_NAME,
+        ),
     )
     .await??)
 }

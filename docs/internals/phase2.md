@@ -26,8 +26,15 @@ a passing focused test does not complete an item.
 The route lane has a shared TCP connection-leg owner and borrowed route
 values. HTTP/1.1, HTTP/2, and negotiated connectors use it for ordinary
 connections and proxy request/upgrade paths. This is an unmerged checkpoint:
-old route methods, ECH/slower setup, plaintext/forwarding, and datagram
+route-specific send/upgrade methods, ECH/slower setup, plaintext/forwarding, and datagram
 routes still need consolidation. No route item is complete yet.
+
+Checkpoint `27022128` passed 145 focused tests, including the connection
+future-size budget, TCP settings/keepalive, TLS, ECH, route DNS ownership,
+source binding, and HTTP/3 WebSockets. The full workspace compile passed at
+`73164158`. Independent review approved both that refactor and the new
+source-binding/certificate tests after the probe fix. Later API migration
+commits require their own verification.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods

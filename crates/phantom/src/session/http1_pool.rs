@@ -753,27 +753,44 @@ impl PoolEntry {
                             if let Some(credentials) = proxy.basic_credentials() {
                                 // Bound the challenge/retry state machine without
                                 // adding allocation to unauthenticated connections.
-                                super::box_send(connector.connect_https_connect_with_basic_auth(
-                                    proxy_connector,
-                                    proxy.host(),
-                                    proxy.port(),
-                                    proxy.host(),
-                                    &connect_authority,
-                                    proxy.ordered_connect_headers(),
-                                    credentials,
+                                super::box_send(connector.connect_via(
+                                    phantom_net::route::TcpRoute::HttpConnect(
+                                        phantom_net::route::HttpConnectRoute {
+                                            proxy: phantom_net::route::ProxyTransport::Tls {
+                                                endpoint: phantom_net::route::Endpoint {
+                                                    host: proxy.host(),
+                                                    port: proxy.port(),
+                                                },
+                                                server_name: proxy.host(),
+                                                connector: proxy_connector,
+                                            },
+                                            authority: &connect_authority,
+                                            headers: proxy.ordered_connect_headers(),
+                                            credentials: Some(credentials),
+                                        },
+                                    ),
                                     endpoint.host(),
                                 ))
                                 .await
                                 .map_err(RequestError::http1_connection_setup)?
                             } else {
                                 connector
-                                    .connect_https_connect(
-                                        proxy_connector,
-                                        proxy.host(),
-                                        proxy.port(),
-                                        proxy.host(),
-                                        &connect_authority,
-                                        proxy.ordered_connect_headers(),
+                                    .connect_via(
+                                        phantom_net::route::TcpRoute::HttpConnect(
+                                            phantom_net::route::HttpConnectRoute {
+                                                proxy: phantom_net::route::ProxyTransport::Tls {
+                                                    endpoint: phantom_net::route::Endpoint {
+                                                        host: proxy.host(),
+                                                        port: proxy.port(),
+                                                    },
+                                                    server_name: proxy.host(),
+                                                    connector: proxy_connector,
+                                                },
+                                                authority: &connect_authority,
+                                                headers: proxy.ordered_connect_headers(),
+                                                credentials: None,
+                                            },
+                                        ),
                                         endpoint.host(),
                                     )
                                     .await
@@ -781,23 +798,40 @@ impl PoolEntry {
                             }
                         } else {
                             if let Some(credentials) = proxy.basic_credentials() {
-                                super::box_send(connector.connect_http_connect_with_basic_auth(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    &connect_authority,
-                                    proxy.ordered_connect_headers(),
-                                    credentials,
+                                super::box_send(connector.connect_via(
+                                    phantom_net::route::TcpRoute::HttpConnect(
+                                        phantom_net::route::HttpConnectRoute {
+                                            proxy: phantom_net::route::ProxyTransport::Tcp(
+                                                phantom_net::route::Endpoint {
+                                                    host: proxy.host(),
+                                                    port: proxy.port(),
+                                                },
+                                            ),
+                                            authority: &connect_authority,
+                                            headers: proxy.ordered_connect_headers(),
+                                            credentials: Some(credentials),
+                                        },
+                                    ),
                                     endpoint.host(),
                                 ))
                                 .await
                                 .map_err(RequestError::http1_connection_setup)?
                             } else {
                                 connector
-                                    .connect_http_connect(
-                                        proxy.host(),
-                                        proxy.port(),
-                                        &connect_authority,
-                                        proxy.ordered_connect_headers(),
+                                    .connect_via(
+                                        phantom_net::route::TcpRoute::HttpConnect(
+                                            phantom_net::route::HttpConnectRoute {
+                                                proxy: phantom_net::route::ProxyTransport::Tcp(
+                                                    phantom_net::route::Endpoint {
+                                                        host: proxy.host(),
+                                                        port: proxy.port(),
+                                                    },
+                                                ),
+                                                authority: &connect_authority,
+                                                headers: proxy.ordered_connect_headers(),
+                                                credentials: None,
+                                            },
+                                        ),
                                         endpoint.host(),
                                     )
                                     .await
@@ -807,23 +841,39 @@ impl PoolEntry {
                     }
                     Route::Socks5(proxy) => match proxy.dns_mode() {
                         crate::Socks5DnsMode::Local => connector
-                            .connect_socks5_local_with_auth(
-                                proxy.host(),
-                                proxy.port(),
-                                proxy.auth(),
-                                endpoint.host(),
-                                endpoint.port(),
+                            .connect_via(
+                                phantom_net::route::TcpRoute::Socks5 {
+                                    proxy: phantom_net::route::Endpoint {
+                                        host: proxy.host(),
+                                        port: proxy.port(),
+                                    },
+                                    target: phantom_net::route::Socks5Target::LocalDns(
+                                        phantom_net::route::Endpoint {
+                                            host: endpoint.host(),
+                                            port: endpoint.port(),
+                                        },
+                                    ),
+                                    auth: proxy.auth(),
+                                },
                                 endpoint.host(),
                             )
                             .await
                             .map_err(RequestError::http1_connection_setup)?,
                         crate::Socks5DnsMode::Remote => connector
-                            .connect_socks5_remote_with_auth(
-                                proxy.host(),
-                                proxy.port(),
-                                proxy.auth(),
-                                endpoint.host(),
-                                endpoint.port(),
+                            .connect_via(
+                                phantom_net::route::TcpRoute::Socks5 {
+                                    proxy: phantom_net::route::Endpoint {
+                                        host: proxy.host(),
+                                        port: proxy.port(),
+                                    },
+                                    target: phantom_net::route::Socks5Target::RemoteDns(
+                                        phantom_net::route::Endpoint {
+                                            host: endpoint.host(),
+                                            port: endpoint.port(),
+                                        },
+                                    ),
+                                    auth: proxy.auth(),
+                                },
                                 endpoint.host(),
                             )
                             .await

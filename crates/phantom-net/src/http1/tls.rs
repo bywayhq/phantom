@@ -918,23 +918,7 @@ impl Http1TlsConnector {
         .await
     }
 
-    /// Opens one direct TLS connection for sequential HTTP/1.1 requests.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when TCP setup, TLS negotiation, ALPN
-    /// selection, or the HTTP/1.1 handshake fails.
-    pub async fn connect_direct(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(TcpRoute::Direct(Endpoint { host, port }), server_name)
-            .await
-    }
-
-    /// Opens one direct TLS connection as [`Self::connect_direct`] does and,
+    /// Opens one direct TLS connection as [`Self::connect_via`] does and,
     /// when the TCP settings select a
     /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
     /// and updates `family`, the origin's address family, and returns the
@@ -1031,7 +1015,7 @@ impl Http1TlsConnector {
     /// The bounded wait for `ech`, the check of the list, and the one retry
     /// after a rejection are those of
     /// [`Http1Or2TlsConnector::connect_direct_with_ech`](crate::http1_or_2::Http1Or2TlsConnector::connect_direct_with_ech).
-    /// With `None` the handshake is the one [`Self::connect_direct`] makes.
+    /// With `None` the handshake is the one [`Self::connect_via`] makes.
     ///
     /// # Errors
     ///
@@ -1283,251 +1267,13 @@ impl Http1TlsConnector {
         result
     }
 
-    /// Opens one HTTP CONNECT tunnel and establishes HTTP/1.1 over TLS.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when proxy negotiation, TLS negotiation, ALPN
-    /// selection, or the HTTP/1.1 handshake fails.
-    pub async fn connect_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                }),
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: None,
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens a plaintext proxy tunnel using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_http_connect_with_basic_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                }),
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: Some(credentials),
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens an HTTP/1.1 CONNECT tunnel through an HTTPS proxy and establishes
-    /// HTTP/1.1 over origin TLS.
-    ///
-    /// CONNECT validation finishes before the proxy TCP connection begins.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_https_connect(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tls {
-                    endpoint: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    server_name: proxy_server_name,
-                    connector: proxy_connector,
-                },
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: None,
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens an HTTPS proxy tunnel using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_https_connect_with_basic_auth(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tls {
-                    endpoint: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    server_name: proxy_server_name,
-                    connector: proxy_connector,
-                },
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: Some(credentials),
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens one remote-DNS SOCKS5 tunnel and establishes HTTP/1.1 over TLS.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when proxy negotiation, TLS negotiation, ALPN
-    /// selection, or the HTTP/1.1 handshake fails.
-    pub async fn connect_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_socks5_remote_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens a remote-DNS tunnel with configured credentials and establishes HTTP/1.1.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when proxy authentication or negotiation, TLS
-    /// negotiation, ALPN selection, or the HTTP/1.1 handshake fails.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(
-            TcpRoute::Socks5 {
-                proxy: Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                },
-                target: Socks5Target::RemoteDns(Endpoint {
-                    host: target_host,
-                    port: target_port,
-                }),
-                auth,
-            },
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens one local-DNS SOCKS5 tunnel and establishes HTTP/1.1 over TLS.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when target resolution, proxy negotiation,
-    /// TLS negotiation, ALPN selection, or the HTTP/1.1 handshake fails.
-    pub async fn connect_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_socks5_local_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-        )
-        .await
-    }
-
-    /// Opens a local-DNS tunnel with configured credentials and establishes HTTP/1.1.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when target resolution, proxy authentication
-    /// or negotiation, TLS negotiation, ALPN selection, or the HTTP/1.1
-    /// handshake fails.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_via(
-            TcpRoute::Socks5 {
-                proxy: Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                },
-                target: Socks5Target::LocalDns(Endpoint {
-                    host: target_host,
-                    port: target_port,
-                }),
-                auth,
-            },
-            server_name,
-        )
-        .await
-    }
-
     /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS connection.
     ///
     /// A `101 Switching Protocols` response yields the upgraded byte stream.
     /// Any other status remains an ordinary streaming HTTP response. The
     /// complete request is validated before DNS resolution or TCP I/O.
     ///
-    /// The handshake offers early data as [`Self::connect_direct`] does, and
+    /// The handshake offers early data as [`Self::connect_via`] does, and
     /// the GET, which is replay safe, travels in it: Firefox 157 sends a
     /// WebSocket opening as early data on a resumed connection
     /// (`TlsHandshaker::Check0RttEnabled` and `nsHttpTransaction::Do0RTT`,

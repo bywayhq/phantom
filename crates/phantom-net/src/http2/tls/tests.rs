@@ -172,7 +172,13 @@ async fn reusable_connect_direct_serves_multiple_requests() -> TestResult<()> {
 
         let connector = test_connector(&identity)?;
         let connection = connector
-            .connect_direct("127.0.0.1", address.port(), TEST_SERVER_NAME)
+            .connect_via(
+                crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                }),
+                TEST_SERVER_NAME,
+            )
             .await?;
         request_and_collect(&connection, "/direct-one", vec![]).await?;
         request_and_collect(&connection, "/direct-two", vec![]).await?;
@@ -211,11 +217,16 @@ async fn reusable_connect_http_connect_keeps_origin_data_out_of_proxy_head() -> 
             HttpConnectHeader::field(RequestHeader::new("Proxy-Authorization", "Basic cHJveHk=")),
         ];
         let connection = connector
-            .connect_http_connect(
-                "127.0.0.1",
-                address.port(),
-                TEST_AUTHORITY,
-                &connect_headers,
+            .connect_via(
+                crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    }),
+                    authority: TEST_AUTHORITY,
+                    headers: &connect_headers,
+                    credentials: None,
+                }),
                 TEST_SERVER_NAME,
             )
             .await?;

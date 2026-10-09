@@ -20,11 +20,8 @@ use crate::{
         Http2Builder, Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected,
         translate_settings, validate_http2,
     },
-    proxy::{
-        HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
-        ProxyCredentialCache, Socks5Auth, Socks5Error,
-    },
-    route::{Endpoint, HttpConnectRoute, ProxyTransport, Socks5Target, TcpRoute},
+    proxy::{HttpConnectError, ProxyCredentialCache, Socks5Error},
+    route::TcpRoute,
     source_binding::SourceBinding,
     tcp::{
         AddressFamilyMemory, ForeignStream, SlowerAttempt, SlowerConnection, SlowerKeepalive,
@@ -421,7 +418,7 @@ impl Http1Or2TlsConnector {
     ///
     /// Without a cache, every challenge-driven exchange starts without
     /// credentials. An HTTPS proxy uses the cache of the
-    /// [`HttpsProxyConnector`] passed with it. Clones of this connector share
+    /// [`crate::proxy::HttpsProxyConnector`] passed with it. Clones of this connector share
     /// `cache`.
     #[must_use]
     pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
@@ -439,7 +436,7 @@ impl Http1Or2TlsConnector {
     ///
     /// The binding covers direct origin connections and connections to HTTP
     /// and SOCKS5 proxies. An HTTPS proxy connection uses the binding of the
-    /// [`HttpsProxyConnector`] passed with it. An invalid binding fails each
+    /// [`crate::proxy::HttpsProxyConnector`] passed with it. An invalid binding fails each
     /// connection attempt with [`std::io::ErrorKind::InvalidInput`] before
     /// any DNS or socket I/O; see [`SourceBinding::validate`].
     #[must_use]
@@ -472,7 +469,7 @@ impl Http1Or2TlsConnector {
     ///
     /// The resolver covers direct origin hosts, HTTP and SOCKS5 proxy hosts,
     /// and the target of a local-DNS SOCKS5 route. An HTTPS proxy host is
-    /// resolved through the [`HttpsProxyConnector`] passed with it. A target
+    /// resolved through the [`crate::proxy::HttpsProxyConnector`] passed with it. A target
     /// that a proxy resolves is never looked up locally. Clones of this
     /// connector share `resolver`.
     #[must_use]
@@ -518,7 +515,7 @@ impl Http1Or2TlsConnector {
     /// finishes. The ClientHello waits for `ech` at most 20% of the address
     /// resolution time, clamped to 5-50 ms, counted from when the addresses
     /// arrived; `ech` still pending then counts as `None`. With `None` the
-    /// handshake is the one [`Self::connect_direct`] makes.
+    /// handshake is the one [`Self::connect_via`] makes.
     ///
     /// A list the TLS client rejects fails with
     /// [`EchFailure::InvalidConfigList`] before any TLS byte is sent. When
@@ -613,25 +610,7 @@ impl Http1Or2TlsConnector {
         .await
     }
 
-    /// Opens one direct TCP connection and selects HTTP/1.1 or HTTP/2 over TLS.
-    ///
-    /// HTTP/2 settings are prepared before DNS resolution or network I/O.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, connection, TLS, ALPN, ALPS,
-    /// or protocol setup failures.
-    pub async fn connect_direct(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(TcpRoute::Direct(Endpoint { host, port }), server_name)
-            .await
-    }
-
-    /// Opens one direct connection as [`Self::connect_direct`] does and,
+    /// Opens one direct connection as [`Self::connect_via`] does and,
     /// when the TCP settings select a
     /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
     /// and updates `family`, the origin's address family, and returns the
@@ -751,238 +730,6 @@ impl Http1Or2TlsConnector {
                 }
             }
         })
-    }
-
-    /// Tunnels through a plaintext HTTP proxy with one HTTP/1.1 CONNECT, then
-    /// selects HTTP/1.1 or HTTP/2 over origin TLS.
-    ///
-    /// The CONNECT request is validated before DNS resolution or TCP I/O, and
-    /// the proxy leg uses this connector's TCP settings. `server_name` controls
-    /// origin certificate verification and SNI. The origin TLS handshake runs
-    /// once inside the tunnel. Proxy or negotiation failure never falls back
-    /// to a direct connection, another ALPN offer, or another HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, proxy, TLS, ALPN, ALPS, or
-    /// protocol setup failures.
-    pub async fn connect_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                }),
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: None,
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Tunnels through a plaintext HTTP proxy using challenge-driven Basic
-    /// authentication, then selects HTTP/1.1 or HTTP/2 over origin TLS.
-    ///
-    /// The first CONNECT omits credentials. After a valid Basic challenge the
-    /// CONNECT is sent once more, with credentials, on a fresh proxy
-    /// connection. Otherwise this behaves as [`Self::connect_http_connect`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, proxy, authentication, TLS,
-    /// ALPN, ALPS, or protocol setup failures.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_http_connect_with_basic_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                }),
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: Some(credentials),
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Tunnels through an HTTPS proxy with `proxy_connector`, then selects
-    /// HTTP/1.1 or HTTP/2 over origin TLS inside the tunnel.
-    ///
-    /// The proxy connector owns the proxy TLS offer, trust roots, proxy
-    /// protocol, and proxy-leg TCP settings. The origin handshake uses this
-    /// connector's TLS settings and `server_name`, once. Failure never falls
-    /// back to a direct connection, another ALPN offer, or another HTTP
-    /// protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, proxy, TLS, ALPN, ALPS, or
-    /// protocol setup failures.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_https_connect(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tls {
-                    endpoint: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    server_name: proxy_server_name,
-                    connector: proxy_connector,
-                },
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: None,
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Tunnels through an HTTPS proxy using challenge-driven Basic
-    /// authentication, then selects HTTP/1.1 or HTTP/2 over origin TLS.
-    ///
-    /// Otherwise this behaves as [`Self::connect_https_connect`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, proxy, authentication, TLS,
-    /// ALPN, ALPS, or protocol setup failures.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_https_connect_with_basic_auth(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(
-            TcpRoute::HttpConnect(HttpConnectRoute {
-                proxy: ProxyTransport::Tls {
-                    endpoint: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    server_name: proxy_server_name,
-                    connector: proxy_connector,
-                },
-                authority: connect_authority,
-                headers: connect_headers,
-                credentials: Some(credentials),
-            }),
-            server_name,
-        )
-        .await
-    }
-
-    /// Tunnels through a SOCKS5 proxy that resolves the target, then selects
-    /// HTTP/1.1 or HTTP/2 over TLS.
-    ///
-    /// The target host is sent to the proxy as a SOCKS5 `DOMAIN` address and
-    /// is never resolved locally. `server_name` still controls certificate
-    /// verification and SNI, so the origin keeps its own identity. Proxy
-    /// failure never falls back to a direct connection or another HTTP
-    /// protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, proxy, TLS, ALPN, ALPS, or
-    /// protocol setup failures.
-    pub async fn connect_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(
-            TcpRoute::Socks5 {
-                proxy: Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                },
-                target: Socks5Target::RemoteDns(Endpoint {
-                    host: target_host,
-                    port: target_port,
-                }),
-                auth,
-            },
-            server_name,
-        )
-        .await
-    }
-
-    /// Tunnels through a SOCKS5 proxy to a locally resolved target, then
-    /// selects HTTP/1.1 or HTTP/2 over TLS.
-    ///
-    /// The target is resolved locally and the selected address is sent as a
-    /// SOCKS5 `IPV4` or `IPV6` target. `server_name` still controls
-    /// certificate verification and SNI. Proxy failure never falls back to a
-    /// direct connection or another HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, resolution, proxy, TLS, ALPN,
-    /// ALPS, or protocol setup failures.
-    pub async fn connect_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.connect_via(
-            TcpRoute::Socks5 {
-                proxy: Endpoint {
-                    host: proxy_host,
-                    port: proxy_port,
-                },
-                target: Socks5Target::LocalDns(Endpoint {
-                    host: target_host,
-                    port: target_port,
-                }),
-                auth,
-            },
-            server_name,
-        )
-        .await
     }
 
     /// Runs `operation` in the connection span and records its outcome.

@@ -27,7 +27,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let connection = tokio::time::timeout(
         CONNECTION_TIMEOUT,
-        connector.connect_direct(&config.host, config.port, &config.server_name),
+        connector.connect_via(
+            phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
+                host: &config.host,
+                port: config.port,
+            }),
+            &config.server_name,
+        ),
     )
     .await
     .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "TLS connection timed out"))??;
