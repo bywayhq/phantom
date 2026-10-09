@@ -7,11 +7,16 @@ import json
 import os
 import platform
 import subprocess
-import time
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .docker_owner import remove_container, verified_container_id
+else:
+    from docker_owner import remove_container, verified_container_id
 
 IMAGE = "phantom-tls-anvil:local"
 SUITE_IMAGE = (
@@ -25,6 +30,8 @@ FAILURE_STATUSES = frozenset(
 )
 BUILD_TIMEOUT_SECONDS = 1200
 RUN_TIMEOUT_SECONDS = 300
+CONTAINER_TIMEOUT_SECONDS = 30
+CONTAINER_OWNER_LABEL = "io.byway.phantom.tls-anvil.owner"
 RETAINED_LOG_BYTES = 2 * 1024 * 1024
 
 
@@ -164,19 +171,50 @@ def _git_revision(repository: Path) -> str:
 def _bound_log(path: Path) -> None:
     try:
         content = path.read_bytes()
-    except OSError:
+    except FileNotFoundError:
         return
     if len(content) <= RETAINED_LOG_BYTES:
         return
+
     marker = b"[earlier TLS-Anvil output omitted]\n"
     path.write_bytes(marker + content[-RETAINED_LOG_BYTES:])
+
+
+def _cleanup_container(
+    name: str, owner: str
+) -> tuple[list[tuple[str, Exception | KeyboardInterrupt]], list[str]]:
+    try:
+        container_id = verified_container_id(
+            name, CONTAINER_OWNER_LABEL, owner, timeout=CONTAINER_TIMEOUT_SECONDS
+        )
+    except (Exception, KeyboardInterrupt) as error:
+        return [("container ownership inspection", error)], []
+
+    if container_id is None:
+        return [], ["container cleanup: named container not found"]
+
+    try:
+        remove_container(container_id, timeout=CONTAINER_TIMEOUT_SECONDS)
+    except (Exception, KeyboardInterrupt) as error:
+        return [("container removal", error)], []
+
+    return [], []
+
+
+def _failure_message(error: BaseException) -> str:
+    message = str(error) or type(error).__name__
+    if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+        message += f": {error.stderr.strip()}"
+    return message
 
 
 def run(repository: Path, report_root: Path) -> Path:
     """Builds the adapter image, runs the smoke profile, and validates reports."""
 
+    owner = uuid.uuid4().hex
+    container_name = f"phantom-tls-anvil-{owner}"
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    run_directory = (report_root / f"smoke-{timestamp}-{os.getpid()}").resolve()
+    run_directory = (report_root / f"smoke-{timestamp}-{os.getpid()}-{owner}").resolve()
     run_directory.mkdir(parents=True, exist_ok=False)
     config_directory = (repository / "scripts" / "conformance" / "tls-anvil").resolve()
     metadata = {
@@ -188,35 +226,23 @@ def run(repository: Path, report_root: Path) -> Path:
         "started_at": datetime.now(timezone.utc).isoformat(),
         "suite_image": SUITE_IMAGE,
         "suite_source_revision": SUITE_SOURCE_REVISION,
+        "container_name": container_name,
+        "container_owner_label": CONTAINER_OWNER_LABEL,
+        "container_owner": owner,
     }
     (run_directory / "metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
-    subprocess.run(
-        [
-            "docker",
-            "build",
-            "--platform",
-            "linux/amd64",
-            "--file",
-            str(config_directory / "Dockerfile"),
-            "--tag",
-            IMAGE,
-            str(repository),
-        ],
-        check=True,
-        timeout=BUILD_TIMEOUT_SECONDS,
-    )
-
-    container_name = f"phantom-tls-anvil-{os.getpid()}-{int(time.time())}"
     container_log = run_directory / "container.log"
     command = [
         "docker",
         "run",
         "--name",
         container_name,
+        "--label",
+        f"{CONTAINER_OWNER_LABEL}={owner}",
         "--platform",
         "linux/amd64",
         "--network",
@@ -233,9 +259,34 @@ def run(repository: Path, report_root: Path) -> Path:
         "-tlsAnvilConfig",
         "/config/client.json",
     ]
+
     result: subprocess.CompletedProcess[str] | None = None
+    launch_attempted = False
+    primary_error: Exception | KeyboardInterrupt | None = None
+    cleanup_errors: list[tuple[str, Exception | KeyboardInterrupt]] = []
+    cleanup_notes: list[str] = []
+    summary_document = ReportSummary(0, 0, 0, ()).as_json()
+    summary_document["suite_report_validated"] = False
+
     try:
+        subprocess.run(
+            [
+                "docker",
+                "build",
+                "--platform",
+                "linux/amd64",
+                "--file",
+                str(config_directory / "Dockerfile"),
+                "--tag",
+                IMAGE,
+                str(repository),
+            ],
+            check=True,
+            timeout=BUILD_TIMEOUT_SECONDS,
+        )
+
         with container_log.open("x", encoding="utf-8") as output:
+            launch_attempted = True
             result = subprocess.run(
                 command,
                 check=False,
@@ -244,32 +295,76 @@ def run(repository: Path, report_root: Path) -> Path:
                 stdout=output,
                 stderr=subprocess.STDOUT,
             )
-    finally:
-        subprocess.run(
-            ["docker", "rm", "--force", container_name],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        _bound_log(container_log)
-        _bound_log(run_directory / "adapter.log")
 
-    suite_directory = run_directory / "suite"
-    summary = summarize_reports(
-        load_json(suite_directory / "report.json"),
-        load_json(suite_directory / "result_map.json"),
+        suite_directory = run_directory / "suite"
+        summary = summarize_reports(
+            load_json(suite_directory / "report.json"),
+            load_json(suite_directory / "result_map.json"),
+        )
+        summary_document = summary.as_json()
+        summary_document["suite_report_validated"] = True
+
+        result.check_returncode()
+    except (Exception, KeyboardInterrupt) as error:
+        primary_error = error
+    finally:
+        if launch_attempted:
+            cleanup_errors, cleanup_notes = _cleanup_container(container_name, owner)
+
+        for log in (container_log, run_directory / "adapter.log"):
+            try:
+                _bound_log(log)
+            except OSError as error:
+                cleanup_errors.append((f"log retention of {log}", error))
+
+    failures = []
+    if primary_error is not None:
+        failures.append(f"suite execution: {_failure_message(primary_error)}")
+
+    if (
+        result is not None
+        and result.returncode
+        and not summary_document["suite_report_validated"]
+    ):
+        failures.append(f"TLS-Anvil exited with status {result.returncode}")
+
+    failures.extend(
+        f"{operation}: {_failure_message(error)}" for operation, error in cleanup_errors
     )
-    summary_document = summary.as_json()
-    summary_document["runner_exit_status"] = result.returncode
-    (run_directory / "summary.json").write_text(
-        json.dumps(summary_document, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+
+    summary_document["runner_exit_status"] = (
+        None if result is None else result.returncode
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"TLS-Anvil exited with status {result.returncode}")
+    summary_document["failures"] = failures
+    summary_document["cleanup"] = cleanup_notes
+
+    try:
+        (run_directory / "summary.json").write_text(
+            json.dumps(summary_document, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as error:
+        if primary_error is None and not cleanup_errors:
+            raise
+        cleanup_errors.append(("summary retention", error))
+        failures.append(f"summary retention: {_failure_message(error)}")
+
+    if cleanup_errors:
+        if (
+            primary_error is None
+            and len(cleanup_errors) == 1
+            and isinstance(cleanup_errors[0][1], KeyboardInterrupt)
+        ):
+            raise cleanup_errors[0][1]
+        raise RuntimeError("; ".join(failures)) from (
+            primary_error if primary_error is not None else cleanup_errors[0][1]
+        )
+    if primary_error is not None:
+        raise primary_error
+
     print(
-        f"TLS-Anvil smoke: {summary.strictly_succeeded_tests}/"
-        f"{summary.total_tests} tests strictly succeeded"
+        f"TLS-Anvil smoke: {summary_document['strictly_succeeded_tests']}/"
+        f"{summary_document['total_tests']} tests strictly succeeded"
     )
     return run_directory
 
