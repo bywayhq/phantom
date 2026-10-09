@@ -12,7 +12,7 @@
 //! depend on `phantom-http`. The optional `qlog` feature enables HTTP/3 qlog
 //! output, and `keylog` enables NSS key logging on every TLS context; the
 //! facade exposes both through its `diagnostics` feature. The optional
-//! `https-records` feature adds [`dns`], HTTPS DNS record lookups, and the
+//! `https-records` feature adds `dns`, HTTPS DNS record lookups, and the
 //! resolver dependency they need.
 //!
 //! All `unsafe` code is confined to the private `socket_ffi` module, the

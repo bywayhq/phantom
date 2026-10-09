@@ -1,0 +1,1403 @@
+pub mod phantom_profile
+pub mod phantom_profile::brave
+pub fn phantom_profile::brave::v154_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::brave::v154_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::brave::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::brave::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::brave::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::brave_android
+pub fn phantom_profile::brave_android::v153_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::brave_android::v153_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::brave_android::v153_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::brave_android::v153_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::brave_android::v153_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::brave_android::v153_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::brave_android::v153_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::brave_android::v153_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::brave_android::v153_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::brave_android::v153_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub mod phantom_profile::chrome_android
+pub fn phantom_profile::chrome_android::v154_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::chrome_android::v154_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::chrome_android::v154_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chrome_android::v154_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chrome_android::v154_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::chrome_android::v154_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::chrome_android::v154_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::chrome_android::v154_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::chrome_android::v154_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::chrome_android::v154_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::chrome_android::v154_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub mod phantom_profile::chromium
+pub fn phantom_profile::chromium::v154_cookie_placement() -> phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::chromium::v154_dns_cache() -> phantom_profile::dns_cache::DnsCacheSettings
+pub fn phantom_profile::chromium::v154_http1() -> phantom_profile::http1::Http1Settings
+pub fn phantom_profile::chromium::v154_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::chromium::v154_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::chromium::v154_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::chromium::v154_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::chromium::v154_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::chromium::v154_macos_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chromium::v154_macos_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chromium::v154_macos_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chromium::v154_proxy_connect() -> phantom_profile::proxy_connect::ProxyConnectTemplate
+pub fn phantom_profile::chromium::v154_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::chromium::v154_tcp() -> phantom_profile::tcp::TcpSettings
+pub fn phantom_profile::chromium::v154_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::chromium::v154_udp() -> phantom_profile::udp::UdpSettings
+pub fn phantom_profile::chromium::v154_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::chromium::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::chromium::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chromium::v154_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::chromium::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::client_hints
+#[non_exhaustive] pub enum phantom_profile::client_hints::ClientHintDelivery
+pub phantom_profile::client_hints::ClientHintDelivery::AcceptCh
+pub phantom_profile::client_hints::ClientHintDelivery::Default
+pub struct phantom_profile::client_hints::ClientHint
+impl phantom_profile::client_hints::ClientHint
+pub const fn phantom_profile::client_hints::ClientHint::delivery(&self) -> phantom_profile::client_hints::ClientHintDelivery
+pub fn phantom_profile::client_hints::ClientHint::name(&self) -> &str
+pub fn phantom_profile::client_hints::ClientHint::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::AsRef<[u8]>, phantom_profile::client_hints::ClientHintDelivery) -> Self
+pub fn phantom_profile::client_hints::ClientHint::value(&self) -> &[u8]
+impl core::fmt::Debug for phantom_profile::client_hints::ClientHint
+pub fn phantom_profile::client_hints::ClientHint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::client_hints::ClientHintSettings
+impl phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::client_hints::ClientHintSettings::hints(&self) -> &[phantom_profile::client_hints::ClientHint]
+pub fn phantom_profile::client_hints::ClientHintSettings::new(alloc::vec::Vec<phantom_profile::client_hints::ClientHint>) -> Self
+pub fn phantom_profile::client_hints::ClientHintSettings::validate(&self) -> core::result::Result<(), phantom_profile::client_hints::InvalidClientHintSettings>
+pub struct phantom_profile::client_hints::InvalidClientHintSettings
+impl phantom_profile::client_hints::InvalidClientHintSettings
+pub const fn phantom_profile::client_hints::InvalidClientHintSettings::field(&self) -> &'static str
+pub const fn phantom_profile::client_hints::InvalidClientHintSettings::reason(&self) -> &'static str
+impl core::error::Error for phantom_profile::client_hints::InvalidClientHintSettings
+impl core::fmt::Display for phantom_profile::client_hints::InvalidClientHintSettings
+pub fn phantom_profile::client_hints::InvalidClientHintSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub mod phantom_profile::cookie
+pub struct phantom_profile::cookie::CookiePlacement
+impl phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::cookie::CookiePlacement::before(&self) -> &[alloc::boxed::Box<str>]
+pub fn phantom_profile::cookie::CookiePlacement::before_fields<I, S>(I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::boxed::Box<str>>
+pub fn phantom_profile::cookie::CookiePlacement::insertion_index<'a>(&self, impl core::iter::traits::collect::IntoIterator<Item = &'a str>) -> core::option::Option<usize>
+pub fn phantom_profile::cookie::CookiePlacement::last() -> Self
+pub mod phantom_profile::dns_cache
+pub struct phantom_profile::dns_cache::DnsCacheSettings
+pub phantom_profile::dns_cache::DnsCacheSettings::max_entries: core::num::nonzero::NonZeroUsize
+pub phantom_profile::dns_cache::DnsCacheSettings::min_record_ttl: core::time::Duration
+pub phantom_profile::dns_cache::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>
+pub phantom_profile::dns_cache::DnsCacheSettings::ttl: core::time::Duration
+pub mod phantom_profile::edge
+pub fn phantom_profile::edge::v154_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::edge::v154_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::edge::v154_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::edge::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::edge::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::edge::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::edge_android
+pub fn phantom_profile::edge_android::v153_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::edge_android::v153_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::edge_android::v153_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::edge_android::v153_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::edge_android::v153_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::edge_android::v153_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::edge_android::v153_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::edge_android::v153_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::edge_android::v153_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::edge_android::v153_tls() -> phantom_profile::tls::TlsSettings
+pub mod phantom_profile::firefox
+pub fn phantom_profile::firefox::v157_cookie_placement() -> phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::firefox::v157_dns_cache() -> phantom_profile::dns_cache::DnsCacheSettings
+pub fn phantom_profile::firefox::v157_http1() -> phantom_profile::http1::Http1Settings
+pub fn phantom_profile::firefox::v157_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::firefox::v157_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::firefox::v157_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::firefox::v157_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::firefox::v157_macos_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::firefox::v157_macos_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::firefox::v157_macos_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::firefox::v157_proxy_connect() -> phantom_profile::proxy_connect::ProxyConnectTemplate
+pub fn phantom_profile::firefox::v157_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::firefox::v157_tcp() -> phantom_profile::tcp::TcpSettings
+pub fn phantom_profile::firefox::v157_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::firefox::v157_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::firefox::v157_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::firefox::v157_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::firefox::v157_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::firefox_android
+pub fn phantom_profile::firefox_android::v156_tls() -> phantom_profile::tls::TlsSettings
+pub mod phantom_profile::http1
+#[non_exhaustive] pub enum phantom_profile::http1::Http1IdleTimeout
+pub phantom_profile::http1::Http1IdleTimeout::CheckedOnRequest(core::time::Duration)
+pub phantom_profile::http1::Http1IdleTimeout::ClosedOnTimer(core::time::Duration)
+pub phantom_profile::http1::Http1IdleTimeout::Unlimited
+impl phantom_profile::http1::Http1IdleTimeout
+pub const fn phantom_profile::http1::Http1IdleTimeout::checked_on_request(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom_profile::http1::Http1IdleTimeout::closed_on_timer(self) -> core::option::Option<core::time::Duration>
+pub struct phantom_profile::http1::Http1Settings
+pub phantom_profile::http1::Http1Settings::idle_timeout: phantom_profile::http1::Http1IdleTimeout
+pub phantom_profile::http1::Http1Settings::max_connections_per_origin: core::num::nonzero::NonZeroUsize
+impl phantom_profile::http1::Http1Settings
+pub fn phantom_profile::http1::Http1Settings::validate(&self) -> core::result::Result<(), phantom_profile::http1::InvalidHttp1Settings>
+pub struct phantom_profile::http1::InvalidHttp1Settings
+impl phantom_profile::http1::InvalidHttp1Settings
+pub fn phantom_profile::http1::InvalidHttp1Settings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::http1::InvalidHttp1Settings
+impl core::fmt::Display for phantom_profile::http1::InvalidHttp1Settings
+pub fn phantom_profile::http1::InvalidHttp1Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub mod phantom_profile::http2
+#[non_exhaustive] pub enum phantom_profile::http2::Http2CookieCrumbs
+pub phantom_profile::http2::Http2CookieCrumbs::IndexAll
+pub phantom_profile::http2::Http2CookieCrumbs::NeverIndexShort
+pub phantom_profile::http2::Http2CookieCrumbs::Whole
+#[non_exhaustive] pub enum phantom_profile::http2::Http2FieldIndexing
+pub phantom_profile::http2::Http2FieldIndexing::All
+pub phantom_profile::http2::Http2FieldIndexing::NeverIndexAuthorization
+pub phantom_profile::http2::Http2FieldIndexing::Nghttp2
+#[non_exhaustive] pub enum phantom_profile::http2::Http2HuffmanCoding
+pub phantom_profile::http2::Http2HuffmanCoding::Always
+pub phantom_profile::http2::Http2HuffmanCoding::AlwaysIncludingEmpty
+pub phantom_profile::http2::Http2HuffmanCoding::WhenNotLonger
+pub phantom_profile::http2::Http2HuffmanCoding::WhenShorter
+#[non_exhaustive] pub enum phantom_profile::http2::Http2IdleTimeout
+pub phantom_profile::http2::Http2IdleTimeout::ClosedOnTimer(core::time::Duration)
+pub phantom_profile::http2::Http2IdleTimeout::Unlimited
+impl phantom_profile::http2::Http2IdleTimeout
+pub const fn phantom_profile::http2::Http2IdleTimeout::closed_on_timer(self) -> core::option::Option<core::time::Duration>
+#[non_exhaustive] pub enum phantom_profile::http2::Http2IndexingLimit
+pub phantom_profile::http2::Http2IndexingLimit::Half
+pub phantom_profile::http2::Http2IndexingLimit::ThreeQuarters
+pub phantom_profile::http2::Http2IndexingLimit::Unlimited
+#[non_exhaustive] pub enum phantom_profile::http2::Http2NameReference
+pub phantom_profile::http2::Http2NameReference::OldestDynamic
+pub phantom_profile::http2::Http2NameReference::StaticThenNewest
+pub phantom_profile::http2::Http2NameReference::StaticUnlessSensitive
+#[non_exhaustive] pub enum phantom_profile::http2::Http2PseudoHeader
+pub phantom_profile::http2::Http2PseudoHeader::Authority
+pub phantom_profile::http2::Http2PseudoHeader::Method
+pub phantom_profile::http2::Http2PseudoHeader::Path
+pub phantom_profile::http2::Http2PseudoHeader::Protocol
+pub phantom_profile::http2::Http2PseudoHeader::Scheme
+#[non_exhaustive] pub enum phantom_profile::http2::Http2SensitiveProxyAuthorization
+pub phantom_profile::http2::Http2SensitiveProxyAuthorization::FieldIndexing
+pub phantom_profile::http2::Http2SensitiveProxyAuthorization::NeverIndexed
+#[non_exhaustive] pub enum phantom_profile::http2::Http2Setting
+pub phantom_profile::http2::Http2Setting::EnableConnectProtocol(bool)
+pub phantom_profile::http2::Http2Setting::EnablePush(bool)
+pub phantom_profile::http2::Http2Setting::HeaderTableSize(u32)
+pub phantom_profile::http2::Http2Setting::InitialWindowSize(u32)
+pub phantom_profile::http2::Http2Setting::MaxConcurrentStreams(u32)
+pub phantom_profile::http2::Http2Setting::MaxFrameSize(u32)
+pub phantom_profile::http2::Http2Setting::MaxHeaderListSize(u32)
+pub phantom_profile::http2::Http2Setting::NoRfc7540Priorities(bool)
+#[non_exhaustive] pub enum phantom_profile::http2::Http2StaticNameIndex
+pub phantom_profile::http2::Http2StaticNameIndex::Highest
+pub phantom_profile::http2::Http2StaticNameIndex::Lowest
+#[non_exhaustive] pub enum phantom_profile::http2::Http2TableSizeUpdates
+pub phantom_profile::http2::Http2TableSizeUpdates::EverySetting
+pub phantom_profile::http2::Http2TableSizeUpdates::WhenChanged
+#[non_exhaustive] pub enum phantom_profile::http2::Http2UnindexedMatch
+pub phantom_profile::http2::Http2UnindexedMatch::Index
+pub phantom_profile::http2::Http2UnindexedMatch::Literal
+pub struct phantom_profile::http2::Http2HpackSettings
+pub phantom_profile::http2::Http2HpackSettings::cookie_crumbs: phantom_profile::http2::Http2CookieCrumbs
+pub phantom_profile::http2::Http2HpackSettings::field_indexing: phantom_profile::http2::Http2FieldIndexing
+pub phantom_profile::http2::Http2HpackSettings::huffman_coding: phantom_profile::http2::Http2HuffmanCoding
+pub phantom_profile::http2::Http2HpackSettings::indexing_limit: phantom_profile::http2::Http2IndexingLimit
+pub phantom_profile::http2::Http2HpackSettings::literal_pseudo_headers: alloc::vec::Vec<phantom_profile::http2::Http2PseudoHeader>
+pub phantom_profile::http2::Http2HpackSettings::name_reference: phantom_profile::http2::Http2NameReference
+pub phantom_profile::http2::Http2HpackSettings::sensitive_proxy_authorization: phantom_profile::http2::Http2SensitiveProxyAuthorization
+pub phantom_profile::http2::Http2HpackSettings::static_name_index: phantom_profile::http2::Http2StaticNameIndex
+pub phantom_profile::http2::Http2HpackSettings::table_size_updates: phantom_profile::http2::Http2TableSizeUpdates
+pub phantom_profile::http2::Http2HpackSettings::unindexed_match: phantom_profile::http2::Http2UnindexedMatch
+pub struct phantom_profile::http2::Http2Priority
+pub phantom_profile::http2::Http2Priority::dependency_stream_id: u32
+pub phantom_profile::http2::Http2Priority::exclusive: bool
+pub phantom_profile::http2::Http2Priority::weight: u16
+pub struct phantom_profile::http2::Http2Settings
+pub phantom_profile::http2::Http2Settings::extended_connect_priority: core::option::Option<phantom_profile::http2::Http2Priority>
+pub phantom_profile::http2::Http2Settings::extended_connect_pseudo_header_order: core::option::Option<alloc::vec::Vec<phantom_profile::http2::Http2PseudoHeader>>
+pub phantom_profile::http2::Http2Settings::headers_priority: core::option::Option<phantom_profile::http2::Http2Priority>
+pub phantom_profile::http2::Http2Settings::hpack: phantom_profile::http2::Http2HpackSettings
+pub phantom_profile::http2::Http2Settings::idle_ping_after: core::option::Option<core::time::Duration>
+pub phantom_profile::http2::Http2Settings::idle_ping_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::http2::Http2Settings::idle_timeout: phantom_profile::http2::Http2IdleTimeout
+pub phantom_profile::http2::Http2Settings::initial_connection_window_size: u32
+pub phantom_profile::http2::Http2Settings::initial_settings: alloc::vec::Vec<phantom_profile::http2::Http2Setting>
+pub phantom_profile::http2::Http2Settings::ping_failure_retries: u8
+pub phantom_profile::http2::Http2Settings::ping_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::http2::Http2Settings::preface_ping_after: core::option::Option<core::time::Duration>
+pub phantom_profile::http2::Http2Settings::pseudo_header_order: alloc::vec::Vec<phantom_profile::http2::Http2PseudoHeader>
+pub phantom_profile::http2::Http2Settings::streams: phantom_profile::http2::Http2StreamSettings
+impl phantom_profile::http2::Http2Settings
+pub fn phantom_profile::http2::Http2Settings::validate(&self) -> core::result::Result<(), phantom_profile::http2::InvalidHttp2Settings>
+pub struct phantom_profile::http2::Http2StreamSettings
+pub phantom_profile::http2::Http2StreamSettings::assumed_max_concurrent_streams: core::option::Option<u32>
+pub phantom_profile::http2::Http2StreamSettings::first_stream_id: u32
+pub phantom_profile::http2::Http2StreamSettings::max_concurrent_streams_cap: core::option::Option<u32>
+impl core::default::Default for phantom_profile::http2::Http2StreamSettings
+pub fn phantom_profile::http2::Http2StreamSettings::default() -> Self
+pub struct phantom_profile::http2::InvalidHttp2Settings
+impl phantom_profile::http2::InvalidHttp2Settings
+pub fn phantom_profile::http2::InvalidHttp2Settings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::http2::InvalidHttp2Settings
+impl core::fmt::Display for phantom_profile::http2::InvalidHttp2Settings
+pub fn phantom_profile::http2::InvalidHttp2Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub mod phantom_profile::http3
+#[non_exhaustive] pub enum phantom_profile::http3::Http3AltUsed
+pub phantom_profile::http3::Http3AltUsed::Append
+pub phantom_profile::http3::Http3AltUsed::Omit
+#[non_exhaustive] pub enum phantom_profile::http3::Http3CookieCrumbs
+pub phantom_profile::http3::Http3CookieCrumbs::Split
+pub phantom_profile::http3::Http3CookieCrumbs::Whole
+#[non_exhaustive] pub enum phantom_profile::http3::Http3PseudoHeader
+pub phantom_profile::http3::Http3PseudoHeader::Authority
+pub phantom_profile::http3::Http3PseudoHeader::Method
+pub phantom_profile::http3::Http3PseudoHeader::Path
+pub phantom_profile::http3::Http3PseudoHeader::Protocol
+pub phantom_profile::http3::Http3PseudoHeader::Scheme
+#[non_exhaustive] pub enum phantom_profile::http3::Http3QpackDecoderStream
+pub phantom_profile::http3::Http3QpackDecoderStream::Eager
+pub phantom_profile::http3::Http3QpackDecoderStream::OnFeedback
+#[non_exhaustive] pub enum phantom_profile::http3::Http3QpackEncoderStream
+pub phantom_profile::http3::Http3QpackEncoderStream::Eager
+pub phantom_profile::http3::Http3QpackEncoderStream::OnFirstInstruction
+#[non_exhaustive] pub enum phantom_profile::http3::Http3QpackEncoding
+pub phantom_profile::http3::Http3QpackEncoding::Dynamic
+pub phantom_profile::http3::Http3QpackEncoding::DynamicUnmatchedNames
+pub phantom_profile::http3::Http3QpackEncoding::Stateless
+#[non_exhaustive] pub enum phantom_profile::http3::Http3QpackStreamOrder
+pub phantom_profile::http3::Http3QpackStreamOrder::DecoderFirst
+pub phantom_profile::http3::Http3QpackStreamOrder::EncoderFirst
+#[non_exhaustive] pub enum phantom_profile::http3::Http3Setting
+pub phantom_profile::http3::Http3Setting::EnableConnectProtocol(bool)
+pub phantom_profile::http3::Http3Setting::EnableWebTransportDraft02(bool)
+pub phantom_profile::http3::Http3Setting::H3Datagram(bool)
+pub phantom_profile::http3::Http3Setting::H3DatagramDraft04(bool)
+pub phantom_profile::http3::Http3Setting::MaxFieldSectionSize(u64)
+pub phantom_profile::http3::Http3Setting::QpackBlockedStreams(u64)
+pub phantom_profile::http3::Http3Setting::QpackMaxTableCapacity(u64)
+pub phantom_profile::http3::Http3Setting::RandomizedGrease
+#[non_exhaustive] pub enum phantom_profile::http3::Http3SettingOrder
+pub phantom_profile::http3::Http3SettingOrder::Ascending
+pub phantom_profile::http3::Http3SettingOrder::Fixed
+pub struct phantom_profile::http3::Http3RequestSettings
+pub phantom_profile::http3::Http3RequestSettings::alt_used: phantom_profile::http3::Http3AltUsed
+pub phantom_profile::http3::Http3RequestSettings::cookie_crumbs: phantom_profile::http3::Http3CookieCrumbs
+pub phantom_profile::http3::Http3RequestSettings::extended_connect_pseudo_header_order: core::option::Option<alloc::vec::Vec<phantom_profile::http3::Http3PseudoHeader>>
+pub phantom_profile::http3::Http3RequestSettings::pseudo_header_order: alloc::vec::Vec<phantom_profile::http3::Http3PseudoHeader>
+impl phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::http3::Http3RequestSettings::validate(&self) -> core::result::Result<(), phantom_profile::http3::InvalidHttp3RequestSettings>
+pub struct phantom_profile::http3::Http3Settings
+pub phantom_profile::http3::Http3Settings::initial_settings: alloc::vec::Vec<phantom_profile::http3::Http3Setting>
+pub phantom_profile::http3::Http3Settings::qpack_decoder_stream: phantom_profile::http3::Http3QpackDecoderStream
+pub phantom_profile::http3::Http3Settings::qpack_encoder_stream: phantom_profile::http3::Http3QpackEncoderStream
+pub phantom_profile::http3::Http3Settings::qpack_encoding: phantom_profile::http3::Http3QpackEncoding
+pub phantom_profile::http3::Http3Settings::qpack_stream_order: phantom_profile::http3::Http3QpackStreamOrder
+pub phantom_profile::http3::Http3Settings::reserved_frame_after_settings: bool
+pub phantom_profile::http3::Http3Settings::setting_order: phantom_profile::http3::Http3SettingOrder
+impl phantom_profile::http3::Http3Settings
+pub fn phantom_profile::http3::Http3Settings::receives_datagrams(&self) -> bool
+pub fn phantom_profile::http3::Http3Settings::validate(&self) -> core::result::Result<(), phantom_profile::http3::InvalidHttp3Settings>
+pub struct phantom_profile::http3::InvalidHttp3RequestSettings
+impl phantom_profile::http3::InvalidHttp3RequestSettings
+pub fn phantom_profile::http3::InvalidHttp3RequestSettings::field(&self) -> &'static str
+pub fn phantom_profile::http3::InvalidHttp3RequestSettings::reason(&self) -> &str
+impl core::error::Error for phantom_profile::http3::InvalidHttp3RequestSettings
+impl core::fmt::Display for phantom_profile::http3::InvalidHttp3RequestSettings
+pub fn phantom_profile::http3::InvalidHttp3RequestSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::http3::InvalidHttp3Settings
+impl phantom_profile::http3::InvalidHttp3Settings
+pub fn phantom_profile::http3::InvalidHttp3Settings::field(&self) -> &'static str
+pub fn phantom_profile::http3::InvalidHttp3Settings::reason(&self) -> &str
+impl core::error::Error for phantom_profile::http3::InvalidHttp3Settings
+impl core::fmt::Display for phantom_profile::http3::InvalidHttp3Settings
+pub fn phantom_profile::http3::InvalidHttp3Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub mod phantom_profile::opera
+pub fn phantom_profile::opera::v136_http3_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::opera::v136_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::opera::v136_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::opera::v136_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::opera::v136_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::opera::v136_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::opera_android
+pub fn phantom_profile::opera_android::v102_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::opera_android::v102_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::opera_android::v102_tls() -> phantom_profile::tls::TlsSettings
+pub mod phantom_profile::proxy_connect
+#[non_exhaustive] pub enum phantom_profile::proxy_connect::Http2ProxyConnections
+pub phantom_profile::proxy_connect::Http2ProxyConnections::ByPurpose
+pub phantom_profile::proxy_connect::Http2ProxyConnections::Shared
+#[non_exhaustive] pub enum phantom_profile::proxy_connect::Http2RejectedConnect
+pub phantom_profile::proxy_connect::Http2RejectedConnect::EndStream
+pub phantom_profile::proxy_connect::Http2RejectedConnect::LeaveOpen
+#[non_exhaustive] pub enum phantom_profile::proxy_connect::ProxyConnectField
+pub phantom_profile::proxy_connect::ProxyConnectField::Authority
+pub phantom_profile::proxy_connect::ProxyConnectField::Authority::name: alloc::boxed::Box<str>
+pub phantom_profile::proxy_connect::ProxyConnectField::FromRequest
+pub phantom_profile::proxy_connect::ProxyConnectField::FromRequest::name: alloc::boxed::Box<str>
+pub phantom_profile::proxy_connect::ProxyConnectField::Literal
+pub phantom_profile::proxy_connect::ProxyConnectField::Literal::name: alloc::boxed::Box<str>
+pub phantom_profile::proxy_connect::ProxyConnectField::Literal::value: alloc::boxed::Box<str>
+pub phantom_profile::proxy_connect::ProxyConnectField::ProxyAuthorization
+pub phantom_profile::proxy_connect::ProxyConnectField::ProxyAuthorization::name: alloc::boxed::Box<str>
+impl phantom_profile::proxy_connect::ProxyConnectField
+pub fn phantom_profile::proxy_connect::ProxyConnectField::authority(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::proxy_connect::ProxyConnectField::from_request(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::proxy_connect::ProxyConnectField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::proxy_connect::ProxyConnectField::name(&self) -> &str
+pub fn phantom_profile::proxy_connect::ProxyConnectField::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub struct phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+impl phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::reason(&self) -> &'static str
+impl core::error::Error for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+impl core::fmt::Display for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+pub fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::proxy_connect::ProxyConnectTemplate
+pub phantom_profile::proxy_connect::ProxyConnectTemplate::http1_fields: alloc::vec::Vec<phantom_profile::proxy_connect::ProxyConnectField>
+pub phantom_profile::proxy_connect::ProxyConnectTemplate::http2_connections: phantom_profile::proxy_connect::Http2ProxyConnections
+pub phantom_profile::proxy_connect::ProxyConnectTemplate::http2_fields: alloc::vec::Vec<phantom_profile::proxy_connect::ProxyConnectField>
+pub phantom_profile::proxy_connect::ProxyConnectTemplate::http2_rejected: phantom_profile::proxy_connect::Http2RejectedConnect
+impl phantom_profile::proxy_connect::ProxyConnectTemplate
+pub fn phantom_profile::proxy_connect::ProxyConnectTemplate::validate(&self) -> core::result::Result<(), phantom_profile::proxy_connect::InvalidProxyConnectTemplate>
+pub mod phantom_profile::quic
+#[non_exhaustive] pub enum phantom_profile::quic::GoogleConnectionOption
+pub phantom_profile::quic::GoogleConnectionOption::RequestOriginFrame
+#[non_exhaustive] pub enum phantom_profile::quic::QuicAckFrequencyDraft
+pub phantom_profile::quic::QuicAckFrequencyDraft::Draft02
+pub phantom_profile::quic::QuicAckFrequencyDraft::Draft07
+#[non_exhaustive] pub enum phantom_profile::quic::QuicConnectionIdLength
+pub phantom_profile::quic::QuicConnectionIdLength::Fixed(u8)
+pub phantom_profile::quic::QuicConnectionIdLength::MaskedRandom
+pub phantom_profile::quic::QuicConnectionIdLength::MaskedRandom::base: u8
+pub phantom_profile::quic::QuicConnectionIdLength::MaskedRandom::minimum: u8
+#[non_exhaustive] pub enum phantom_profile::quic::QuicTransportParameterKind
+pub phantom_profile::quic::QuicTransportParameterKind::ActiveConnectionIdLimit
+pub phantom_profile::quic::QuicTransportParameterKind::ActiveConnectionIdLimit::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::GoogleConnectionOptions(alloc::vec::Vec<phantom_profile::quic::GoogleConnectionOption>)
+pub phantom_profile::quic::QuicTransportParameterKind::Grease(phantom_profile::quic::QuicTransportGrease)
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxData
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxData::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamDataBidiLocal
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamDataBidiLocal::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamDataBidiRemote
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamDataBidiRemote::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamDataUni
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamDataUni::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamsBidi
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamsBidi::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamsUni
+pub phantom_profile::quic::QuicTransportParameterKind::InitialMaxStreamsUni::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::InitialRtt
+pub phantom_profile::quic::QuicTransportParameterKind::InitialSourceConnectionId
+pub phantom_profile::quic::QuicTransportParameterKind::InitialSourceConnectionId::length: u8
+pub phantom_profile::quic::QuicTransportParameterKind::MaxAckDelay
+pub phantom_profile::quic::QuicTransportParameterKind::MaxAckDelay::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::MaxDatagramFrameSize
+pub phantom_profile::quic::QuicTransportParameterKind::MaxDatagramFrameSize::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::MaxIdleTimeout
+pub phantom_profile::quic::QuicTransportParameterKind::MaxIdleTimeout::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::MaxUdpPayloadSize
+pub phantom_profile::quic::QuicTransportParameterKind::MaxUdpPayloadSize::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::MinAckDelay
+pub phantom_profile::quic::QuicTransportParameterKind::MinAckDelay::draft: phantom_profile::quic::QuicAckFrequencyDraft
+pub phantom_profile::quic::QuicTransportParameterKind::MinAckDelay::value_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameterKind::ResetStreamAt
+pub phantom_profile::quic::QuicTransportParameterKind::VersionInformation(phantom_profile::quic::QuicVersionInformation)
+#[non_exhaustive] pub enum phantom_profile::quic::QuicTransportParameterOrder
+pub phantom_profile::quic::QuicTransportParameterOrder::Fixed
+pub phantom_profile::quic::QuicTransportParameterOrder::Permuted
+#[non_exhaustive] pub enum phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicVarIntWidth::Eight
+pub phantom_profile::quic::QuicVarIntWidth::Four
+pub phantom_profile::quic::QuicVarIntWidth::One
+pub phantom_profile::quic::QuicVarIntWidth::Two
+impl phantom_profile::quic::QuicVarIntWidth
+pub const fn phantom_profile::quic::QuicVarIntWidth::can_encode(self, u64) -> bool
+pub const fn phantom_profile::quic::QuicVarIntWidth::encoded_len(self) -> usize
+pub const fn phantom_profile::quic::QuicVarIntWidth::maximum_value(self) -> u64
+#[non_exhaustive] pub enum phantom_profile::quic::QuicVersionGrease
+pub phantom_profile::quic::QuicVersionGrease::First
+pub phantom_profile::quic::QuicVersionGrease::Omit
+pub phantom_profile::quic::QuicVersionGrease::Permuted
+pub struct phantom_profile::quic::InvalidQuicTransportSettings
+impl phantom_profile::quic::InvalidQuicTransportSettings
+pub fn phantom_profile::quic::InvalidQuicTransportSettings::field(&self) -> &'static str
+pub fn phantom_profile::quic::InvalidQuicTransportSettings::reason(&self) -> &str
+impl core::error::Error for phantom_profile::quic::InvalidQuicTransportSettings
+impl core::fmt::Display for phantom_profile::quic::InvalidQuicTransportSettings
+pub fn phantom_profile::quic::InvalidQuicTransportSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::quic::QuicTransportGrease
+pub phantom_profile::quic::QuicTransportGrease::maximum_payload_length: u8
+pub phantom_profile::quic::QuicTransportGrease::minimum_payload_length: u8
+pub struct phantom_profile::quic::QuicTransportParameter
+pub phantom_profile::quic::QuicTransportParameter::id_width: phantom_profile::quic::QuicVarIntWidth
+pub phantom_profile::quic::QuicTransportParameter::kind: phantom_profile::quic::QuicTransportParameterKind
+pub phantom_profile::quic::QuicTransportParameter::length_width: phantom_profile::quic::QuicVarIntWidth
+pub struct phantom_profile::quic::QuicTransportSettings
+pub phantom_profile::quic::QuicTransportSettings::active_connection_id_limit: u64
+pub phantom_profile::quic::QuicTransportSettings::early_data: bool
+pub phantom_profile::quic::QuicTransportSettings::initial_destination_connection_id: core::option::Option<phantom_profile::quic::QuicConnectionIdLength>
+pub phantom_profile::quic::QuicTransportSettings::initial_max_data: u64
+pub phantom_profile::quic::QuicTransportSettings::initial_max_stream_data_bidi_local: u64
+pub phantom_profile::quic::QuicTransportSettings::initial_max_stream_data_bidi_remote: u64
+pub phantom_profile::quic::QuicTransportSettings::initial_max_stream_data_uni: u64
+pub phantom_profile::quic::QuicTransportSettings::initial_max_streams_bidi: u64
+pub phantom_profile::quic::QuicTransportSettings::initial_max_streams_uni: u64
+pub phantom_profile::quic::QuicTransportSettings::initial_path_mtu: core::option::Option<u16>
+pub phantom_profile::quic::QuicTransportSettings::max_ack_delay_ms: u64
+pub phantom_profile::quic::QuicTransportSettings::max_datagram_frame_size: core::option::Option<u64>
+pub phantom_profile::quic::QuicTransportSettings::max_idle_timeout_ms: u64
+pub phantom_profile::quic::QuicTransportSettings::max_udp_payload_size: u64
+pub phantom_profile::quic::QuicTransportSettings::min_ack_delay_us: core::option::Option<u64>
+pub phantom_profile::quic::QuicTransportSettings::parameter_order: phantom_profile::quic::QuicTransportParameterOrder
+pub phantom_profile::quic::QuicTransportSettings::reset_stream_at: bool
+pub phantom_profile::quic::QuicTransportSettings::wire_parameters: alloc::vec::Vec<phantom_profile::quic::QuicTransportParameter>
+impl phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::quic::QuicTransportSettings::validate(&self) -> core::result::Result<(), phantom_profile::quic::InvalidQuicTransportSettings>
+pub struct phantom_profile::quic::QuicVersionInformation
+pub phantom_profile::quic::QuicVersionInformation::available_version_count: u8
+pub phantom_profile::quic::QuicVersionInformation::grease: phantom_profile::quic::QuicVersionGrease
+pub mod phantom_profile::request_template
+#[non_exhaustive] pub enum phantom_profile::request_template::ProxyAuthorizationAttempt
+pub phantom_profile::request_template::ProxyAuthorizationAttempt::Every
+pub phantom_profile::request_template::ProxyAuthorizationAttempt::Preemptive
+pub phantom_profile::request_template::ProxyAuthorizationAttempt::Replay
+impl phantom_profile::request_template::ProxyAuthorizationAttempt
+pub const fn phantom_profile::request_template::ProxyAuthorizationAttempt::covers(self, Self) -> bool
+#[non_exhaustive] pub enum phantom_profile::request_template::RequestField
+pub phantom_profile::request_template::RequestField::ByForwarding
+pub phantom_profile::request_template::RequestField::ByForwarding::forwarded: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::request_template::RequestField::ByForwarding::name: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::ByForwarding::unforwarded: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::request_template::RequestField::ByTrust
+pub phantom_profile::request_template::RequestField::ByTrust::name: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::ByTrust::trustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::request_template::RequestField::ByTrust::untrustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::request_template::RequestField::Caller
+pub phantom_profile::request_template::RequestField::Caller::name: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::Caller::required: bool
+pub phantom_profile::request_template::RequestField::ClientHint
+pub phantom_profile::request_template::RequestField::ClientHint::name: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::ClientHints
+pub phantom_profile::request_template::RequestField::Literal
+pub phantom_profile::request_template::RequestField::Literal::name: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::Literal::value: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::ProxyAuthorization
+pub phantom_profile::request_template::RequestField::ProxyAuthorization::attempt: phantom_profile::request_template::ProxyAuthorizationAttempt
+pub phantom_profile::request_template::RequestField::ProxyAuthorization::name: alloc::boxed::Box<str>
+pub phantom_profile::request_template::RequestField::RestartClientHints
+impl phantom_profile::request_template::RequestField
+pub fn phantom_profile::request_template::RequestField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::client_hint(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::request_template::RequestField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::name(&self) -> core::option::Option<&str>
+pub fn phantom_profile::request_template::RequestField::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>, phantom_profile::request_template::ProxyAuthorizationAttempt) -> Self
+pub fn phantom_profile::request_template::RequestField::required_caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::trustworthy_only(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::unless_forwarded(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::when_forwarded(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub struct phantom_profile::request_template::InvalidRequestTemplate
+impl phantom_profile::request_template::InvalidRequestTemplate
+pub const fn phantom_profile::request_template::InvalidRequestTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::request_template::InvalidRequestTemplate::reason(&self) -> &'static str
+impl core::error::Error for phantom_profile::request_template::InvalidRequestTemplate
+impl core::fmt::Display for phantom_profile::request_template::InvalidRequestTemplate
+pub fn phantom_profile::request_template::InvalidRequestTemplate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::request_template::RequestTemplate
+pub phantom_profile::request_template::RequestTemplate::http1_fields: alloc::vec::Vec<phantom_profile::request_template::RequestField>
+pub phantom_profile::request_template::RequestTemplate::http2_fields: alloc::vec::Vec<phantom_profile::request_template::RequestField>
+pub phantom_profile::request_template::RequestTemplate::http2_priority: core::option::Option<phantom_profile::http2::Http2Priority>
+pub phantom_profile::request_template::RequestTemplate::http3_fields: core::option::Option<alloc::vec::Vec<phantom_profile::request_template::RequestField>>
+pub phantom_profile::request_template::RequestTemplate::requested_client_hint_placement: bool
+pub phantom_profile::request_template::RequestTemplate::restarts_for_connection_accept_ch: bool
+impl phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::request_template::RequestTemplate::validate(&self) -> core::result::Result<(), phantom_profile::request_template::InvalidRequestTemplate>
+pub mod phantom_profile::tcp
+pub enum phantom_profile::tcp::TcpAddressAdvance
+pub phantom_profile::tcp::TcpAddressAdvance::AfterAnyFailure
+pub phantom_profile::tcp::TcpAddressAdvance::AfterRefusalOrTimeout
+pub enum phantom_profile::tcp::TcpAddressSelection
+pub phantom_profile::tcp::TcpAddressSelection::Backup(phantom_profile::tcp::TcpBackupConnection)
+pub phantom_profile::tcp::TcpAddressSelection::Racing(phantom_profile::tcp::TcpAddressRacing)
+pub phantom_profile::tcp::TcpAddressSelection::Sequential(phantom_profile::tcp::TcpAddressAdvance)
+impl core::default::Default for phantom_profile::tcp::TcpAddressSelection
+pub fn phantom_profile::tcp::TcpAddressSelection::default() -> Self
+pub enum phantom_profile::tcp::TcpKeepalivePolicy
+pub phantom_profile::tcp::TcpKeepalivePolicy::Fixed(phantom_profile::tcp::TcpKeepalive)
+pub phantom_profile::tcp::TcpKeepalivePolicy::Schedule(phantom_profile::tcp::TcpKeepaliveSchedule)
+pub phantom_profile::tcp::TcpKeepalivePolicy::Unchanged
+pub struct phantom_profile::tcp::InvalidTcpSettings
+impl phantom_profile::tcp::InvalidTcpSettings
+pub fn phantom_profile::tcp::InvalidTcpSettings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::tcp::InvalidTcpSettings
+impl core::fmt::Display for phantom_profile::tcp::InvalidTcpSettings
+pub fn phantom_profile::tcp::InvalidTcpSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::tcp::TcpAddressRacing
+pub phantom_profile::tcp::TcpAddressRacing::fallback_delay: core::time::Duration
+pub struct phantom_profile::tcp::TcpBackupConnection
+pub phantom_profile::tcp::TcpBackupConnection::delay: core::time::Duration
+pub phantom_profile::tcp::TcpBackupConnection::known_family_backup_timeout: core::option::Option<core::time::Duration>
+pub struct phantom_profile::tcp::TcpKeepalive
+pub phantom_profile::tcp::TcpKeepalive::idle: core::time::Duration
+pub phantom_profile::tcp::TcpKeepalive::interval: core::option::Option<core::time::Duration>
+pub struct phantom_profile::tcp::TcpKeepaliveSchedule
+pub phantom_profile::tcp::TcpKeepaliveSchedule::long_lived_idle: core::time::Duration
+pub phantom_profile::tcp::TcpKeepaliveSchedule::minimum_interval: core::time::Duration
+pub phantom_profile::tcp::TcpKeepaliveSchedule::probe_count: u32
+pub phantom_profile::tcp::TcpKeepaliveSchedule::short_lived_idle: core::time::Duration
+pub phantom_profile::tcp::TcpKeepaliveSchedule::short_lived_time: core::time::Duration
+pub struct phantom_profile::tcp::TcpPortRandomization
+pub phantom_profile::tcp::TcpPortRandomization::minimum_windows_build: u32
+pub struct phantom_profile::tcp::TcpSettings
+pub phantom_profile::tcp::TcpSettings::address_selection: phantom_profile::tcp::TcpAddressSelection
+pub phantom_profile::tcp::TcpSettings::keepalive: phantom_profile::tcp::TcpKeepalivePolicy
+pub phantom_profile::tcp::TcpSettings::nodelay: bool
+pub phantom_profile::tcp::TcpSettings::port_randomization: core::option::Option<phantom_profile::tcp::TcpPortRandomization>
+pub phantom_profile::tcp::TcpSettings::send_buffer_size: core::option::Option<core::num::nonzero::NonZeroU32>
+impl phantom_profile::tcp::TcpSettings
+pub fn phantom_profile::tcp::TcpSettings::validate(&self) -> core::result::Result<(), phantom_profile::tcp::InvalidTcpSettings>
+pub const phantom_profile::tcp::MAX_TCP_BACKUP_TIMEOUT_SECONDS: u64
+pub const phantom_profile::tcp::MAX_TCP_FALLBACK_DELAY: core::time::Duration
+pub const phantom_profile::tcp::MAX_TCP_KEEPALIVE_PROBES: u32
+pub const phantom_profile::tcp::MAX_TCP_KEEPALIVE_SECONDS: u64
+pub const phantom_profile::tcp::MAX_TCP_SHORT_LIVED_SECONDS: u64
+pub mod phantom_profile::tls
+#[non_exhaustive] pub enum phantom_profile::tls::CertificateCompression
+pub phantom_profile::tls::CertificateCompression::Brotli
+pub phantom_profile::tls::CertificateCompression::Zlib
+pub phantom_profile::tls::CertificateCompression::Zstd
+#[non_exhaustive] pub enum phantom_profile::tls::CipherSuite
+pub phantom_profile::tls::CipherSuite::Aes128GcmSha256
+pub phantom_profile::tls::CipherSuite::Aes256GcmSha384
+pub phantom_profile::tls::CipherSuite::Chacha20Poly1305Sha256
+pub phantom_profile::tls::CipherSuite::EcdheEcdsa3DesEdeCbcSha
+pub phantom_profile::tls::CipherSuite::EcdheEcdsaAes128CbcSha
+pub phantom_profile::tls::CipherSuite::EcdheEcdsaAes128GcmSha256
+pub phantom_profile::tls::CipherSuite::EcdheEcdsaAes256CbcSha
+pub phantom_profile::tls::CipherSuite::EcdheEcdsaAes256GcmSha384
+pub phantom_profile::tls::CipherSuite::EcdheEcdsaChacha20Poly1305Sha256
+pub phantom_profile::tls::CipherSuite::EcdheRsa3DesEdeCbcSha
+pub phantom_profile::tls::CipherSuite::EcdheRsaAes128CbcSha
+pub phantom_profile::tls::CipherSuite::EcdheRsaAes128GcmSha256
+pub phantom_profile::tls::CipherSuite::EcdheRsaAes256CbcSha
+pub phantom_profile::tls::CipherSuite::EcdheRsaAes256GcmSha384
+pub phantom_profile::tls::CipherSuite::EcdheRsaChacha20Poly1305Sha256
+pub phantom_profile::tls::CipherSuite::Rsa3DesEdeCbcSha
+pub phantom_profile::tls::CipherSuite::RsaAes128CbcSha
+pub phantom_profile::tls::CipherSuite::RsaAes128GcmSha256
+pub phantom_profile::tls::CipherSuite::RsaAes256CbcSha
+pub phantom_profile::tls::CipherSuite::RsaAes256GcmSha384
+impl phantom_profile::tls::CipherSuite
+pub const fn phantom_profile::tls::CipherSuite::from_iana_id(u16) -> core::option::Option<Self>
+pub const fn phantom_profile::tls::CipherSuite::iana_id(self) -> u16
+#[non_exhaustive] pub enum phantom_profile::tls::ClientHelloExtension
+pub phantom_profile::tls::ClientHelloExtension::Alpn
+pub phantom_profile::tls::ClientHelloExtension::ApplicationSettings
+pub phantom_profile::tls::ClientHelloExtension::ApplicationSettingsLegacy
+pub phantom_profile::tls::ClientHelloExtension::CertificateCompression
+pub phantom_profile::tls::ClientHelloExtension::DelegatedCredential
+pub phantom_profile::tls::ClientHelloExtension::EarlyData
+pub phantom_profile::tls::ClientHelloExtension::EcPointFormats
+pub phantom_profile::tls::ClientHelloExtension::EncryptedClientHello
+pub phantom_profile::tls::ClientHelloExtension::ExtendedMasterSecret
+pub phantom_profile::tls::ClientHelloExtension::KeyShare
+pub phantom_profile::tls::ClientHelloExtension::PskKeyExchangeModes
+pub phantom_profile::tls::ClientHelloExtension::QuicTransportParameters
+pub phantom_profile::tls::ClientHelloExtension::RecordSizeLimit
+pub phantom_profile::tls::ClientHelloExtension::RenegotiationInfo
+pub phantom_profile::tls::ClientHelloExtension::ServerName
+pub phantom_profile::tls::ClientHelloExtension::SessionTicket
+pub phantom_profile::tls::ClientHelloExtension::SignatureAlgorithms
+pub phantom_profile::tls::ClientHelloExtension::SignedCertificateTimestamp
+pub phantom_profile::tls::ClientHelloExtension::StatusRequest
+pub phantom_profile::tls::ClientHelloExtension::SupportedGroups
+pub phantom_profile::tls::ClientHelloExtension::SupportedVersions
+pub phantom_profile::tls::ClientHelloExtension::TrustAnchors
+#[non_exhaustive] pub enum phantom_profile::tls::ClientHelloExtensionOrder
+pub phantom_profile::tls::ClientHelloExtensionOrder::BackendDefault
+pub phantom_profile::tls::ClientHelloExtensionOrder::Fixed(alloc::vec::Vec<phantom_profile::tls::ClientHelloExtension>)
+pub phantom_profile::tls::ClientHelloExtensionOrder::Permuted
+pub phantom_profile::tls::ClientHelloExtensionOrder::PermutedWithTail(alloc::vec::Vec<phantom_profile::tls::ClientHelloExtension>)
+#[non_exhaustive] pub enum phantom_profile::tls::EchGreaseAead
+pub phantom_profile::tls::EchGreaseAead::Aes128Gcm
+pub phantom_profile::tls::EchGreaseAead::Aes256Gcm
+pub phantom_profile::tls::EchGreaseAead::ChaCha20Poly1305
+impl phantom_profile::tls::EchGreaseAead
+pub const fn phantom_profile::tls::EchGreaseAead::hpke_id(self) -> u16
+#[non_exhaustive] pub enum phantom_profile::tls::EchGreasePayloadLength
+pub phantom_profile::tls::EchGreasePayloadLength::BackendDefault
+pub phantom_profile::tls::EchGreasePayloadLength::Exact(u16)
+pub phantom_profile::tls::EchGreasePayloadLength::FromClientHello
+pub phantom_profile::tls::EchGreasePayloadLength::FromClientHello::maximum_name_length: u8
+impl phantom_profile::tls::EchGreasePayloadLength
+pub fn phantom_profile::tls::EchGreasePayloadLength::ip_literal_host(&str) -> core::option::Option<&str>
+#[non_exhaustive] pub enum phantom_profile::tls::NamedGroup
+pub phantom_profile::tls::NamedGroup::Ffdhe2048
+pub phantom_profile::tls::NamedGroup::Ffdhe3072
+pub phantom_profile::tls::NamedGroup::Secp256r1
+pub phantom_profile::tls::NamedGroup::Secp384r1
+pub phantom_profile::tls::NamedGroup::Secp521r1
+pub phantom_profile::tls::NamedGroup::X25519
+pub phantom_profile::tls::NamedGroup::X25519MlKem768
+#[non_exhaustive] pub enum phantom_profile::tls::SessionTicketOrder
+pub phantom_profile::tls::SessionTicketOrder::NewestFirst
+pub phantom_profile::tls::SessionTicketOrder::OldestConnectionFirst
+pub phantom_profile::tls::SessionTicketOrder::OldestFirst
+#[non_exhaustive] pub enum phantom_profile::tls::SignatureScheme
+pub phantom_profile::tls::SignatureScheme::EcdsaSecp256r1Sha256
+pub phantom_profile::tls::SignatureScheme::EcdsaSecp384r1Sha384
+pub phantom_profile::tls::SignatureScheme::EcdsaSecp521r1Sha512
+pub phantom_profile::tls::SignatureScheme::EcdsaSha1
+pub phantom_profile::tls::SignatureScheme::MlDsa44
+pub phantom_profile::tls::SignatureScheme::MlDsa65
+pub phantom_profile::tls::SignatureScheme::MlDsa87
+pub phantom_profile::tls::SignatureScheme::RsaPkcs1Sha1
+pub phantom_profile::tls::SignatureScheme::RsaPkcs1Sha256
+pub phantom_profile::tls::SignatureScheme::RsaPkcs1Sha384
+pub phantom_profile::tls::SignatureScheme::RsaPkcs1Sha512
+pub phantom_profile::tls::SignatureScheme::RsaPssRsaeSha256
+pub phantom_profile::tls::SignatureScheme::RsaPssRsaeSha384
+pub phantom_profile::tls::SignatureScheme::RsaPssRsaeSha512
+#[non_exhaustive] pub enum phantom_profile::tls::TlsVersion
+pub phantom_profile::tls::TlsVersion::Tls10
+pub phantom_profile::tls::TlsVersion::Tls11
+pub phantom_profile::tls::TlsVersion::Tls12
+pub phantom_profile::tls::TlsVersion::Tls13
+impl phantom_profile::tls::TlsVersion
+pub const fn phantom_profile::tls::TlsVersion::from_protocol_id(u16) -> core::option::Option<Self>
+pub const fn phantom_profile::tls::TlsVersion::protocol_id(self) -> u16
+#[non_exhaustive] pub enum phantom_profile::tls::TrustAnchorIds
+pub phantom_profile::tls::TrustAnchorIds::Fixed(alloc::vec::Vec<alloc::boxed::Box<[u8]>>)
+pub phantom_profile::tls::TrustAnchorIds::PerClient(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
+pub phantom_profile::tls::TrustAnchorIds::PerConnection(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
+impl phantom_profile::tls::TrustAnchorIds
+pub fn phantom_profile::tls::TrustAnchorIds::orders(&self) -> &[alloc::vec::Vec<alloc::boxed::Box<[u8]>>]
+pub fn phantom_profile::tls::TrustAnchorIds::select(&self, u64) -> core::option::Option<&[alloc::boxed::Box<[u8]>]>
+pub struct phantom_profile::tls::AlpsSettings
+pub phantom_profile::tls::AlpsSettings::protocol: alloc::boxed::Box<[u8]>
+pub phantom_profile::tls::AlpsSettings::settings: alloc::boxed::Box<[u8]>
+pub phantom_profile::tls::AlpsSettings::use_new_codepoint: bool
+pub struct phantom_profile::tls::InvalidTlsSettings
+impl phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::InvalidTlsSettings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::tls::InvalidTlsSettings
+impl core::fmt::Display for phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::InvalidTlsSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::tls::TlsSettings
+pub phantom_profile::tls::TlsSettings::aes_hardware: bool
+pub phantom_profile::tls::TlsSettings::alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
+pub phantom_profile::tls::TlsSettings::alps: core::option::Option<phantom_profile::tls::AlpsSettings>
+pub phantom_profile::tls::TlsSettings::certificate_compression: alloc::vec::Vec<phantom_profile::tls::CertificateCompression>
+pub phantom_profile::tls::TlsSettings::cipher_suites: alloc::vec::Vec<phantom_profile::tls::CipherSuite>
+pub phantom_profile::tls::TlsSettings::close_notify: bool
+pub phantom_profile::tls::TlsSettings::delegated_credential_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
+pub phantom_profile::tls::TlsSettings::ech_from_https_records: bool
+pub phantom_profile::tls::TlsSettings::ech_grease: bool
+pub phantom_profile::tls::TlsSettings::ech_grease_aeads: alloc::vec::Vec<phantom_profile::tls::EchGreaseAead>
+pub phantom_profile::tls::TlsSettings::ech_grease_payload_length: phantom_profile::tls::EchGreasePayloadLength
+pub phantom_profile::tls::TlsSettings::extension_order: phantom_profile::tls::ClientHelloExtensionOrder
+pub phantom_profile::tls::TlsSettings::grease: bool
+pub phantom_profile::tls::TlsSettings::grease_signature_algorithms: bool
+pub phantom_profile::tls::TlsSettings::groups: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
+pub phantom_profile::tls::TlsSettings::key_shares: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
+pub phantom_profile::tls::TlsSettings::max_version: phantom_profile::tls::TlsVersion
+pub phantom_profile::tls::TlsSettings::min_version: phantom_profile::tls::TlsVersion
+pub phantom_profile::tls::TlsSettings::record_size_limit: core::option::Option<u16>
+pub phantom_profile::tls::TlsSettings::request_ocsp_staple: bool
+pub phantom_profile::tls::TlsSettings::request_signed_certificate_timestamps: bool
+pub phantom_profile::tls::TlsSettings::requested_trust_anchor_ids: core::option::Option<phantom_profile::tls::TrustAnchorIds>
+pub phantom_profile::tls::TlsSettings::session_ticket_extension_when_resuming: bool
+pub phantom_profile::tls::TlsSettings::session_ticket_order: phantom_profile::tls::SessionTicketOrder
+pub phantom_profile::tls::TlsSettings::session_tickets: bool
+pub phantom_profile::tls::TlsSettings::session_tickets_per_origin: u8
+pub phantom_profile::tls::TlsSettings::signature_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
+pub phantom_profile::tls::TlsSettings::tcp_early_data: bool
+pub phantom_profile::tls::TlsSettings::tls12_extensions_in_tls13_client_hello: bool
+impl phantom_profile::tls::TlsSettings
+pub fn phantom_profile::tls::TlsSettings::draw_per_client<E>(&mut self, impl core::ops::function::FnOnce() -> core::result::Result<u64, E>) -> core::result::Result<(), E>
+pub fn phantom_profile::tls::TlsSettings::validate(&self) -> core::result::Result<(), phantom_profile::tls::InvalidTlsSettings>
+pub mod phantom_profile::udp
+pub struct phantom_profile::udp::UdpSettings
+pub phantom_profile::udp::UdpSettings::port_randomization: bool
+pub mod phantom_profile::websocket
+#[non_exhaustive] pub enum phantom_profile::websocket::WebSocketDeflateParameter
+pub phantom_profile::websocket::WebSocketDeflateParameter::ClientMaxWindowBits(core::option::Option<u8>)
+pub phantom_profile::websocket::WebSocketDeflateParameter::ClientNoContextTakeover
+pub phantom_profile::websocket::WebSocketDeflateParameter::ServerMaxWindowBits(u8)
+pub phantom_profile::websocket::WebSocketDeflateParameter::ServerNoContextTakeover
+#[non_exhaustive] pub enum phantom_profile::websocket::WebSocketEmptyMessageCompression
+pub phantom_profile::websocket::WebSocketEmptyMessageCompression::Compressed
+pub phantom_profile::websocket::WebSocketEmptyMessageCompression::Uncompressed
+#[non_exhaustive] pub enum phantom_profile::websocket::WebSocketField
+pub phantom_profile::websocket::WebSocketField::Authority
+pub phantom_profile::websocket::WebSocketField::Authority::name: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::ByTrust
+pub phantom_profile::websocket::WebSocketField::ByTrust::name: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::ByTrust::trustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::websocket::WebSocketField::ByTrust::untrustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::websocket::WebSocketField::Caller
+pub phantom_profile::websocket::WebSocketField::Caller::name: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::ClientCookies
+pub phantom_profile::websocket::WebSocketField::ClientCookies::name: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::Key
+pub phantom_profile::websocket::WebSocketField::Key::name: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::Literal
+pub phantom_profile::websocket::WebSocketField::Literal::name: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::Literal::value: alloc::boxed::Box<str>
+pub phantom_profile::websocket::WebSocketField::PerMessageDeflate
+pub phantom_profile::websocket::WebSocketField::PerMessageDeflate::name: alloc::boxed::Box<str>
+impl phantom_profile::websocket::WebSocketField
+pub fn phantom_profile::websocket::WebSocketField::authority(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::client_cookies(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::websocket::WebSocketField::key(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::permessage_deflate(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::trustworthy_only(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+#[non_exhaustive] pub enum phantom_profile::websocket::WebSocketNewConnection
+pub phantom_profile::websocket::WebSocketNewConnection::Http1Upgrade
+pub phantom_profile::websocket::WebSocketNewConnection::Http2ExtendedConnect
+#[non_exhaustive] pub enum phantom_profile::websocket::WebSocketProxiedSession
+pub phantom_profile::websocket::WebSocketProxiedSession::Ignore
+pub phantom_profile::websocket::WebSocketProxiedSession::Reuse
+#[non_exhaustive] pub enum phantom_profile::websocket::WebSocketRefusedStreamRetry
+pub phantom_profile::websocket::WebSocketRefusedStreamRetry::None
+pub phantom_profile::websocket::WebSocketRefusedStreamRetry::SameSessionOnce
+pub struct phantom_profile::websocket::InvalidWebSocketSettings
+impl phantom_profile::websocket::InvalidWebSocketSettings
+pub fn phantom_profile::websocket::InvalidWebSocketSettings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::websocket::InvalidWebSocketSettings
+impl core::fmt::Display for phantom_profile::websocket::InvalidWebSocketSettings
+pub fn phantom_profile::websocket::InvalidWebSocketSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::websocket::WebSocketConnectionPolicy
+pub phantom_profile::websocket::WebSocketConnectionPolicy::http1_alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
+pub phantom_profile::websocket::WebSocketConnectionPolicy::proxied_http2_session: phantom_profile::websocket::WebSocketProxiedSession
+pub phantom_profile::websocket::WebSocketConnectionPolicy::refused_stream_retry: phantom_profile::websocket::WebSocketRefusedStreamRetry
+pub phantom_profile::websocket::WebSocketConnectionPolicy::with_incapable_http2_session: phantom_profile::websocket::WebSocketNewConnection
+pub phantom_profile::websocket::WebSocketConnectionPolicy::without_http2_session: phantom_profile::websocket::WebSocketNewConnection
+impl phantom_profile::websocket::WebSocketConnectionPolicy
+pub fn phantom_profile::websocket::WebSocketConnectionPolicy::http1_tls_settings(&self, &phantom_profile::tls::TlsSettings) -> phantom_profile::tls::TlsSettings
+pub struct phantom_profile::websocket::WebSocketSettings
+pub phantom_profile::websocket::WebSocketSettings::connection: phantom_profile::websocket::WebSocketConnectionPolicy
+pub phantom_profile::websocket::WebSocketSettings::empty_message_compression: phantom_profile::websocket::WebSocketEmptyMessageCompression
+pub phantom_profile::websocket::WebSocketSettings::handshake_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::websocket::WebSocketSettings::http1_fields: alloc::vec::Vec<phantom_profile::websocket::WebSocketField>
+pub phantom_profile::websocket::WebSocketSettings::http2_fields: alloc::vec::Vec<phantom_profile::websocket::WebSocketField>
+pub phantom_profile::websocket::WebSocketSettings::permessage_deflate_offer: alloc::vec::Vec<phantom_profile::websocket::WebSocketDeflateParameter>
+impl phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::websocket::WebSocketSettings::validate(&self) -> core::result::Result<(), phantom_profile::websocket::InvalidWebSocketSettings>
+#[non_exhaustive] pub enum phantom_profile::CertificateCompression
+pub phantom_profile::CertificateCompression::Brotli
+pub phantom_profile::CertificateCompression::Zlib
+pub phantom_profile::CertificateCompression::Zstd
+#[non_exhaustive] pub enum phantom_profile::CipherSuite
+pub phantom_profile::CipherSuite::Aes128GcmSha256
+pub phantom_profile::CipherSuite::Aes256GcmSha384
+pub phantom_profile::CipherSuite::Chacha20Poly1305Sha256
+pub phantom_profile::CipherSuite::EcdheEcdsa3DesEdeCbcSha
+pub phantom_profile::CipherSuite::EcdheEcdsaAes128CbcSha
+pub phantom_profile::CipherSuite::EcdheEcdsaAes128GcmSha256
+pub phantom_profile::CipherSuite::EcdheEcdsaAes256CbcSha
+pub phantom_profile::CipherSuite::EcdheEcdsaAes256GcmSha384
+pub phantom_profile::CipherSuite::EcdheEcdsaChacha20Poly1305Sha256
+pub phantom_profile::CipherSuite::EcdheRsa3DesEdeCbcSha
+pub phantom_profile::CipherSuite::EcdheRsaAes128CbcSha
+pub phantom_profile::CipherSuite::EcdheRsaAes128GcmSha256
+pub phantom_profile::CipherSuite::EcdheRsaAes256CbcSha
+pub phantom_profile::CipherSuite::EcdheRsaAes256GcmSha384
+pub phantom_profile::CipherSuite::EcdheRsaChacha20Poly1305Sha256
+pub phantom_profile::CipherSuite::Rsa3DesEdeCbcSha
+pub phantom_profile::CipherSuite::RsaAes128CbcSha
+pub phantom_profile::CipherSuite::RsaAes128GcmSha256
+pub phantom_profile::CipherSuite::RsaAes256CbcSha
+pub phantom_profile::CipherSuite::RsaAes256GcmSha384
+impl phantom_profile::tls::CipherSuite
+pub const fn phantom_profile::tls::CipherSuite::from_iana_id(u16) -> core::option::Option<Self>
+pub const fn phantom_profile::tls::CipherSuite::iana_id(self) -> u16
+#[non_exhaustive] pub enum phantom_profile::ClientHelloExtension
+pub phantom_profile::ClientHelloExtension::Alpn
+pub phantom_profile::ClientHelloExtension::ApplicationSettings
+pub phantom_profile::ClientHelloExtension::ApplicationSettingsLegacy
+pub phantom_profile::ClientHelloExtension::CertificateCompression
+pub phantom_profile::ClientHelloExtension::DelegatedCredential
+pub phantom_profile::ClientHelloExtension::EarlyData
+pub phantom_profile::ClientHelloExtension::EcPointFormats
+pub phantom_profile::ClientHelloExtension::EncryptedClientHello
+pub phantom_profile::ClientHelloExtension::ExtendedMasterSecret
+pub phantom_profile::ClientHelloExtension::KeyShare
+pub phantom_profile::ClientHelloExtension::PskKeyExchangeModes
+pub phantom_profile::ClientHelloExtension::QuicTransportParameters
+pub phantom_profile::ClientHelloExtension::RecordSizeLimit
+pub phantom_profile::ClientHelloExtension::RenegotiationInfo
+pub phantom_profile::ClientHelloExtension::ServerName
+pub phantom_profile::ClientHelloExtension::SessionTicket
+pub phantom_profile::ClientHelloExtension::SignatureAlgorithms
+pub phantom_profile::ClientHelloExtension::SignedCertificateTimestamp
+pub phantom_profile::ClientHelloExtension::StatusRequest
+pub phantom_profile::ClientHelloExtension::SupportedGroups
+pub phantom_profile::ClientHelloExtension::SupportedVersions
+pub phantom_profile::ClientHelloExtension::TrustAnchors
+#[non_exhaustive] pub enum phantom_profile::ClientHelloExtensionOrder
+pub phantom_profile::ClientHelloExtensionOrder::BackendDefault
+pub phantom_profile::ClientHelloExtensionOrder::Fixed(alloc::vec::Vec<phantom_profile::tls::ClientHelloExtension>)
+pub phantom_profile::ClientHelloExtensionOrder::Permuted
+pub phantom_profile::ClientHelloExtensionOrder::PermutedWithTail(alloc::vec::Vec<phantom_profile::tls::ClientHelloExtension>)
+#[non_exhaustive] pub enum phantom_profile::ClientHintDelivery
+pub phantom_profile::ClientHintDelivery::AcceptCh
+pub phantom_profile::ClientHintDelivery::Default
+#[non_exhaustive] pub enum phantom_profile::EchGreaseAead
+pub phantom_profile::EchGreaseAead::Aes128Gcm
+pub phantom_profile::EchGreaseAead::Aes256Gcm
+pub phantom_profile::EchGreaseAead::ChaCha20Poly1305
+impl phantom_profile::tls::EchGreaseAead
+pub const fn phantom_profile::tls::EchGreaseAead::hpke_id(self) -> u16
+#[non_exhaustive] pub enum phantom_profile::EchGreasePayloadLength
+pub phantom_profile::EchGreasePayloadLength::BackendDefault
+pub phantom_profile::EchGreasePayloadLength::Exact(u16)
+pub phantom_profile::EchGreasePayloadLength::FromClientHello
+pub phantom_profile::EchGreasePayloadLength::FromClientHello::maximum_name_length: u8
+impl phantom_profile::tls::EchGreasePayloadLength
+pub fn phantom_profile::tls::EchGreasePayloadLength::ip_literal_host(&str) -> core::option::Option<&str>
+#[non_exhaustive] pub enum phantom_profile::Http1IdleTimeout
+pub phantom_profile::Http1IdleTimeout::CheckedOnRequest(core::time::Duration)
+pub phantom_profile::Http1IdleTimeout::ClosedOnTimer(core::time::Duration)
+pub phantom_profile::Http1IdleTimeout::Unlimited
+impl phantom_profile::http1::Http1IdleTimeout
+pub const fn phantom_profile::http1::Http1IdleTimeout::checked_on_request(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom_profile::http1::Http1IdleTimeout::closed_on_timer(self) -> core::option::Option<core::time::Duration>
+#[non_exhaustive] pub enum phantom_profile::Http2CookieCrumbs
+pub phantom_profile::Http2CookieCrumbs::IndexAll
+pub phantom_profile::Http2CookieCrumbs::NeverIndexShort
+pub phantom_profile::Http2CookieCrumbs::Whole
+#[non_exhaustive] pub enum phantom_profile::Http2FieldIndexing
+pub phantom_profile::Http2FieldIndexing::All
+pub phantom_profile::Http2FieldIndexing::NeverIndexAuthorization
+pub phantom_profile::Http2FieldIndexing::Nghttp2
+#[non_exhaustive] pub enum phantom_profile::Http2HuffmanCoding
+pub phantom_profile::Http2HuffmanCoding::Always
+pub phantom_profile::Http2HuffmanCoding::AlwaysIncludingEmpty
+pub phantom_profile::Http2HuffmanCoding::WhenNotLonger
+pub phantom_profile::Http2HuffmanCoding::WhenShorter
+#[non_exhaustive] pub enum phantom_profile::Http2IdleTimeout
+pub phantom_profile::Http2IdleTimeout::ClosedOnTimer(core::time::Duration)
+pub phantom_profile::Http2IdleTimeout::Unlimited
+impl phantom_profile::http2::Http2IdleTimeout
+pub const fn phantom_profile::http2::Http2IdleTimeout::closed_on_timer(self) -> core::option::Option<core::time::Duration>
+#[non_exhaustive] pub enum phantom_profile::Http2IndexingLimit
+pub phantom_profile::Http2IndexingLimit::Half
+pub phantom_profile::Http2IndexingLimit::ThreeQuarters
+pub phantom_profile::Http2IndexingLimit::Unlimited
+#[non_exhaustive] pub enum phantom_profile::Http2NameReference
+pub phantom_profile::Http2NameReference::OldestDynamic
+pub phantom_profile::Http2NameReference::StaticThenNewest
+pub phantom_profile::Http2NameReference::StaticUnlessSensitive
+#[non_exhaustive] pub enum phantom_profile::Http2ProxyConnections
+pub phantom_profile::Http2ProxyConnections::ByPurpose
+pub phantom_profile::Http2ProxyConnections::Shared
+#[non_exhaustive] pub enum phantom_profile::Http2PseudoHeader
+pub phantom_profile::Http2PseudoHeader::Authority
+pub phantom_profile::Http2PseudoHeader::Method
+pub phantom_profile::Http2PseudoHeader::Path
+pub phantom_profile::Http2PseudoHeader::Protocol
+pub phantom_profile::Http2PseudoHeader::Scheme
+#[non_exhaustive] pub enum phantom_profile::Http2RejectedConnect
+pub phantom_profile::Http2RejectedConnect::EndStream
+pub phantom_profile::Http2RejectedConnect::LeaveOpen
+#[non_exhaustive] pub enum phantom_profile::Http2SensitiveProxyAuthorization
+pub phantom_profile::Http2SensitiveProxyAuthorization::FieldIndexing
+pub phantom_profile::Http2SensitiveProxyAuthorization::NeverIndexed
+#[non_exhaustive] pub enum phantom_profile::Http2Setting
+pub phantom_profile::Http2Setting::EnableConnectProtocol(bool)
+pub phantom_profile::Http2Setting::EnablePush(bool)
+pub phantom_profile::Http2Setting::HeaderTableSize(u32)
+pub phantom_profile::Http2Setting::InitialWindowSize(u32)
+pub phantom_profile::Http2Setting::MaxConcurrentStreams(u32)
+pub phantom_profile::Http2Setting::MaxFrameSize(u32)
+pub phantom_profile::Http2Setting::MaxHeaderListSize(u32)
+pub phantom_profile::Http2Setting::NoRfc7540Priorities(bool)
+#[non_exhaustive] pub enum phantom_profile::Http2StaticNameIndex
+pub phantom_profile::Http2StaticNameIndex::Highest
+pub phantom_profile::Http2StaticNameIndex::Lowest
+#[non_exhaustive] pub enum phantom_profile::Http2TableSizeUpdates
+pub phantom_profile::Http2TableSizeUpdates::EverySetting
+pub phantom_profile::Http2TableSizeUpdates::WhenChanged
+#[non_exhaustive] pub enum phantom_profile::Http2UnindexedMatch
+pub phantom_profile::Http2UnindexedMatch::Index
+pub phantom_profile::Http2UnindexedMatch::Literal
+#[non_exhaustive] pub enum phantom_profile::Http3AltUsed
+pub phantom_profile::Http3AltUsed::Append
+pub phantom_profile::Http3AltUsed::Omit
+#[non_exhaustive] pub enum phantom_profile::Http3CookieCrumbs
+pub phantom_profile::Http3CookieCrumbs::Split
+pub phantom_profile::Http3CookieCrumbs::Whole
+#[non_exhaustive] pub enum phantom_profile::Http3PseudoHeader
+pub phantom_profile::Http3PseudoHeader::Authority
+pub phantom_profile::Http3PseudoHeader::Method
+pub phantom_profile::Http3PseudoHeader::Path
+pub phantom_profile::Http3PseudoHeader::Protocol
+pub phantom_profile::Http3PseudoHeader::Scheme
+#[non_exhaustive] pub enum phantom_profile::Http3QpackDecoderStream
+pub phantom_profile::Http3QpackDecoderStream::Eager
+pub phantom_profile::Http3QpackDecoderStream::OnFeedback
+#[non_exhaustive] pub enum phantom_profile::Http3QpackEncoderStream
+pub phantom_profile::Http3QpackEncoderStream::Eager
+pub phantom_profile::Http3QpackEncoderStream::OnFirstInstruction
+#[non_exhaustive] pub enum phantom_profile::Http3QpackEncoding
+pub phantom_profile::Http3QpackEncoding::Dynamic
+pub phantom_profile::Http3QpackEncoding::DynamicUnmatchedNames
+pub phantom_profile::Http3QpackEncoding::Stateless
+#[non_exhaustive] pub enum phantom_profile::Http3QpackStreamOrder
+pub phantom_profile::Http3QpackStreamOrder::DecoderFirst
+pub phantom_profile::Http3QpackStreamOrder::EncoderFirst
+#[non_exhaustive] pub enum phantom_profile::Http3Setting
+pub phantom_profile::Http3Setting::EnableConnectProtocol(bool)
+pub phantom_profile::Http3Setting::EnableWebTransportDraft02(bool)
+pub phantom_profile::Http3Setting::H3Datagram(bool)
+pub phantom_profile::Http3Setting::H3DatagramDraft04(bool)
+pub phantom_profile::Http3Setting::MaxFieldSectionSize(u64)
+pub phantom_profile::Http3Setting::QpackBlockedStreams(u64)
+pub phantom_profile::Http3Setting::QpackMaxTableCapacity(u64)
+pub phantom_profile::Http3Setting::RandomizedGrease
+#[non_exhaustive] pub enum phantom_profile::Http3SettingOrder
+pub phantom_profile::Http3SettingOrder::Ascending
+pub phantom_profile::Http3SettingOrder::Fixed
+#[non_exhaustive] pub enum phantom_profile::NamedGroup
+pub phantom_profile::NamedGroup::Ffdhe2048
+pub phantom_profile::NamedGroup::Ffdhe3072
+pub phantom_profile::NamedGroup::Secp256r1
+pub phantom_profile::NamedGroup::Secp384r1
+pub phantom_profile::NamedGroup::Secp521r1
+pub phantom_profile::NamedGroup::X25519
+pub phantom_profile::NamedGroup::X25519MlKem768
+#[non_exhaustive] pub enum phantom_profile::ProxyAuthorizationAttempt
+pub phantom_profile::ProxyAuthorizationAttempt::Every
+pub phantom_profile::ProxyAuthorizationAttempt::Preemptive
+pub phantom_profile::ProxyAuthorizationAttempt::Replay
+impl phantom_profile::request_template::ProxyAuthorizationAttempt
+pub const fn phantom_profile::request_template::ProxyAuthorizationAttempt::covers(self, Self) -> bool
+#[non_exhaustive] pub enum phantom_profile::ProxyConnectField
+pub phantom_profile::ProxyConnectField::Authority
+pub phantom_profile::ProxyConnectField::Authority::name: alloc::boxed::Box<str>
+pub phantom_profile::ProxyConnectField::FromRequest
+pub phantom_profile::ProxyConnectField::FromRequest::name: alloc::boxed::Box<str>
+pub phantom_profile::ProxyConnectField::Literal
+pub phantom_profile::ProxyConnectField::Literal::name: alloc::boxed::Box<str>
+pub phantom_profile::ProxyConnectField::Literal::value: alloc::boxed::Box<str>
+pub phantom_profile::ProxyConnectField::ProxyAuthorization
+pub phantom_profile::ProxyConnectField::ProxyAuthorization::name: alloc::boxed::Box<str>
+impl phantom_profile::proxy_connect::ProxyConnectField
+pub fn phantom_profile::proxy_connect::ProxyConnectField::authority(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::proxy_connect::ProxyConnectField::from_request(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::proxy_connect::ProxyConnectField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::proxy_connect::ProxyConnectField::name(&self) -> &str
+pub fn phantom_profile::proxy_connect::ProxyConnectField::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+#[non_exhaustive] pub enum phantom_profile::RequestField
+pub phantom_profile::RequestField::ByForwarding
+pub phantom_profile::RequestField::ByForwarding::forwarded: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::RequestField::ByForwarding::name: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::ByForwarding::unforwarded: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::RequestField::ByTrust
+pub phantom_profile::RequestField::ByTrust::name: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::ByTrust::trustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::RequestField::ByTrust::untrustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::RequestField::Caller
+pub phantom_profile::RequestField::Caller::name: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::Caller::required: bool
+pub phantom_profile::RequestField::ClientHint
+pub phantom_profile::RequestField::ClientHint::name: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::ClientHints
+pub phantom_profile::RequestField::Literal
+pub phantom_profile::RequestField::Literal::name: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::Literal::value: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::ProxyAuthorization
+pub phantom_profile::RequestField::ProxyAuthorization::attempt: phantom_profile::request_template::ProxyAuthorizationAttempt
+pub phantom_profile::RequestField::ProxyAuthorization::name: alloc::boxed::Box<str>
+pub phantom_profile::RequestField::RestartClientHints
+impl phantom_profile::request_template::RequestField
+pub fn phantom_profile::request_template::RequestField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::client_hint(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::request_template::RequestField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::name(&self) -> core::option::Option<&str>
+pub fn phantom_profile::request_template::RequestField::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>, phantom_profile::request_template::ProxyAuthorizationAttempt) -> Self
+pub fn phantom_profile::request_template::RequestField::required_caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::trustworthy_only(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::unless_forwarded(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::request_template::RequestField::when_forwarded(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+#[non_exhaustive] pub enum phantom_profile::SessionTicketOrder
+pub phantom_profile::SessionTicketOrder::NewestFirst
+pub phantom_profile::SessionTicketOrder::OldestConnectionFirst
+pub phantom_profile::SessionTicketOrder::OldestFirst
+#[non_exhaustive] pub enum phantom_profile::SignatureScheme
+pub phantom_profile::SignatureScheme::EcdsaSecp256r1Sha256
+pub phantom_profile::SignatureScheme::EcdsaSecp384r1Sha384
+pub phantom_profile::SignatureScheme::EcdsaSecp521r1Sha512
+pub phantom_profile::SignatureScheme::EcdsaSha1
+pub phantom_profile::SignatureScheme::MlDsa44
+pub phantom_profile::SignatureScheme::MlDsa65
+pub phantom_profile::SignatureScheme::MlDsa87
+pub phantom_profile::SignatureScheme::RsaPkcs1Sha1
+pub phantom_profile::SignatureScheme::RsaPkcs1Sha256
+pub phantom_profile::SignatureScheme::RsaPkcs1Sha384
+pub phantom_profile::SignatureScheme::RsaPkcs1Sha512
+pub phantom_profile::SignatureScheme::RsaPssRsaeSha256
+pub phantom_profile::SignatureScheme::RsaPssRsaeSha384
+pub phantom_profile::SignatureScheme::RsaPssRsaeSha512
+pub enum phantom_profile::TcpAddressAdvance
+pub phantom_profile::TcpAddressAdvance::AfterAnyFailure
+pub phantom_profile::TcpAddressAdvance::AfterRefusalOrTimeout
+pub enum phantom_profile::TcpAddressSelection
+pub phantom_profile::TcpAddressSelection::Backup(phantom_profile::tcp::TcpBackupConnection)
+pub phantom_profile::TcpAddressSelection::Racing(phantom_profile::tcp::TcpAddressRacing)
+pub phantom_profile::TcpAddressSelection::Sequential(phantom_profile::tcp::TcpAddressAdvance)
+impl core::default::Default for phantom_profile::tcp::TcpAddressSelection
+pub fn phantom_profile::tcp::TcpAddressSelection::default() -> Self
+pub enum phantom_profile::TcpKeepalivePolicy
+pub phantom_profile::TcpKeepalivePolicy::Fixed(phantom_profile::tcp::TcpKeepalive)
+pub phantom_profile::TcpKeepalivePolicy::Schedule(phantom_profile::tcp::TcpKeepaliveSchedule)
+pub phantom_profile::TcpKeepalivePolicy::Unchanged
+#[non_exhaustive] pub enum phantom_profile::TlsVersion
+pub phantom_profile::TlsVersion::Tls10
+pub phantom_profile::TlsVersion::Tls11
+pub phantom_profile::TlsVersion::Tls12
+pub phantom_profile::TlsVersion::Tls13
+impl phantom_profile::tls::TlsVersion
+pub const fn phantom_profile::tls::TlsVersion::from_protocol_id(u16) -> core::option::Option<Self>
+pub const fn phantom_profile::tls::TlsVersion::protocol_id(self) -> u16
+#[non_exhaustive] pub enum phantom_profile::TrustAnchorIds
+pub phantom_profile::TrustAnchorIds::Fixed(alloc::vec::Vec<alloc::boxed::Box<[u8]>>)
+pub phantom_profile::TrustAnchorIds::PerClient(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
+pub phantom_profile::TrustAnchorIds::PerConnection(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
+impl phantom_profile::tls::TrustAnchorIds
+pub fn phantom_profile::tls::TrustAnchorIds::orders(&self) -> &[alloc::vec::Vec<alloc::boxed::Box<[u8]>>]
+pub fn phantom_profile::tls::TrustAnchorIds::select(&self, u64) -> core::option::Option<&[alloc::boxed::Box<[u8]>]>
+#[non_exhaustive] pub enum phantom_profile::WebSocketDeflateParameter
+pub phantom_profile::WebSocketDeflateParameter::ClientMaxWindowBits(core::option::Option<u8>)
+pub phantom_profile::WebSocketDeflateParameter::ClientNoContextTakeover
+pub phantom_profile::WebSocketDeflateParameter::ServerMaxWindowBits(u8)
+pub phantom_profile::WebSocketDeflateParameter::ServerNoContextTakeover
+#[non_exhaustive] pub enum phantom_profile::WebSocketEmptyMessageCompression
+pub phantom_profile::WebSocketEmptyMessageCompression::Compressed
+pub phantom_profile::WebSocketEmptyMessageCompression::Uncompressed
+#[non_exhaustive] pub enum phantom_profile::WebSocketField
+pub phantom_profile::WebSocketField::Authority
+pub phantom_profile::WebSocketField::Authority::name: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::ByTrust
+pub phantom_profile::WebSocketField::ByTrust::name: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::ByTrust::trustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::WebSocketField::ByTrust::untrustworthy: core::option::Option<alloc::boxed::Box<str>>
+pub phantom_profile::WebSocketField::Caller
+pub phantom_profile::WebSocketField::Caller::name: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::ClientCookies
+pub phantom_profile::WebSocketField::ClientCookies::name: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::Key
+pub phantom_profile::WebSocketField::Key::name: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::Literal
+pub phantom_profile::WebSocketField::Literal::name: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::Literal::value: alloc::boxed::Box<str>
+pub phantom_profile::WebSocketField::PerMessageDeflate
+pub phantom_profile::WebSocketField::PerMessageDeflate::name: alloc::boxed::Box<str>
+impl phantom_profile::websocket::WebSocketField
+pub fn phantom_profile::websocket::WebSocketField::authority(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::client_cookies(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::websocket::WebSocketField::key(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::permessage_deflate(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom_profile::websocket::WebSocketField::trustworthy_only(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+#[non_exhaustive] pub enum phantom_profile::WebSocketNewConnection
+pub phantom_profile::WebSocketNewConnection::Http1Upgrade
+pub phantom_profile::WebSocketNewConnection::Http2ExtendedConnect
+#[non_exhaustive] pub enum phantom_profile::WebSocketProxiedSession
+pub phantom_profile::WebSocketProxiedSession::Ignore
+pub phantom_profile::WebSocketProxiedSession::Reuse
+#[non_exhaustive] pub enum phantom_profile::WebSocketRefusedStreamRetry
+pub phantom_profile::WebSocketRefusedStreamRetry::None
+pub phantom_profile::WebSocketRefusedStreamRetry::SameSessionOnce
+pub struct phantom_profile::AlpsSettings
+pub phantom_profile::AlpsSettings::protocol: alloc::boxed::Box<[u8]>
+pub phantom_profile::AlpsSettings::settings: alloc::boxed::Box<[u8]>
+pub phantom_profile::AlpsSettings::use_new_codepoint: bool
+pub struct phantom_profile::ClientHint
+impl phantom_profile::client_hints::ClientHint
+pub const fn phantom_profile::client_hints::ClientHint::delivery(&self) -> phantom_profile::client_hints::ClientHintDelivery
+pub fn phantom_profile::client_hints::ClientHint::name(&self) -> &str
+pub fn phantom_profile::client_hints::ClientHint::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::AsRef<[u8]>, phantom_profile::client_hints::ClientHintDelivery) -> Self
+pub fn phantom_profile::client_hints::ClientHint::value(&self) -> &[u8]
+impl core::fmt::Debug for phantom_profile::client_hints::ClientHint
+pub fn phantom_profile::client_hints::ClientHint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::ClientHintSettings
+impl phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::client_hints::ClientHintSettings::hints(&self) -> &[phantom_profile::client_hints::ClientHint]
+pub fn phantom_profile::client_hints::ClientHintSettings::new(alloc::vec::Vec<phantom_profile::client_hints::ClientHint>) -> Self
+pub fn phantom_profile::client_hints::ClientHintSettings::validate(&self) -> core::result::Result<(), phantom_profile::client_hints::InvalidClientHintSettings>
+pub struct phantom_profile::ClientProfile
+impl phantom_profile::ClientProfile
+pub fn phantom_profile::ClientProfile::client_hints(&self) -> core::option::Option<&phantom_profile::client_hints::ClientHintSettings>
+pub fn phantom_profile::ClientProfile::cookie_placement(&self) -> &phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::ClientProfile::dns_cache(&self) -> core::option::Option<&phantom_profile::dns_cache::DnsCacheSettings>
+pub fn phantom_profile::ClientProfile::draw_per_client<E>(&mut self, impl core::ops::function::FnMut() -> core::result::Result<u64, E>) -> core::result::Result<(), E>
+pub fn phantom_profile::ClientProfile::http1(&self) -> core::option::Option<&phantom_profile::http1::Http1Settings>
+pub fn phantom_profile::ClientProfile::http2(&self) -> core::option::Option<&phantom_profile::http2::Http2Settings>
+pub fn phantom_profile::ClientProfile::http3(&self) -> core::option::Option<&phantom_profile::Http3ClientSettings>
+pub fn phantom_profile::ClientProfile::new(phantom_profile::tls::TlsSettings) -> Self
+pub fn phantom_profile::ClientProfile::proxy_connect(&self) -> core::option::Option<&phantom_profile::proxy_connect::ProxyConnectTemplate>
+pub fn phantom_profile::ClientProfile::tcp(&self) -> core::option::Option<&phantom_profile::tcp::TcpSettings>
+pub fn phantom_profile::ClientProfile::tls(&self) -> &phantom_profile::tls::TlsSettings
+pub fn phantom_profile::ClientProfile::udp(&self) -> core::option::Option<&phantom_profile::udp::UdpSettings>
+pub fn phantom_profile::ClientProfile::websocket(&self) -> core::option::Option<&phantom_profile::websocket::WebSocketSettings>
+pub fn phantom_profile::ClientProfile::with_client_hints(self, phantom_profile::client_hints::ClientHintSettings) -> Self
+pub fn phantom_profile::ClientProfile::with_cookie_placement(self, phantom_profile::cookie::CookiePlacement) -> Self
+pub fn phantom_profile::ClientProfile::with_dns_cache(self, phantom_profile::dns_cache::DnsCacheSettings) -> Self
+pub fn phantom_profile::ClientProfile::with_http1(self, phantom_profile::http1::Http1Settings) -> Self
+pub fn phantom_profile::ClientProfile::with_http2(self, phantom_profile::http2::Http2Settings) -> Self
+pub fn phantom_profile::ClientProfile::with_http3(self, phantom_profile::Http3ClientSettings) -> Self
+pub fn phantom_profile::ClientProfile::with_proxy_connect(self, phantom_profile::proxy_connect::ProxyConnectTemplate) -> Self
+pub fn phantom_profile::ClientProfile::with_tcp(self, phantom_profile::tcp::TcpSettings) -> Self
+pub fn phantom_profile::ClientProfile::with_udp(self, phantom_profile::udp::UdpSettings) -> Self
+pub fn phantom_profile::ClientProfile::with_websocket(self, phantom_profile::websocket::WebSocketSettings) -> Self
+pub struct phantom_profile::CookiePlacement
+impl phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::cookie::CookiePlacement::before(&self) -> &[alloc::boxed::Box<str>]
+pub fn phantom_profile::cookie::CookiePlacement::before_fields<I, S>(I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::boxed::Box<str>>
+pub fn phantom_profile::cookie::CookiePlacement::insertion_index<'a>(&self, impl core::iter::traits::collect::IntoIterator<Item = &'a str>) -> core::option::Option<usize>
+pub fn phantom_profile::cookie::CookiePlacement::last() -> Self
+pub struct phantom_profile::DnsCacheSettings
+pub phantom_profile::DnsCacheSettings::max_entries: core::num::nonzero::NonZeroUsize
+pub phantom_profile::DnsCacheSettings::min_record_ttl: core::time::Duration
+pub phantom_profile::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>
+pub phantom_profile::DnsCacheSettings::ttl: core::time::Duration
+pub struct phantom_profile::Http1Settings
+pub phantom_profile::Http1Settings::idle_timeout: phantom_profile::http1::Http1IdleTimeout
+pub phantom_profile::Http1Settings::max_connections_per_origin: core::num::nonzero::NonZeroUsize
+impl phantom_profile::http1::Http1Settings
+pub fn phantom_profile::http1::Http1Settings::validate(&self) -> core::result::Result<(), phantom_profile::http1::InvalidHttp1Settings>
+pub struct phantom_profile::Http2HpackSettings
+pub phantom_profile::Http2HpackSettings::cookie_crumbs: phantom_profile::http2::Http2CookieCrumbs
+pub phantom_profile::Http2HpackSettings::field_indexing: phantom_profile::http2::Http2FieldIndexing
+pub phantom_profile::Http2HpackSettings::huffman_coding: phantom_profile::http2::Http2HuffmanCoding
+pub phantom_profile::Http2HpackSettings::indexing_limit: phantom_profile::http2::Http2IndexingLimit
+pub phantom_profile::Http2HpackSettings::literal_pseudo_headers: alloc::vec::Vec<phantom_profile::http2::Http2PseudoHeader>
+pub phantom_profile::Http2HpackSettings::name_reference: phantom_profile::http2::Http2NameReference
+pub phantom_profile::Http2HpackSettings::sensitive_proxy_authorization: phantom_profile::http2::Http2SensitiveProxyAuthorization
+pub phantom_profile::Http2HpackSettings::static_name_index: phantom_profile::http2::Http2StaticNameIndex
+pub phantom_profile::Http2HpackSettings::table_size_updates: phantom_profile::http2::Http2TableSizeUpdates
+pub phantom_profile::Http2HpackSettings::unindexed_match: phantom_profile::http2::Http2UnindexedMatch
+pub struct phantom_profile::Http2Priority
+pub phantom_profile::Http2Priority::dependency_stream_id: u32
+pub phantom_profile::Http2Priority::exclusive: bool
+pub phantom_profile::Http2Priority::weight: u16
+pub struct phantom_profile::Http2Settings
+pub phantom_profile::Http2Settings::extended_connect_priority: core::option::Option<phantom_profile::http2::Http2Priority>
+pub phantom_profile::Http2Settings::extended_connect_pseudo_header_order: core::option::Option<alloc::vec::Vec<phantom_profile::http2::Http2PseudoHeader>>
+pub phantom_profile::Http2Settings::headers_priority: core::option::Option<phantom_profile::http2::Http2Priority>
+pub phantom_profile::Http2Settings::hpack: phantom_profile::http2::Http2HpackSettings
+pub phantom_profile::Http2Settings::idle_ping_after: core::option::Option<core::time::Duration>
+pub phantom_profile::Http2Settings::idle_ping_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::Http2Settings::idle_timeout: phantom_profile::http2::Http2IdleTimeout
+pub phantom_profile::Http2Settings::initial_connection_window_size: u32
+pub phantom_profile::Http2Settings::initial_settings: alloc::vec::Vec<phantom_profile::http2::Http2Setting>
+pub phantom_profile::Http2Settings::ping_failure_retries: u8
+pub phantom_profile::Http2Settings::ping_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::Http2Settings::preface_ping_after: core::option::Option<core::time::Duration>
+pub phantom_profile::Http2Settings::pseudo_header_order: alloc::vec::Vec<phantom_profile::http2::Http2PseudoHeader>
+pub phantom_profile::Http2Settings::streams: phantom_profile::http2::Http2StreamSettings
+impl phantom_profile::http2::Http2Settings
+pub fn phantom_profile::http2::Http2Settings::validate(&self) -> core::result::Result<(), phantom_profile::http2::InvalidHttp2Settings>
+pub struct phantom_profile::Http2StreamSettings
+pub phantom_profile::Http2StreamSettings::assumed_max_concurrent_streams: core::option::Option<u32>
+pub phantom_profile::Http2StreamSettings::first_stream_id: u32
+pub phantom_profile::Http2StreamSettings::max_concurrent_streams_cap: core::option::Option<u32>
+impl core::default::Default for phantom_profile::http2::Http2StreamSettings
+pub fn phantom_profile::http2::Http2StreamSettings::default() -> Self
+pub struct phantom_profile::Http3ClientSettings
+impl phantom_profile::Http3ClientSettings
+pub fn phantom_profile::Http3ClientSettings::http3(&self) -> &phantom_profile::http3::Http3Settings
+pub fn phantom_profile::Http3ClientSettings::new(phantom_profile::tls::TlsSettings, phantom_profile::quic::QuicTransportSettings, phantom_profile::http3::Http3Settings, phantom_profile::http3::Http3RequestSettings) -> Self
+pub fn phantom_profile::Http3ClientSettings::quic_transport(&self) -> &phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::Http3ClientSettings::request(&self) -> &phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::Http3ClientSettings::tls(&self) -> &phantom_profile::tls::TlsSettings
+pub struct phantom_profile::Http3RequestSettings
+pub phantom_profile::Http3RequestSettings::alt_used: phantom_profile::http3::Http3AltUsed
+pub phantom_profile::Http3RequestSettings::cookie_crumbs: phantom_profile::http3::Http3CookieCrumbs
+pub phantom_profile::Http3RequestSettings::extended_connect_pseudo_header_order: core::option::Option<alloc::vec::Vec<phantom_profile::http3::Http3PseudoHeader>>
+pub phantom_profile::Http3RequestSettings::pseudo_header_order: alloc::vec::Vec<phantom_profile::http3::Http3PseudoHeader>
+impl phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::http3::Http3RequestSettings::validate(&self) -> core::result::Result<(), phantom_profile::http3::InvalidHttp3RequestSettings>
+pub struct phantom_profile::Http3Settings
+pub phantom_profile::Http3Settings::initial_settings: alloc::vec::Vec<phantom_profile::http3::Http3Setting>
+pub phantom_profile::Http3Settings::qpack_decoder_stream: phantom_profile::http3::Http3QpackDecoderStream
+pub phantom_profile::Http3Settings::qpack_encoder_stream: phantom_profile::http3::Http3QpackEncoderStream
+pub phantom_profile::Http3Settings::qpack_encoding: phantom_profile::http3::Http3QpackEncoding
+pub phantom_profile::Http3Settings::qpack_stream_order: phantom_profile::http3::Http3QpackStreamOrder
+pub phantom_profile::Http3Settings::reserved_frame_after_settings: bool
+pub phantom_profile::Http3Settings::setting_order: phantom_profile::http3::Http3SettingOrder
+impl phantom_profile::http3::Http3Settings
+pub fn phantom_profile::http3::Http3Settings::receives_datagrams(&self) -> bool
+pub fn phantom_profile::http3::Http3Settings::validate(&self) -> core::result::Result<(), phantom_profile::http3::InvalidHttp3Settings>
+pub struct phantom_profile::InvalidClientHintSettings
+impl phantom_profile::client_hints::InvalidClientHintSettings
+pub const fn phantom_profile::client_hints::InvalidClientHintSettings::field(&self) -> &'static str
+pub const fn phantom_profile::client_hints::InvalidClientHintSettings::reason(&self) -> &'static str
+impl core::error::Error for phantom_profile::client_hints::InvalidClientHintSettings
+impl core::fmt::Display for phantom_profile::client_hints::InvalidClientHintSettings
+pub fn phantom_profile::client_hints::InvalidClientHintSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidHttp1Settings
+impl phantom_profile::http1::InvalidHttp1Settings
+pub fn phantom_profile::http1::InvalidHttp1Settings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::http1::InvalidHttp1Settings
+impl core::fmt::Display for phantom_profile::http1::InvalidHttp1Settings
+pub fn phantom_profile::http1::InvalidHttp1Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidHttp2Settings
+impl phantom_profile::http2::InvalidHttp2Settings
+pub fn phantom_profile::http2::InvalidHttp2Settings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::http2::InvalidHttp2Settings
+impl core::fmt::Display for phantom_profile::http2::InvalidHttp2Settings
+pub fn phantom_profile::http2::InvalidHttp2Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidHttp3RequestSettings
+impl phantom_profile::http3::InvalidHttp3RequestSettings
+pub fn phantom_profile::http3::InvalidHttp3RequestSettings::field(&self) -> &'static str
+pub fn phantom_profile::http3::InvalidHttp3RequestSettings::reason(&self) -> &str
+impl core::error::Error for phantom_profile::http3::InvalidHttp3RequestSettings
+impl core::fmt::Display for phantom_profile::http3::InvalidHttp3RequestSettings
+pub fn phantom_profile::http3::InvalidHttp3RequestSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidHttp3Settings
+impl phantom_profile::http3::InvalidHttp3Settings
+pub fn phantom_profile::http3::InvalidHttp3Settings::field(&self) -> &'static str
+pub fn phantom_profile::http3::InvalidHttp3Settings::reason(&self) -> &str
+impl core::error::Error for phantom_profile::http3::InvalidHttp3Settings
+impl core::fmt::Display for phantom_profile::http3::InvalidHttp3Settings
+pub fn phantom_profile::http3::InvalidHttp3Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidProxyConnectTemplate
+impl phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::reason(&self) -> &'static str
+impl core::error::Error for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+impl core::fmt::Display for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
+pub fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidRequestTemplate
+impl phantom_profile::request_template::InvalidRequestTemplate
+pub const fn phantom_profile::request_template::InvalidRequestTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::request_template::InvalidRequestTemplate::reason(&self) -> &'static str
+impl core::error::Error for phantom_profile::request_template::InvalidRequestTemplate
+impl core::fmt::Display for phantom_profile::request_template::InvalidRequestTemplate
+pub fn phantom_profile::request_template::InvalidRequestTemplate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidTcpSettings
+impl phantom_profile::tcp::InvalidTcpSettings
+pub fn phantom_profile::tcp::InvalidTcpSettings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::tcp::InvalidTcpSettings
+impl core::fmt::Display for phantom_profile::tcp::InvalidTcpSettings
+pub fn phantom_profile::tcp::InvalidTcpSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidTlsSettings
+impl phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::InvalidTlsSettings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::tls::InvalidTlsSettings
+impl core::fmt::Display for phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::InvalidTlsSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::InvalidWebSocketSettings
+impl phantom_profile::websocket::InvalidWebSocketSettings
+pub fn phantom_profile::websocket::InvalidWebSocketSettings::field(&self) -> &'static str
+impl core::error::Error for phantom_profile::websocket::InvalidWebSocketSettings
+impl core::fmt::Display for phantom_profile::websocket::InvalidWebSocketSettings
+pub fn phantom_profile::websocket::InvalidWebSocketSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::ProxyConnectTemplate
+pub phantom_profile::ProxyConnectTemplate::http1_fields: alloc::vec::Vec<phantom_profile::proxy_connect::ProxyConnectField>
+pub phantom_profile::ProxyConnectTemplate::http2_connections: phantom_profile::proxy_connect::Http2ProxyConnections
+pub phantom_profile::ProxyConnectTemplate::http2_fields: alloc::vec::Vec<phantom_profile::proxy_connect::ProxyConnectField>
+pub phantom_profile::ProxyConnectTemplate::http2_rejected: phantom_profile::proxy_connect::Http2RejectedConnect
+impl phantom_profile::proxy_connect::ProxyConnectTemplate
+pub fn phantom_profile::proxy_connect::ProxyConnectTemplate::validate(&self) -> core::result::Result<(), phantom_profile::proxy_connect::InvalidProxyConnectTemplate>
+pub struct phantom_profile::RequestTemplate
+pub phantom_profile::RequestTemplate::http1_fields: alloc::vec::Vec<phantom_profile::request_template::RequestField>
+pub phantom_profile::RequestTemplate::http2_fields: alloc::vec::Vec<phantom_profile::request_template::RequestField>
+pub phantom_profile::RequestTemplate::http2_priority: core::option::Option<phantom_profile::http2::Http2Priority>
+pub phantom_profile::RequestTemplate::http3_fields: core::option::Option<alloc::vec::Vec<phantom_profile::request_template::RequestField>>
+pub phantom_profile::RequestTemplate::requested_client_hint_placement: bool
+pub phantom_profile::RequestTemplate::restarts_for_connection_accept_ch: bool
+impl phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::request_template::RequestTemplate::validate(&self) -> core::result::Result<(), phantom_profile::request_template::InvalidRequestTemplate>
+pub struct phantom_profile::TcpAddressRacing
+pub phantom_profile::TcpAddressRacing::fallback_delay: core::time::Duration
+pub struct phantom_profile::TcpBackupConnection
+pub phantom_profile::TcpBackupConnection::delay: core::time::Duration
+pub phantom_profile::TcpBackupConnection::known_family_backup_timeout: core::option::Option<core::time::Duration>
+pub struct phantom_profile::TcpKeepalive
+pub phantom_profile::TcpKeepalive::idle: core::time::Duration
+pub phantom_profile::TcpKeepalive::interval: core::option::Option<core::time::Duration>
+pub struct phantom_profile::TcpKeepaliveSchedule
+pub phantom_profile::TcpKeepaliveSchedule::long_lived_idle: core::time::Duration
+pub phantom_profile::TcpKeepaliveSchedule::minimum_interval: core::time::Duration
+pub phantom_profile::TcpKeepaliveSchedule::probe_count: u32
+pub phantom_profile::TcpKeepaliveSchedule::short_lived_idle: core::time::Duration
+pub phantom_profile::TcpKeepaliveSchedule::short_lived_time: core::time::Duration
+pub struct phantom_profile::TcpPortRandomization
+pub phantom_profile::TcpPortRandomization::minimum_windows_build: u32
+pub struct phantom_profile::TcpSettings
+pub phantom_profile::TcpSettings::address_selection: phantom_profile::tcp::TcpAddressSelection
+pub phantom_profile::TcpSettings::keepalive: phantom_profile::tcp::TcpKeepalivePolicy
+pub phantom_profile::TcpSettings::nodelay: bool
+pub phantom_profile::TcpSettings::port_randomization: core::option::Option<phantom_profile::tcp::TcpPortRandomization>
+pub phantom_profile::TcpSettings::send_buffer_size: core::option::Option<core::num::nonzero::NonZeroU32>
+impl phantom_profile::tcp::TcpSettings
+pub fn phantom_profile::tcp::TcpSettings::validate(&self) -> core::result::Result<(), phantom_profile::tcp::InvalidTcpSettings>
+pub struct phantom_profile::TlsSettings
+pub phantom_profile::TlsSettings::aes_hardware: bool
+pub phantom_profile::TlsSettings::alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
+pub phantom_profile::TlsSettings::alps: core::option::Option<phantom_profile::tls::AlpsSettings>
+pub phantom_profile::TlsSettings::certificate_compression: alloc::vec::Vec<phantom_profile::tls::CertificateCompression>
+pub phantom_profile::TlsSettings::cipher_suites: alloc::vec::Vec<phantom_profile::tls::CipherSuite>
+pub phantom_profile::TlsSettings::close_notify: bool
+pub phantom_profile::TlsSettings::delegated_credential_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
+pub phantom_profile::TlsSettings::ech_from_https_records: bool
+pub phantom_profile::TlsSettings::ech_grease: bool
+pub phantom_profile::TlsSettings::ech_grease_aeads: alloc::vec::Vec<phantom_profile::tls::EchGreaseAead>
+pub phantom_profile::TlsSettings::ech_grease_payload_length: phantom_profile::tls::EchGreasePayloadLength
+pub phantom_profile::TlsSettings::extension_order: phantom_profile::tls::ClientHelloExtensionOrder
+pub phantom_profile::TlsSettings::grease: bool
+pub phantom_profile::TlsSettings::grease_signature_algorithms: bool
+pub phantom_profile::TlsSettings::groups: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
+pub phantom_profile::TlsSettings::key_shares: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
+pub phantom_profile::TlsSettings::max_version: phantom_profile::tls::TlsVersion
+pub phantom_profile::TlsSettings::min_version: phantom_profile::tls::TlsVersion
+pub phantom_profile::TlsSettings::record_size_limit: core::option::Option<u16>
+pub phantom_profile::TlsSettings::request_ocsp_staple: bool
+pub phantom_profile::TlsSettings::request_signed_certificate_timestamps: bool
+pub phantom_profile::TlsSettings::requested_trust_anchor_ids: core::option::Option<phantom_profile::tls::TrustAnchorIds>
+pub phantom_profile::TlsSettings::session_ticket_extension_when_resuming: bool
+pub phantom_profile::TlsSettings::session_ticket_order: phantom_profile::tls::SessionTicketOrder
+pub phantom_profile::TlsSettings::session_tickets: bool
+pub phantom_profile::TlsSettings::session_tickets_per_origin: u8
+pub phantom_profile::TlsSettings::signature_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
+pub phantom_profile::TlsSettings::tcp_early_data: bool
+pub phantom_profile::TlsSettings::tls12_extensions_in_tls13_client_hello: bool
+impl phantom_profile::tls::TlsSettings
+pub fn phantom_profile::tls::TlsSettings::draw_per_client<E>(&mut self, impl core::ops::function::FnOnce() -> core::result::Result<u64, E>) -> core::result::Result<(), E>
+pub fn phantom_profile::tls::TlsSettings::validate(&self) -> core::result::Result<(), phantom_profile::tls::InvalidTlsSettings>
+pub struct phantom_profile::UdpSettings
+pub phantom_profile::UdpSettings::port_randomization: bool
+pub struct phantom_profile::WebSocketConnectionPolicy
+pub phantom_profile::WebSocketConnectionPolicy::http1_alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
+pub phantom_profile::WebSocketConnectionPolicy::proxied_http2_session: phantom_profile::websocket::WebSocketProxiedSession
+pub phantom_profile::WebSocketConnectionPolicy::refused_stream_retry: phantom_profile::websocket::WebSocketRefusedStreamRetry
+pub phantom_profile::WebSocketConnectionPolicy::with_incapable_http2_session: phantom_profile::websocket::WebSocketNewConnection
+pub phantom_profile::WebSocketConnectionPolicy::without_http2_session: phantom_profile::websocket::WebSocketNewConnection
+impl phantom_profile::websocket::WebSocketConnectionPolicy
+pub fn phantom_profile::websocket::WebSocketConnectionPolicy::http1_tls_settings(&self, &phantom_profile::tls::TlsSettings) -> phantom_profile::tls::TlsSettings
+pub struct phantom_profile::WebSocketSettings
+pub phantom_profile::WebSocketSettings::connection: phantom_profile::websocket::WebSocketConnectionPolicy
+pub phantom_profile::WebSocketSettings::empty_message_compression: phantom_profile::websocket::WebSocketEmptyMessageCompression
+pub phantom_profile::WebSocketSettings::handshake_timeout: core::option::Option<core::time::Duration>
+pub phantom_profile::WebSocketSettings::http1_fields: alloc::vec::Vec<phantom_profile::websocket::WebSocketField>
+pub phantom_profile::WebSocketSettings::http2_fields: alloc::vec::Vec<phantom_profile::websocket::WebSocketField>
+pub phantom_profile::WebSocketSettings::permessage_deflate_offer: alloc::vec::Vec<phantom_profile::websocket::WebSocketDeflateParameter>
+impl phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::websocket::WebSocketSettings::validate(&self) -> core::result::Result<(), phantom_profile::websocket::InvalidWebSocketSettings>

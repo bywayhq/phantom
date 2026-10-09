@@ -1,0 +1,911 @@
+pub mod phantom
+pub use phantom::AddressResolver
+pub use phantom::Bytes
+pub use phantom::ClientCertificate
+pub use phantom::ClientCertificateError
+pub use phantom::ClientCertificateErrorKind
+pub use phantom::HttpConnectHeader
+pub use phantom::Method
+pub use phantom::OrderedResponseHeaders
+pub use phantom::RequestHeader
+pub use phantom::RequestTrailerName
+pub use phantom::Response
+pub use phantom::ResponseHeader
+pub use phantom::ServerAuthentication
+pub use phantom::StatusCode
+pub use phantom::Uri
+pub mod phantom::dns
+pub use phantom::dns::AliasRecord
+pub use phantom::dns::EchCipherSuite
+pub use phantom::dns::EchConfig
+pub use phantom::dns::EchConfigExtension
+pub use phantom::dns::EchConfigList
+pub use phantom::dns::EchConfigListError
+pub use phantom::dns::EchConfigListErrorKind
+pub use phantom::dns::HttpsLookupError
+pub use phantom::dns::HttpsLookupErrorKind
+pub use phantom::dns::HttpsRecord
+pub use phantom::dns::HttpsRecordAnswer
+pub use phantom::dns::HttpsRecordError
+pub use phantom::dns::HttpsRecordErrorKind
+pub use phantom::dns::HttpsRecordLookup
+pub use phantom::dns::HttpsRecordResolver
+pub use phantom::dns::ServiceRecord
+pub use phantom::dns::SvcParam
+pub use phantom::dns::TargetName
+pub mod phantom::profile
+pub use phantom::profile::AlpsSettings
+pub use phantom::profile::CertificateCompression
+pub use phantom::profile::CipherSuite
+pub use phantom::profile::ClientHelloExtension
+pub use phantom::profile::ClientHelloExtensionOrder
+pub use phantom::profile::ClientHint
+pub use phantom::profile::ClientHintDelivery
+pub use phantom::profile::ClientHintSettings
+pub use phantom::profile::ClientProfile
+pub use phantom::profile::CookiePlacement
+pub use phantom::profile::DnsCacheSettings
+pub use phantom::profile::EchGreaseAead
+pub use phantom::profile::EchGreasePayloadLength
+pub use phantom::profile::GoogleConnectionOption
+pub use phantom::profile::Http1IdleTimeout
+pub use phantom::profile::Http1Settings
+pub use phantom::profile::Http2CookieCrumbs
+pub use phantom::profile::Http2FieldIndexing
+pub use phantom::profile::Http2HpackSettings
+pub use phantom::profile::Http2HuffmanCoding
+pub use phantom::profile::Http2IdleTimeout
+pub use phantom::profile::Http2IndexingLimit
+pub use phantom::profile::Http2NameReference
+pub use phantom::profile::Http2Priority
+pub use phantom::profile::Http2ProxyConnections
+pub use phantom::profile::Http2PseudoHeader
+pub use phantom::profile::Http2RejectedConnect
+pub use phantom::profile::Http2SensitiveProxyAuthorization
+pub use phantom::profile::Http2Setting
+pub use phantom::profile::Http2Settings
+pub use phantom::profile::Http2StaticNameIndex
+pub use phantom::profile::Http2StreamSettings
+pub use phantom::profile::Http2TableSizeUpdates
+pub use phantom::profile::Http2UnindexedMatch
+pub use phantom::profile::Http3AltUsed
+pub use phantom::profile::Http3ClientSettings
+pub use phantom::profile::Http3CookieCrumbs
+pub use phantom::profile::Http3PseudoHeader
+pub use phantom::profile::Http3QpackDecoderStream
+pub use phantom::profile::Http3QpackEncoderStream
+pub use phantom::profile::Http3QpackEncoding
+pub use phantom::profile::Http3QpackStreamOrder
+pub use phantom::profile::Http3RequestSettings
+pub use phantom::profile::Http3Setting
+pub use phantom::profile::Http3SettingOrder
+pub use phantom::profile::Http3Settings
+pub use phantom::profile::InvalidClientHintSettings
+pub use phantom::profile::InvalidHttp1Settings
+pub use phantom::profile::InvalidHttp2Settings
+pub use phantom::profile::InvalidHttp3RequestSettings
+pub use phantom::profile::InvalidHttp3Settings
+pub use phantom::profile::InvalidProxyConnectTemplate
+pub use phantom::profile::InvalidQuicTransportSettings
+pub use phantom::profile::InvalidRequestTemplate
+pub use phantom::profile::InvalidTcpSettings
+pub use phantom::profile::InvalidTlsSettings
+pub use phantom::profile::InvalidWebSocketSettings
+pub use phantom::profile::NamedGroup
+pub use phantom::profile::ProxyAuthorizationAttempt
+pub use phantom::profile::ProxyConnectField
+pub use phantom::profile::ProxyConnectTemplate
+pub use phantom::profile::QuicAckFrequencyDraft
+pub use phantom::profile::QuicConnectionIdLength
+pub use phantom::profile::QuicTransportGrease
+pub use phantom::profile::QuicTransportParameter
+pub use phantom::profile::QuicTransportParameterKind
+pub use phantom::profile::QuicTransportParameterOrder
+pub use phantom::profile::QuicTransportSettings
+pub use phantom::profile::QuicVarIntWidth
+pub use phantom::profile::QuicVersionGrease
+pub use phantom::profile::QuicVersionInformation
+pub use phantom::profile::RequestField
+pub use phantom::profile::RequestTemplate
+pub use phantom::profile::SessionTicketOrder
+pub use phantom::profile::SignatureScheme
+pub use phantom::profile::TcpAddressAdvance
+pub use phantom::profile::TcpAddressRacing
+pub use phantom::profile::TcpAddressSelection
+pub use phantom::profile::TcpBackupConnection
+pub use phantom::profile::TcpKeepalive
+pub use phantom::profile::TcpKeepalivePolicy
+pub use phantom::profile::TcpKeepaliveSchedule
+pub use phantom::profile::TcpPortRandomization
+pub use phantom::profile::TcpSettings
+pub use phantom::profile::TlsSettings
+pub use phantom::profile::TlsVersion
+pub use phantom::profile::TrustAnchorIds
+pub use phantom::profile::UdpSettings
+pub use phantom::profile::WebSocketConnectionPolicy
+pub use phantom::profile::WebSocketDeflateParameter
+pub use phantom::profile::WebSocketEmptyMessageCompression
+pub use phantom::profile::WebSocketField
+pub use phantom::profile::WebSocketNewConnection
+pub use phantom::profile::WebSocketProxiedSession
+pub use phantom::profile::WebSocketRefusedStreamRetry
+pub use phantom::profile::WebSocketSettings
+pub mod phantom::profile::brave
+pub use phantom::profile::brave::v154_http3_tls
+pub use phantom::profile::brave::v154_tls
+pub use phantom::profile::brave::v154_windows_client_hints
+pub use phantom::profile::brave::v154_windows_fetch_no_store_template
+pub use phantom::profile::brave::v154_windows_navigation_template
+pub mod phantom::profile::brave_android
+pub use phantom::profile::brave_android::v153_android_client_hints
+pub use phantom::profile::brave_android::v153_android_fetch_no_store_template
+pub use phantom::profile::brave_android::v153_android_navigation_template
+pub use phantom::profile::brave_android::v153_http2
+pub use phantom::profile::brave_android::v153_http3
+pub use phantom::profile::brave_android::v153_http3_request
+pub use phantom::profile::brave_android::v153_http3_tls
+pub use phantom::profile::brave_android::v153_quic
+pub use phantom::profile::brave_android::v153_tls
+pub use phantom::profile::brave_android::v153_websocket
+pub mod phantom::profile::chrome_android
+pub use phantom::profile::chrome_android::v154_android_client_hints
+pub use phantom::profile::chrome_android::v154_android_client_hints_for_model
+pub use phantom::profile::chrome_android::v154_android_fetch_no_store_template
+pub use phantom::profile::chrome_android::v154_android_navigation_template
+pub use phantom::profile::chrome_android::v154_http2
+pub use phantom::profile::chrome_android::v154_http3
+pub use phantom::profile::chrome_android::v154_http3_request
+pub use phantom::profile::chrome_android::v154_http3_tls
+pub use phantom::profile::chrome_android::v154_quic
+pub use phantom::profile::chrome_android::v154_tls
+pub use phantom::profile::chrome_android::v154_websocket
+pub mod phantom::profile::chromium
+pub use phantom::profile::chromium::v154_cookie_placement
+pub use phantom::profile::chromium::v154_dns_cache
+pub use phantom::profile::chromium::v154_http1
+pub use phantom::profile::chromium::v154_http2
+pub use phantom::profile::chromium::v154_http3
+pub use phantom::profile::chromium::v154_http3_request
+pub use phantom::profile::chromium::v154_http3_tls
+pub use phantom::profile::chromium::v154_macos_client_hints
+pub use phantom::profile::chromium::v154_macos_fetch_no_store_template
+pub use phantom::profile::chromium::v154_macos_fetch_template
+pub use phantom::profile::chromium::v154_macos_navigation_template
+pub use phantom::profile::chromium::v154_proxy_connect
+pub use phantom::profile::chromium::v154_quic
+pub use phantom::profile::chromium::v154_tcp
+pub use phantom::profile::chromium::v154_tls
+pub use phantom::profile::chromium::v154_udp
+pub use phantom::profile::chromium::v154_websocket
+pub use phantom::profile::chromium::v154_windows_client_hints
+pub use phantom::profile::chromium::v154_windows_fetch_no_store_template
+pub use phantom::profile::chromium::v154_windows_fetch_template
+pub use phantom::profile::chromium::v154_windows_navigation_template
+pub mod phantom::profile::edge
+pub use phantom::profile::edge::v154_http3_tls
+pub use phantom::profile::edge::v154_macos_client_hints
+pub use phantom::profile::edge::v154_tls
+pub use phantom::profile::edge::v154_windows_client_hints
+pub use phantom::profile::edge::v154_windows_fetch_no_store_template
+pub use phantom::profile::edge::v154_windows_navigation_template
+pub mod phantom::profile::edge_android
+pub use phantom::profile::edge_android::v153_android_client_hints
+pub use phantom::profile::edge_android::v153_android_client_hints_for_model
+pub use phantom::profile::edge_android::v153_android_fetch_no_store_template
+pub use phantom::profile::edge_android::v153_android_navigation_template
+pub use phantom::profile::edge_android::v153_http2
+pub use phantom::profile::edge_android::v153_http3
+pub use phantom::profile::edge_android::v153_http3_request
+pub use phantom::profile::edge_android::v153_http3_tls
+pub use phantom::profile::edge_android::v153_quic
+pub use phantom::profile::edge_android::v153_tls
+pub mod phantom::profile::firefox
+pub use phantom::profile::firefox::v157_cookie_placement
+pub use phantom::profile::firefox::v157_dns_cache
+pub use phantom::profile::firefox::v157_http1
+pub use phantom::profile::firefox::v157_http2
+pub use phantom::profile::firefox::v157_http3
+pub use phantom::profile::firefox::v157_http3_request
+pub use phantom::profile::firefox::v157_http3_tls
+pub use phantom::profile::firefox::v157_macos_fetch_no_store_template
+pub use phantom::profile::firefox::v157_macos_fetch_template
+pub use phantom::profile::firefox::v157_macos_navigation_template
+pub use phantom::profile::firefox::v157_proxy_connect
+pub use phantom::profile::firefox::v157_quic
+pub use phantom::profile::firefox::v157_tcp
+pub use phantom::profile::firefox::v157_tls
+pub use phantom::profile::firefox::v157_websocket
+pub use phantom::profile::firefox::v157_windows_fetch_no_store_template
+pub use phantom::profile::firefox::v157_windows_fetch_template
+pub use phantom::profile::firefox::v157_windows_navigation_template
+pub mod phantom::profile::firefox_android
+pub use phantom::profile::firefox_android::v156_tls
+pub mod phantom::profile::opera
+pub use phantom::profile::opera::v136_http3_tls
+pub use phantom::profile::opera::v136_macos_client_hints
+pub use phantom::profile::opera::v136_tls
+pub use phantom::profile::opera::v136_windows_client_hints
+pub use phantom::profile::opera::v136_windows_fetch_no_store_template
+pub use phantom::profile::opera::v136_windows_navigation_template
+pub mod phantom::profile::opera_android
+pub use phantom::profile::opera_android::v102_android_client_hints
+pub use phantom::profile::opera_android::v102_android_client_hints_for_model
+pub use phantom::profile::opera_android::v102_tls
+#[non_exhaustive] pub enum phantom::AltSvcSnapshotErrorKind
+pub phantom::AltSvcSnapshotErrorKind::Disabled
+pub phantom::AltSvcSnapshotErrorKind::InvalidAlternative
+pub phantom::AltSvcSnapshotErrorKind::NoncanonicalOrigin
+#[non_exhaustive] pub enum phantom::BuildErrorKind
+pub phantom::BuildErrorKind::InvalidPolicy
+pub phantom::BuildErrorKind::InvalidProfile
+pub phantom::BuildErrorKind::NoSupportedProtocol
+pub phantom::BuildErrorKind::ProtocolConfiguration
+pub phantom::BuildErrorKind::TrustStore
+#[non_exhaustive] pub enum phantom::ConnectUdpProxyConfigErrorKind
+pub phantom::ConnectUdpProxyConfigErrorKind::Fragment
+pub phantom::ConnectUdpProxyConfigErrorKind::InvalidAuthority
+pub phantom::ConnectUdpProxyConfigErrorKind::InvalidCredentials
+pub phantom::ConnectUdpProxyConfigErrorKind::InvalidTemplate
+pub phantom::ConnectUdpProxyConfigErrorKind::MissingVariable
+pub phantom::ConnectUdpProxyConfigErrorKind::UnknownVariable
+pub phantom::ConnectUdpProxyConfigErrorKind::UnsupportedExpression
+pub phantom::ConnectUdpProxyConfigErrorKind::UnsupportedScheme
+#[non_exhaustive] pub enum phantom::ContentCoding
+pub phantom::ContentCoding::Brotli
+pub phantom::ContentCoding::Deflate
+pub phantom::ContentCoding::Gzip
+pub phantom::ContentCoding::Zstd
+#[non_exhaustive] pub enum phantom::CookieErrorKind
+pub phantom::CookieErrorKind::CookieTooLarge
+pub phantom::CookieErrorKind::InvalidPrefix
+pub phantom::CookieErrorKind::InvalidSetCookie
+pub phantom::CookieErrorKind::InvalidUrl
+pub phantom::CookieErrorKind::PublicSuffix
+pub phantom::CookieErrorKind::SecureOverlay
+pub phantom::CookieErrorKind::UnsupportedPolicy
+pub enum phantom::CookieSameSite
+pub phantom::CookieSameSite::Lax
+pub phantom::CookieSameSite::None
+pub phantom::CookieSameSite::Strict
+#[non_exhaustive] pub enum phantom::CookieSnapshotErrorKind
+pub phantom::CookieSnapshotErrorKind::CookieTooLarge
+pub phantom::CookieSnapshotErrorKind::Disabled
+pub phantom::CookieSnapshotErrorKind::InvalidCookie
+pub phantom::CookieSnapshotErrorKind::InvalidPartitionKey
+pub phantom::CookieSnapshotErrorKind::InvalidPrefix
+pub phantom::CookieSnapshotErrorKind::PublicSuffix
+pub phantom::CookieSnapshotErrorKind::UnsupportedPolicy
+pub enum phantom::CookieSourceScheme
+pub phantom::CookieSourceScheme::Http
+pub phantom::CookieSourceScheme::Https
+#[non_exhaustive] pub enum phantom::HttpProtocol
+pub phantom::HttpProtocol::Http1
+pub phantom::HttpProtocol::Http2
+pub phantom::HttpProtocol::Http3
+pub enum phantom::PerMessageDeflateOfferParameter
+pub phantom::PerMessageDeflateOfferParameter::ClientMaxWindowBits(core::option::Option<u8>)
+pub phantom::PerMessageDeflateOfferParameter::ClientNoContextTakeover
+pub phantom::PerMessageDeflateOfferParameter::ServerMaxWindowBits(u8)
+pub phantom::PerMessageDeflateOfferParameter::ServerNoContextTakeover
+#[non_exhaustive] pub enum phantom::ProxyConfigErrorKind
+pub phantom::ProxyConfigErrorKind::InvalidAuthority
+pub phantom::ProxyConfigErrorKind::InvalidCredentials
+pub phantom::ProxyConfigErrorKind::InvalidUri
+pub phantom::ProxyConfigErrorKind::UnexpectedPath
+pub phantom::ProxyConfigErrorKind::UnsupportedScheme
+pub phantom::ProxyConfigErrorKind::UnsupportedTransport
+#[non_exhaustive] pub enum phantom::RequestErrorKind
+pub phantom::RequestErrorKind::Capacity
+pub phantom::RequestErrorKind::Connect
+pub phantom::RequestErrorKind::ContentDecoding
+pub phantom::RequestErrorKind::Http1
+pub phantom::RequestErrorKind::Http2
+pub phantom::RequestErrorKind::Http3
+pub phantom::RequestErrorKind::InvalidAuthority
+pub phantom::RequestErrorKind::InvalidHeader
+pub phantom::RequestErrorKind::InvalidTarget
+pub phantom::RequestErrorKind::InvalidTimeout
+pub phantom::RequestErrorKind::InvalidUri
+pub phantom::RequestErrorKind::ProtocolUnavailable
+pub phantom::RequestErrorKind::Proxy
+pub phantom::RequestErrorKind::Redirect
+pub phantom::RequestErrorKind::RequestBody
+pub phantom::RequestErrorKind::RequestTemplate
+pub phantom::RequestErrorKind::Resolve
+pub phantom::RequestErrorKind::ResponseBodyLimit
+pub phantom::RequestErrorKind::RuntimeUnavailable
+pub phantom::RequestErrorKind::Timeout
+pub phantom::RequestErrorKind::Tls
+pub phantom::RequestErrorKind::UnsupportedRoute
+pub phantom::RequestErrorKind::UnsupportedScheme
+#[non_exhaustive] pub enum phantom::Route
+pub phantom::Route::ConnectUdp(phantom::ConnectUdpProxy)
+pub phantom::Route::Direct
+pub phantom::Route::HttpProxy(phantom::HttpProxy)
+pub phantom::Route::Socks5(phantom::Socks5Proxy)
+impl phantom::Route
+pub fn phantom::Route::connect_udp(phantom::ConnectUdpProxy) -> Self
+pub const fn phantom::Route::direct() -> Self
+pub fn phantom::Route::http_proxy(phantom::HttpProxy) -> Self
+pub fn phantom::Route::socks5(phantom::Socks5Proxy) -> Self
+#[non_exhaustive] pub enum phantom::Socks5DnsMode
+pub phantom::Socks5DnsMode::Local
+pub phantom::Socks5DnsMode::Remote
+#[non_exhaustive] pub enum phantom::Socks5ProxyConfigErrorKind
+pub phantom::Socks5ProxyConfigErrorKind::InvalidAuthority
+pub phantom::Socks5ProxyConfigErrorKind::InvalidCredentials
+pub phantom::Socks5ProxyConfigErrorKind::InvalidUri
+pub phantom::Socks5ProxyConfigErrorKind::UnexpectedPath
+pub phantom::Socks5ProxyConfigErrorKind::UnsupportedScheme
+#[non_exhaustive] pub enum phantom::SseErrorKind
+pub phantom::SseErrorKind::Body
+pub phantom::SseErrorKind::EventTooLarge
+pub phantom::SseErrorKind::IdleTimeout
+pub phantom::SseErrorKind::InvalidContentType
+pub phantom::SseErrorKind::InvalidIdleTimeout
+pub phantom::SseErrorKind::InvalidReconnectDelay
+pub phantom::SseErrorKind::InvalidRequestHeader
+pub phantom::SseErrorKind::LineTooLong
+pub phantom::SseErrorKind::ReconnectLimit
+pub phantom::SseErrorKind::Request
+pub phantom::SseErrorKind::UnexpectedStatus
+pub phantom::SseErrorKind::UnsupportedContentEncoding
+#[non_exhaustive] pub enum phantom::SseHeader
+pub phantom::SseHeader::Field(phantom_net::request::RequestHeader)
+pub phantom::SseHeader::LastEventId
+pub phantom::SseHeader::LastEventId::name: alloc::boxed::Box<str>
+impl phantom::SseHeader
+pub fn phantom::SseHeader::field(phantom_net::request::RequestHeader) -> Self
+pub fn phantom::SseHeader::last_event_id(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+impl core::fmt::Debug for phantom::SseHeader
+pub fn phantom::SseHeader::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom::TimeoutPhase
+pub phantom::TimeoutPhase::Connect
+pub phantom::TimeoutPhase::PoolAdmission
+pub phantom::TimeoutPhase::ReadIdle
+pub phantom::TimeoutPhase::ResponseHead
+pub phantom::TimeoutPhase::Total
+pub phantom::TimeoutPhase::WebSocketHandshake
+#[non_exhaustive] pub enum phantom::WebSocketErrorKind
+pub phantom::WebSocketErrorKind::AbnormalClosure
+pub phantom::WebSocketErrorKind::Capacity
+pub phantom::WebSocketErrorKind::Closed
+pub phantom::WebSocketErrorKind::Connect
+pub phantom::WebSocketErrorKind::HandshakeRejected
+pub phantom::WebSocketErrorKind::Http1
+pub phantom::WebSocketErrorKind::Http2
+pub phantom::WebSocketErrorKind::Http3
+pub phantom::WebSocketErrorKind::InvalidAuthority
+pub phantom::WebSocketErrorKind::InvalidHandshake
+pub phantom::WebSocketErrorKind::InvalidRequest
+pub phantom::WebSocketErrorKind::InvalidUri
+pub phantom::WebSocketErrorKind::InvalidUtf8
+pub phantom::WebSocketErrorKind::Io
+pub phantom::WebSocketErrorKind::Protocol
+pub phantom::WebSocketErrorKind::ProtocolUnavailable
+pub phantom::WebSocketErrorKind::Proxy
+pub phantom::WebSocketErrorKind::Random
+pub phantom::WebSocketErrorKind::RuntimeUnavailable
+pub phantom::WebSocketErrorKind::Timeout
+pub phantom::WebSocketErrorKind::Tls
+pub phantom::WebSocketErrorKind::UnsupportedRoute
+pub phantom::WebSocketErrorKind::UnsupportedScheme
+#[non_exhaustive] pub enum phantom::WebSocketHeader
+pub phantom::WebSocketHeader::Authority
+pub phantom::WebSocketHeader::Authority::name: alloc::boxed::Box<str>
+pub phantom::WebSocketHeader::CallerField
+pub phantom::WebSocketHeader::CallerField::name: alloc::boxed::Box<str>
+pub phantom::WebSocketHeader::ClientCookies
+pub phantom::WebSocketHeader::ClientCookies::name: alloc::boxed::Box<str>
+pub phantom::WebSocketHeader::DefaultField(phantom_net::request::RequestHeader)
+pub phantom::WebSocketHeader::Field(phantom_net::request::RequestHeader)
+pub phantom::WebSocketHeader::Key
+pub phantom::WebSocketHeader::Key::name: alloc::boxed::Box<str>
+pub phantom::WebSocketHeader::PerMessageDeflate
+pub phantom::WebSocketHeader::PerMessageDeflate::name: alloc::boxed::Box<str>
+impl phantom::WebSocketHeader
+pub fn phantom::WebSocketHeader::authority(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom::WebSocketHeader::caller_field(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom::WebSocketHeader::client_cookies(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom::WebSocketHeader::default_field(phantom_net::request::RequestHeader) -> Self
+pub fn phantom::WebSocketHeader::field(phantom_net::request::RequestHeader) -> Self
+pub fn phantom::WebSocketHeader::key(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom::WebSocketHeader::permessage_deflate(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+impl core::fmt::Debug for phantom::WebSocketHeader
+pub fn phantom::WebSocketHeader::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom::WebSocketMessage
+pub phantom::WebSocketMessage::Binary(bytes::bytes::Bytes)
+pub phantom::WebSocketMessage::Close(core::option::Option<phantom::WebSocketCloseFrame>)
+pub phantom::WebSocketMessage::Ping(bytes::bytes::Bytes)
+pub phantom::WebSocketMessage::Pong(bytes::bytes::Bytes)
+pub phantom::WebSocketMessage::Text(alloc::string::String)
+impl core::fmt::Debug for phantom::WebSocketMessage
+pub fn phantom::WebSocketMessage::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl futures_sink::Sink<phantom::WebSocketMessage> for phantom::WebSocket
+pub type phantom::WebSocket::Error = phantom::WebSocketError
+pub fn phantom::WebSocket::poll_close(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::result::Result<(), Self::Error>>
+pub fn phantom::WebSocket::poll_flush(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::result::Result<(), Self::Error>>
+pub fn phantom::WebSocket::poll_ready(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::result::Result<(), Self::Error>>
+pub fn phantom::WebSocket::start_send(core::pin::Pin<&mut Self>, phantom::WebSocketMessage) -> core::result::Result<(), Self::Error>
+pub struct phantom::AltSvcBrokenBackoff
+impl phantom::AltSvcBrokenBackoff
+pub const phantom::AltSvcBrokenBackoff::CHROMIUM_153: Self
+pub const fn phantom::AltSvcBrokenBackoff::initial(self) -> core::time::Duration
+pub const fn phantom::AltSvcBrokenBackoff::maximum(self) -> core::time::Duration
+pub fn phantom::AltSvcBrokenBackoff::new(core::time::Duration, core::time::Duration) -> core::result::Result<Self, phantom::BuildError>
+pub fn phantom::AltSvcBrokenBackoff::period(self, u32) -> core::time::Duration
+pub struct phantom::AltSvcPolicy
+impl phantom::AltSvcPolicy
+pub const fn phantom::AltSvcPolicy::race(phantom::AltSvcRace) -> Self
+pub const fn phantom::AltSvcPolicy::race_settings(self) -> core::option::Option<phantom::AltSvcRace>
+pub const fn phantom::AltSvcPolicy::sequential() -> Self
+pub struct phantom::AltSvcRace
+impl phantom::AltSvcRace
+pub const fn phantom::AltSvcRace::alternative_setup_limit(self) -> core::time::Duration
+pub const fn phantom::AltSvcRace::broken_backoff(self) -> phantom::AltSvcBrokenBackoff
+pub const fn phantom::AltSvcRace::max_alternatives(self) -> core::num::nonzero::NonZeroUsize
+pub const fn phantom::AltSvcRace::new(core::time::Duration, phantom::AltSvcBrokenBackoff) -> Self
+pub const fn phantom::AltSvcRace::origin_delay(self) -> core::time::Duration
+pub const fn phantom::AltSvcRace::with_alternative_setup_limit(self, core::time::Duration) -> Self
+pub const fn phantom::AltSvcRace::with_max_alternatives(self, core::num::nonzero::NonZeroUsize) -> Self
+pub struct phantom::AltSvcSnapshot
+impl phantom::AltSvcSnapshot
+pub fn phantom::AltSvcSnapshot::entries(&self) -> &[phantom::AltSvcSnapshotEntry]
+pub fn phantom::AltSvcSnapshot::is_empty(&self) -> bool
+pub fn phantom::AltSvcSnapshot::len(&self) -> usize
+pub fn phantom::AltSvcSnapshot::new(alloc::vec::Vec<phantom::AltSvcSnapshotEntry>) -> Self
+impl core::fmt::Debug for phantom::AltSvcSnapshot
+pub fn phantom::AltSvcSnapshot::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::AltSvcSnapshotEntry
+impl phantom::AltSvcSnapshotEntry
+pub fn phantom::AltSvcSnapshotEntry::alternative_host(&self) -> &str
+pub const fn phantom::AltSvcSnapshotEntry::alternative_port(&self) -> u16
+pub const fn phantom::AltSvcSnapshotEntry::expires_at(&self) -> std::time::SystemTime
+pub fn phantom::AltSvcSnapshotEntry::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, u16, std::time::SystemTime) -> Self
+pub fn phantom::AltSvcSnapshotEntry::origin(&self) -> &str
+impl core::fmt::Debug for phantom::AltSvcSnapshotEntry
+pub fn phantom::AltSvcSnapshotEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::AltSvcSnapshotError
+impl phantom::AltSvcSnapshotError
+pub const fn phantom::AltSvcSnapshotError::entry_index(&self) -> core::option::Option<usize>
+pub const fn phantom::AltSvcSnapshotError::kind(&self) -> phantom::AltSvcSnapshotErrorKind
+impl core::error::Error for phantom::AltSvcSnapshotError
+impl core::fmt::Display for phantom::AltSvcSnapshotError
+pub fn phantom::AltSvcSnapshotError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::BuildError
+impl phantom::BuildError
+pub fn phantom::BuildError::kind(&self) -> phantom::BuildErrorKind
+impl core::error::Error for phantom::BuildError
+pub fn phantom::BuildError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::BuildError
+pub fn phantom::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::Client
+impl phantom::Client
+pub fn phantom::Client::builder(phantom_profile::client::ClientProfile) -> phantom::ClientBuilder
+pub fn phantom::Client::get(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::get_negotiated(&self, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::key_log(&self) -> core::option::Option<&phantom::KeyLog>
+pub fn phantom::Client::request(&self, phantom::HttpProtocol, http::method::Method, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::request_negotiated(&self, http::method::Method, &str) -> core::result::Result<phantom::RequestBuilder, phantom::RequestError>
+pub fn phantom::Client::websocket(&self, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
+pub fn phantom::Client::websocket_with_profile_policy(&self, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
+pub fn phantom::Client::websocket_with_protocol(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
+impl phantom::Client
+pub fn phantom::Client::clear_alt_svc(&self)
+pub fn phantom::Client::clear_client_hints(&self)
+pub fn phantom::Client::clear_dns_cache(&self)
+pub fn phantom::Client::cookie_jar(&self) -> core::option::Option<&phantom::CookieJar>
+pub fn phantom::Client::event_source(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::SseRequestBuilder, phantom::RequestError>
+pub fn phantom::Client::export_alt_svc(&self) -> core::option::Option<phantom::AltSvcSnapshot>
+pub fn phantom::Client::export_cookies(&self) -> core::option::Option<phantom::CookieSnapshot>
+pub fn phantom::Client::import_alt_svc(&self, &phantom::AltSvcSnapshot) -> core::result::Result<(), phantom::AltSvcSnapshotError>
+pub fn phantom::Client::import_cookies(&self, &phantom::CookieSnapshot) -> core::result::Result<(), phantom::CookieSnapshotError>
+pub fn phantom::Client::request_timeouts(&self) -> phantom::RequestTimeouts
+pub fn phantom::Client::retry_policy(&self) -> phantom::RetryPolicy
+impl core::fmt::Debug for phantom::Client
+pub fn phantom::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::ClientBuilder
+impl phantom::ClientBuilder
+pub fn phantom::ClientBuilder::add_proxy_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
+pub fn phantom::ClientBuilder::add_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
+pub fn phantom::ClientBuilder::alt_svc(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::alt_svc_policy(self, phantom::AltSvcPolicy) -> Self
+pub fn phantom::ClientBuilder::build(self) -> core::result::Result<phantom::Client, phantom::BuildError>
+pub fn phantom::ClientBuilder::client_certificate(self, phantom_net::tls::client_certificate::ClientCertificate) -> Self
+pub fn phantom::ClientBuilder::client_certificate_for(self, &str, phantom_net::tls::client_certificate::ClientCertificate) -> Self
+pub fn phantom::ClientBuilder::cookie_jar(self, phantom::CookieJar) -> Self
+pub fn phantom::ClientBuilder::cookies(self) -> Self
+pub fn phantom::ClientBuilder::dns_cache(self, phantom_profile::dns_cache::DnsCacheSettings) -> Self
+pub fn phantom::ClientBuilder::dns_resolver(self, phantom_net::host_resolver::AddressResolver) -> Self
+pub fn phantom::ClientBuilder::http3_early_data(self, bool) -> Self
+pub fn phantom::ClientBuilder::https_record_discovery(self, phantom_net::dns::HttpsRecordResolver) -> Self
+pub fn phantom::ClientBuilder::interface(self, &str) -> Self
+pub fn phantom::ClientBuilder::key_log(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::local_address(self, core::net::ip_addr::IpAddr) -> Self
+pub fn phantom::ClientBuilder::max_client_hint_origins(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_concurrent_http1_requests_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_concurrent_http2_requests_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_concurrent_http3_requests_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_http2_connections_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_http2_proxy_connections_per_route(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_http3_connections_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_pending_http1_requests_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_pending_http2_requests_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_pending_http3_requests_per_origin(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_retained_http1_connections(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_retained_http2_connections(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::max_retained_http3_connections(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::negotiated_setup_wait_limit(self, core::time::Duration) -> Self
+pub fn phantom::ClientBuilder::no_dns_cache(self) -> Self
+pub fn phantom::ClientBuilder::preemptive_proxy_authentication(self, bool) -> Self
+pub fn phantom::ClientBuilder::proxy_server_authentication(self, phantom_net::tls::ServerAuthentication) -> Self
+pub fn phantom::ClientBuilder::qlog_dir(self, impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn phantom::ClientBuilder::redirect_policy(self, phantom::RedirectPolicy) -> Self
+pub fn phantom::ClientBuilder::request_timeouts(self, phantom::RequestTimeouts) -> Self
+pub fn phantom::ClientBuilder::resolve(self, &str, impl core::iter::traits::collect::IntoIterator<Item = core::net::ip_addr::IpAddr>) -> Self
+pub fn phantom::ClientBuilder::retry_policy(self, phantom::RetryPolicy) -> Self
+pub fn phantom::ClientBuilder::route(self, phantom::Route) -> Self
+pub fn phantom::ClientBuilder::server_authentication(self, phantom_net::tls::ServerAuthentication) -> Self
+impl core::fmt::Debug for phantom::ClientBuilder
+pub fn phantom::ClientBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::ConnectUdpProxy
+impl phantom::ConnectUdpProxy
+pub fn phantom::ConnectUdpProxy::header(self, phantom_net::request::RequestHeader) -> Self
+pub fn phantom::ConnectUdpProxy::new(&str) -> core::result::Result<Self, phantom::ConnectUdpProxyConfigError>
+pub fn phantom::ConnectUdpProxy::with_basic_auth(self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom::ConnectUdpProxyConfigError>
+pub fn phantom::ConnectUdpProxy::with_http1_transport(self) -> Self
+pub fn phantom::ConnectUdpProxy::with_http2_transport(self) -> Self
+impl core::fmt::Debug for phantom::ConnectUdpProxy
+pub fn phantom::ConnectUdpProxy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::ConnectUdpProxyConfigError
+impl phantom::ConnectUdpProxyConfigError
+pub fn phantom::ConnectUdpProxyConfigError::kind(&self) -> phantom::ConnectUdpProxyConfigErrorKind
+impl core::error::Error for phantom::ConnectUdpProxyConfigError
+impl core::fmt::Display for phantom::ConnectUdpProxyConfigError
+pub fn phantom::ConnectUdpProxyConfigError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::ContentDecoding
+impl phantom::ContentDecoding
+pub const fn phantom::ContentDecoding::advertised(u64) -> Self
+pub const fn phantom::ContentDecoding::maximum_decoded_bytes(self) -> core::option::Option<u64>
+pub const fn phantom::ContentDecoding::none() -> Self
+pub struct phantom::CookieError
+impl phantom::CookieError
+pub const fn phantom::CookieError::kind(&self) -> phantom::CookieErrorKind
+impl core::error::Error for phantom::CookieError
+pub fn phantom::CookieError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::CookieError
+pub fn phantom::CookieError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::CookieJar
+impl phantom::CookieJar
+pub fn phantom::CookieJar::clear(&self)
+pub fn phantom::CookieJar::is_empty(&self) -> bool
+pub fn phantom::CookieJar::len(&self) -> usize
+pub fn phantom::CookieJar::request_value(&self, &str) -> core::result::Result<core::option::Option<alloc::string::String>, phantom::CookieError>
+pub fn phantom::CookieJar::set_cookie(&self, &str, &str) -> core::result::Result<(), phantom::CookieError>
+pub fn phantom::CookieJar::with_limits(phantom::CookieLimits) -> Self
+impl core::default::Default for phantom::CookieJar
+pub fn phantom::CookieJar::default() -> Self
+impl core::fmt::Debug for phantom::CookieJar
+pub fn phantom::CookieJar::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::CookieLimits
+impl phantom::CookieLimits
+pub const fn phantom::CookieLimits::max_cookie_bytes(self) -> core::num::nonzero::NonZeroUsize
+pub const fn phantom::CookieLimits::max_cookies(self) -> core::num::nonzero::NonZeroUsize
+pub const fn phantom::CookieLimits::max_cookies_per_domain(self) -> core::num::nonzero::NonZeroUsize
+pub const fn phantom::CookieLimits::new(core::num::nonzero::NonZeroUsize, core::num::nonzero::NonZeroUsize, core::num::nonzero::NonZeroUsize) -> Self
+impl core::default::Default for phantom::CookieLimits
+pub fn phantom::CookieLimits::default() -> Self
+pub struct phantom::CookieSnapshot
+impl phantom::CookieSnapshot
+pub fn phantom::CookieSnapshot::entries(&self) -> &[phantom::CookieSnapshotEntry]
+pub fn phantom::CookieSnapshot::is_empty(&self) -> bool
+pub fn phantom::CookieSnapshot::len(&self) -> usize
+pub fn phantom::CookieSnapshot::new(alloc::vec::Vec<phantom::CookieSnapshotEntry>) -> Self
+pub struct phantom::CookieSnapshotEntry
+impl phantom::CookieSnapshotEntry
+pub fn phantom::CookieSnapshotEntry::domain(&self) -> &str
+pub const fn phantom::CookieSnapshotEntry::expires_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn phantom::CookieSnapshotEntry::host_only(&self) -> bool
+pub const fn phantom::CookieSnapshotEntry::http_only(&self) -> bool
+pub fn phantom::CookieSnapshotEntry::name(&self) -> &str
+pub fn phantom::CookieSnapshotEntry::new(phantom::CookieSourceScheme, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub fn phantom::CookieSnapshotEntry::partition_key(&self) -> core::option::Option<&str>
+pub fn phantom::CookieSnapshotEntry::path(&self) -> &str
+pub const fn phantom::CookieSnapshotEntry::same_site(&self) -> core::option::Option<phantom::CookieSameSite>
+pub const fn phantom::CookieSnapshotEntry::secure(&self) -> bool
+pub const fn phantom::CookieSnapshotEntry::source_scheme(&self) -> phantom::CookieSourceScheme
+pub fn phantom::CookieSnapshotEntry::value(&self) -> &str
+pub const fn phantom::CookieSnapshotEntry::with_expires_at(self, std::time::SystemTime) -> Self
+pub const fn phantom::CookieSnapshotEntry::with_host_only(self, bool) -> Self
+pub const fn phantom::CookieSnapshotEntry::with_http_only(self, bool) -> Self
+pub fn phantom::CookieSnapshotEntry::with_partition_key(self, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
+pub const fn phantom::CookieSnapshotEntry::with_same_site(self, phantom::CookieSameSite) -> Self
+pub const fn phantom::CookieSnapshotEntry::with_secure(self, bool) -> Self
+impl core::fmt::Debug for phantom::CookieSnapshotEntry
+pub fn phantom::CookieSnapshotEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::CookieSnapshotError
+impl phantom::CookieSnapshotError
+pub const fn phantom::CookieSnapshotError::entry_index(&self) -> core::option::Option<usize>
+pub const fn phantom::CookieSnapshotError::kind(&self) -> phantom::CookieSnapshotErrorKind
+impl core::error::Error for phantom::CookieSnapshotError
+impl core::fmt::Display for phantom::CookieSnapshotError
+pub fn phantom::CookieSnapshotError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::HttpProxy
+impl phantom::HttpProxy
+pub fn phantom::HttpProxy::connect_headers(self, alloc::vec::Vec<phantom_net::proxy::http_connect::HttpConnectHeader>) -> Self
+pub fn phantom::HttpProxy::header(self, phantom_net::request::RequestHeader) -> Self
+pub fn phantom::HttpProxy::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::HttpProxy::new(&str) -> core::result::Result<Self, phantom::ProxyConfigError>
+pub fn phantom::HttpProxy::with_basic_auth(self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom::ProxyConfigError>
+pub fn phantom::HttpProxy::with_http2_transport(self) -> core::result::Result<Self, phantom::ProxyConfigError>
+impl core::cmp::Eq for phantom::HttpProxy
+impl core::cmp::PartialEq for phantom::HttpProxy
+pub fn phantom::HttpProxy::eq(&self, &Self) -> bool
+impl core::fmt::Debug for phantom::HttpProxy
+pub fn phantom::HttpProxy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::KeyLog
+impl phantom::KeyLog
+pub fn phantom::KeyLog::dropped_line_count(&self) -> usize
+pub fn phantom::KeyLog::write_pending(&self, &mut impl core::io::write::Write) -> core::io::error::Result<usize>
+impl core::fmt::Debug for phantom::KeyLog
+pub fn phantom::KeyLog::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::NegotiatedPerMessageDeflate
+impl phantom::NegotiatedPerMessageDeflate
+pub const fn phantom::NegotiatedPerMessageDeflate::client_max_window_bits(self) -> u8
+pub const fn phantom::NegotiatedPerMessageDeflate::client_no_context_takeover(self) -> bool
+pub const fn phantom::NegotiatedPerMessageDeflate::server_max_window_bits(self) -> u8
+pub const fn phantom::NegotiatedPerMessageDeflate::server_no_context_takeover(self) -> bool
+pub struct phantom::PerMessageDeflate
+impl phantom::PerMessageDeflate
+pub fn phantom::PerMessageDeflate::client_max_window_bits(self, u8) -> core::result::Result<Self, phantom::WebSocketError>
+pub fn phantom::PerMessageDeflate::client_no_context_takeover(self, bool) -> Self
+pub const fn phantom::PerMessageDeflate::compress_empty_messages(self, bool) -> Self
+pub const fn phantom::PerMessageDeflate::compresses_empty_messages(&self) -> bool
+pub fn phantom::PerMessageDeflate::compression_level(self, u8) -> core::result::Result<Self, phantom::WebSocketError>
+pub fn phantom::PerMessageDeflate::from_profile(&phantom_profile::websocket::WebSocketSettings) -> core::result::Result<Self, phantom::WebSocketError>
+pub fn phantom::PerMessageDeflate::new() -> Self
+pub fn phantom::PerMessageDeflate::offer_parameters(self, impl core::iter::traits::collect::IntoIterator<Item = phantom::PerMessageDeflateOfferParameter>) -> core::result::Result<Self, phantom::WebSocketError>
+pub fn phantom::PerMessageDeflate::parameters(&self) -> &[phantom::PerMessageDeflateOfferParameter]
+pub fn phantom::PerMessageDeflate::server_max_window_bits(self, u8) -> core::result::Result<Self, phantom::WebSocketError>
+pub fn phantom::PerMessageDeflate::server_no_context_takeover(self, bool) -> Self
+impl core::default::Default for phantom::PerMessageDeflate
+pub fn phantom::PerMessageDeflate::default() -> Self
+pub struct phantom::PreparedRequestTemplate(_)
+impl phantom::PreparedRequestTemplate
+pub fn phantom::PreparedRequestTemplate::new(phantom_profile::request_template::RequestTemplate) -> core::result::Result<Self, phantom_profile::request_template::InvalidRequestTemplate>
+pub struct phantom::ProxyConfigError
+impl phantom::ProxyConfigError
+pub fn phantom::ProxyConfigError::kind(&self) -> phantom::ProxyConfigErrorKind
+impl core::error::Error for phantom::ProxyConfigError
+pub fn phantom::ProxyConfigError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::ProxyConfigError
+pub fn phantom::ProxyConfigError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RedirectPolicy
+impl phantom::RedirectPolicy
+pub const fn phantom::RedirectPolicy::limited(core::num::nonzero::NonZeroUsize) -> Self
+pub const fn phantom::RedirectPolicy::max_hops(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::RedirectPolicy::none() -> Self
+pub struct phantom::RequestBuilder
+impl phantom::RequestBuilder
+pub fn phantom::RequestBuilder::alt_svc_alternative(self, &str, u16) -> Self
+pub fn phantom::RequestBuilder::body(self, impl core::convert::Into<bytes::bytes::Bytes>) -> Self
+pub fn phantom::RequestBuilder::buffered_streaming_body<B>(self, B, usize) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+pub fn phantom::RequestBuilder::buffered_streaming_body_with_trailers<B>(self, B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>, usize) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+pub fn phantom::RequestBuilder::content_decoding(self, phantom::ContentDecoding) -> Self
+pub fn phantom::RequestBuilder::expect_continue(self, core::time::Duration) -> Self
+pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
+pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::retry_policy(self, phantom::RetryPolicy) -> Self
+pub fn phantom::RequestBuilder::route(self, phantom::Route) -> Self
+pub async fn phantom::RequestBuilder::send(self) -> core::result::Result<http::response::Response<phantom::ResponseBody>, phantom::RequestError>
+pub fn phantom::RequestBuilder::streaming_body<B>(self, B) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+pub fn phantom::RequestBuilder::streaming_body_with_trailers<B>(self, B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+pub fn phantom::RequestBuilder::template(self, &phantom::PreparedRequestTemplate) -> Self
+pub fn phantom::RequestBuilder::timeouts(self, phantom::RequestTimeouts) -> Self
+pub fn phantom::RequestBuilder::trailers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+impl core::fmt::Debug for phantom::RequestBuilder
+pub fn phantom::RequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestError
+impl phantom::RequestError
+pub fn phantom::RequestError::kind(&self) -> phantom::RequestErrorKind
+pub fn phantom::RequestError::protocol(&self) -> core::option::Option<phantom::HttpProtocol>
+pub fn phantom::RequestError::timeout_phase(&self) -> core::option::Option<phantom::TimeoutPhase>
+impl core::error::Error for phantom::RequestError
+pub fn phantom::RequestError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::RequestError
+pub fn phantom::RequestError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestTimeouts
+impl phantom::RequestTimeouts
+pub const fn phantom::RequestTimeouts::connect(self, core::time::Duration) -> Self
+pub const fn phantom::RequestTimeouts::connect_duration(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom::RequestTimeouts::new() -> Self
+pub const fn phantom::RequestTimeouts::pool_admission(self, core::time::Duration) -> Self
+pub const fn phantom::RequestTimeouts::pool_admission_duration(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom::RequestTimeouts::read_idle(self, core::time::Duration) -> Self
+pub const fn phantom::RequestTimeouts::read_idle_duration(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom::RequestTimeouts::response_head(self, core::time::Duration) -> Self
+pub const fn phantom::RequestTimeouts::response_head_duration(self) -> core::option::Option<core::time::Duration>
+pub const fn phantom::RequestTimeouts::total(self, core::time::Duration) -> Self
+pub const fn phantom::RequestTimeouts::total_duration(self) -> core::option::Option<core::time::Duration>
+pub struct phantom::ResponseBody
+impl phantom::ResponseBody
+pub async fn phantom::ResponseBody::collect_with_limit(self, usize) -> core::result::Result<bytes::bytes::Bytes, phantom::RequestError>
+impl core::fmt::Debug for phantom::ResponseBody
+pub fn phantom::ResponseBody::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl http_body::Body for phantom::ResponseBody
+pub type phantom::ResponseBody::Data = bytes::bytes::Bytes
+pub type phantom::ResponseBody::Error = phantom::RequestError
+pub fn phantom::ResponseBody::is_end_stream(&self) -> bool
+pub fn phantom::ResponseBody::poll_frame(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<core::result::Result<http_body::frame::Frame<Self::Data>, Self::Error>>>
+pub fn phantom::ResponseBody::size_hint(&self) -> http_body::size_hint::SizeHint
+pub struct phantom::ResponseInfo
+impl phantom::ResponseInfo
+pub fn phantom::ResponseInfo::decoded_content_codings(&self) -> &[phantom::ContentCoding]
+pub fn phantom::ResponseInfo::effective_uri(&self) -> &http::uri::Uri
+pub const fn phantom::ResponseInfo::protocol(&self) -> phantom::HttpProtocol
+pub const fn phantom::ResponseInfo::redirects_followed(&self) -> usize
+pub const fn phantom::ResponseInfo::retries_performed(&self) -> usize
+impl core::fmt::Debug for phantom::ResponseInfo
+pub fn phantom::ResponseInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RetryPolicy
+impl phantom::RetryPolicy
+pub const fn phantom::RetryPolicy::connection_failures(core::num::nonzero::NonZeroUsize, core::time::Duration) -> Self
+pub const fn phantom::RetryPolicy::delay(self) -> core::time::Duration
+pub const fn phantom::RetryPolicy::http2_fallback(self) -> bool
+pub const fn phantom::RetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::RetryPolicy::none() -> Self
+pub const fn phantom::RetryPolicy::reused_connection_replay(self) -> bool
+pub const fn phantom::RetryPolicy::status_retry(self) -> core::option::Option<phantom::StatusRetry>
+pub const fn phantom::RetryPolicy::unprocessed_replay(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::RetryPolicy::with_http2_fallback(self, bool) -> Self
+pub const fn phantom::RetryPolicy::with_reused_connection_replay(self, bool) -> Self
+pub const fn phantom::RetryPolicy::with_status_retry(self, phantom::StatusRetry) -> Self
+pub const fn phantom::RetryPolicy::with_unprocessed_replay(self, core::option::Option<core::num::nonzero::NonZeroUsize>) -> Self
+pub struct phantom::Socks5Proxy
+impl phantom::Socks5Proxy
+pub const fn phantom::Socks5Proxy::dns_mode(&self) -> phantom::Socks5DnsMode
+pub fn phantom::Socks5Proxy::new(&str) -> core::result::Result<Self, phantom::Socks5ProxyConfigError>
+pub fn phantom::Socks5Proxy::with_username_password(self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom::Socks5ProxyConfigError>
+impl core::fmt::Debug for phantom::Socks5Proxy
+pub fn phantom::Socks5Proxy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::Socks5ProxyConfigError
+impl phantom::Socks5ProxyConfigError
+pub const fn phantom::Socks5ProxyConfigError::kind(&self) -> phantom::Socks5ProxyConfigErrorKind
+impl core::error::Error for phantom::Socks5ProxyConfigError
+pub fn phantom::Socks5ProxyConfigError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::Socks5ProxyConfigError
+pub fn phantom::Socks5ProxyConfigError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::SseError
+impl phantom::SseError
+pub const fn phantom::SseError::kind(&self) -> phantom::SseErrorKind
+impl core::error::Error for phantom::SseError
+pub fn phantom::SseError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::SseError
+pub fn phantom::SseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::SseEvent
+impl phantom::SseEvent
+pub fn phantom::SseEvent::data(&self) -> &str
+pub fn phantom::SseEvent::event(&self) -> &str
+pub fn phantom::SseEvent::id(&self) -> &str
+pub struct phantom::SseEventSource
+impl phantom::SseEventSource
+pub fn phantom::SseEventSource::close(&mut self)
+pub const fn phantom::SseEventSource::idle_timeout(&self) -> core::option::Option<core::time::Duration>
+pub const fn phantom::SseEventSource::is_closed(&self) -> bool
+pub fn phantom::SseEventSource::last_event_id(&self) -> &str
+pub async fn phantom::SseEventSource::next_event(&mut self) -> core::result::Result<core::option::Option<phantom::SseEvent>, phantom::SseError>
+pub const fn phantom::SseEventSource::reconnects(&self) -> usize
+pub fn phantom::SseEventSource::retry_delay(&self) -> core::time::Duration
+impl core::fmt::Debug for phantom::SseEventSource
+pub fn phantom::SseEventSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::SseLimits
+impl phantom::SseLimits
+pub const fn phantom::SseLimits::max_event_bytes(self) -> usize
+pub const fn phantom::SseLimits::max_line_bytes(self) -> usize
+pub const fn phantom::SseLimits::new(usize, usize) -> Self
+impl core::default::Default for phantom::SseLimits
+pub fn phantom::SseLimits::default() -> Self
+pub struct phantom::SseRequestBuilder
+impl phantom::SseRequestBuilder
+pub async fn phantom::SseRequestBuilder::connect(self) -> core::result::Result<http::response::Response<phantom::SseEventSource>, phantom::SseError>
+pub fn phantom::SseRequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
+pub fn phantom::SseRequestBuilder::headers(self, alloc::vec::Vec<phantom::SseHeader>) -> Self
+pub fn phantom::SseRequestBuilder::idle_timeout(self, core::time::Duration) -> Self
+pub fn phantom::SseRequestBuilder::initial_retry(self, core::time::Duration) -> Self
+pub fn phantom::SseRequestBuilder::limits(self, phantom::SseLimits) -> Self
+pub fn phantom::SseRequestBuilder::max_reconnects(self, usize) -> Self
+pub fn phantom::SseRequestBuilder::min_retry(self, core::time::Duration) -> Self
+pub fn phantom::SseRequestBuilder::request_timeouts(self, phantom::RequestTimeouts) -> Self
+pub fn phantom::SseRequestBuilder::route(self, phantom::Route) -> Self
+impl core::fmt::Debug for phantom::SseRequestBuilder
+pub fn phantom::SseRequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::SseStream
+impl phantom::SseStream
+pub fn phantom::SseStream::from_response(http::response::Response<phantom::ResponseBody>) -> core::result::Result<http::response::Response<Self>, phantom::SseError>
+pub fn phantom::SseStream::from_response_with_limits(http::response::Response<phantom::ResponseBody>, phantom::SseLimits) -> core::result::Result<http::response::Response<Self>, phantom::SseError>
+pub fn phantom::SseStream::last_event_id(&self) -> &str
+pub const fn phantom::SseStream::limits(&self) -> phantom::SseLimits
+pub async fn phantom::SseStream::next_event(&mut self) -> core::result::Result<core::option::Option<phantom::SseEvent>, phantom::SseError>
+pub const fn phantom::SseStream::retry_delay(&self) -> core::option::Option<core::time::Duration>
+impl core::fmt::Debug for phantom::SseStream
+pub fn phantom::SseStream::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::StatusRetry
+impl phantom::StatusRetry
+pub const fn phantom::StatusRetry::delay(self) -> core::time::Duration
+pub const fn phantom::StatusRetry::honor_retry_after(self, core::time::Duration) -> Self
+pub const fn phantom::StatusRetry::max_retries(self) -> core::num::nonzero::NonZeroUsize
+pub fn phantom::StatusRetry::new(&[http::status::StatusCode], core::num::nonzero::NonZeroUsize, core::time::Duration) -> core::result::Result<Self, phantom::StatusRetryError>
+pub fn phantom::StatusRetry::retries(self, http::status::StatusCode) -> bool
+pub const fn phantom::StatusRetry::retry_after_limit(self) -> core::option::Option<core::time::Duration>
+pub struct phantom::StatusRetryError
+impl phantom::StatusRetryError
+pub const fn phantom::StatusRetryError::status(self) -> core::option::Option<http::status::StatusCode>
+impl core::error::Error for phantom::StatusRetryError
+impl core::fmt::Display for phantom::StatusRetryError
+pub fn phantom::StatusRetryError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::WebSocket
+impl phantom::WebSocket
+pub async fn phantom::WebSocket::close(&mut self, core::option::Option<phantom::WebSocketCloseFrame>) -> core::result::Result<(), phantom::WebSocketError>
+pub fn phantom::WebSocket::handshake_response(&self) -> &http::response::Response<()>
+pub fn phantom::WebSocket::limits(&self) -> phantom::WebSocketLimits
+pub fn phantom::WebSocket::negotiated_permessage_deflate(&self) -> core::option::Option<phantom::NegotiatedPerMessageDeflate>
+pub async fn phantom::WebSocket::receive(&mut self) -> core::result::Result<phantom::WebSocketMessage, phantom::WebSocketError>
+pub fn phantom::WebSocket::selected_protocol(&self) -> core::option::Option<&str>
+pub async fn phantom::WebSocket::send(&mut self, phantom::WebSocketMessage) -> core::result::Result<(), phantom::WebSocketError>
+impl core::fmt::Debug for phantom::WebSocket
+pub fn phantom::WebSocket::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl futures_core::stream::Stream for phantom::WebSocket
+pub type phantom::WebSocket::Item = core::result::Result<phantom::WebSocketMessage, phantom::WebSocketError>
+pub fn phantom::WebSocket::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
+impl futures_sink::Sink<phantom::WebSocketMessage> for phantom::WebSocket
+pub type phantom::WebSocket::Error = phantom::WebSocketError
+pub fn phantom::WebSocket::poll_close(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::result::Result<(), Self::Error>>
+pub fn phantom::WebSocket::poll_flush(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::result::Result<(), Self::Error>>
+pub fn phantom::WebSocket::poll_ready(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::result::Result<(), Self::Error>>
+pub fn phantom::WebSocket::start_send(core::pin::Pin<&mut Self>, phantom::WebSocketMessage) -> core::result::Result<(), Self::Error>
+pub struct phantom::WebSocketCloseFrame
+impl phantom::WebSocketCloseFrame
+pub fn phantom::WebSocketCloseFrame::code(&self) -> u16
+pub fn phantom::WebSocketCloseFrame::new(u16, impl core::convert::Into<alloc::string::String>) -> core::result::Result<Self, phantom::WebSocketError>
+pub fn phantom::WebSocketCloseFrame::reason(&self) -> &str
+impl core::fmt::Debug for phantom::WebSocketCloseFrame
+pub fn phantom::WebSocketCloseFrame::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::WebSocketError
+impl phantom::WebSocketError
+pub fn phantom::WebSocketError::into_response(self) -> core::option::Option<http::response::Response<phantom::ResponseBody>>
+pub fn phantom::WebSocketError::kind(&self) -> phantom::WebSocketErrorKind
+pub fn phantom::WebSocketError::response(&self) -> core::option::Option<&http::response::Response<phantom::ResponseBody>>
+pub fn phantom::WebSocketError::timeout_phase(&self) -> core::option::Option<phantom::TimeoutPhase>
+impl core::error::Error for phantom::WebSocketError
+pub fn phantom::WebSocketError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::WebSocketError
+pub fn phantom::WebSocketError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::WebSocketError
+pub fn phantom::WebSocketError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::WebSocketLimits
+impl phantom::WebSocketLimits
+pub fn phantom::WebSocketLimits::max_frame_size(self) -> core::num::nonzero::NonZeroUsize
+pub const fn phantom::WebSocketLimits::max_message_fragments(self) -> core::num::nonzero::NonZeroUsize
+pub fn phantom::WebSocketLimits::max_message_size(self) -> core::num::nonzero::NonZeroUsize
+pub fn phantom::WebSocketLimits::new(core::num::nonzero::NonZeroUsize, core::num::nonzero::NonZeroUsize) -> core::result::Result<Self, phantom::WebSocketError>
+pub const fn phantom::WebSocketLimits::with_max_message_fragments(self, core::num::nonzero::NonZeroUsize) -> Self
+impl core::default::Default for phantom::WebSocketLimits
+pub fn phantom::WebSocketLimits::default() -> Self
+pub struct phantom::WebSocketRequestBuilder
+impl phantom::WebSocketRequestBuilder
+pub async fn phantom::WebSocketRequestBuilder::connect(self) -> core::result::Result<phantom::WebSocket, phantom::WebSocketError>
+pub fn phantom::WebSocketRequestBuilder::handshake_timeout(self, core::option::Option<core::time::Duration>) -> Self
+pub fn phantom::WebSocketRequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
+pub fn phantom::WebSocketRequestBuilder::headers(self, alloc::vec::Vec<phantom::WebSocketHeader>) -> Self
+pub fn phantom::WebSocketRequestBuilder::limits(self, phantom::WebSocketLimits) -> Self
+pub fn phantom::WebSocketRequestBuilder::permessage_deflate(self, phantom::PerMessageDeflate) -> Self
+pub fn phantom::WebSocketRequestBuilder::retry_policy(self, phantom::WebSocketRetryPolicy) -> Self
+pub fn phantom::WebSocketRequestBuilder::route(self, phantom::Route) -> Self
+impl core::fmt::Debug for phantom::WebSocketRequestBuilder
+pub fn phantom::WebSocketRequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::WebSocketRetryPolicy
+impl phantom::WebSocketRetryPolicy
+pub const fn phantom::WebSocketRetryPolicy::connection_failures(core::num::nonzero::NonZeroUsize, core::time::Duration) -> Self
+pub const fn phantom::WebSocketRetryPolicy::delay(self) -> core::time::Duration
+pub const fn phantom::WebSocketRetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::WebSocketRetryPolicy::none() -> Self

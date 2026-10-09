@@ -1,0 +1,305 @@
+pub mod phantom_testkit
+pub mod phantom_testkit::dns
+pub enum phantom_testkit::dns::DnsAnswer
+pub phantom_testkit::dns::DnsAnswer::NoData
+pub phantom_testkit::dns::DnsAnswer::NoData::soa_minimum: core::option::Option<u32>
+pub phantom_testkit::dns::DnsAnswer::NoDataWithSoa
+pub phantom_testkit::dns::DnsAnswer::NoDataWithSoa::minimum: u32
+pub phantom_testkit::dns::DnsAnswer::NoDataWithSoa::ttl: u32
+pub phantom_testkit::dns::DnsAnswer::Records
+pub phantom_testkit::dns::DnsAnswer::Records::rdata: alloc::vec::Vec<alloc::vec::Vec<u8>>
+pub phantom_testkit::dns::DnsAnswer::Records::ttl: u32
+pub phantom_testkit::dns::DnsAnswer::ServerFailure
+pub phantom_testkit::dns::DnsAnswer::Silence
+pub struct phantom_testkit::dns::DnsQuery
+impl phantom_testkit::dns::DnsQuery
+pub fn phantom_testkit::dns::DnsQuery::counts(&self) -> [u16; 4]
+pub fn phantom_testkit::dns::DnsQuery::flags(&self) -> u16
+pub fn phantom_testkit::dns::DnsQuery::name(&self) -> &str
+pub fn phantom_testkit::dns::DnsQuery::record_type(&self) -> u16
+pub fn phantom_testkit::dns::DnsQuery::wire_bytes(&self) -> &[u8]
+pub struct phantom_testkit::dns::DnsReply
+impl phantom_testkit::dns::DnsReply
+pub const fn phantom_testkit::dns::DnsReply::delayed(self, core::time::Duration) -> Self
+pub const fn phantom_testkit::dns::DnsReply::new(phantom_testkit::dns::DnsAnswer) -> Self
+pub struct phantom_testkit::dns::DnsServer
+impl phantom_testkit::dns::DnsServer
+pub const fn phantom_testkit::dns::DnsServer::address(&self) -> core::net::socket_addr::SocketAddr
+pub fn phantom_testkit::dns::DnsServer::queries(&self) -> alloc::vec::Vec<phantom_testkit::dns::DnsQuery>
+pub async fn phantom_testkit::dns::DnsServer::spawn(impl core::ops::function::Fn(&phantom_testkit::dns::DnsQuery) -> phantom_testkit::dns::DnsReply + core::marker::Send + core::marker::Sync + 'static) -> core::io::error::Result<Self>
+impl core::fmt::Debug for phantom_testkit::dns::DnsServer
+pub fn phantom_testkit::dns::DnsServer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::ops::drop::Drop for phantom_testkit::dns::DnsServer
+pub fn phantom_testkit::dns::DnsServer::drop(&mut self)
+pub mod phantom_testkit::future_size
+pub const phantom_testkit::future_size::FUTURE_BUDGET: usize
+pub const phantom_testkit::future_size::SETUP_FUTURE_BUDGET: usize
+pub trait phantom_testkit::future_size::ReturnSize<Arguments>
+pub fn phantom_testkit::future_size::ReturnSize::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M, N> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M, N)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M, N) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L, M> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L, M)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L, M) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K, L> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K, L)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K, L) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J, K> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J, K)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J, K) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I, J> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I, J)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I, J) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H, I> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H, I)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H, I) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G, H> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G, H)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G, H) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F, G> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F, G)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F, G) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E, F> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E, F)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E, F) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D, E> phantom_testkit::future_size::ReturnSize<(A, B, C, D, E)> for Function where Function: core::ops::function::FnOnce(A, B, C, D, E) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C, D> phantom_testkit::future_size::ReturnSize<(A, B, C, D)> for Function where Function: core::ops::function::FnOnce(A, B, C, D) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B, C> phantom_testkit::future_size::ReturnSize<(A, B, C)> for Function where Function: core::ops::function::FnOnce(A, B, C) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A, B> phantom_testkit::future_size::ReturnSize<(A, B)> for Function where Function: core::ops::function::FnOnce(A, B) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output, A> phantom_testkit::future_size::ReturnSize<(A)> for Function where Function: core::ops::function::FnOnce(A) -> Output
+pub fn Function::return_size(&self) -> usize
+impl<Function, Output> phantom_testkit::future_size::ReturnSize<()> for Function where Function: core::ops::function::FnOnce() -> Output
+pub fn Function::return_size(&self) -> usize
+pub fn phantom_testkit::future_size::assert_within(usize, &[(&str, usize)])
+pub fn phantom_testkit::future_size::assert_within_budget(&[(&str, usize)])
+pub fn phantom_testkit::future_size::future_size<Arguments>(&impl phantom_testkit::future_size::ReturnSize<Arguments>) -> usize
+pub mod phantom_testkit::http2
+#[non_exhaustive] pub enum phantom_testkit::http2::CaptureCompletion
+pub phantom_testkit::http2::CaptureCompletion::InitialSettings
+pub phantom_testkit::http2::CaptureCompletion::InitialSettingsAndConnectionWindowUpdate
+#[non_exhaustive] pub enum phantom_testkit::http2::CaptureError
+pub phantom_testkit::http2::CaptureError::DeadlineExceeded
+pub phantom_testkit::http2::CaptureError::FrameCountLimitExceeded
+pub phantom_testkit::http2::CaptureError::FrameCountLimitExceeded::maximum: usize
+pub phantom_testkit::http2::CaptureError::FramePayloadLimitExceeded
+pub phantom_testkit::http2::CaptureError::FramePayloadLimitExceeded::length: usize
+pub phantom_testkit::http2::CaptureError::FramePayloadLimitExceeded::maximum: usize
+pub phantom_testkit::http2::CaptureError::InitialFrameNotSettings
+pub phantom_testkit::http2::CaptureError::InitialFrameNotSettings::frame_type: u8
+pub phantom_testkit::http2::CaptureError::InitialSettingsAcknowledgement
+pub phantom_testkit::http2::CaptureError::InputEndedBeforeCompletion
+pub phantom_testkit::http2::CaptureError::InputEndedBeforeCompletion::completion: phantom_testkit::http2::CaptureCompletion
+pub phantom_testkit::http2::CaptureError::InvalidPreface
+pub phantom_testkit::http2::CaptureError::InvalidPreface::actual: u8
+pub phantom_testkit::http2::CaptureError::InvalidPreface::expected: u8
+pub phantom_testkit::http2::CaptureError::InvalidPreface::index: usize
+pub phantom_testkit::http2::CaptureError::InvalidSettings(phantom_testkit::http2::SettingsDecodeError)
+pub phantom_testkit::http2::CaptureError::InvalidWindowUpdate(phantom_testkit::http2::WindowUpdateDecodeError)
+pub phantom_testkit::http2::CaptureError::Io(core::io::error::Error)
+pub phantom_testkit::http2::CaptureError::TotalByteLimitExceeded
+pub phantom_testkit::http2::CaptureError::TotalByteLimitExceeded::attempted: usize
+pub phantom_testkit::http2::CaptureError::TotalByteLimitExceeded::maximum: usize
+pub phantom_testkit::http2::CaptureError::TruncatedFrameHeader
+pub phantom_testkit::http2::CaptureError::TruncatedFramePayload
+pub phantom_testkit::http2::CaptureError::TruncatedFramePayload::expected: usize
+pub phantom_testkit::http2::CaptureError::TruncatedPreface
+impl core::error::Error for phantom_testkit::http2::CaptureError
+pub fn phantom_testkit::http2::CaptureError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_testkit::http2::CaptureError
+pub fn phantom_testkit::http2::CaptureError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_testkit::http2::FrameDecodeError
+pub phantom_testkit::http2::FrameDecodeError::PayloadLengthMismatch
+pub phantom_testkit::http2::FrameDecodeError::PayloadLengthMismatch::actual: usize
+pub phantom_testkit::http2::FrameDecodeError::PayloadLengthMismatch::declared: usize
+pub phantom_testkit::http2::FrameDecodeError::TruncatedHeader
+pub phantom_testkit::http2::FrameDecodeError::TruncatedHeader::length: usize
+impl core::error::Error for phantom_testkit::http2::FrameDecodeError
+impl core::fmt::Display for phantom_testkit::http2::FrameDecodeError
+pub fn phantom_testkit::http2::FrameDecodeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_testkit::http2::SettingsDecodeError
+pub phantom_testkit::http2::SettingsDecodeError::AckWithPayload
+pub phantom_testkit::http2::SettingsDecodeError::AckWithPayload::length: usize
+pub phantom_testkit::http2::SettingsDecodeError::InitialWindowSizeTooLarge
+pub phantom_testkit::http2::SettingsDecodeError::InitialWindowSizeTooLarge::maximum: u32
+pub phantom_testkit::http2::SettingsDecodeError::InitialWindowSizeTooLarge::value: u32
+pub phantom_testkit::http2::SettingsDecodeError::InvalidEnablePush
+pub phantom_testkit::http2::SettingsDecodeError::InvalidEnablePush::value: u32
+pub phantom_testkit::http2::SettingsDecodeError::InvalidMaxFrameSize
+pub phantom_testkit::http2::SettingsDecodeError::InvalidMaxFrameSize::maximum: u32
+pub phantom_testkit::http2::SettingsDecodeError::InvalidMaxFrameSize::minimum: u32
+pub phantom_testkit::http2::SettingsDecodeError::InvalidMaxFrameSize::value: u32
+pub phantom_testkit::http2::SettingsDecodeError::InvalidPayloadLength
+pub phantom_testkit::http2::SettingsDecodeError::InvalidPayloadLength::length: usize
+pub phantom_testkit::http2::SettingsDecodeError::NonZeroStream
+pub phantom_testkit::http2::SettingsDecodeError::NonZeroStream::stream_id: u32
+impl core::error::Error for phantom_testkit::http2::SettingsDecodeError
+impl core::fmt::Display for phantom_testkit::http2::SettingsDecodeError
+pub fn phantom_testkit::http2::SettingsDecodeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_testkit::http2::WindowUpdateDecodeError
+pub phantom_testkit::http2::WindowUpdateDecodeError::InvalidPayloadLength
+pub phantom_testkit::http2::WindowUpdateDecodeError::InvalidPayloadLength::length: usize
+pub phantom_testkit::http2::WindowUpdateDecodeError::ZeroIncrement
+impl core::error::Error for phantom_testkit::http2::WindowUpdateDecodeError
+impl core::fmt::Display for phantom_testkit::http2::WindowUpdateDecodeError
+pub fn phantom_testkit::http2::WindowUpdateDecodeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_testkit::http2::CaptureLimits
+impl phantom_testkit::http2::CaptureLimits
+pub const fn phantom_testkit::http2::CaptureLimits::new(usize, usize, usize) -> Self
+pub struct phantom_testkit::http2::CapturedFrame
+impl phantom_testkit::http2::CapturedFrame
+pub fn phantom_testkit::http2::CapturedFrame::from_wire_bytes(&[u8]) -> core::result::Result<Self, phantom_testkit::http2::FrameDecodeError>
+pub const fn phantom_testkit::http2::CapturedFrame::header(&self) -> &phantom_testkit::http2::FrameHeader
+pub fn phantom_testkit::http2::CapturedFrame::payload(&self) -> &[u8]
+pub fn phantom_testkit::http2::CapturedFrame::settings(&self) -> core::result::Result<core::option::Option<phantom_testkit::http2::SettingsFrame>, phantom_testkit::http2::SettingsDecodeError>
+pub fn phantom_testkit::http2::CapturedFrame::window_update(&self) -> core::result::Result<core::option::Option<phantom_testkit::http2::WindowUpdateFrame>, phantom_testkit::http2::WindowUpdateDecodeError>
+pub fn phantom_testkit::http2::CapturedFrame::wire_bytes(&self) -> &[u8]
+pub struct phantom_testkit::http2::ClientFrameCapture
+impl phantom_testkit::http2::ClientFrameCapture
+pub fn phantom_testkit::http2::ClientFrameCapture::frames(&self) -> &[phantom_testkit::http2::CapturedFrame]
+pub const fn phantom_testkit::http2::ClientFrameCapture::preface_bytes(&self) -> &[u8; 24]
+pub struct phantom_testkit::http2::FrameHeader
+impl phantom_testkit::http2::FrameHeader
+pub const fn phantom_testkit::http2::FrameHeader::flags(&self) -> u8
+pub const fn phantom_testkit::http2::FrameHeader::frame_type(&self) -> u8
+pub const fn phantom_testkit::http2::FrameHeader::payload_length(&self) -> usize
+pub const fn phantom_testkit::http2::FrameHeader::reserved_bit(&self) -> bool
+pub const fn phantom_testkit::http2::FrameHeader::stream_id(&self) -> u32
+pub fn phantom_testkit::http2::FrameHeader::wire_bytes(&self) -> &[u8; 9]
+pub struct phantom_testkit::http2::Setting
+impl phantom_testkit::http2::Setting
+pub const fn phantom_testkit::http2::Setting::identifier(&self) -> u16
+pub const fn phantom_testkit::http2::Setting::value(&self) -> u32
+pub struct phantom_testkit::http2::SettingsFrame
+impl phantom_testkit::http2::SettingsFrame
+pub fn phantom_testkit::http2::SettingsFrame::entries(&self) -> &[phantom_testkit::http2::Setting]
+pub const fn phantom_testkit::http2::SettingsFrame::is_acknowledgement(&self) -> bool
+pub struct phantom_testkit::http2::WindowUpdateFrame
+impl phantom_testkit::http2::WindowUpdateFrame
+pub const fn phantom_testkit::http2::WindowUpdateFrame::increment(&self) -> u32
+pub const fn phantom_testkit::http2::WindowUpdateFrame::reserved_bit(&self) -> bool
+pub const phantom_testkit::http2::CLIENT_CONNECTION_PREFACE: &[u8; 24]
+pub async fn phantom_testkit::http2::capture_client_frames<R>(&mut R, tokio::time::instant::Instant, phantom_testkit::http2::CaptureLimits, phantom_testkit::http2::CaptureCompletion) -> core::result::Result<phantom_testkit::http2::ClientFrameCapture, phantom_testkit::http2::CaptureError> where R: tokio::io::async_read::AsyncRead + core::marker::Unpin
+pub mod phantom_testkit::tcp
+pub struct phantom_testkit::tcp::ReservedPort
+impl phantom_testkit::tcp::ReservedPort
+pub fn phantom_testkit::tcp::ReservedPort::address(&self) -> core::net::socket_addr::SocketAddr
+pub fn phantom_testkit::tcp::ReservedPort::bind() -> core::io::error::Result<Self>
+pub fn phantom_testkit::tcp::ReservedPort::listen(self) -> core::io::error::Result<tokio::net::tcp::listener::TcpListener>
+pub mod phantom_testkit::tls
+#[non_exhaustive] pub enum phantom_testkit::tls::CaptureError
+pub phantom_testkit::tls::CaptureError::DeadlineExceeded
+pub phantom_testkit::tls::CaptureError::EmptyHandshakeFragment
+pub phantom_testkit::tls::CaptureError::HandshakeLimitExceeded
+pub phantom_testkit::tls::CaptureError::HandshakeLimitExceeded::attempted: usize
+pub phantom_testkit::tls::CaptureError::HandshakeLimitExceeded::maximum: usize
+pub phantom_testkit::tls::CaptureError::Io(core::io::error::Error)
+pub phantom_testkit::tls::CaptureError::NonHandshakeRecord
+pub phantom_testkit::tls::CaptureError::NonHandshakeRecord::content_type: u8
+pub phantom_testkit::tls::CaptureError::RecordLimitExceeded
+pub phantom_testkit::tls::CaptureError::RecordLimitExceeded::maximum: usize
+pub phantom_testkit::tls::CaptureError::RecordTooLarge
+pub phantom_testkit::tls::CaptureError::RecordTooLarge::length: usize
+pub phantom_testkit::tls::CaptureError::RecordTooLarge::maximum: usize
+pub phantom_testkit::tls::CaptureError::TrailingBytes
+pub phantom_testkit::tls::CaptureError::TrailingBytes::count: usize
+pub phantom_testkit::tls::CaptureError::TruncatedInput
+pub phantom_testkit::tls::CaptureError::UnexpectedHandshakeType
+pub phantom_testkit::tls::CaptureError::UnexpectedHandshakeType::handshake_type: u8
+pub phantom_testkit::tls::CaptureError::WireLimitExceeded
+pub phantom_testkit::tls::CaptureError::WireLimitExceeded::attempted: usize
+pub phantom_testkit::tls::CaptureError::WireLimitExceeded::maximum: usize
+impl core::error::Error for phantom_testkit::tls::CaptureError
+pub fn phantom_testkit::tls::CaptureError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_testkit::tls::CaptureError
+pub fn phantom_testkit::tls::CaptureError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_testkit::tls::ClientHelloDecodeError
+pub phantom_testkit::tls::ClientHelloDecodeError::DuplicateExtension
+pub phantom_testkit::tls::ClientHelloDecodeError::DuplicateExtension::extension_type: u16
+pub phantom_testkit::tls::ClientHelloDecodeError::DuplicateServerNameType
+pub phantom_testkit::tls::ClientHelloDecodeError::DuplicateServerNameType::name_type: u8
+pub phantom_testkit::tls::ClientHelloDecodeError::EmptyAlpnProtocol
+pub phantom_testkit::tls::ClientHelloDecodeError::EmptyServerName
+pub phantom_testkit::tls::ClientHelloDecodeError::EmptyServerName::name_type: u8
+pub phantom_testkit::tls::ClientHelloDecodeError::InvalidVectorLength
+pub phantom_testkit::tls::ClientHelloDecodeError::InvalidVectorLength::element_width: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::InvalidVectorLength::field: &'static str
+pub phantom_testkit::tls::ClientHelloDecodeError::InvalidVectorLength::length: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::LengthOutOfRange
+pub phantom_testkit::tls::ClientHelloDecodeError::LengthOutOfRange::field: &'static str
+pub phantom_testkit::tls::ClientHelloDecodeError::LengthOutOfRange::length: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::LengthOutOfRange::maximum: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::LengthOutOfRange::minimum: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingClientHelloBytes
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingClientHelloBytes::count: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingExtensionBytes
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingExtensionBytes::count: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingExtensionBytes::extension_type: u16
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingHandshakeBytes
+pub phantom_testkit::tls::ClientHelloDecodeError::TrailingHandshakeBytes::count: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::Truncated
+pub phantom_testkit::tls::ClientHelloDecodeError::Truncated::field: &'static str
+pub phantom_testkit::tls::ClientHelloDecodeError::Truncated::needed: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::Truncated::remaining: usize
+pub phantom_testkit::tls::ClientHelloDecodeError::UnexpectedHandshakeType
+pub phantom_testkit::tls::ClientHelloDecodeError::UnexpectedHandshakeType::handshake_type: u8
+impl core::error::Error for phantom_testkit::tls::ClientHelloDecodeError
+impl core::fmt::Display for phantom_testkit::tls::ClientHelloDecodeError
+pub fn phantom_testkit::tls::ClientHelloDecodeError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_testkit::tls::CaptureLimits
+impl phantom_testkit::tls::CaptureLimits
+pub const fn phantom_testkit::tls::CaptureLimits::new(usize, usize, usize) -> Self
+pub struct phantom_testkit::tls::CapturedTlsRecord
+impl phantom_testkit::tls::CapturedTlsRecord
+pub fn phantom_testkit::tls::CapturedTlsRecord::content_type(&self) -> u8
+pub fn phantom_testkit::tls::CapturedTlsRecord::fragment(&self) -> &[u8]
+pub fn phantom_testkit::tls::CapturedTlsRecord::legacy_version(&self) -> u16
+pub fn phantom_testkit::tls::CapturedTlsRecord::wire_bytes(&self) -> &[u8]
+pub struct phantom_testkit::tls::ClientHelloCapture
+impl phantom_testkit::tls::ClientHelloCapture
+pub fn phantom_testkit::tls::ClientHelloCapture::handshake_bytes(&self) -> &[u8]
+pub fn phantom_testkit::tls::ClientHelloCapture::records(&self) -> &[phantom_testkit::tls::CapturedTlsRecord]
+pub fn phantom_testkit::tls::ClientHelloCapture::summary(&self) -> core::result::Result<phantom_testkit::tls::ClientHelloSummary, phantom_testkit::tls::ClientHelloDecodeError>
+pub struct phantom_testkit::tls::ClientHelloSummary
+impl phantom_testkit::tls::ClientHelloSummary
+pub fn phantom_testkit::tls::ClientHelloSummary::alpn_protocols(&self) -> &[alloc::vec::Vec<u8>]
+pub fn phantom_testkit::tls::ClientHelloSummary::cipher_suites(&self) -> &[u16]
+pub fn phantom_testkit::tls::ClientHelloSummary::ec_point_formats(&self) -> &[u8]
+pub fn phantom_testkit::tls::ClientHelloSummary::encrypted_client_hello(&self) -> core::option::Option<&[u8]>
+pub fn phantom_testkit::tls::ClientHelloSummary::extension_layout(&self) -> impl core::iter::traits::iterator::Iterator<Item = (u16, usize)> + '_
+pub fn phantom_testkit::tls::ClientHelloSummary::extension_types(&self) -> &[u16]
+pub fn phantom_testkit::tls::ClientHelloSummary::from_handshake_bytes(&[u8]) -> core::result::Result<Self, phantom_testkit::tls::ClientHelloDecodeError>
+pub fn phantom_testkit::tls::ClientHelloSummary::key_share_groups(&self) -> &[u16]
+pub fn phantom_testkit::tls::ClientHelloSummary::legacy_version(&self) -> u16
+pub fn phantom_testkit::tls::ClientHelloSummary::requested_trust_anchor_ids(&self) -> core::option::Option<&[alloc::vec::Vec<u8>]>
+pub fn phantom_testkit::tls::ClientHelloSummary::server_name(&self) -> core::option::Option<&[u8]>
+pub fn phantom_testkit::tls::ClientHelloSummary::signature_algorithms(&self) -> &[u16]
+pub fn phantom_testkit::tls::ClientHelloSummary::supported_groups(&self) -> &[u16]
+pub fn phantom_testkit::tls::ClientHelloSummary::supported_versions(&self) -> &[u16]
+pub struct phantom_testkit::tls::EchOuterExtension
+pub phantom_testkit::tls::EchOuterExtension::aead_id: u16
+pub phantom_testkit::tls::EchOuterExtension::config_id: u8
+pub phantom_testkit::tls::EchOuterExtension::enc_length: usize
+pub phantom_testkit::tls::EchOuterExtension::kdf_id: u16
+pub phantom_testkit::tls::EchOuterExtension::payload_length: usize
+impl phantom_testkit::tls::EchOuterExtension
+pub fn phantom_testkit::tls::EchOuterExtension::parse(&[u8]) -> core::option::Option<Self>
+pub struct phantom_testkit::tls::EchTestKey
+pub phantom_testkit::tls::EchTestKey::private_key: [u8; 32]
+pub phantom_testkit::tls::EchTestKey::public_key: [u8; 32]
+pub const phantom_testkit::tls::TEST_ECH_KEYS: [phantom_testkit::tls::EchTestKey; 2]
+pub const phantom_testkit::tls::TLS_PLAINTEXT_FRAGMENT_LIMIT: usize
+pub async fn phantom_testkit::tls::capture_client_hello<R>(&mut R, tokio::time::instant::Instant, phantom_testkit::tls::CaptureLimits) -> core::result::Result<phantom_testkit::tls::ClientHelloCapture, phantom_testkit::tls::CaptureError> where R: tokio::io::async_read::AsyncRead + core::marker::Unpin
+pub fn phantom_testkit::tls::ech_config(u8, &phantom_testkit::tls::EchTestKey, &str) -> alloc::vec::Vec<u8>
+pub fn phantom_testkit::tls::ech_config_list(&[alloc::vec::Vec<u8>]) -> alloc::vec::Vec<u8>
+pub const fn phantom_testkit::tls::is_grease(u16) -> bool
+pub mod phantom_testkit::udp
+pub fn phantom_testkit::udp::bind(core::net::socket_addr::SocketAddr) -> core::io::error::Result<std::net::udp::UdpSocket>
+pub fn phantom_testkit::udp::bind_tokio(core::net::socket_addr::SocketAddr) -> core::io::error::Result<tokio::net::udp::UdpSocket>

@@ -1,0 +1,187 @@
+pub mod phantom_quic_btls
+#[non_exhaustive] pub enum phantom_quic_btls::CryptoError
+pub phantom_quic_btls::CryptoError::AllocationFailed
+pub phantom_quic_btls::CryptoError::AuthenticationFailed
+pub phantom_quic_btls::CryptoError::BackendFailure(&'static str)
+pub phantom_quic_btls::CryptoError::InsufficientOutputCapacity
+pub phantom_quic_btls::CryptoError::InsufficientOutputCapacity::actual: usize
+pub phantom_quic_btls::CryptoError::InsufficientOutputCapacity::required: usize
+pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength
+pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength
+pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfLabelLength
+pub phantom_quic_btls::CryptoError::InvalidHkdfLabelLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfLabelLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfLabelLength::minimum: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfOutputLength
+pub phantom_quic_btls::CryptoError::InvalidHkdfOutputLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidHkdfOutputLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidKeyLength
+pub phantom_quic_btls::CryptoError::InvalidKeyLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidKeyLength::expected: usize
+pub phantom_quic_btls::CryptoError::InvalidNonceLength
+pub phantom_quic_btls::CryptoError::InvalidNonceLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidNonceLength::expected: usize
+pub phantom_quic_btls::CryptoError::InvalidPacketNumberOffset
+pub phantom_quic_btls::CryptoError::InvalidPacketNumberOffset::offset: usize
+pub phantom_quic_btls::CryptoError::InvalidPacketNumberOffset::packet_len: usize
+pub phantom_quic_btls::CryptoError::InvalidSampleBounds
+pub phantom_quic_btls::CryptoError::InvalidSampleBounds::offset: usize
+pub phantom_quic_btls::CryptoError::InvalidSampleBounds::packet_len: usize
+pub phantom_quic_btls::CryptoError::InvalidSampleBounds::required: usize
+pub phantom_quic_btls::CryptoError::InvalidSignatureLength
+pub phantom_quic_btls::CryptoError::InvalidSignatureLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidSignatureLength::expected: usize
+pub phantom_quic_btls::CryptoError::SignatureMismatch
+pub phantom_quic_btls::CryptoError::UnsupportedCipherSuite
+pub phantom_quic_btls::CryptoError::UnsupportedCipherSuite::id: u16
+impl core::error::Error for phantom_quic_btls::CryptoError
+impl core::fmt::Display for phantom_quic_btls::CryptoError
+pub fn phantom_quic_btls::CryptoError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_quic_btls::EchOutcome
+pub phantom_quic_btls::EchOutcome::Accepted
+pub phantom_quic_btls::EchOutcome::InvalidConfigList
+pub phantom_quic_btls::EchOutcome::Rejected
+pub phantom_quic_btls::EchOutcome::Rejected::retry_configs: core::option::Option<alloc::boxed::Box<[u8]>>
+impl core::fmt::Debug for phantom_quic_btls::EchOutcome
+pub fn phantom_quic_btls::EchOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_quic_btls::QuicTlsProfileErrorKind
+pub phantom_quic_btls::QuicTlsProfileErrorKind::ContextConflict
+pub phantom_quic_btls::QuicTlsProfileErrorKind::InvalidProfile
+pub phantom_quic_btls::QuicTlsProfileErrorKind::UnsupportedSetting
+pub struct phantom_quic_btls::ApplicationState
+impl phantom_quic_btls::ApplicationState
+pub fn phantom_quic_btls::ApplicationState::new() -> Self
+pub fn phantom_quic_btls::ApplicationState::remembered(&self) -> core::option::Option<alloc::sync::Arc<[u8]>>
+pub fn phantom_quic_btls::ApplicationState::store(&self, &[u8]) -> bool
+impl core::fmt::Debug for phantom_quic_btls::ApplicationState
+pub fn phantom_quic_btls::ApplicationState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::EchOffer
+impl phantom_quic_btls::EchOffer
+pub fn phantom_quic_btls::EchOffer::config_list(&self) -> &[u8]
+pub fn phantom_quic_btls::EchOffer::new(&[u8]) -> Self
+pub fn phantom_quic_btls::EchOffer::outcome(&self) -> core::option::Option<phantom_quic_btls::EchOutcome>
+impl core::fmt::Debug for phantom_quic_btls::EchOffer
+pub fn phantom_quic_btls::EchOffer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::HandshakeData
+impl phantom_quic_btls::HandshakeData
+pub const fn phantom_quic_btls::HandshakeData::ech_accepted(&self) -> bool
+pub fn phantom_quic_btls::HandshakeData::peer_application_settings(&self) -> core::option::Option<&[u8]>
+pub const fn phantom_quic_btls::HandshakeData::peer_initial_max_streams_bidi(&self) -> core::option::Option<u64>
+pub fn phantom_quic_btls::HandshakeData::protocol(&self) -> &[u8]
+pub const fn phantom_quic_btls::HandshakeData::session_resumed(&self) -> bool
+impl core::fmt::Debug for phantom_quic_btls::HandshakeData
+pub fn phantom_quic_btls::HandshakeData::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::InvalidServerName
+impl core::error::Error for phantom_quic_btls::InvalidServerName
+impl core::fmt::Display for phantom_quic_btls::InvalidServerName
+pub fn phantom_quic_btls::InvalidServerName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::NssKeyLogLine
+impl phantom_quic_btls::NssKeyLogLine
+pub fn phantom_quic_btls::NssKeyLogLine::write_nss(&self, &mut impl core::io::write::Write) -> core::io::error::Result<()>
+impl core::fmt::Debug for phantom_quic_btls::NssKeyLogLine
+pub fn phantom_quic_btls::NssKeyLogLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::ops::drop::Drop for phantom_quic_btls::NssKeyLogLine
+pub fn phantom_quic_btls::NssKeyLogLine::drop(&mut self)
+impl zeroize::Zeroize for phantom_quic_btls::NssKeyLogLine
+pub fn phantom_quic_btls::NssKeyLogLine::zeroize(&mut self)
+pub struct phantom_quic_btls::NssKeyLogReceiver
+impl phantom_quic_btls::NssKeyLogReceiver
+pub fn phantom_quic_btls::NssKeyLogReceiver::dropped_line_count(&self) -> usize
+pub fn phantom_quic_btls::NssKeyLogReceiver::try_recv(&self) -> core::result::Result<phantom_quic_btls::NssKeyLogLine, std::sync::mpsc::TryRecvError>
+pub fn phantom_quic_btls::NssKeyLogReceiver::write_pending_nss(&self, &mut impl core::io::write::Write) -> core::io::error::Result<usize>
+impl core::fmt::Debug for phantom_quic_btls::NssKeyLogReceiver
+pub fn phantom_quic_btls::NssKeyLogReceiver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::NssKeyLogSender
+impl phantom_quic_btls::NssKeyLogSender
+pub fn phantom_quic_btls::NssKeyLogSender::send(&self, &str)
+impl core::fmt::Debug for phantom_quic_btls::NssKeyLogSender
+pub fn phantom_quic_btls::NssKeyLogSender::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::PeerIdentity
+impl phantom_quic_btls::PeerIdentity
+pub fn phantom_quic_btls::PeerIdentity::certificates(&self) -> &[alloc::vec::Vec<u8>]
+impl core::fmt::Debug for phantom_quic_btls::PeerIdentity
+pub fn phantom_quic_btls::PeerIdentity::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicClientCertificate
+impl phantom_quic_btls::QuicClientCertificate
+pub fn phantom_quic_btls::QuicClientCertificate::from_der<'a>(impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, &[u8]) -> core::result::Result<Self, phantom_quic_btls::QuicTlsProfileError>
+impl core::fmt::Debug for phantom_quic_btls::QuicClientCertificate
+pub fn phantom_quic_btls::QuicClientCertificate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicClientConfig
+impl phantom_quic_btls::QuicClientConfig
+pub fn phantom_quic_btls::QuicClientConfig::configure_client(&self, &mut quinn_proto::config::ClientConfig, &str)
+pub fn phantom_quic_btls::QuicClientConfig::configure_path(&self, &mut quinn_proto::config::transport::TransportConfig, core::net::ip_addr::IpAddr) -> core::result::Result<(), phantom_quic_btls::QuicTransportProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::configure_transport(&self, &mut quinn_proto::config::EndpointConfig, &mut quinn_proto::config::transport::TransportConfig) -> core::result::Result<(), phantom_quic_btls::QuicTransportProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::enable_session_resumption(&mut btls::ssl::SslContextBuilder) -> core::result::Result<(), phantom_quic_btls::QuicTlsProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::has_ticket_for(&self, &str) -> bool
+pub const fn phantom_quic_btls::QuicClientConfig::new(btls::ssl::SslContext) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::receives_datagrams(&self) -> bool
+pub fn phantom_quic_btls::QuicClientConfig::record_round_trip_time(&self, &str, core::time::Duration)
+pub const fn phantom_quic_btls::QuicClientConfig::resumes_sessions(&self) -> bool
+pub const fn phantom_quic_btls::QuicClientConfig::sends_early_data(&self) -> bool
+pub fn phantom_quic_btls::QuicClientConfig::validate_server_name(&str) -> core::result::Result<(), phantom_quic_btls::InvalidServerName>
+pub fn phantom_quic_btls::QuicClientConfig::validate_tls_profile(&phantom_profile::tls::TlsSettings) -> core::result::Result<(), phantom_quic_btls::QuicTlsProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::with_application_state(&self, &phantom_quic_btls::ApplicationState) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::with_client_certificate(&self, &phantom_quic_btls::QuicClientCertificate) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::with_early_data(&self) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::with_ech(&self, &phantom_quic_btls::EchOffer) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::with_isolated_session_cache(&self) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::with_tls_profile(self, &phantom_profile::tls::TlsSettings) -> core::result::Result<Self, phantom_quic_btls::QuicTlsProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::with_transport_profile(btls::ssl::SslContext, phantom_profile::quic::QuicTransportSettings) -> core::result::Result<Self, phantom_quic_btls::QuicTransportProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::without_early_data(&self) -> Self
+pub fn phantom_quic_btls::QuicClientConfig::without_ticket_offers(&self) -> Self
+impl core::fmt::Debug for phantom_quic_btls::QuicClientConfig
+pub fn phantom_quic_btls::QuicClientConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl quinn_proto::crypto::ClientConfig for phantom_quic_btls::QuicClientConfig
+pub fn phantom_quic_btls::QuicClientConfig::start_session(alloc::sync::Arc<Self>, u32, &str, &quinn_proto::transport_parameters::TransportParameters) -> core::result::Result<alloc::boxed::Box<dyn quinn_proto::crypto::Session>, quinn_proto::endpoint::ConnectError>
+pub struct phantom_quic_btls::QuicServerConfig
+impl phantom_quic_btls::QuicServerConfig
+pub const fn phantom_quic_btls::QuicServerConfig::new(btls::ssl::SslContext) -> Self
+impl core::fmt::Debug for phantom_quic_btls::QuicServerConfig
+pub fn phantom_quic_btls::QuicServerConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl quinn_proto::crypto::ServerConfig for phantom_quic_btls::QuicServerConfig
+pub fn phantom_quic_btls::QuicServerConfig::initial_keys(&self, u32, &quinn_proto::shared::ConnectionId) -> core::result::Result<quinn_proto::crypto::Keys, quinn_proto::crypto::UnsupportedVersion>
+pub fn phantom_quic_btls::QuicServerConfig::retry_tag(&self, u32, &quinn_proto::shared::ConnectionId, &[u8]) -> [u8; 16]
+pub fn phantom_quic_btls::QuicServerConfig::start_session(alloc::sync::Arc<Self>, u32, &quinn_proto::transport_parameters::TransportParameters) -> alloc::boxed::Box<dyn quinn_proto::crypto::Session>
+pub struct phantom_quic_btls::QuicTlsProfileError
+impl phantom_quic_btls::QuicTlsProfileError
+pub const fn phantom_quic_btls::QuicTlsProfileError::field(&self) -> &'static str
+pub const fn phantom_quic_btls::QuicTlsProfileError::kind(&self) -> phantom_quic_btls::QuicTlsProfileErrorKind
+impl core::error::Error for phantom_quic_btls::QuicTlsProfileError
+impl core::fmt::Display for phantom_quic_btls::QuicTlsProfileError
+pub fn phantom_quic_btls::QuicTlsProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicTransportProfileError
+impl phantom_quic_btls::QuicTransportProfileError
+pub const fn phantom_quic_btls::QuicTransportProfileError::field(&self) -> &'static str
+impl core::error::Error for phantom_quic_btls::QuicTransportProfileError
+impl core::fmt::Display for phantom_quic_btls::QuicTransportProfileError
+pub fn phantom_quic_btls::QuicTransportProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::ServerHandshakeData
+impl phantom_quic_btls::ServerHandshakeData
+pub fn phantom_quic_btls::ServerHandshakeData::client_hello(&self) -> &[u8]
+pub const fn phantom_quic_btls::ServerHandshakeData::ech_accepted(&self) -> bool
+pub fn phantom_quic_btls::ServerHandshakeData::protocol(&self) -> &[u8]
+pub fn phantom_quic_btls::ServerHandshakeData::server_name(&self) -> core::option::Option<&str>
+pub const fn phantom_quic_btls::ServerHandshakeData::session_resumed(&self) -> bool
+impl core::fmt::Debug for phantom_quic_btls::ServerHandshakeData
+pub fn phantom_quic_btls::ServerHandshakeData::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::StatelessResetKey
+impl phantom_quic_btls::StatelessResetKey
+pub const phantom_quic_btls::StatelessResetKey::KEY_LEN: usize
+pub const phantom_quic_btls::StatelessResetKey::SIGNATURE_LEN: usize
+pub fn phantom_quic_btls::StatelessResetKey::from_bytes(&[u8]) -> phantom_quic_btls::Result<Self>
+pub fn phantom_quic_btls::StatelessResetKey::generate() -> phantom_quic_btls::Result<Self>
+pub fn phantom_quic_btls::StatelessResetKey::sign(&self, &[u8], &mut [u8]) -> phantom_quic_btls::Result<()>
+pub fn phantom_quic_btls::StatelessResetKey::verify(&self, &[u8], &[u8]) -> phantom_quic_btls::Result<()>
+impl core::fmt::Debug for phantom_quic_btls::StatelessResetKey
+pub fn phantom_quic_btls::StatelessResetKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl quinn_proto::crypto::HmacKey for phantom_quic_btls::StatelessResetKey
+pub fn phantom_quic_btls::StatelessResetKey::sign(&self, &[u8], &mut [u8])
+pub fn phantom_quic_btls::StatelessResetKey::signature_len(&self) -> usize
+pub fn phantom_quic_btls::StatelessResetKey::verify(&self, &[u8], &[u8]) -> core::result::Result<(), quinn_proto::crypto::CryptoError>
+pub fn phantom_quic_btls::configure_nss_key_log(&mut btls::ssl::SslContextBuilder, core::num::nonzero::NonZeroUsize) -> phantom_quic_btls::NssKeyLogReceiver
+pub fn phantom_quic_btls::nss_key_log_channel(core::num::nonzero::NonZeroUsize) -> (phantom_quic_btls::NssKeyLogSender, phantom_quic_btls::NssKeyLogReceiver)
+pub type phantom_quic_btls::Result<T> = core::result::Result<T, phantom_quic_btls::CryptoError>
