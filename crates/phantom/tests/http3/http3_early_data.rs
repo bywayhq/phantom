@@ -1,7 +1,7 @@
 //! Public HTTP/3 early-data integration tests.
 //!
-//! A relay holds every server datagram briefly, so a new resumed connection
-//! always sends its first request before its handshake can complete.
+//! Relays delay or gate server replies. Tests observe early dispatch before
+//! allowing a held handshake to complete.
 
 use crate::support::h3 as h3_support;
 use crate::support::http3_upgrade as http3_upgrade_support;
@@ -56,7 +56,8 @@ async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResul
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
-        let (relay, relay_task) = delaying_relay(endpoint.local_addr()?).await?;
+        let (gate, open) = tokio::sync::watch::channel(true);
+        let (relay, relay_task) = gated_relay(endpoint.local_addr()?, open).await?;
         let (served_tx, mut served) = mpsc::unbounded_channel();
         let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
         let declining = server_config(&identity, false)?;
@@ -78,14 +79,22 @@ async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResul
         });
 
         let session = early_data_client(&identity)?;
-        for path in ["/first", "/early"] {
-            send(&session, relay, path).await?;
-            read_tx.send(())?;
-            assert_eq!(served.recv().await.ok_or("server stopped")?, path);
-        }
+        let fresh = OutcomeSubscriber::default();
+        send(&session, relay, "/first")
+            .with_subscriber(fresh.dispatch())
+            .await?;
+        assert_eq!(fresh.early_data_for("http3.response_head"), ["none"]);
+        read_tx.send(())?;
+        assert_eq!(served.recv().await.ok_or("server stopped")?, "/first");
+
+        let accepted = send_before_opening_reply_gate(&session, relay, "/early", &gate).await?;
+        assert_eq!(accepted, ["sent"]);
+        read_tx.send(())?;
+        assert_eq!(served.recv().await.ok_or("server stopped")?, "/early");
         assert_eq!(served.recv().await.ok_or("server stopped")?, "");
 
-        send(&session, relay, "/rejected").await?;
+        let rejected = send_before_opening_reply_gate(&session, relay, "/rejected", &gate).await?;
+        assert_eq!(rejected, ["sent", "after_handshake"]);
         read_tx.send(())?;
         assert_eq!(served.recv().await.ok_or("server stopped")?, "/rejected");
 
@@ -1098,6 +1107,37 @@ where
     timeout(TEST_TIMEOUT, future)
         .await
         .map_err(|_| "HTTP/3 early-data test exceeded its deadline")?
+}
+
+/// Holds the handshake's server replies until the request stream opens as
+/// early data, then returns every send observed for this one request.
+async fn send_before_opening_reply_gate(
+    session: &Client,
+    relay: SocketAddr,
+    path: &str,
+    gate: &tokio::sync::watch::Sender<bool>,
+) -> TestResult<Vec<String>> {
+    gate.send_replace(false);
+    let subscriber = OutcomeSubscriber::default();
+    let request = send(session, relay, path).with_subscriber(subscriber.dispatch());
+    tokio::pin!(request);
+
+    tokio::select! {
+        result = &mut request => {
+            result?;
+            return Err("a request completed through a closed server reply gate".into());
+        }
+        () = async {
+            while subscriber.early_data_for("http3.response_head").is_empty() {
+                tokio::task::yield_now().await;
+            }
+        } => {}
+    }
+    assert_eq!(subscriber.early_data_for("http3.response_head"), ["sent"]);
+
+    gate.send_replace(true);
+    request.await?;
+    Ok(subscriber.early_data_for("http3.response_head"))
 }
 
 async fn stop_relay(task: JoinHandle<()>) -> TestResult<()> {
