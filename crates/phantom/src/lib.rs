@@ -46,7 +46,8 @@
 //! | `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT |
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
 //! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
-//! | `full` | `cookies`, `https-records`, `serde`, `sse`, and `websocket-deflate` |
+//! | `json` | Bounded typed-JSON response reading |
+//! | `full` | `cookies`, `https-records`, `json`, `serde`, `sse`, and `websocket-deflate` |
 //! | `diagnostics` | TLS key logging and QUIC qlog files for debugging your own connections |
 //! | `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing |
 //!
@@ -191,7 +192,12 @@ pub use diagnostics::KeyLog;
 pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
 pub use redirect::RedirectPolicy;
 pub use request::{PreparedRequestTemplate, RequestBuilder};
-pub use response::ResponseInfo;
+#[cfg(feature = "json")]
+pub use response::response_json;
+pub use response::{
+    ResponseInfo, ResponseReadError, ResponseReadErrorKind, StatusError, error_for_status,
+    response_bytes, response_text,
+};
 pub use retry::{RetryPolicy, StatusRetry, StatusRetryError};
 pub use route::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind, HttpProxy,

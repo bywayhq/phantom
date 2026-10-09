@@ -24,8 +24,8 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(info) = response.extensions().get::<ResponseInfo>() {
         println!("{} after {} redirects", info.effective_uri(), info.redirects_followed());
     }
-    let body = response.into_body().collect_with_limit(1 << 20).await?;
-    println!("{} bytes", body.len());
+    let response = phantom::response_bytes(response, 1 << 20).await?;
+    println!("{}: {} bytes", response.status(), response.body().len());
     Ok(())
 }
 ```
@@ -34,8 +34,38 @@ async fn read(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 `ResponseInfo` also reports the protocol and connection-setup retry count.
 
 The body arrives as the server sent it, compressed or not
-([Content decoding](content-decoding.md)). `collect_with_limit` fails once
-the body passes the limit, and drops any trailers.
+([Content decoding](content-decoding.md)). `response_bytes` keeps the
+status, headers and extensions while collecting the body. It drops trailers.
+`response_text` does the same and requires UTF-8. With the `json` feature,
+`response_json::<YourType>` reads JSON into your type. Each takes an explicit
+byte limit and fails when the decoded body passes it.
+
+A read failure keeps the response metadata in `ResponseReadError::response`.
+The incomplete body is dropped. For frame-by-frame reading, use
+`ResponseBody` directly.
+
+## Check an HTTP error status
+
+A successful send can return an HTTP error status. Opt in to a status check
+and recover its body when you need to read the server's explanation.
+
+```rust
+use phantom::{Client, HttpProtocol, error_for_status, response_text};
+
+async fn read_error(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client.get(HttpProtocol::Http2, "https://example.com/")?
+        .send().await?;
+    let response = match error_for_status(response) {
+        Ok(response) => response,
+        Err(error) => error.into_response(),
+    };
+    let response = response_text(response, 1 << 20).await?;
+    println!("{}: {}", response.status(), response.body());
+    Ok(())
+}
+```
+
+The check rejects 4xx and 5xx statuses. It leaves the response body unread.
 
 ## Handle errors
 

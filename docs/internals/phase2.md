@@ -95,6 +95,13 @@ compilation, gate checks, and CI remain required.
 
 ### 4. Errors and responses
 
+An unmerged response slice adds recoverable status checks and bounded
+bytes, UTF-8, and optional typed-JSON reads. Success and failure retain the
+response head and extensions. Bodies and trailers follow the existing
+collection and cancellation rules. Independent source review and combined
+compilation, runtime tests, the full gate, and CI remain required.
+
+
 - [ ] Public errors expose typed categories and useful `source()` chains.
   A cause is not repeated at every display layer.
 - [ ] Request failures expose replay safety and origin context without

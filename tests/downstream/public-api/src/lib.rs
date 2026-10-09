@@ -54,6 +54,34 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn response_errors_have_transferable_public_types() {
+        fn assert_send<T: Send>() {}
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send::<phantom::StatusError>();
+        assert_send_sync::<phantom::ResponseReadError>();
+        assert_send_sync::<phantom::ResponseReadErrorKind>();
+    }
+
+    #[allow(dead_code)]
+    async fn bounded_read(
+        response: Response<ResponseBody>,
+    ) -> Result<Response<Bytes>, phantom::ResponseReadError> {
+        let response = match phantom::error_for_status(response) {
+            Ok(response) => response,
+            Err(error) => error.into_response(),
+        };
+        phantom::response_bytes(response, 1_024).await
+    }
+
+    #[cfg(feature = "json")]
+    #[allow(dead_code)]
+    async fn typed_read(
+        response: Response<ResponseBody>,
+    ) -> Result<Response<Vec<String>>, phantom::ResponseReadError> {
+        phantom::response_json(response, 1_024).await
+    }
+
     // Compile the asynchronous request/response workflow without opening a socket.
     #[allow(dead_code)]
     async fn upload(

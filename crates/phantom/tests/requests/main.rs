@@ -26,6 +26,7 @@ mod ping_failure_replay;
 mod plaintext_templates;
 mod redirects;
 mod request_templates;
+mod response_conveniences;
 mod send_futures;
 mod source_binding;
 mod stale_connection_replay;

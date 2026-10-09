@@ -21,8 +21,9 @@ default = []
 cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
 danger-disable-verification = ["phantom-net/danger-disable-verification"]
 diagnostics = ["phantom-net/keylog", "phantom-net/qlog"]
-full = ["cookies", "https-records", "serde", "sse", "websocket-deflate"]
+full = ["cookies", "https-records", "json", "serde", "sse", "websocket-deflate"]
 https-records = ["phantom-net/https-records"]
+json = ["dep:serde", "dep:serde_json"]
 serde = ["dep:serde"]
 sse = ["tokio/time"]
 websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
@@ -43,6 +44,7 @@ phantom-net = { version = "=0.1.0", path = "../phantom-net" }
 phantom-profile = { version = "=0.1.0", path = "../phantom-profile" }
 psl = { version = "=2.1.238", optional = true }
 serde = { workspace = true, optional = true }
+serde_json = { version = "1.0.151", optional = true }
 sfv.workspace = true
 tokio = { version = "1.53.1", features = ["rt", "sync", "time"] }
 tokio-tungstenite = { workspace = true, optional = true }

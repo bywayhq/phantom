@@ -243,6 +243,7 @@ jobs:
           cargo clippy -p phantom-http --no-default-features --features cookies,websocket-deflate --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features sse,websocket --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features serde --locked -- -D warnings
+          cargo clippy -p phantom-http --no-default-features --features json --all-targets --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features cookies,serde --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features diagnostics --locked -- -D warnings
           cargo clippy -p phantom-http --no-default-features --features danger-disable-verification --locked -- -D warnings
@@ -452,6 +453,7 @@ jobs:
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,websocket-deflate --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features sse,websocket --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features serde --locked
+          cargo "+$MSRV" check -p phantom-http --no-default-features --features json --all-targets --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features cookies,serde --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features diagnostics --locked
           cargo "+$MSRV" check -p phantom-http --no-default-features --features danger-disable-verification --locked

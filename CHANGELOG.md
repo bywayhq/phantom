@@ -952,6 +952,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `error_for_status` checks 4xx/5xx responses and retains the unread response
+  in `StatusError`. `response_bytes` and strict UTF-8 `response_text` collect
+  with an explicit decoded-byte limit while preserving status, headers, and
+  extensions. Failures retain that metadata with a unit body.
+  `response_json` adds bounded typed deserialization with the opt-in `json`
+  feature, included in `full`. These helpers never change request headers.
+
+
 - Composed Windows and Android profile constructors combine each browser's
   available layers. Version and platform are explicit. They leave request
   templates unset, and preserve individual recipes for custom composition.

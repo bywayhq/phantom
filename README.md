@@ -89,6 +89,7 @@ No feature is on by default:
 | `websocket` | WebSocket |
 | `websocket-deflate` | WebSocket compression |
 | `serde` | Saving and loading cookie jars |
+| `json` | Reading typed JSON responses with a byte limit |
 | `full` | All of the above |
 | `diagnostics` | TLS key logs and QUIC qlog files for debugging; not in `full` |
 | `danger-disable-verification` | Turning off certificate checks, for testing only; not in `full` |
