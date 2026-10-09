@@ -9,7 +9,8 @@ Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 implementations. These files therefore do not prove `Send` or `Sync`.
 
 ```sh
-scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api   -p phantom-net --all-features -sss --color never
+scripts/dev/with-cargo-lock.sh cargo +nightly-2026-09-01 public-api \
+  -p phantom-net --all-features -sss --color never
 ```
 
 Replace the package name for each library. The QUIC provider also has
