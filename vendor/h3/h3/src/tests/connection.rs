@@ -2590,3 +2590,121 @@ async fn read_quinn_varint(stream: &mut quinn::RecvStream) -> u64 {
         .iter()
         .fold(0, |value, byte| (value << 8) | u64::from(*byte))
 }
+
+#[tokio::test]
+async fn large_unknown_control_frame_keeps_following_goaway_over_quic() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+    let (done_tx, done_rx) = oneshot::channel();
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        assert_matches!(
+            future::poll_fn(|cx| driver.inner.poll_control(cx)).await,
+            Ok(Frame::Settings(_))
+        );
+        assert_matches!(future::poll_fn(|cx| driver.inner.poll_control(cx)).await,
+            Ok(Frame::Goaway(id)) if id.into_inner() == 0);
+        done_tx.send(()).unwrap();
+    };
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        let mut prefix = BytesMut::new();
+        StreamType::CONTROL.encode(&mut prefix);
+        prefix.extend_from_slice(&[0x04, 0x00]);
+        VarInt::from(0x21_u32).encode(&mut prefix);
+        VarInt::from(2 * 1024 * 1024_u32).encode(&mut prefix);
+        control.write_all(&prefix).await.unwrap();
+        for _ in 0..128 {
+            control.write_all(&[0; 16 * 1024]).await.unwrap();
+        }
+        control.write_all(&[0x07, 0x01, 0x00]).await.unwrap();
+        done_rx.await.unwrap();
+    };
+    tokio::time::timeout(Duration::from_secs(5), async {
+        tokio::join!(server_fut, client_fut);
+    })
+    .await
+    .expect("unknown control payload did not preserve following GOAWAY");
+}
+
+#[tokio::test]
+async fn oversized_control_settings_close_with_excessive_load() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        assert_matches!(
+            future::poll_fn(|cx| driver.poll_close(cx)).await,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_EXCESSIVE_LOAD,
+                    ..
+                }
+            }
+        );
+    };
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        let mut prefix = BytesMut::new();
+        StreamType::CONTROL.encode(&mut prefix);
+        prefix.extend_from_slice(&[0x04]);
+        VarInt::from(2 * 1024 * 1024_u32).encode(&mut prefix);
+        // The payload is deliberately absent: the declared size alone must
+        // terminate the connection, rather than wait for peer-controlled bytes.
+        control.write_all(&prefix).await.unwrap();
+        assert_matches!(connection.closed().await,
+            quinn::ConnectionError::ApplicationClosed(close)
+                if close.error_code.into_inner() == Code::H3_EXCESSIVE_LOAD.value());
+    };
+    tokio::time::timeout(Duration::from_secs(5), async {
+        tokio::join!(server_fut, client_fut);
+    })
+    .await
+    .expect("oversized control SETTINGS did not close the connection");
+}
+
+#[tokio::test]
+async fn unknown_control_before_settings_closes_without_waiting_for_payload() {
+    let mut pair = Pair::default();
+    let server = pair.server_inner();
+    let client_fut = async {
+        let connection = pair.client_inner().await;
+        let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+            .await
+            .unwrap();
+        assert_matches!(
+            future::poll_fn(|cx| driver.poll_close(cx)).await,
+            ConnectionError::Local {
+                error: LocalError::Application {
+                    code: Code::H3_MISSING_SETTINGS,
+                    ..
+                }
+            }
+        );
+    };
+    let server_fut = async {
+        let connection = server.accept().await.unwrap().await.unwrap();
+        let mut control = connection.open_uni().await.unwrap();
+        let mut prefix = BytesMut::new();
+        StreamType::CONTROL.encode(&mut prefix);
+        VarInt::from(0x21_u32).encode(&mut prefix);
+        VarInt::from(2 * 1024 * 1024_u32).encode(&mut prefix);
+        control.write_all(&prefix).await.unwrap();
+        assert_matches!(connection.closed().await,
+            quinn::ConnectionError::ApplicationClosed(close)
+                if close.error_code.into_inner() == Code::H3_MISSING_SETTINGS.value());
+    };
+    tokio::time::timeout(Duration::from_secs(5), async {
+        tokio::join!(server_fut, client_fut);
+    })
+    .await
+    .expect("unknown frame before SETTINGS did not close the connection");
+}

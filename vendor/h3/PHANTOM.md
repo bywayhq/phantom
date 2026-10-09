@@ -111,6 +111,34 @@ raw control-stream differential. Its explicit dynamic request policy waits for
 peer SETTINGS, then uses a connection-owned encoder. Stateless request encoding
 remains the default for other profiles.
 
+## Receive-frame buffering
+
+`patches/receive-bounds.patch` skips unknown frame payloads incrementally.
+The decoder retains their remaining length as a full QUIC varint, discards
+completed chunks, and preserves any following frame bytes. A partial skip
+survives cancellation; EOF during the payload remains `H3_FRAME_ERROR`.
+Unknown frames before the first SETTINGS still cause `H3_MISSING_SETTINGS`.
+
+Known frames that need a complete payload are limited to 1 MiB, checked from
+the declaration before accumulating payload chunks. A larger declaration
+returns `H3_EXCESSIVE_LOAD`. DATA stays streaming. Request HEADERS retain
+their existing QPACK reservations and connection limits. Forbidden HTTP/2
+frame types fail from their header with `H3_FRAME_UNEXPECTED`.
+
+Unknown payload discards take at most 64 KiB per decoder step. The reader
+accounts for received and consumed bytes and yields after its 64 KiB work
+budget, waking itself to continue. A single transport chunk or a complete
+bounded known frame can exceed that budget. At a yield, an unknown skip
+can retain the unprocessed part of one transport chunk; it does not retain
+previous chunks. This is a decoder bound, not a bound on an arbitrary
+transport implementation's chunk allocation.
+
+Tests measure retained bytes with a paused receive stream, preserve GOAWAY
+after a fragmented 2 MiB unknown payload, and cover fragmented full-width
+lengths, truncated payloads, cancellation, fairness and the inclusive known
+payload limit. QUIC peer tests check the next frame and connection error
+codes without sending oversized known payloads.
+
 ## Ordered request fields
 
 `h3::ext::RequestPseudoHeaderOrder` and `h3::ext::OrderedHeaders` carry an
