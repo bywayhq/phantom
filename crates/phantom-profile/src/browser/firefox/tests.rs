@@ -19,8 +19,8 @@ fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
     let settings = v157_tcp_tls();
     settings.validate()?;
 
-    assert_eq!(settings.min_version, TlsVersion::Tls12);
-    assert_eq!(settings.max_version, TlsVersion::Tls13);
+    assert_eq!(settings.versions.min(), TlsVersion::Tls12);
+    assert_eq!(settings.versions.max(), TlsVersion::Tls13);
     assert_eq!(
         settings.cipher_suites,
         [
@@ -102,7 +102,7 @@ fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
             CertificateCompression::Zstd,
         ]
     );
-    assert!(settings.session_tickets);
+    assert!(settings.session_tickets.is_enabled());
     assert!(settings.tcp_early_data);
     assert_eq!(settings.record_size_limit, Some(16_385));
     assert!(settings.tls12_extensions_in_tls13_client_hello);
@@ -276,7 +276,7 @@ fn firefox_157_macos_http2_session_capture_matches_the_recipe()
 #[test]
 fn firefox_157_http3_tls_keeps_the_quic_tail_and_tcp_extensions() {
     let settings = v157_quic_tls();
-    assert_eq!(settings.min_version, TlsVersion::Tls13);
+    assert_eq!(settings.versions.min(), TlsVersion::Tls13);
     assert_eq!(
         settings.extension_order,
         ClientHelloExtensionOrder::PermutedWithTail(vec![

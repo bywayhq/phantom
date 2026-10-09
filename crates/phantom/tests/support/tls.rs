@@ -45,8 +45,7 @@ pub(crate) fn test_client(identity: &TestIdentity, http2: bool) -> TestResult<Cl
 
 pub(crate) fn tls_settings() -> TlsSettings {
     TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls12,
+        versions: phantom_profile::TlsVersionRange::only(TlsVersion::Tls12),
         cipher_suites: vec![CipherSuite::EcdheEcdsaAes128GcmSha256],
         groups: vec![NamedGroup::X25519, NamedGroup::Secp256r1],
         key_shares: Vec::new(),
@@ -55,8 +54,7 @@ pub(crate) fn tls_settings() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
-        session_tickets: true,
-        session_tickets_per_origin: 2,
+        session_tickets: phantom_profile::browser::chrome::v154_tcp_tls().session_tickets,
         session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,

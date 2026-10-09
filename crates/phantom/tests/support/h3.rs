@@ -36,8 +36,7 @@ pub(crate) fn appending_alt_used(settings: Http3ClientSettings) -> Http3ClientSe
 /// The TLS settings of [`client_settings`].
 pub(crate) fn client_tls_settings() -> TlsSettings {
     TlsSettings {
-        min_version: TlsVersion::Tls13,
-        max_version: TlsVersion::Tls13,
+        versions: phantom_profile::TlsVersionRange::only(TlsVersion::Tls13),
         cipher_suites: vec![CipherSuite::Aes128GcmSha256],
         groups: vec![NamedGroup::X25519],
         key_shares: vec![NamedGroup::X25519],
@@ -46,8 +45,7 @@ pub(crate) fn client_tls_settings() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"h3"[..])],
         alps: None,
         certificate_compression: Vec::new(),
-        session_tickets: false,
-        session_tickets_per_origin: 2,
+        session_tickets: phantom_profile::SessionTickets::disabled(),
         session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,

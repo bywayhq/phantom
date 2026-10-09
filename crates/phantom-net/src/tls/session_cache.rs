@@ -40,7 +40,7 @@ struct CaptureState {
 
 struct CacheInner {
     scope: SslSessionScope,
-    /// `TlsSettings::session_tickets_per_origin`, applied per verified
+    /// The profile's TCP session-ticket limit, applied per verified
     /// hostname within this cache, whatever the port. The `phantom` client
     /// makes one cache per origin and route, so there it bounds one origin.
     per_hostname: usize,

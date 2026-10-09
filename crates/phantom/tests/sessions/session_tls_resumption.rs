@@ -159,8 +159,7 @@ fn tls12_acceptor(identity: &TestIdentity) -> TestResult<SslAcceptor> {
 
 fn tls13_client(identity: &TestIdentity) -> TestResult<Client> {
     let mut tls = tls_support::tls_settings();
-    tls.min_version = TlsVersion::Tls13;
-    tls.max_version = TlsVersion::Tls13;
+    tls.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
     tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
     tls.groups = vec![NamedGroup::X25519];
     tls.key_shares = vec![NamedGroup::X25519];

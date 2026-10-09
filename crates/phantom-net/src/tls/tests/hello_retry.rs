@@ -49,8 +49,7 @@ async fn authenticated_hello_retry_has_only_permitted_client_hello_delta() -> Te
     });
 
     let mut settings = v154_tcp_tls();
-    settings.min_version = TlsVersion::Tls13;
-    settings.max_version = TlsVersion::Tls13;
+    settings.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
     let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?;
     let tcp = tokio::time::timeout(TEST_TIMEOUT, TcpStream::connect(address)).await??;
     let stream =

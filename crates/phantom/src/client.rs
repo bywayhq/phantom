@@ -1894,7 +1894,7 @@ impl ClientBuilder {
         let http3_session_tickets = self
             .profile
             .http3()
-            .is_some_and(|settings| settings.tls().session_tickets);
+            .is_some_and(|settings| settings.tls().session_tickets.is_enabled());
         // CONNECT-UDP's outer connection authenticates the proxy with proxy
         // trust roots; HTTP/3 cannot disable verification.
         let connect_udp_http3 = self

@@ -268,8 +268,7 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
     TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls13,
+        versions: crate::TlsVersionRange::TLS12_TO_TLS13,
         cipher_suites: vec![
             CipherSuite::Aes128GcmSha256,
             CipherSuite::Aes256GcmSha384,
@@ -315,8 +314,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
             use_new_codepoint: true,
         }),
         certificate_compression: vec![CertificateCompression::Brotli],
-        session_tickets: true,
-        session_tickets_per_origin: 2,
+        session_tickets: crate::tls::TWO_SESSION_TICKETS,
         session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
@@ -1243,8 +1241,7 @@ pub fn v154_http3() -> Http3Settings {
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
     let mut settings = v154_tcp_tls();
-    settings.min_version = TlsVersion::Tls13;
-    settings.max_version = TlsVersion::Tls13;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls13);
     settings.cipher_suites = vec![
         CipherSuite::Aes128GcmSha256,
         CipherSuite::Aes256GcmSha384,
@@ -1267,7 +1264,6 @@ pub fn v154_quic_tls() -> TlsSettings {
         settings: Box::default(),
         use_new_codepoint: true,
     });
-    settings.session_tickets = true;
     settings.grease = false;
     settings.grease_signature_algorithms = false;
     settings.request_ocsp_staple = false;

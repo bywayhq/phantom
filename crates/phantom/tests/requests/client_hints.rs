@@ -1094,8 +1094,7 @@ fn alps_client_with_hints(
     hints: ClientHintSettings,
 ) -> TestResult<Client> {
     let mut tls = tls_settings();
-    tls.min_version = TlsVersion::Tls13;
-    tls.max_version = TlsVersion::Tls13;
+    tls.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
     tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
     tls.key_shares = vec![NamedGroup::X25519];
     tls.alps = Some(AlpsSettings {

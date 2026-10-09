@@ -54,7 +54,7 @@ async fn tls_12_client_hello_omits_key_share_extension() -> TestResult<()> {
     });
 
     let mut settings = v154_tcp_tls();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls12);
     settings.alps = None;
     settings.key_shares.clear();
     settings.certificate_compression.clear();

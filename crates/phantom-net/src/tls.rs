@@ -103,7 +103,7 @@ pub(crate) struct TlsConnector {
     ech_from_https_records: bool,
     close_notify: bool,
     scoped_sessions_enabled: bool,
-    session_tickets_per_origin: u8,
+    session_tickets: phantom_profile::SessionTickets,
     session_ticket_order: TicketOrder,
     session_ticket_extension_when_resuming: bool,
     /// `TlsSettings::tcp_early_data`, kept only when scoped sessions keep the
@@ -257,9 +257,11 @@ impl TlsConnector {
 
     pub(crate) fn with_isolated_session_cache(&self) -> Self {
         let mut connector = self.clone();
-        connector.session_cache = self.scoped_sessions_enabled.then(|| {
-            TlsSessionCache::new(self.session_tickets_per_origin, self.session_ticket_order)
-        });
+        connector.session_cache = self
+            .session_tickets
+            .tcp_per_origin_limit()
+            .filter(|_| self.scoped_sessions_enabled)
+            .map(|limit| TlsSessionCache::new(limit.get(), self.session_ticket_order));
         connector
     }
 
@@ -343,7 +345,7 @@ impl TlsConnector {
                 settings.delegated_credential_schemes.len(),
             alpn_protocol_count = settings.alpn_protocols.len(),
             certificate_compression_count = settings.certificate_compression.len(),
-            session_tickets = settings.session_tickets,
+            session_tickets = settings.session_tickets.is_enabled(),
             record_size_limit_configured = settings.record_size_limit.is_some(),
             grease = settings.grease,
             extension_order = extension_order_trace_name(&settings.extension_order),
@@ -415,7 +417,8 @@ impl TlsConnector {
             _ => None,
         };
 
-        let tickets_verifiable = settings.session_tickets && server_authentication.verifies();
+        let tickets_verifiable =
+            settings.session_tickets.is_enabled() && server_authentication.verifies();
         let early_data = matches!(sessions, ClientSessions::Scoped)
             && tickets_verifiable
             && settings.tcp_early_data;
@@ -452,7 +455,7 @@ impl TlsConnector {
             server_authentication,
             alpn_wire,
             alps: settings.alps.clone(),
-            tls13_key_shares: (settings.max_version == TlsVersion::Tls13)
+            tls13_key_shares: (settings.versions.max() == TlsVersion::Tls13)
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
             ech_grease: settings.ech_grease,
             ech_grease_payload_length: settings.ech_grease_payload_length,
@@ -461,7 +464,7 @@ impl TlsConnector {
             ech_from_https_records: settings.ech_from_https_records,
             close_notify: settings.close_notify,
             scoped_sessions_enabled,
-            session_tickets_per_origin: settings.session_tickets_per_origin,
+            session_tickets: settings.session_tickets,
             session_ticket_order,
             session_ticket_extension_when_resuming: settings.session_ticket_extension_when_resuming,
             early_data,

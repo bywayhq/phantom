@@ -780,7 +780,9 @@ impl ClientTlsProfile {
         settings
             .validate()
             .map_err(|error| QuicTlsProfileError::invalid(error.field(), error.to_string()))?;
-        if settings.min_version != TlsVersion::Tls13 || settings.max_version != TlsVersion::Tls13 {
+        if settings.versions.min() != TlsVersion::Tls13
+            || settings.versions.max() != TlsVersion::Tls13
+        {
             return Err(QuicTlsProfileError::invalid(
                 "version range",
                 "QUIC requires an explicit TLS 1.3-only profile",
@@ -856,7 +858,7 @@ impl ClientTlsProfile {
                 .collect(),
             per_connection_trust_anchors,
             alps: settings.alps.clone(),
-            session_tickets: settings.session_tickets,
+            session_tickets: settings.session_tickets.is_enabled(),
             client_certificate: None,
         })
     }

@@ -15,7 +15,7 @@ const SESSION_TICKET_EXTENSION: u16 = 35;
 
 #[tokio::test]
 async fn configured_capabilities_are_emitted_in_fixed_wire_order() -> TestResult<()> {
-    let capture = capture_client_hello_from(&capability_settings()).await?;
+    let capture = capture_client_hello_from(&capability_settings()?).await?;
     let summary = capture.summary()?;
 
     assert_eq!(
@@ -69,8 +69,8 @@ async fn configured_capabilities_are_emitted_in_fixed_wire_order() -> TestResult
 
 #[tokio::test]
 async fn disabled_session_tickets_omit_the_client_hello_extension() -> TestResult<()> {
-    let mut settings = capability_settings();
-    settings.session_tickets = false;
+    let mut settings = capability_settings()?;
+    settings.session_tickets = phantom_profile::SessionTickets::disabled();
 
     let summary = capture_client_hello_from(&settings).await?.summary()?;
     assert!(
@@ -81,10 +81,9 @@ async fn disabled_session_tickets_omit_the_client_hello_extension() -> TestResul
     Ok(())
 }
 
-fn capability_settings() -> TlsSettings {
-    TlsSettings {
-        min_version: TlsVersion::Tls10,
-        max_version: TlsVersion::Tls13,
+fn capability_settings() -> TestResult<TlsSettings> {
+    Ok(TlsSettings {
+        versions: phantom_profile::TlsVersionRange::new(TlsVersion::Tls10, TlsVersion::Tls13)?,
         cipher_suites: vec![
             CipherSuite::Aes128GcmSha256,
             CipherSuite::EcdheEcdsaAes128CbcSha,
@@ -115,8 +114,7 @@ fn capability_settings() -> TlsSettings {
             CertificateCompression::Brotli,
             CertificateCompression::Zstd,
         ],
-        session_tickets: true,
-        session_tickets_per_origin: 2,
+        session_tickets: phantom_profile::browser::chrome::v154_tcp_tls().session_tickets,
         session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
@@ -149,5 +147,5 @@ fn capability_settings() -> TlsSettings {
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
         close_notify: true,
-    }
+    })
 }

@@ -17,7 +17,7 @@ use btls::{
 use phantom::{
     Client,
     dns::HttpsRecordResolver,
-    profile::{CipherSuite, ClientProfile, NamedGroup, TlsSettings, TlsVersion},
+    profile::{CipherSuite, ClientProfile, NamedGroup, TlsSettings},
 };
 use phantom_testkit::{
     dns::{DnsAnswer, DnsReply, DnsServer},
@@ -88,7 +88,6 @@ pub(crate) fn origin_identity() -> TestResult<TestIdentity> {
 /// recipe does.
 pub(crate) fn ech_tls_settings() -> TlsSettings {
     let mut settings = tls_settings();
-    settings.max_version = TlsVersion::Tls13;
     settings
         .cipher_suites
         .insert(0, CipherSuite::Aes128GcmSha256);

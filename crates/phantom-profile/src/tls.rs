@@ -1,6 +1,6 @@
 //! Backend-neutral TLS profile settings.
 
-use std::{error::Error, fmt, net::IpAddr};
+use std::{error::Error, fmt, net::IpAddr, num::NonZeroU8};
 
 const ECH_GREASE_EXTENSION_OVERHEAD: u16 = 42;
 const MAX_ECH_GREASE_PAYLOAD_LENGTH: u16 = u16::MAX - ECH_GREASE_EXTENSION_OVERHEAD;
@@ -8,7 +8,7 @@ const MAX_ECH_GREASE_PAYLOAD_LENGTH: u16 = u16::MAX - ECH_GREASE_EXTENSION_OVERH
 const MAX_SESSION_TICKETS_PER_ORIGIN: u8 = 10;
 
 /// A TLS protocol version accepted by a transport.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum TlsVersion {
     /// TLS 1.0.
@@ -45,6 +45,139 @@ impl TlsVersion {
         }
     }
 }
+
+/// An inclusive range of accepted TLS versions.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct TlsVersionRange {
+    min: TlsVersion,
+    max: TlsVersion,
+}
+
+impl From<TlsVersion> for TlsVersionRange {
+    fn from(version: TlsVersion) -> Self {
+        Self::only(version)
+    }
+}
+
+impl TryFrom<(TlsVersion, TlsVersion)> for TlsVersionRange {
+    type Error = InvalidTlsSettings;
+
+    fn try_from((min, max): (TlsVersion, TlsVersion)) -> Result<Self, Self::Error> {
+        Self::new(min, max)
+    }
+}
+
+impl TlsVersionRange {
+    /// Accepts TLS 1.2 and TLS 1.3.
+    pub const TLS12_TO_TLS13: Self = Self {
+        min: TlsVersion::Tls12,
+        max: TlsVersion::Tls13,
+    };
+
+    /// Creates a range with these inclusive endpoints.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `min` exceeds `max`.
+    pub fn new(min: TlsVersion, max: TlsVersion) -> Result<Self, InvalidTlsSettings> {
+        if min > max {
+            return Err(InvalidTlsSettings::new(
+                "version range",
+                "minimum TLS version exceeds maximum TLS version",
+            ));
+        }
+        Ok(Self { min, max })
+    }
+
+    /// Accepts only this TLS version.
+    #[must_use]
+    pub const fn only(version: TlsVersion) -> Self {
+        Self {
+            min: version,
+            max: version,
+        }
+    }
+
+    /// Returns the smallest accepted version.
+    #[must_use]
+    pub const fn min(self) -> TlsVersion {
+        self.min
+    }
+
+    /// Returns the largest accepted version.
+    #[must_use]
+    pub const fn max(self) -> TlsVersion {
+        self.max
+    }
+}
+
+/// Session-ticket support and the number kept per origin over TCP.
+///
+/// Enablement also controls QUIC resumption. QUIC keeps its own tickets and
+/// ignores the TCP limit.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct SessionTickets {
+    tcp_per_origin: Option<NonZeroU8>,
+}
+
+impl TryFrom<u8> for SessionTickets {
+    type Error = InvalidTlsSettings;
+
+    /// Enables tickets with this TCP limit. Zero is an error, not disablement.
+    fn try_from(tcp_per_origin: u8) -> Result<Self, Self::Error> {
+        Self::enabled(tcp_per_origin)
+    }
+}
+
+impl SessionTickets {
+    /// Disables ticket resumption and omits the TLS 1.2 ticket extension.
+    #[must_use]
+    pub const fn disabled() -> Self {
+        Self {
+            tcp_per_origin: None,
+        }
+    }
+
+    /// Enables tickets, keeping at most `tcp_per_origin` for one TCP origin.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the limit is outside `1..=10`.
+    pub fn enabled(tcp_per_origin: u8) -> Result<Self, InvalidTlsSettings> {
+        if !(1..=MAX_SESSION_TICKETS_PER_ORIGIN).contains(&tcp_per_origin) {
+            return Err(InvalidTlsSettings::new(
+                "session_tickets.tcp_per_origin",
+                "session tickets per origin must be between 1 and 10",
+            ));
+        }
+        Ok(Self {
+            tcp_per_origin: NonZeroU8::new(tcp_per_origin),
+        })
+    }
+
+    /// Returns whether ticket support is enabled.
+    #[must_use]
+    pub const fn is_enabled(self) -> bool {
+        self.tcp_per_origin.is_some()
+    }
+
+    /// Returns the TCP limit, or `None` when tickets are disabled.
+    ///
+    /// A `phantom` client applies it per origin and route. An isolated
+    /// `phantom-net` connector applies it per server name across ports.
+    #[must_use]
+    pub const fn tcp_per_origin_limit(self) -> Option<NonZeroU8> {
+        self.tcp_per_origin
+    }
+}
+
+// Built-in recipe limits are known at compile time. Public input uses `enabled`.
+pub(crate) const TWO_SESSION_TICKETS: SessionTickets = SessionTickets {
+    tcp_per_origin: NonZeroU8::new(2),
+};
+pub(crate) const TEN_SESSION_TICKETS: SessionTickets = SessionTickets {
+    tcp_per_origin: NonZeroU8::new(10),
+};
 
 /// A TLS cipher suite in wire preference order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -451,10 +584,8 @@ pub enum SessionTicketOrder {
 /// Ordered TLS settings independent of the concrete TLS backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TlsSettings {
-    /// Smallest accepted TLS version.
-    pub min_version: TlsVersion,
-    /// Largest accepted TLS version.
-    pub max_version: TlsVersion,
+    /// Inclusive range of accepted TLS versions.
+    pub versions: TlsVersionRange,
     /// Cipher suites in preference order.
     pub cipher_suites: Vec<CipherSuite>,
     /// Supported groups in preference order.
@@ -477,25 +608,18 @@ pub struct TlsSettings {
     pub alps: Option<AlpsSettings>,
     /// Certificate compression algorithms in preference order.
     pub certificate_compression: Vec<CertificateCompression>,
-    /// Whether session-ticket support is enabled.
-    ///
-    /// Disabling this omits the TLS 1.2 `session_ticket` ClientHello extension
-    /// and disables ticket resumption supported by the TLS backend.
-    pub session_tickets: bool,
-    /// Most TLS session tickets kept for one origin on connections over TCP.
+    /// Session-ticket support and the TCP cache limit.
     ///
     /// A new connection presents the ticket [`Self::session_ticket_order`]
-    /// selects, and each TLS 1.3 ticket is used at most once. When the
-    /// origin already has this many, storing a ticket evicts the one that
-    /// order names. It must be between 1 and 10 when
-    /// [`Self::session_tickets`] is enabled. QUIC connections keep their own
-    /// tickets under a separate bound.
+    /// selects, and each TLS 1.3 ticket is used at most once. When the origin
+    /// reaches its TCP limit, storing a ticket evicts the one that order
+    /// names. QUIC connections keep their own tickets under a separate bound.
     ///
     /// The `phantom` client keeps one cache per origin and route, so the
     /// bound applies per origin there; a `phantom-net` connector built with
     /// `with_isolated_session_cache` applies it per server name, across
     /// ports.
-    pub session_tickets_per_origin: u8,
+    pub session_tickets: SessionTickets,
     /// Which of an origin's TLS session tickets a new connection over TCP
     /// presents, and which one a full origin evicts.
     ///
@@ -631,12 +755,6 @@ pub struct TlsSettings {
 impl TlsSettings {
     /// Validates settings that are independent of a particular TLS backend.
     pub fn validate(&self) -> Result<(), InvalidTlsSettings> {
-        if self.min_version > self.max_version {
-            return Err(InvalidTlsSettings::new(
-                "version range",
-                "minimum TLS version exceeds maximum TLS version",
-            ));
-        }
         if self.cipher_suites.is_empty() {
             return Err(InvalidTlsSettings::new(
                 "cipher_suites",
@@ -656,14 +774,6 @@ impl TlsSettings {
             return Err(InvalidTlsSettings::new(
                 "record_size_limit",
                 "record size limit must be between 64 and 16385 bytes",
-            ));
-        }
-        if self.session_tickets
-            && !(1..=MAX_SESSION_TICKETS_PER_ORIGIN).contains(&self.session_tickets_per_origin)
-        {
-            return Err(InvalidTlsSettings::new(
-                "session_tickets_per_origin",
-                "session tickets per origin must be between 1 and 10",
             ));
         }
         if self.ech_grease_payload_length != EchGreasePayloadLength::BackendDefault
@@ -708,13 +818,13 @@ impl TlsSettings {
                 ));
             }
         }
-        if self.tcp_early_data && !self.session_tickets {
+        if self.tcp_early_data && !self.session_tickets.is_enabled() {
             return Err(InvalidTlsSettings::new(
                 "tcp_early_data",
                 "early data over TCP requires session tickets",
             ));
         }
-        if self.max_version < TlsVersion::Tls13 {
+        if self.versions.max() < TlsVersion::Tls13 {
             if self.tcp_early_data {
                 return Err(InvalidTlsSettings::new(
                     "tcp_early_data",
@@ -789,7 +899,7 @@ impl TlsSettings {
         validate_alpn(&self.alpn_protocols)?;
 
         if let Some(alps) = &self.alps {
-            if self.max_version < TlsVersion::Tls13 {
+            if self.versions.max() < TlsVersion::Tls13 {
                 return Err(InvalidTlsSettings::new(
                     "alps",
                     "ALPS requires TLS 1.3 to be enabled",

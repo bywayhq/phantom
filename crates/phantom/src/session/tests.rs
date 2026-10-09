@@ -174,7 +174,7 @@ fn client_build_rejects_invalid_options() -> Result<(), Box<dyn std::error::Erro
         .build()?;
 
     let mut without_tickets = chrome::v154_quic_tls();
-    without_tickets.session_tickets = false;
+    without_tickets.session_tickets = phantom_profile::SessionTickets::disabled();
     let builder = || Client::builder(profile(without_tickets.clone()));
     let rejected = [
         (

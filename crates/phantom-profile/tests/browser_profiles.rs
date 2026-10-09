@@ -52,8 +52,8 @@ fn windows_factories_keep_tcp_and_quic_tls_in_their_own_layers() {
         );
         let http3 = profile.http3().expect("Windows recipe must include HTTP/3");
         assert_eq!(http3.tls(), &quic_tls, "{name}");
-        assert_eq!(quic_tls.min_version, TlsVersion::Tls13, "{name}");
-        assert_eq!(quic_tls.max_version, TlsVersion::Tls13, "{name}");
+        assert_eq!(quic_tls.versions.min(), TlsVersion::Tls13, "{name}");
+        assert_eq!(quic_tls.versions.max(), TlsVersion::Tls13, "{name}");
         assert_eq!(
             quic_tls.alpn_protocols,
             vec![Box::<[u8]>::from(*b"h3")],

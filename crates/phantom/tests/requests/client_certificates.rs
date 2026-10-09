@@ -46,8 +46,7 @@ fn tls(version: TlsVersion) -> TlsSettings {
         SignatureScheme::RsaPssRsaeSha256,
         SignatureScheme::RsaPkcs1Sha256,
     ];
-    tls.min_version = version;
-    tls.max_version = version;
+    tls.versions = phantom_profile::TlsVersionRange::only(version);
     if version == TlsVersion::Tls13 {
         tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
         tls.key_shares = vec![NamedGroup::X25519];

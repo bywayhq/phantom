@@ -21,14 +21,12 @@ use crate::{
 
 /// A Chrome HTTP/3 TLS profile with ticket resumption enabled.
 fn resuming_tls_settings() -> phantom_profile::TlsSettings {
-    let mut settings = chrome::v154_quic_tls();
-    settings.session_tickets = true;
-    settings
+    chrome::v154_quic_tls()
 }
 
 fn ticketless_tls_settings() -> phantom_profile::TlsSettings {
     let mut settings = chrome::v154_quic_tls();
-    settings.session_tickets = false;
+    settings.session_tickets = phantom_profile::SessionTickets::disabled();
     settings
 }
 
@@ -178,6 +176,37 @@ fn second_handshake_resumes_with_the_ticket_from_the_first() {
     // replaces it.
     assert_eq!(cache_len(&config), 1);
     assert!(second.peer_identity().is_some());
+}
+
+#[test]
+fn quic_resumption_ignores_tcp_ticket_limits_and_order()
+-> Result<(), phantom_profile::InvalidTlsSettings> {
+    for limit in [1, 10] {
+        for order in [
+            phantom_profile::SessionTicketOrder::NewestFirst,
+            phantom_profile::SessionTicketOrder::OldestConnectionFirst,
+            phantom_profile::SessionTicketOrder::OldestFirst,
+        ] {
+            let mut settings = resuming_tls_settings();
+            settings.session_tickets = phantom_profile::SessionTickets::enabled(limit)?;
+            settings.session_ticket_order = order;
+            let config = test_ok(
+                QuicClientConfig::new(resumption_client_context().0).with_tls_profile(&settings),
+                "resuming QUIC profile",
+            )
+            .with_isolated_session_cache();
+            let server = server_context();
+            let full = Arc::new(config.without_ticket_offers());
+            for _ in 0..3 {
+                let client = handshake(&full, &server);
+                assert!(!resumed(client.as_ref()));
+            }
+            assert_eq!(cache_len(&config), 3);
+            let client = handshake(&Arc::new(config), &server);
+            assert!(resumed(client.as_ref()));
+        }
+    }
+    Ok(())
 }
 
 #[test]

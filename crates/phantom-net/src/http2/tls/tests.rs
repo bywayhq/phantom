@@ -761,8 +761,7 @@ where
 
 fn tls_settings() -> TlsSettings {
     TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls12,
+        versions: phantom_profile::TlsVersionRange::only(TlsVersion::Tls12),
         cipher_suites: vec![CipherSuite::EcdheEcdsaAes128GcmSha256],
         groups: vec![NamedGroup::X25519, NamedGroup::Secp256r1],
         key_shares: Vec::new(),
@@ -771,8 +770,7 @@ fn tls_settings() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
-        session_tickets: true,
-        session_tickets_per_origin: 2,
+        session_tickets: phantom_profile::browser::chrome::v154_tcp_tls().session_tickets,
         session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
@@ -803,8 +801,7 @@ fn test_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector> {
 
 fn alps_test_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector> {
     let mut tls = tls_settings();
-    tls.min_version = TlsVersion::Tls13;
-    tls.max_version = TlsVersion::Tls13;
+    tls.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
     tls.key_shares = vec![NamedGroup::X25519];
     tls.alps = Some(AlpsSettings {
         protocol: Box::from(&b"h2"[..]),

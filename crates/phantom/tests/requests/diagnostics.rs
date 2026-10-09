@@ -252,8 +252,7 @@ fn http3_client(identity: &TestIdentity) -> ClientBuilder {
 /// HTTP/1.1 TLS settings limited to TLS 1.3, whose secrets the key log keeps.
 fn tls13_http1_settings() -> TlsSettings {
     let mut tls = tls_settings();
-    tls.min_version = TlsVersion::Tls13;
-    tls.max_version = TlsVersion::Tls13;
+    tls.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
     tls.cipher_suites = vec![CipherSuite::Aes128GcmSha256];
     tls.key_shares = vec![NamedGroup::X25519];
     tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];

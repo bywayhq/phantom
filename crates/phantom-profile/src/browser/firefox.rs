@@ -142,8 +142,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 #[must_use]
 pub fn v157_tcp_tls() -> TlsSettings {
     TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls13,
+        versions: crate::TlsVersionRange::TLS12_TO_TLS13,
         cipher_suites: vec![
             CipherSuite::Aes128GcmSha256,
             CipherSuite::Chacha20Poly1305Sha256,
@@ -199,8 +198,7 @@ pub fn v157_tcp_tls() -> TlsSettings {
             CertificateCompression::Brotli,
             CertificateCompression::Zstd,
         ],
-        session_tickets: true,
-        session_tickets_per_origin: 10,
+        session_tickets: crate::tls::TEN_SESSION_TICKETS,
         session_ticket_order: SessionTicketOrder::OldestConnectionFirst,
         session_ticket_extension_when_resuming: false,
         tcp_early_data: true,
@@ -763,8 +761,7 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 #[must_use]
 pub fn v157_quic_tls() -> TlsSettings {
     let mut settings = v157_tcp_tls();
-    settings.min_version = TlsVersion::Tls13;
-    settings.max_version = TlsVersion::Tls13;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls13);
     settings.cipher_suites = vec![
         CipherSuite::Aes128GcmSha256,
         CipherSuite::Chacha20Poly1305Sha256,

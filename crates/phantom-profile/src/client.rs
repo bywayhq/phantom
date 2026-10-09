@@ -391,8 +391,7 @@ mod tests {
     fn with_http3_owns_and_exposes_http3_settings() {
         let tcp_tls = chrome::v154_tcp_tls();
         let mut http3_tls = chrome::v154_tcp_tls();
-        http3_tls.min_version = TlsVersion::Tls13;
-        http3_tls.max_version = TlsVersion::Tls13;
+        http3_tls.versions = crate::TlsVersionRange::only(TlsVersion::Tls13);
         http3_tls.cipher_suites = vec![
             CipherSuite::Aes128GcmSha256,
             CipherSuite::Aes256GcmSha384,
@@ -400,7 +399,7 @@ mod tests {
         ];
         http3_tls.alpn_protocols = vec![Box::from(*b"h3")];
         http3_tls.alps = None;
-        http3_tls.session_tickets = false;
+        http3_tls.session_tickets = crate::SessionTickets::disabled();
         let http2 = chrome::v154_http2();
         let http3 = Http3ClientSettings::new(
             http3_tls.clone(),

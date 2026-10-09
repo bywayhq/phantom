@@ -49,8 +49,7 @@ fn cipher_suites_round_trip_iana_identifiers() {
 
 fn minimal_settings() -> TlsSettings {
     TlsSettings {
-        min_version: TlsVersion::Tls12,
-        max_version: TlsVersion::Tls13,
+        versions: crate::TlsVersionRange::TLS12_TO_TLS13,
         cipher_suites: vec![CipherSuite::Aes128GcmSha256],
         groups: vec![NamedGroup::X25519],
         key_shares: vec![NamedGroup::X25519],
@@ -59,8 +58,7 @@ fn minimal_settings() -> TlsSettings {
         alpn_protocols: vec![Box::from(&b"http/1.1"[..])],
         alps: None,
         certificate_compression: Vec::new(),
-        session_tickets: true,
-        session_tickets_per_origin: 2,
+        session_tickets: crate::tls::TWO_SESSION_TICKETS,
         session_ticket_order: SessionTicketOrder::NewestFirst,
         session_ticket_extension_when_resuming: true,
         tcp_early_data: false,
@@ -99,7 +97,7 @@ fn delegated_credential_advertisement_accepts_ordered_ecdsa_schemes() -> Result<
 #[test]
 fn delegated_credential_advertisement_requires_tls_13() {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
     settings.delegated_credential_schemes = vec![SignatureScheme::EcdsaSecp256r1Sha256];
 
@@ -149,21 +147,80 @@ fn record_size_limit_rejects_values_outside_the_wire_range() {
 fn session_tickets_per_origin_must_be_between_one_and_ten() -> Result<(), Box<dyn Error>> {
     for limit in [1, 10] {
         let mut settings = minimal_settings();
-        settings.session_tickets_per_origin = limit;
+        settings.session_tickets = SessionTickets::enabled(limit)?;
+        assert_eq!(SessionTickets::try_from(limit)?, settings.session_tickets);
+        assert!(settings.session_tickets.is_enabled());
+        assert_eq!(
+            settings
+                .session_tickets
+                .tcp_per_origin_limit()
+                .map(NonZeroU8::get),
+            Some(limit)
+        );
         settings.validate()?;
     }
-    for limit in [0, 11] {
-        let mut settings = minimal_settings();
-        settings.session_tickets_per_origin = limit;
-        let error = settings.validate().err();
+    for limit in [0, 11, u8::MAX] {
+        let error = SessionTickets::enabled(limit).err();
         assert_eq!(
             error.as_ref().map(InvalidTlsSettings::field),
-            Some("session_tickets_per_origin")
+            Some("session_tickets.tcp_per_origin")
         );
-        settings.session_tickets = false;
-        settings.validate()?;
+        assert_eq!(SessionTickets::try_from(limit).err(), error);
     }
     Ok(())
+}
+
+#[test]
+fn disabled_session_tickets_have_no_tcp_limit() -> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.session_tickets = SessionTickets::disabled();
+    assert!(!settings.session_tickets.is_enabled());
+    assert_eq!(settings.session_tickets.tcp_per_origin_limit(), None);
+    settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn tls_version_ranges_preserve_endpoints_and_reject_reversal() -> Result<(), InvalidTlsSettings> {
+    let versions = [
+        TlsVersion::Tls10,
+        TlsVersion::Tls11,
+        TlsVersion::Tls12,
+        TlsVersion::Tls13,
+    ];
+    for min in versions {
+        for max in versions {
+            if min <= max {
+                let range = TlsVersionRange::new(min, max)?;
+                assert_eq!(range.min(), min);
+                assert_eq!(range.max(), max);
+                assert_eq!(TlsVersionRange::try_from((min, max))?, range);
+            } else {
+                assert_eq!(
+                    TlsVersionRange::new(min, max)
+                        .err()
+                        .as_ref()
+                        .map(InvalidTlsSettings::field),
+                    Some("version range")
+                );
+            }
+        }
+        assert_eq!(TlsVersionRange::only(min).min(), min);
+        assert_eq!(TlsVersionRange::only(min).max(), min);
+        assert_eq!(TlsVersionRange::from(min), TlsVersionRange::only(min));
+    }
+    assert_eq!(
+        TlsVersionRange::TLS12_TO_TLS13,
+        TlsVersionRange::new(TlsVersion::Tls12, TlsVersion::Tls13)?
+    );
+    Ok(())
+}
+
+#[test]
+fn checked_tls_values_support_copy_hash_and_thread_sharing() {
+    fn assert_traits<T: Clone + Copy + std::fmt::Debug + Eq + std::hash::Hash + Send + Sync>() {}
+    assert_traits::<TlsVersionRange>();
+    assert_traits::<SessionTickets>();
 }
 
 #[test]
@@ -178,7 +235,13 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
         crate::browser::brave::v153_android_tcp_tls(),
         crate::browser::opera::v102_android_tcp_tls(),
     ] {
-        assert_eq!(settings.session_tickets_per_origin, 2);
+        assert_eq!(
+            settings
+                .session_tickets
+                .tcp_per_origin_limit()
+                .map(NonZeroU8::get),
+            Some(2)
+        );
         assert_eq!(
             settings.session_ticket_order,
             SessionTicketOrder::NewestFirst
@@ -195,7 +258,13 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
             SessionTicketOrder::OldestFirst,
         ),
     ] {
-        assert_eq!(firefox.session_tickets_per_origin, 10);
+        assert_eq!(
+            firefox
+                .session_tickets
+                .tcp_per_origin_limit()
+                .map(NonZeroU8::get),
+            Some(10)
+        );
         assert_eq!(firefox.session_ticket_order, order);
         assert!(!firefox.session_ticket_extension_when_resuming);
     }
@@ -232,7 +301,7 @@ fn tcp_early_data_requires_session_tickets_and_tls_13() -> Result<(), Box<dyn Er
     settings.tcp_early_data = true;
     settings.validate()?;
 
-    settings.session_tickets = false;
+    settings.session_tickets = crate::SessionTickets::disabled();
     assert_eq!(
         settings
             .validate()
@@ -242,8 +311,8 @@ fn tcp_early_data_requires_session_tickets_and_tls_13() -> Result<(), Box<dyn Er
         Some("tcp_early_data")
     );
 
-    settings.session_tickets = true;
-    settings.max_version = TlsVersion::Tls12;
+    settings.session_tickets = crate::SessionTickets::enabled(2)?;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
     assert_eq!(
         settings
@@ -259,7 +328,7 @@ fn tcp_early_data_requires_session_tickets_and_tls_13() -> Result<(), Box<dyn Er
 #[test]
 fn tls_12_does_not_require_key_shares() -> Result<(), Box<dyn Error>> {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
 
     settings.validate()?;
@@ -269,7 +338,7 @@ fn tls_12_does_not_require_key_shares() -> Result<(), Box<dyn Error>> {
 #[test]
 fn tls_12_rejects_key_shares() {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
 
     let error = settings.validate().err();
     assert_eq!(
@@ -281,7 +350,7 @@ fn tls_12_rejects_key_shares() {
 #[test]
 fn tls_12_rejects_ech_grease() {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
     settings.ech_grease = true;
 
@@ -460,7 +529,7 @@ fn ech_grease_padding_uses_an_ip_literal_without_brackets() {
 #[test]
 fn tls_12_rejects_alps() {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
     settings.alps = Some(AlpsSettings {
         protocol: Box::from(&b"http/1.1"[..]),
@@ -500,7 +569,7 @@ fn alps_settings_must_fit_the_tls_vector() -> Result<(), Box<dyn Error>> {
 #[test]
 fn tls_12_rejects_requested_trust_anchors() {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
     settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(Vec::new()));
 
@@ -514,7 +583,7 @@ fn tls_12_rejects_requested_trust_anchors() {
 #[test]
 fn tls_12_rejects_certificate_compression() {
     let mut settings = minimal_settings();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
     settings.certificate_compression = vec![CertificateCompression::Zlib];
 

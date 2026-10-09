@@ -33,7 +33,7 @@ type ServerResult = Result<Vec<bool>, Box<dyn std::error::Error + Send + Sync>>;
 async fn a_full_origin_evicts_its_oldest_ticket_and_takes_the_newest_first() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let mut settings = v154_tcp_tls();
-    settings.session_tickets_per_origin = 2;
+    settings.session_tickets = phantom_profile::SessionTickets::enabled(2)?;
     let connector = TlsConnector::new_with_roots(&settings, [identity.root_der()])?
         .with_isolated_session_cache();
     let cache = connector
@@ -190,7 +190,7 @@ async fn the_firefox_order_keeps_interleaved_connections_apart() -> TestResult<(
 async fn a_full_origin_evicts_the_ticket_the_firefox_order_takes_next() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let mut settings = v157_tcp_tls();
-    settings.session_tickets_per_origin = 3;
+    settings.session_tickets = phantom_profile::SessionTickets::enabled(3)?;
     let (connector, cache) = isolated_connector(&identity, &settings)?;
     let mut servers = Vec::new();
     let mut tickets = Vec::new();
@@ -279,7 +279,7 @@ async fn the_android_firefox_order_takes_tickets_in_the_order_they_were_stored()
 async fn a_full_origin_evicts_the_ticket_the_android_firefox_order_takes_next() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let mut settings = v156_android_tls();
-    settings.session_tickets_per_origin = 3;
+    settings.session_tickets = phantom_profile::SessionTickets::enabled(3)?;
     let (connector, cache) = isolated_connector(&identity, &settings)?;
     let mut servers = Vec::new();
     let mut tickets = Vec::new();
@@ -613,7 +613,7 @@ fn client_certificate() -> TestResult<ClientCertificate> {
 
 fn tls12_settings() -> TlsSettings {
     let mut settings = v154_tcp_tls();
-    settings.max_version = TlsVersion::Tls12;
+    settings.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls12);
     settings.alps = None;
     settings.key_shares.clear();
     settings.certificate_compression.clear();

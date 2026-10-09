@@ -105,8 +105,7 @@ fn record_shape_server_config(identity: &TestIdentity) -> TestResult<Arc<ServerC
 
 fn tls13_connector(identity: &TestIdentity) -> TestResult<Http2TlsConnector> {
     let mut tls = tls_settings();
-    tls.min_version = TlsVersion::Tls13;
-    tls.max_version = TlsVersion::Tls13;
+    tls.versions = phantom_profile::TlsVersionRange::only(TlsVersion::Tls13);
     tls.key_shares = vec![NamedGroup::X25519];
     Ok(Http2TlsConnector::new_with_roots(
         &tls,

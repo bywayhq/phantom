@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use btls::x509::X509;
 use phantom_profile::{
-    CipherSuite, EchGreaseAead, EchGreasePayloadLength, NamedGroup, TlsVersion, browser::chrome,
+    CipherSuite, EchGreaseAead, EchGreasePayloadLength, NamedGroup, browser::chrome,
 };
 use quinn_proto::crypto;
 use quinn_proto::{
@@ -309,7 +309,7 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
         (
             {
                 let mut settings = base.clone();
-                settings.min_version = TlsVersion::Tls12;
+                settings.versions = phantom_profile::TlsVersionRange::TLS12_TO_TLS13;
                 settings
             },
             "version range",
@@ -350,7 +350,7 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
         (
             {
                 let mut settings = base.clone();
-                settings.session_tickets = true;
+                settings.session_tickets = chrome::v154_quic_tls().session_tickets;
                 settings
             },
             "session_tickets",
@@ -539,7 +539,7 @@ fn hex<const N: usize>(input: &str) -> [u8; N] {
 /// prepared for resumption, which `resumption.rs` covers separately.
 fn h3_tls_settings() -> phantom_profile::TlsSettings {
     let mut settings = chrome::v154_quic_tls();
-    settings.session_tickets = false;
+    settings.session_tickets = phantom_profile::SessionTickets::disabled();
     settings
 }
 

@@ -821,7 +821,7 @@ fn early_data_server(identity: &TestIdentity) -> TestResult<quinn::ServerConfig>
 fn early_data_client(identity: &TestIdentity) -> TestResult<Client> {
     let base = client_settings();
     let mut quic_tls = base.tls().clone();
-    quic_tls.session_tickets = true;
+    quic_tls.session_tickets = phantom_profile::SessionTickets::enabled(2)?;
     let http3 = Http3ClientSettings::new(
         quic_tls,
         base.quic_transport().clone(),

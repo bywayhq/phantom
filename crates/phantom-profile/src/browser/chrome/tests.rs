@@ -499,10 +499,10 @@ fn chrome_154_tls_recipes_are_valid() -> Result<(), Box<dyn std::error::Error>> 
 
     let http3 = v154_quic_tls();
     http3.validate()?;
-    assert_eq!(http3.min_version, crate::tls::TlsVersion::Tls13);
-    assert_eq!(http3.max_version, crate::tls::TlsVersion::Tls13);
+    assert_eq!(http3.versions.min(), crate::tls::TlsVersion::Tls13);
+    assert_eq!(http3.versions.max(), crate::tls::TlsVersion::Tls13);
     assert_eq!(http3.alpn_protocols, [Box::from(&b"h3"[..])]);
-    assert!(http3.session_tickets);
+    assert!(http3.session_tickets.is_enabled());
     let alps = http3.alps.ok_or("Chrome HTTP/3 TLS profile omitted ALPS")?;
     assert_eq!(alps.protocol.as_ref(), b"h3");
     assert!(alps.settings.is_empty());

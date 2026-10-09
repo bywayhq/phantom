@@ -20,10 +20,10 @@ pub(super) fn apply(
     settings: &TlsSettings,
 ) -> Result<(), TlsError> {
     builder
-        .set_min_proto_version(Some(version("min_version", settings.min_version)?))
+        .set_min_proto_version(Some(version("min_version", settings.versions.min())?))
         .map_err(|error| TlsError::backend("min_version", error))?;
     builder
-        .set_max_proto_version(Some(version("max_version", settings.max_version)?))
+        .set_max_proto_version(Some(version("max_version", settings.versions.max())?))
         .map_err(|error| TlsError::backend("max_version", error))?;
 
     builder.set_grease_enabled(settings.grease);
@@ -49,7 +49,7 @@ pub(super) fn apply(
         ));
     }
     builder.set_aes_hw_override(settings.aes_hardware);
-    if settings.session_tickets {
+    if settings.session_tickets.is_enabled() {
         builder.clear_options(SslOptions::NO_TICKET);
     } else {
         builder.set_options(SslOptions::NO_TICKET);
@@ -78,8 +78,8 @@ pub(super) fn apply(
     }
 
     builder.set_preserve_tls13_cipher_list(true);
-    let tls13_only =
-        settings.min_version == TlsVersion::Tls13 && settings.max_version == TlsVersion::Tls13;
+    let tls13_only = settings.versions.min() == TlsVersion::Tls13
+        && settings.versions.max() == TlsVersion::Tls13;
     builder
         .set_cipher_list(&join_names(&settings.cipher_suites, |cipher| {
             cipher_name(cipher, tls13_only)
