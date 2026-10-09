@@ -1193,8 +1193,9 @@ pub fn v157_windows_fetch_template() -> RequestTemplate {
 /// Returns same-origin POST upload fields for Firefox 157 on Windows 11.
 ///
 /// You supply `Origin`, `Referer`, and HTTP/1.1 `Priority`. `Content-Type` and
-/// `Content-Length` are optional caller slots. For a nonempty body with a
-/// known length and no trailers, an omitted length follows these fields.
+/// `Content-Length` are optional caller slots. `prepared_body()` fills these
+/// slots automatically. With a raw `body()`, an omitted length follows these
+/// fields when the body is nonempty, has a known length, and has no trailers.
 ///
 /// The field order follows `upload-{h1,h2}.txt` under
 /// `fixtures/lifecycle/firefox/157.0/windows-11-26200/`.

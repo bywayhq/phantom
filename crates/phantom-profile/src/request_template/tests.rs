@@ -1286,7 +1286,7 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
 }
 
 #[test]
-fn content_length_positions_accept_only_caller_slots() {
+fn content_length_positions_accept_only_caller_slots() -> CaptureResult<()> {
     for protocol in [Protocol::Http1, Protocol::Http2, Protocol::Http3] {
         let name = match protocol {
             Protocol::Http1 => "Content-Length",
@@ -1300,7 +1300,7 @@ fn content_length_positions_accept_only_caller_slots() {
             let list = match protocol {
                 Protocol::Http1 => &mut template.http1_fields,
                 Protocol::Http2 => &mut template.http2_fields,
-                Protocol::Http3 => template.http3_fields.as_mut().expect("navigation h3"),
+                Protocol::Http3 => template.http3_fields.as_mut().ok_or("navigation h3")?,
             };
             list.push(slot);
             assert_eq!(template.validate(), Ok(()), "{protocol:?}");
@@ -1315,7 +1315,7 @@ fn content_length_positions_accept_only_caller_slots() {
             let list = match protocol {
                 Protocol::Http1 => &mut template.http1_fields,
                 Protocol::Http2 => &mut template.http2_fields,
-                Protocol::Http3 => template.http3_fields.as_mut().expect("navigation h3"),
+                Protocol::Http3 => template.http3_fields.as_mut().ok_or("navigation h3")?,
             };
             list.push(field);
             assert!(template.validate().is_err(), "{protocol:?}");
@@ -1330,6 +1330,7 @@ fn content_length_positions_accept_only_caller_slots() {
         template.validate().map_err(|error| error.reason()),
         Err("field names must not repeat")
     );
+    Ok(())
 }
 
 /// Names emitted on a direct, trustworthy upload with the default hints.
@@ -1359,26 +1360,26 @@ fn upload_names(fields: &[RequestField], has_content_type: bool) -> Vec<&str> {
         .collect()
 }
 
-fn upload_capture_names<'a>(capture: &'a str, path: &str) -> Vec<&'a str> {
+fn upload_capture_names<'a>(capture: &'a str, path: &str) -> CaptureResult<Vec<&'a str>> {
     let marker = format!(",method:POST,path:{path},");
     let request = capture
         .lines()
         .find(|line| line.contains(&marker))
-        .expect("captured POST");
-    request
+        .ok_or("captured POST")?;
+    Ok(request
         .split_once(",fields:")
-        .expect("captured field names")
+        .ok_or("captured field names")?
         .1
         .split(',')
         .next()
-        .expect("captured field list")
+        .ok_or("captured field list")?
         .split('|')
         .filter(|name| *name != "Host" && !name.starts_with(':'))
-        .collect()
+        .collect())
 }
 
 #[test]
-fn upload_templates_match_captured_text_blob_and_multipart_field_orders() {
+fn upload_templates_match_captured_text_blob_and_multipart_field_orders() -> CaptureResult<()> {
     for (template, http1, http2) in [
         (
             chrome::v154_windows_fetch_upload_template(),
@@ -1403,18 +1404,19 @@ fn upload_templates_match_captured_text_blob_and_multipart_field_orders() {
             ] {
                 assert_eq!(
                     upload_names(fields, path != "/post-blob"),
-                    upload_capture_names(capture, path),
+                    upload_capture_names(capture, path)?,
                     "{path}"
                 );
             }
             // A form navigation has a different field order.
             assert_ne!(
                 upload_names(fields, true),
-                upload_capture_names(capture, "/form-upload")
+                upload_capture_names(capture, "/form-upload")?
             );
         }
         assert_eq!(template.http3_fields, None);
     }
+    Ok(())
 }
 
 #[test]
@@ -1487,7 +1489,7 @@ fn upload_templates_require_page_fields_and_keep_fetch_policy() {
 }
 
 #[test]
-fn chrome_upload_hint_anchors_include_the_optional_content_type() {
+fn chrome_upload_hint_anchors_include_the_optional_content_type() -> CaptureResult<()> {
     let template = chrome::v154_windows_fetch_upload_template();
     let h1 = client_hint_placement(&template.http1_fields);
     let h2 = client_hint_placement(&template.http2_fields);
@@ -1495,7 +1497,7 @@ fn chrome_upload_hint_anchors_include_the_optional_content_type() {
     let ua = h1
         .iter()
         .find(|slot| slot.hint.as_deref() == Some("sec-ch-ua"))
-        .expect("UA slot");
+        .ok_or("UA slot")?;
     assert_eq!(
         ua.followed_by,
         [Box::<str>::from("content-type"), Box::<str>::from("accept")]
@@ -1503,16 +1505,17 @@ fn chrome_upload_hint_anchors_include_the_optional_content_type() {
     let mobile = h1
         .iter()
         .find(|slot| slot.hint.as_deref() == Some("sec-ch-ua-mobile"))
-        .expect("mobile slot");
+        .ok_or("mobile slot")?;
     assert_eq!(mobile.followed_by, [Box::<str>::from("accept")]);
     let mut misplaced = template;
     let content_type = misplaced
         .http2_fields
         .iter()
         .position(|field| field.name() == Some("content-type"))
-        .expect("content type");
+        .ok_or("content type")?;
     misplaced.http2_fields.swap(content_type, content_type + 1);
     assert!(misplaced.validate().is_err());
+    Ok(())
 }
 
 #[test]
