@@ -609,13 +609,14 @@ class _RunnerOwner:
             except Exception as error:
                 self.reaped = False
                 failures.append(("runner process reaping", error))
-        if self.scratch is not None and (self.scratch / "runner-output.log").exists():
+        if self.scratch is not None:
             try:
-                with (self.scratch / "runner-output.log").open("rb") as output:
-                    text = output.read(MAX_LOG_BYTES + 1).decode("utf-8", "replace")
-                (report_directory / "runner.log").write_text(
-                    _bounded_text(text), encoding="utf-8"
-                )
+                if (self.scratch / "runner-output.log").exists():
+                    with (self.scratch / "runner-output.log").open("rb") as output:
+                        text = output.read(MAX_LOG_BYTES + 1).decode("utf-8", "replace")
+                    (report_directory / "runner.log").write_text(
+                        _bounded_text(text), encoding="utf-8"
+                    )
             except Exception as error:
                 failures.append(("runner log", error))
         if not self.reaped:
@@ -835,13 +836,16 @@ def main() -> None:
                     if failure is not None and not failures:
                         failures.append(("runner", failure))
                     failures.append(("temporary checkout cleanup", error))
+                    retained = list(getattr(failure, "retained_paths", ()))
+                    if temporary not in retained:
+                        retained.append(temporary)
                     report = directory or getattr(failure, "report_directory", None)
                     if report is not None:
                         failure = _report_failure(
-                            args.server, report, failures, [temporary], False
+                            args.server, report, failures, retained, False
                         )
                     else:
-                        failure = _RunnerFailure(failures, [temporary], False, None)
+                        failure = _RunnerFailure(failures, retained, False, None)
                     failure.__cause__ = failures[0][1]
         if failure is not None:
             if isinstance(
