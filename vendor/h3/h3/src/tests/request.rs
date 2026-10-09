@@ -751,7 +751,7 @@ async fn check_server_response_limit(limit: u64, accepted: bool) {
     let client_fut = async {
         let (mut driver, mut client) = client::builder()
             .max_field_section_size(limit)
-            .build(pair.client().await)
+            .build::<_, _, Bytes>(pair.client().await)
             .await
             .expect("client init");
         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
@@ -825,7 +825,7 @@ async fn check_server_trailer_limit(limit: u64, accepted: bool) {
     let client_fut = async {
         let (mut driver, mut client) = client::builder()
             .max_field_section_size(limit)
-            .build(pair.client().await)
+            .build::<_, _, Bytes>(pair.client().await)
             .await
             .expect("client init");
         let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
@@ -841,7 +841,10 @@ async fn check_server_trailer_limit(limit: u64, accepted: bool) {
                 }
                 assert_eq!(body, b"wonderful hypertext");
                 let trailers = stream.recv_trailers().await.unwrap().expect("trailers");
-                assert_eq!(trailers.get("trailer").unwrap(), "value".repeat(100));
+                assert_eq!(
+                    trailers.get("trailer").unwrap().as_bytes(),
+                    "value".repeat(100).as_bytes()
+                );
             }
             finished.send(()).expect("server is still waiting");
         };

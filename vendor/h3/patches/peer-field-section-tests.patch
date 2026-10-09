@@ -1,7 +1,7 @@
 diff --git a/h3/src/tests/request.rs b/h3/src/tests/request.rs
 --- a/h3/src/tests/request.rs
 +++ b/h3/src/tests/request.rs
-@@ -733,146 +733,164 @@
+@@ -733,146 +733,167 @@
  
  #[tokio::test]
  async fn header_too_big_server_error() {
@@ -29,7 +29,7 @@ diff --git a/h3/src/tests/request.rs b/h3/src/tests/request.rs
 +    let client_fut = async {
 +        let (mut driver, mut client) = client::builder()
 +            .max_field_section_size(limit)
-+            .build(pair.client().await)
++            .build::<_, _, Bytes>(pair.client().await)
              .await
              .expect("client init");
          let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
@@ -162,7 +162,7 @@ diff --git a/h3/src/tests/request.rs b/h3/src/tests/request.rs
 +    let client_fut = async {
 +        let (mut driver, mut client) = client::builder()
 +            .max_field_section_size(limit)
-+            .build(pair.client().await)
++            .build::<_, _, Bytes>(pair.client().await)
              .await
              .expect("client init");
          let drive_fut = async { future::poll_fn(|cx| driver.poll_close(cx)).await };
@@ -209,7 +209,10 @@ diff --git a/h3/src/tests/request.rs b/h3/src/tests/request.rs
 +                }
 +                assert_eq!(body, b"wonderful hypertext");
 +                let trailers = stream.recv_trailers().await.unwrap().expect("trailers");
-+                assert_eq!(trailers.get("trailer").unwrap(), "value".repeat(100));
++                assert_eq!(
++                    trailers.get("trailer").unwrap().as_bytes(),
++                    "value".repeat(100).as_bytes()
++                );
 +            }
 +            finished.send(()).expect("server is still waiting");
 +        };
