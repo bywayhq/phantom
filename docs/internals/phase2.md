@@ -59,7 +59,7 @@ is private. Source chains and replay observations remain available.
 PR 187 finishes export cleanup, enum evolution, typed error categories,
 conversions, common traits, and public examples. The public API inventories
 and default/all-feature path and git consumers have been checked. Its final
-gate, PR checks, merge, and push CI remain pending.
+gate passed. PR checks, merge, and push CI remain pending.
 
 - [x] Unused internal exports become private. A public API inventory
   records the intended exports of each library crate.
@@ -135,6 +135,7 @@ remain opt-in, with explicit route and `NO_PROXY` precedence.
 - [x] Query construction preserves order and duplicates. Authorization
   constructors validate values. `Link` parsing returns data only.
 - [x] JSON, form, and multipart bodies fill declared template slots.
+  Convenience APIs do not insert or reorder headers implicitly.
   Fetch-upload templates preserve the recorded HTTP/1.1 and HTTP/2 header
   order. Multipart encoding has separate tests for framing and escaping.
 - [x] SSE implements `Stream`. Public APIs re-export the types callers
@@ -144,7 +145,7 @@ remain opt-in, with explicit route and `NO_PROXY` precedence.
 
 ### 6. Observability and downstream tests
 
-PR 187 documents the tracing span and header-redaction contract. A
+PR 187 documents the facade tracing span and header-redaction contract. A
 synchronous request hook fills only declared caller slots. It runs once
 during preparation and retains redirect credential stripping.
 
@@ -154,8 +155,9 @@ request kind. Package checks passed 95 tests and six doctests using
 self-contained fixtures. The harness does not establish TLS, HTTP/2, or
 HTTP/3 parity. Publication remains a separate release step.
 
-- [x] Tracing has a stable span/field contract that omits credentials,
-  cookies, bodies, and sensitive URLs.
+- [x] Facade tracing has a stable span/field contract that omits credentials,
+  cookies, bodies, and sensitive URLs. Transport and dependency targets,
+  and explicit source-chain inspection, have separate contracts.
 - [x] A request hook can fill a declared template slot. It cannot add a
   header or change header order.
 - [x] A downstream wire-assertion harness checks HTTP/1.1 request heads
@@ -214,8 +216,9 @@ reproduced defect, and a closed issue does not establish its current status.
 
 The workspace lint baseline, route consolidation, and first API batch are
 merged in PRs 184, 185, and 186. PR 187 contains the remaining implemented
-items at candidate `b2cf66d0`. The earlier integration run passed all 24
-gate steps and 3,085 tests. The candidate's final gate and CI are pending.
+items at candidate `b2cf66d0`. Its full Windows/Linux integration gate
+passed all 24 steps and 3,085 tests, with no skipped tests, in 137 seconds.
+Required PR checks, merge, and push CI remain pending.
 
 Completion proof pending: replace this paragraph after PR 187 merges.
 Record the exact merged commit, its full gate result, all required PR

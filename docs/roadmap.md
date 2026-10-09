@@ -473,8 +473,8 @@ acceptance criteria.
   Windows fetch-upload templates preserve HTTP/1.1 and HTTP/2 header order.
 - SSE `Stream` support, shared `next_event()` state, and public type exports.
 - Opt-in environment proxies with explicit route and `NO_PROXY` precedence.
-- A documented tracing contract and a synchronous hook for declared caller
-  slots.
+- A documented facade tracing contract and a synchronous hook for
+  declared caller slots.
 - A package-ready HTTP/1.1 wire-assertion harness and compiling downstream
   examples.
 
