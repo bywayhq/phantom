@@ -651,7 +651,7 @@ impl TransportParameterProfile {
                 encoded_scalar(0x3127, value, minimal_width(value))
             }
             Kind::Grease(grease) => {
-                let identifier = entropy.reserved_transport_parameter_id()?;
+                let identifier = entropy.reserved_transport_parameter_id(parameter.id_width)?;
                 let len = entropy.uniform_inclusive(
                     grease.minimum_payload_length,
                     grease.maximum_payload_length,

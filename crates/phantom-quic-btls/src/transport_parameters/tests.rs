@@ -2,10 +2,14 @@ use std::{collections::BTreeSet, error::Error, time::Duration};
 
 use phantom_profile::{
     browser::{chrome, firefox},
-    quic::{QuicConnectionIdLength, QuicTransportParameterKind, QuicTransportSettings},
+    quic::{
+        QuicConnectionIdLength, QuicTransportParameterKind, QuicTransportParameterOrder,
+        QuicTransportSettings, QuicVarIntWidth,
+    },
 };
 use quinn_proto::{Side, transport_parameters::TransportParameters};
 
+use super::wire::encode_varint;
 use super::{
     ENTROPY_LEN, ParsedTransportParameters, QuicTransportProfileError, TransportParameterProfile,
     WireEntropy, decode_varint, initial_max_streams_bidi,
@@ -165,6 +169,117 @@ fn strict_parser_rejects_truncation_and_duplicates() {
 
     let duplicate = ParsedTransportParameters::from_encoded(&[0x04, 0x01, 0x01, 0x04, 0x01, 0x02]);
     assert!(duplicate.is_err());
+}
+
+#[test]
+fn grease_identifiers_fit_every_configured_wire_width() -> Result<(), Box<dyn Error>> {
+    let captured = decode_hex(CAPTURED_PARAMETERS)?;
+    let params = TransportParameters::read(Side::Server, &mut captured.as_slice())?;
+    for width in grease_widths() {
+        let mut settings = chrome::v154_quic();
+        settings.parameter_order = QuicTransportParameterOrder::Fixed;
+        for parameter in &mut settings.wire_parameters {
+            if matches!(parameter.kind, QuicTransportParameterKind::Grease(_)) {
+                parameter.id_width = width;
+            }
+        }
+        settings.validate()?;
+        let profile = TransportParameterProfile::new(settings)?;
+        for byte in [0, 1] {
+            let mut entropy = WireEntropy::from_bytes([byte; ENTROPY_LEN]);
+            let encoded =
+                profile.encode_with_entropy(&params, QuicVersion::V1, None, &mut entropy)?;
+            let mut offset = 0;
+            let mut reserved = Vec::new();
+            while offset < encoded.len() {
+                let (identifier, encoded_width) = decode_varint(&encoded, &mut offset)?;
+                let (len, _) = decode_varint(&encoded, &mut offset)?;
+                offset += usize::try_from(len)?;
+                assert!(offset <= encoded.len());
+                if super::wire::is_reserved_transport_parameter(identifier) {
+                    reserved.push((identifier, encoded_width));
+                }
+            }
+            assert_eq!(reserved.len(), 1);
+            let (identifier, encoded_width) = reserved[0];
+            assert_eq!(encoded_width, width);
+            assert!(width.can_encode(identifier));
+            assert_eq!(identifier % 31, 27);
+            assert!(identifier >= 27);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn reserved_identifier_draws_include_both_bounds_and_reject_excess() -> Result<(), Box<dyn Error>> {
+    for width in grease_widths() {
+        let maximum_n = (width.maximum_value() - 27) / 31;
+        let maximum_id = 31 * maximum_n + 27;
+        for (first, second, expected) in [
+            (0, 0, 27),
+            (1, 0, 58),
+            (maximum_n, 0, maximum_id),
+            (u64::MAX, maximum_n, maximum_id),
+        ] {
+            let mut bytes = [0; ENTROPY_LEN];
+            bytes[..8].copy_from_slice(&first.to_be_bytes());
+            bytes[8..16].copy_from_slice(&second.to_be_bytes());
+            let mut entropy = WireEntropy::from_bytes(bytes);
+            let identifier = entropy.reserved_transport_parameter_id(width)?;
+            assert_eq!(identifier, expected, "{width:?}, candidate {first}");
+            assert!(width.can_encode(identifier));
+            assert!(maximum_id <= width.maximum_value());
+            assert!(maximum_id + 31 > width.maximum_value());
+            let mut encoded = Vec::new();
+            encode_varint(identifier, width, &mut encoded)?;
+            assert_eq!(encoded.len(), width.encoded_len());
+            assert_eq!(decode_varint(&encoded, &mut 0)?, (identifier, width));
+        }
+        if width != QuicVarIntWidth::One {
+            let mut bytes = [0; ENTROPY_LEN];
+            bytes[..8].copy_from_slice(&(maximum_n + 1).to_be_bytes());
+            bytes[8..16].copy_from_slice(&1_u64.to_be_bytes());
+            let mut entropy = WireEntropy::from_bytes(bytes);
+            assert_eq!(entropy.reserved_transport_parameter_id(width)?, 58);
+            let mut exhausted = WireEntropy::from_bytes([u8::MAX; ENTROPY_LEN]);
+            assert!(
+                exhausted
+                    .reserved_transport_parameter_id(width)
+                    .unwrap_err()
+                    .is_entropy_failure()
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn small_identifier_ranges_assign_each_accepted_candidate_one_reserved_id()
+-> Result<(), Box<dyn Error>> {
+    for width in [QuicVarIntWidth::One, QuicVarIntWidth::Two] {
+        let maximum_n = (width.maximum_value() - 27) / 31;
+        let mut identifiers = BTreeSet::new();
+        for candidate in 0..=maximum_n {
+            let mut bytes = [0; ENTROPY_LEN];
+            bytes[..8].copy_from_slice(&candidate.to_be_bytes());
+            let identifier =
+                WireEntropy::from_bytes(bytes).reserved_transport_parameter_id(width)?;
+            assert_eq!(identifier, 31 * candidate + 27);
+            assert!(identifiers.insert(identifier));
+        }
+        assert_eq!(u64::try_from(identifiers.len())?, maximum_n + 1);
+    }
+    Ok(())
+}
+
+fn grease_widths() -> [QuicVarIntWidth; 4] {
+    [
+        QuicVarIntWidth::One,
+        QuicVarIntWidth::Two,
+        QuicVarIntWidth::Four,
+        QuicVarIntWidth::Eight,
+    ]
 }
 
 #[test]
