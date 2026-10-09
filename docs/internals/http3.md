@@ -580,7 +580,7 @@ with its ticket, as RFC 9114 section 7.2.4.2 allows and Chromium does.
 - `phantom-quic-btls` stores opaque application state with each ticket
   through a per-connection `ApplicationState`, which
   `QuicClientConfig::with_application_state` attaches. `connect` in
-  `crates/phantom-net/src/http3/mod.rs` gives every connection from a
+  `crates/phantom-net/src/http3.rs` gives every connection from a
   connector that keeps tickets its own handle.
 - The state is the SETTINGS frame from the server's control stream, as the
   HTTP/3 driver applied it, from the vendored
@@ -631,7 +631,7 @@ Phantom starts a second HTTP/3 session on the connection instead.
   session, whose critical-stream errors would otherwise close the QUIC
   connection.
 - `restart_after_rejected_early_data` in
-  `crates/phantom-net/src/http3/mod.rs` checks the handshake metadata as a
+  `crates/phantom-net/src/http3.rs` checks the handshake metadata as a
   connection without early data does (the `h3` ALPN, the ALPS `ACCEPT_CH`
   entries, and the ALPS SETTINGS), builds a new session from the same
   profile, hands its driver to the connection's driver task, and swaps the

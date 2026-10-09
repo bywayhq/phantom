@@ -31,12 +31,13 @@ validation and cancellation tests. Redundant public setup helpers are being
 removed; reusable raw-stream operations and the CONNECT parsing seam remain.
 No route item is complete until integration passes.
 
-Checkpoint `e5558486` passed workspace Clippy and 1,295 selected transport,
-proxy, and WebSocket tests. The later `199a0ae8` checkpoint passed workspace
-Clippy after the proxy and raw HTTP/3 cleanup. Independent review approved
-those changes and the subsequent raw HTTP/1.1 and HTTP/2 cleanup. These results
-cover their named checkpoints; combined runtime checks, downstream checks,
-the full gate, and CI remain required.
+Checkpoint `c8ede964` passed all 2,862 tests, workspace and Linux Clippy,
+rustdoc, doctests, and MSRV checks. Its full gate found an unused lint
+expectation in builds without qlog and a nested HTTP/3 future that exceeded
+the nightly compiler's type-checking limit. Both have source fixes awaiting
+verification. Reviewed follow-ups keep packet crypto private and replace
+legacy module filenames. Downstream checks, the final full gate, and CI
+remain required.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods

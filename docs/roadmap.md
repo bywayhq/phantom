@@ -506,8 +506,7 @@ baseline comes first, so the lints guide the refactor rather than follow it.
   of 218 in `phantom-net`, 5 of 12 in `phantom-profile`, and 1 of 28 in
   `phantom-quic-btls`.
 - `From` and `TryFrom` where a constructor is a conversion, such as
-  `CipherSuite::from_iana_id`, `QuicVersion::from_wire`, and
-  `RequestBody::from_bytes`; enums in place of value-selecting `bool`
+  `CipherSuite::from_iana_id` and `RequestBody::from_bytes`; enums in place of value-selecting `bool`
   parameters, such as `RequestField::default_value(trustworthy)`; and a
   `Stream` impl on the SSE types, which offer only `next_event()` while
   `WebSocket` implements `Stream` and `Sink`.
@@ -809,9 +808,7 @@ not carry its renames. Until then, depend on a pinned git revision
   of the 44 `tests.rs`-only directories whose tests are 300 lines or fewer,
   and the 6 in `fuzz/src`; move the 3 inline test modules over 300 lines
   (`retry.rs`, `client.rs`, `socks5_udp.rs`) to `tests.rs` files; drop the
-  22 redundant `#[path]` attributes of the 39; replace the 7 `mod.rs` files
-  (4 in `phantom-net`, 2 in `phantom-testkit`, and `tests/support/mod.rs`)
-  and enforce the rule with Clippy's `mod_module_files`; move test-only
+  22 redundant `#[path]` attributes of the 39; enforce the module-file rule with Clippy's `mod_module_files`; move test-only
   code such as `tracing_test.rs` out of `src`; place the Windows FFI module
   with its owner; and split source files over about 1,500 lines (9 today),
   such as `client.rs`, along protocol lines. `http1/tls.rs` repeats 52% of

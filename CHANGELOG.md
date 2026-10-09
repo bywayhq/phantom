@@ -14,6 +14,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Keep QUIC packet cryptography private. Migrate: replace direct use of
+  `HeaderProtectionKey`, `PacketProtectionKey`, `InitialKeys`,
+  `derive_initial_keys`, `DirectionKeys`, `EndpointSide`,
+  `retry_integrity_tag`, `verify_retry_integrity`, and `QuicVersion` with
+  `QuicClientConfig` through Quinn's crypto traits. The `server` feature
+  provides `QuicServerConfig`. `StatelessResetKey` remains available for
+  endpoint configuration.
+
 - `phantom-net` connectors now take route values. HTTP/1.1 uses
   `connect(Http1Route)`, `send`, and `upgrade`; HTTP/2 uses
   `connect(Http2Route)`, `send`, and `extended_connect`. Negotiated HTTP/1.1

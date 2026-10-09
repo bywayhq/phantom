@@ -300,7 +300,7 @@ The script:
   `use crate::support::<file> as <name>;`, drops the imports that only served
   another support file, and rewrites `crate::` paths for the new module;
 - moves a file-level `#![cfg(feature = ...)]` onto the module's `mod` line
-  and regenerates each `main.rs` and `tests/support/mod.rs`;
+  and regenerates each `main.rs` and `tests/support.rs`;
 - removes the file's `[[test]]` table from the crate's `Cargo.toml`, turning
   its `required-features` into a `cfg` on the `mod` line, and stops on any
   other setting, such as `harness = false`, that a module cannot keep;
