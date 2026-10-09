@@ -19,4 +19,5 @@ ping-timeout.patch
 sensitive-proxy-authorization.patch
 idle-ping.patch
 cookie-diagnostic-tests.patch
+cookie-diagnostic-marks.patch
 publish-identity.patch

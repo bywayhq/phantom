@@ -128,17 +128,20 @@ impl Table {
         self.max_size
     }
 
-    /// Marks the value of the entry `index` just inserted as sensitive.
+    /// Marks a retained value after its wire representation is written.
     ///
-    /// Only the field being inserted reads an entry's sensitivity, when it is
-    /// written; lookups compare values without it. Marking the entry after
-    /// that write changes no later encoding and hides its value from `Debug`
-    /// output.
-    pub fn mark_inserted_sensitive(&mut self, index: &Index) {
-        if let Index::Inserted(slot) | Index::InsertedValue(_, slot) = *index {
-            if let Header::Field { ref mut value, .. } = self.slots[slot].header {
-                value.set_sensitive(true);
-            }
+    /// Insertions read the new entry's sensitivity while being written;
+    /// later lookups compare only values. Marking an inserted or reused
+    /// entry after that write hides it from `Debug` without changing later
+    /// encoding. Static entries cannot retain caller values.
+    pub fn mark_retained_sensitive(&mut self, index: &Index) {
+        let slot = match *index {
+            Index::Inserted(slot) | Index::InsertedValue(_, slot) => slot,
+            Index::Indexed(index, _) if index >= DYN_OFFSET => index - DYN_OFFSET,
+            _ => return,
+        };
+        if let Header::Field { ref mut value, .. } = self.slots[slot].header {
+            value.set_sensitive(true);
         }
     }
 

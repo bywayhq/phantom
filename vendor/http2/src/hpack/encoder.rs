@@ -154,7 +154,7 @@ impl Encoder {
                     if remark {
                         // The entry is written; marking it again keeps the
                         // credential out of the table's `Debug` output.
-                        self.table.mark_inserted_sensitive(&index);
+                        self.table.mark_retained_sensitive(&index);
                     }
 
                     last_index = Some(index);
@@ -206,6 +206,11 @@ impl Encoder {
                 value: crumb,
             });
             self.encode_header(&index, dst);
+            if value.is_sensitive() {
+                // The profile chose the wire representation. Preserve the
+                // caller's diagnostic mark only after writing the crumb.
+                self.table.mark_retained_sensitive(&index);
+            }
             last = Some(index);
         }
         last
