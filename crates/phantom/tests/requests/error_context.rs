@@ -105,7 +105,6 @@ async fn failed_redirect_hop_reports_its_origin_and_setup_observation() -> TestR
         let formatted = format!("{error} {error:?}");
         assert!(!formatted.contains("private"));
         assert!(!formatted.contains("sentinel"));
-        drop(refused);
         Ok(())
     })
     .await?
