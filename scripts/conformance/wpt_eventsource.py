@@ -365,11 +365,19 @@ class _ServerOwner:
             )
         except (Exception, KeyboardInterrupt) as primary:
             failures = [f"server process construction: {_failure_detail(primary)}"]
+            interrupt = primary if isinstance(primary, KeyboardInterrupt) else None
             for connection in (child_connection, self.connection):
                 try:
                     connection.close()
                 except (Exception, KeyboardInterrupt) as error:
                     failures.append(f"server control close: {_failure_detail(error)}")
+                    if isinstance(error, KeyboardInterrupt) and interrupt is None:
+                        interrupt = error
+            if interrupt is not None:
+                interrupt.shutdown_failures = failures
+                if interrupt is primary:
+                    raise
+                raise interrupt from primary
             if len(failures) > 1:
                 raise _ServerFailure(failures) from primary
             raise
@@ -393,7 +401,10 @@ class _ServerOwner:
                 try:
                     self.child_connection.close()
                 except (Exception, KeyboardInterrupt) as error:
-                    if primary is None:
+                    if primary is None or (
+                        isinstance(error, KeyboardInterrupt)
+                        and not isinstance(primary, KeyboardInterrupt)
+                    ):
                         primary = error
                     failures.append(
                         f"server child control close: {_failure_detail(error)}"
@@ -404,6 +415,10 @@ class _ServerOwner:
             try:
                 handler(signum, frame)
             except KeyboardInterrupt as interrupt:
+                if isinstance(primary, KeyboardInterrupt):
+                    failures.append(f"server acquisition: {_failure_detail(interrupt)}")
+                    primary.shutdown_failures = failures
+                    raise primary from interrupt
                 interrupt.shutdown_failures = failures
                 raise
         if primary is not None:
@@ -489,11 +504,15 @@ class _ServerOwner:
                 self.connection.close()
             except (Exception, KeyboardInterrupt) as error:
                 failures.append(f"server control close: {_failure_detail(error)}")
+                if isinstance(error, KeyboardInterrupt) and interrupt is None:
+                    interrupt = error
             if not unreaped:
                 try:
                     self.process.close()
                 except (Exception, KeyboardInterrupt) as error:
                     failures.append(f"server process close: {_failure_detail(error)}")
+                    if isinstance(error, KeyboardInterrupt) and interrupt is None:
+                        interrupt = error
 
         if interrupts:
             if interrupt is None:
@@ -710,7 +729,10 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                         )
                         shutil.rmtree(temporary_root)
                     except (Exception, KeyboardInterrupt) as error:
-                        if primary is None:
+                        if primary is None or (
+                            isinstance(error, KeyboardInterrupt)
+                            and not isinstance(primary, KeyboardInterrupt)
+                        ):
                             primary = error
                         infrastructure_failures.append(
                             f"temporary server files: {_failure_detail(error)}"
@@ -719,7 +741,10 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                 try:
                     (run_directory / "server.log.1").unlink(missing_ok=True)
                 except (Exception, KeyboardInterrupt) as error:
-                    if primary is None:
+                    if primary is None or (
+                        isinstance(error, KeyboardInterrupt)
+                        and not isinstance(primary, KeyboardInterrupt)
+                    ):
                         primary = error
                     infrastructure_failures.append(
                         f"rotated server log: {_failure_detail(error)}"
@@ -734,6 +759,7 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
     document = summary.as_json()
     document["infrastructure_failures"] = infrastructure_failures
     document["run_failed"] = bool(summary.failures or infrastructure_failures)
+    publication_interrupted = False
     with _shutdown_signals() as interrupts:
         try:
             summary_path = run_directory / "summary.json"
@@ -741,10 +767,12 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
                 json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
             if interrupts:
+                publication_interrupted = True
                 infrastructure_failures.append(
                     f"summary publication: {_failure_detail(interrupts[0])}"
                 )
-                primary = interrupts[0]
+                if not isinstance(primary, KeyboardInterrupt):
+                    primary = interrupts[0]
                 document["run_failed"] = True
                 summary_path.write_text(
                     json.dumps(document, indent=2, sort_keys=True) + "\n",
@@ -754,8 +782,17 @@ def run(mode: str, repository: Path, report_root: Path) -> Path:
             infrastructure_failures.append(
                 f"summary publication: {_failure_detail(error)}"
             )
-            if primary is None:
+            if primary is None or (
+                isinstance(error, KeyboardInterrupt)
+                and not isinstance(primary, KeyboardInterrupt)
+            ):
                 primary = error
+            if interrupts and not publication_interrupted:
+                infrastructure_failures.append(
+                    f"summary publication: {_failure_detail(interrupts[0])}"
+                )
+                if not isinstance(primary, KeyboardInterrupt):
+                    primary = interrupts[0]
 
     if isinstance(primary, KeyboardInterrupt):
         primary.shutdown_failures = infrastructure_failures
