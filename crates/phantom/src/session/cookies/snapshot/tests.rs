@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     Client,
-    profile::{ClientProfile, chromium},
+    profile::{ClientProfile, browser::chrome},
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;

@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn profile_offer_and_empty_message_rule_follow_the_recipe() -> Result<(), crate::WebSocketError>
     {
-        use crate::profile::{chromium, firefox};
+        use crate::profile::browser::{chrome, firefox};
 
         let chrome = PerMessageDeflate::from_profile(&chrome::v154_websocket())?;
         assert!(chrome.compresses_empty_messages());
