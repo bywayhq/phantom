@@ -8,7 +8,7 @@ use std::{
     collections::HashSet,
     convert::Infallible,
     future::Future,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
     pin::Pin,
     sync::{
@@ -25,11 +25,16 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry, Client,
-    HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader, RequestTimeouts,
-    ResponseInfo, Route, Socks5Proxy, TimeoutPhase,
+    HttpProtocol, PreparedRequestTemplate, RequestError, RequestErrorKind, RequestHeader,
+    RequestTimeouts, ResponseInfo, Route, Socks5Proxy, TimeoutPhase,
     profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
-use tokio::{net::TcpListener, task::JoinHandle, time::timeout};
+use tokio::{
+    net::TcpListener,
+    sync::oneshot,
+    task::{JoinHandle, JoinSet},
+    time::timeout,
+};
 
 use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
@@ -330,7 +335,7 @@ async fn blackholed_alternative_connects_once_and_is_not_raced_after_its_limit()
         // setup never connected, and the alternative abandoned at its limit
         // is broken, so the third request does not race it.
         assert_eq!(blackhole.datagrams(), after_limit);
-        assert_eq!(blackhole.peers(), 1);
+        assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -391,7 +396,7 @@ async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_so
         drain(second).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert_eq!(blackhole.datagrams(), after_limit);
-        assert_eq!(blackhole.peers(), 1);
+        assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -520,7 +525,7 @@ async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestRe
             .await?;
         assert_eq!(protocol(&third)?, HttpProtocol::Http3);
         assert_eq!(third.into_body().collect().await?.to_bytes(), "alternative");
-        assert_eq!(blackhole.peers(), 1);
+        assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -583,7 +588,7 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert_eq!(blackhole.datagrams(), after_limit);
-        assert_eq!(blackhole.peers(), 1);
+        assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -661,6 +666,7 @@ async fn a_raced_alternative_that_fails_its_handshake_is_marked_broken_and_not_r
         assert_eq!(untrusted.attempts(), 1);
 
         drop(client);
+        untrusted.finish().await?;
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_connections, 0);
         assert_eq!(observed.alternative_connections, 1);
@@ -725,7 +731,13 @@ async fn origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken
         drain(second).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert_eq!(blackholes.each_ref().map(Blackhole::datagrams), after_limit);
-        assert_eq!(blackholes.each_ref().map(Blackhole::peers), [1, 1]);
+        assert_eq!(
+            [
+                blackholes[0].connection_attempts()?,
+                blackholes[1].connection_attempts()?
+            ],
+            [1, 1]
+        );
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -794,7 +806,7 @@ async fn an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked() -
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         wait_until(|| Ok(waiting.datagrams() > 0)).await?;
-        assert_eq!(admitted.peers(), 1);
+        assert_eq!(admitted.connection_attempts()?, 1);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -1107,7 +1119,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
             .await
             .err()
             .ok_or("the background setup must hold the only H3 permit")?;
-        assert!(blocked.contains("pool admission"), "{blocked}");
+        assert_eq!(blocked.timeout_phase(), Some(TimeoutPhase::PoolAdmission));
         // A race still waiting for admission loses to the pooled H2
         // connection and gives its place back.
         let queued = client
@@ -1136,7 +1148,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
         assert_eq!(protocol(&broken)?, HttpProtocol::Http2);
         drain(broken).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
-        assert_eq!(blackhole.peers(), 2);
+        assert_eq!(blackhole.connection_attempts()?, 2);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -1204,20 +1216,20 @@ async fn race_never_changes_route() -> TestResult<()> {
             ),
         )
         .await?;
-        let blackhole = Blackhole::bind().await?;
+        let refused_proxy = phantom_testkit::tcp::ReservedPort::bind()?;
         let client = client_builder(&identity)?
             .alt_svc_policy(race_policy(Duration::ZERO)?)
             .build()?;
         import_alternative(&client, &fixture, fixture.alternative_address().port())?;
 
         // A negotiated request on a SOCKS5 route never falls back to a direct
-        // connection: the blackhole is UDP-only, so the proxy's TCP connect is
-        // refused and the request fails on the proxy leg with neither the
+        // connection: the reserved TCP proxy port refuses the connection,
+        // and the request fails on the proxy leg with neither the
         // origin nor the alternative contacted. Route-keying of the store
         // itself is covered by the `session::alt_svc` unit tests.
         let proxy = Route::socks5(Socks5Proxy::new(&format!(
             "socks5://127.0.0.1:{}",
-            blackhole.port
+            refused_proxy.address().port()
         ))?);
         let error = client
             .get_negotiated(&fixture.origin_url("/proxied"))?
@@ -1244,7 +1256,6 @@ async fn race_never_changes_route() -> TestResult<()> {
 
         drop(client);
         let observed = fixture.finish().await?;
-        assert_eq!(blackhole.datagrams(), 0);
         let authority = format!("{ORIGIN_NAME}:{}", fixture_port(&observed)?);
         let request = observed
             .alternative_requests
@@ -1467,41 +1478,33 @@ fn single_http3_admission_client(
         .build()?)
 }
 
-/// Sends exact H3 to the origin and returns the body, or a description of
-/// the failure; a pool-admission timeout is reported as `pool admission`.
+/// Sends exact H3 to the origin, preserving request and response-body errors.
 async fn send_exact(
     client: &Client,
     fixture: &Http3UpgradeFixture,
     path: &str,
-) -> Result<Bytes, String> {
+) -> Result<Bytes, RequestError> {
     let response = client
-        .get(HttpProtocol::Http3, &fixture.origin_url(path))
-        .map_err(|error| error.to_string())?
+        .get(HttpProtocol::Http3, &fixture.origin_url(path))?
         .send()
-        .await
-        .map_err(|error| {
-            if error.timeout_phase() == Some(TimeoutPhase::PoolAdmission) {
-                "pool admission timed out".to_owned()
-            } else {
-                error.to_string()
-            }
-        })?;
+        .await?;
     response
         .into_body()
         .collect()
         .await
         .map(|body| body.to_bytes())
-        .map_err(|error| error.to_string())
 }
 
-async fn after_admission_released<F, A>(mut attempt: F) -> Result<Bytes, String>
+async fn after_admission_released<F, A>(mut attempt: F) -> Result<Bytes, RequestError>
 where
     F: FnMut() -> A,
-    A: Future<Output = Result<Bytes, String>>,
+    A: Future<Output = Result<Bytes, RequestError>>,
 {
     loop {
-        if let Ok(body) = attempt().await {
-            return Ok(body);
+        match attempt().await {
+            Ok(body) => return Ok(body),
+            Err(error) if error.timeout_phase() == Some(TimeoutPhase::PoolAdmission) => {}
+            Err(error) => return Err(error),
         }
     }
 }
@@ -1549,7 +1552,7 @@ where
 struct Blackhole {
     port: u16,
     datagrams: Arc<AtomicUsize>,
-    peers: Arc<Mutex<HashSet<SocketAddr>>>,
+    initials: Arc<Mutex<InitialObservations>>,
     task: JoinHandle<()>,
 }
 
@@ -1558,17 +1561,25 @@ impl Blackhole {
         let socket = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let port = socket.local_addr()?.port();
         let datagrams = Arc::new(AtomicUsize::new(0));
-        let peers = Arc::new(Mutex::new(HashSet::new()));
+        let initials = Arc::new(Mutex::new(InitialObservations::default()));
         let counter = Arc::clone(&datagrams);
-        let sources = Arc::clone(&peers);
+        let observed = Arc::clone(&initials);
         let task = tokio::spawn(async move {
             let mut buffer = [0_u8; 2048];
             // Windows reports ICMP port-unreachable for earlier sends as a
             // receive error; the blackhole ignores it and keeps listening.
             loop {
-                if let Ok((_, peer)) = socket.recv_from(&mut buffer).await {
-                    if let Ok(mut sources) = sources.lock() {
-                        sources.insert(peer);
+                if let Ok((length, _)) = socket.recv_from(&mut buffer).await {
+                    if let Ok(mut observed) = observed.lock() {
+                        match initial_identity(&buffer[..length]) {
+                            Ok(Some(identity)) => {
+                                observed.identities.insert(identity);
+                            }
+                            Ok(None) => {}
+                            Err(error) => {
+                                observed.error.get_or_insert(error);
+                            }
+                        }
                     }
                     counter.fetch_add(1, Ordering::SeqCst);
                 }
@@ -1577,7 +1588,7 @@ impl Blackhole {
         Ok(Self {
             port,
             datagrams,
-            peers,
+            initials,
             task,
         })
     }
@@ -1586,9 +1597,17 @@ impl Blackhole {
         self.datagrams.load(Ordering::SeqCst)
     }
 
-    /// Returns how many distinct client sockets sent datagrams.
-    fn peers(&self) -> usize {
-        self.peers.lock().map_or(0, |peers| peers.len())
+    /// Counts Initial identities, not UDP ports. The peer never replies, so
+    /// retries cannot change the destination ID or negotiate another version.
+    fn connection_attempts(&self) -> TestResult<usize> {
+        let observed = self
+            .initials
+            .lock()
+            .map_err(|_| "Initial observation lock was poisoned")?;
+        if let Some(error) = observed.error {
+            return Err(error.into());
+        }
+        Ok(observed.identities.len())
     }
 }
 
@@ -1598,13 +1617,84 @@ impl Drop for Blackhole {
     }
 }
 
+#[derive(Default)]
+struct InitialObservations {
+    identities: HashSet<InitialIdentity>,
+    error: Option<&'static str>,
+}
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+struct InitialIdentity {
+    version: u32,
+    destination: Vec<u8>,
+    source: Vec<u8>,
+}
+
+/// Reads only the first packet's unprotected invariant header: RFC 9000
+/// sections 17.2 and 17.2.2, and RFC 9369 section 3.2 for v2's type bits.
+/// This is a no-reply fixture identity observation, not packet authentication.
+fn initial_identity(datagram: &[u8]) -> Result<Option<InitialIdentity>, &'static str> {
+    let first = *datagram.first().ok_or("empty QUIC datagram")?;
+    if first & 0x80 == 0 {
+        return Ok(None);
+    }
+    let version = u32::from_be_bytes(
+        datagram
+            .get(1..5)
+            .ok_or("truncated QUIC version")?
+            .try_into()
+            .map_err(|_| "truncated QUIC version")?,
+    );
+    let initial_type = match version {
+        0 => return Ok(None),
+        1 => 0x00,
+        0x6b33_43cf => 0x10,
+        _ => return Err("unsupported QUIC version in the blackhole fixture"),
+    };
+    if first & 0x30 != initial_type {
+        return Ok(None);
+    }
+
+    let destination_len = usize::from(
+        *datagram
+            .get(5)
+            .ok_or("missing Initial destination ID length")?,
+    );
+    if !(8..=20).contains(&destination_len) {
+        return Err("invalid client Initial destination ID length");
+    }
+    let destination = datagram
+        .get(6..6 + destination_len)
+        .ok_or("truncated Initial destination ID")?;
+    let source_offset = 6 + destination_len;
+    let source_len = usize::from(
+        *datagram
+            .get(source_offset)
+            .ok_or("missing Initial source ID length")?,
+    );
+    if source_len > 20 {
+        return Err("invalid Initial source ID length");
+    }
+    let source = datagram
+        .get(source_offset + 1..source_offset + 1 + source_len)
+        .ok_or("truncated Initial source ID")?;
+    Ok(Some(InitialIdentity {
+        version,
+        destination: destination.to_vec(),
+        source: source.to_vec(),
+    }))
+}
+
 /// A QUIC listener with a certificate no test client trusts, which counts
 /// the connection attempts it receives.
 struct UntrustedAlternative {
     port: u16,
     attempts: Arc<AtomicUsize>,
     failures: Arc<AtomicUsize>,
-    task: JoinHandle<()>,
+    active: Arc<AtomicUsize>,
+    endpoint: quinn::Endpoint,
+    shutdown: Option<oneshot::Sender<()>>,
+    task: JoinHandle<TestResult<()>>,
 }
 
 impl UntrustedAlternative {
@@ -1614,24 +1704,63 @@ impl UntrustedAlternative {
         let (address, endpoint) = h3_support::server_endpoint(&untrusted)?;
         let attempts = Arc::new(AtomicUsize::new(0));
         let failures = Arc::new(AtomicUsize::new(0));
+        let active = Arc::new(AtomicUsize::new(0));
         let counter = Arc::clone(&attempts);
         let failed = Arc::clone(&failures);
+        let running = Arc::clone(&active);
+        let owned_endpoint = endpoint.clone();
+        let (shutdown, mut stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
-            while let Some(incoming) = endpoint.accept().await {
-                counter.fetch_add(1, Ordering::SeqCst);
-                let failed = Arc::clone(&failed);
-                // The client rejects the certificate, so the handshake fails.
-                drop(tokio::spawn(async move {
-                    if incoming.await.is_err() {
-                        failed.fetch_add(1, Ordering::SeqCst);
+            let mut handshakes = JoinSet::<TestResult<()>>::new();
+            loop {
+                tokio::select! {
+                    _ = &mut stopped => break,
+                    result = handshakes.join_next(), if !handshakes.is_empty() => {
+                        let joined = result.ok_or("handshake owner returned no task")?;
+                        joined??;
                     }
-                }));
+                    incoming = owned_endpoint.accept() => {
+                        let Some(incoming) = incoming else { break; };
+                        counter.fetch_add(1, Ordering::SeqCst);
+                        let failed = Arc::clone(&failed);
+                        let active = Arc::clone(&running);
+                        handshakes.spawn(async move {
+                            let _active = ActiveHandshake::new(active);
+                            // Acceptance starts the actual server handshake.
+                            let connecting = incoming.accept()?;
+                            match connecting.await {
+                                Err(_) => {
+                                    failed.fetch_add(1, Ordering::SeqCst);
+                                    Ok(())
+                                }
+                                Ok(connection) => {
+                                    connection.close(quinn::VarInt::from_u32(0), b"unexpected trust");
+                                    Err("the client trusted the untrusted alternative".into())
+                                }
+                            }
+                        });
+                    }
+                }
             }
+            owned_endpoint.close(quinn::VarInt::from_u32(0), b"test complete");
+            handshakes.abort_all();
+            while let Some(result) = handshakes.join_next().await {
+                match result {
+                    Ok(result) => result?,
+                    Err(error) if error.is_cancelled() => {}
+                    Err(error) => return Err(error.into()),
+                }
+            }
+            owned_endpoint.wait_idle().await;
+            Ok(())
         });
         Ok(Self {
             port: address.port(),
             attempts,
             failures,
+            active,
+            endpoint,
+            shutdown: Some(shutdown),
             task,
         })
     }
@@ -1644,11 +1773,36 @@ impl UntrustedAlternative {
     fn failures(&self) -> usize {
         self.failures.load(Ordering::SeqCst)
     }
+
+    async fn finish(mut self) -> TestResult<()> {
+        if let Some(shutdown) = self.shutdown.take() {
+            // If the owner already returned, its result is still read below.
+            let _ = shutdown.send(());
+        }
+        (&mut self.task).await?
+    }
 }
 
 impl Drop for UntrustedAlternative {
     fn drop(&mut self) {
+        self.endpoint
+            .close(quinn::VarInt::from_u32(0), b"fixture dropped");
         self.task.abort();
+    }
+}
+
+struct ActiveHandshake(Arc<AtomicUsize>);
+
+impl ActiveHandshake {
+    fn new(active: Arc<AtomicUsize>) -> Self {
+        active.fetch_add(1, Ordering::SeqCst);
+        Self(active)
+    }
+}
+
+impl Drop for ActiveHandshake {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
