@@ -140,7 +140,6 @@ pub async fn send_with_config(
         options.body.map(crate::request::RequestBody::from_bytes),
         options.trailers,
     )?;
-    #[cfg_attr(not(feature = "qlog"), expect(clippy::needless_update))]
     let connection_options = ConnectionOptions {
         #[cfg(feature = "qlog")]
         qlog: options.qlog,
