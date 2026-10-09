@@ -21,6 +21,7 @@ mod cookies;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
 mod direct_http;
+mod error_context;
 mod expect_continue;
 mod ping_failure_replay;
 mod plaintext_templates;

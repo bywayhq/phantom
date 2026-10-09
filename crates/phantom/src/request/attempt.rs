@@ -65,7 +65,7 @@ pub(super) async fn send_once(
         })
     };
     let route = connect_route.as_ref().unwrap_or(route);
-    match selection {
+    let result = match selection {
         ProtocolSelection::Exact(protocol) => {
             send_once_exact(client, request, protocol, attempt, route, lifecycle).await
         }
@@ -87,7 +87,13 @@ pub(super) async fn send_once(
         ProtocolSelection::Http1Or2 => {
             send_once_negotiated(client, request, attempt, route, lifecycle).await
         }
-    }
+    };
+    result
+        .map(|mut outcome| {
+            outcome.response.body_mut().set_origin(request.origin());
+            outcome
+        })
+        .map_err(|error| error.with_origin(request.origin()))
 }
 
 async fn send_once_exact(

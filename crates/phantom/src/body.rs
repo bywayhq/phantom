@@ -173,9 +173,8 @@ impl ResponseBody {
         Self::http3(body)
     }
 
-    pub(crate) fn with_origin(mut self, origin: RequestOrigin) -> Self {
+    pub(crate) fn set_origin(&mut self, origin: RequestOrigin) {
         self.origin = Some(origin);
-        self
     }
 
     fn error_with_origin(&self, error: RequestError) -> RequestError {
@@ -347,7 +346,9 @@ impl ResponseBody {
         protocol: HttpProtocol,
     ) -> Result<(), RequestError> {
         if !self.is_end_stream() {
-            self.timeouts = budget.response_body(protocol)?;
+            self.timeouts = budget
+                .response_body(protocol)
+                .map_err(|error| self.error_with_origin(error))?;
         }
         Ok(())
     }

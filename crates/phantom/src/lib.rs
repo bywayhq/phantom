@@ -172,6 +172,7 @@ mod content_coding;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
 mod error;
+mod link;
 mod redirect;
 mod request;
 mod response;
@@ -193,6 +194,7 @@ pub use diagnostics::KeyLog;
 pub use error::{
     BuildError, BuildErrorKind, RequestError, RequestErrorKind, RequestReplayObservation,
 };
+pub use link::{Link, LinkParameter, LinkParseError, LinkParseErrorKind, parse_link_headers};
 pub use redirect::RedirectPolicy;
 pub use request::{PreparedRequestTemplate, RequestBuilder};
 #[cfg(feature = "json")]
@@ -221,7 +223,7 @@ pub use sse::{
     SseError, SseErrorKind, SseEvent, SseEventSource, SseHeader, SseLimits, SseRequestBuilder,
     SseStream,
 };
-pub use timeout::{RequestTimeouts, TimeoutPhase};
+pub use timeout::{RequestTimeoutOverrides, RequestTimeouts, TimeoutOverride, TimeoutPhase};
 #[cfg(feature = "websocket-deflate")]
 pub use websocket::{
     NegotiatedPerMessageDeflate, PerMessageDeflate, PerMessageDeflateOfferParameter,
@@ -254,25 +256,25 @@ pub mod profile {
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
         ClientHelloExtensionOrder, ClientHint, ClientHintDelivery, ClientHintSettings,
         ClientProfile, CookiePlacement, DnsCacheSettings, EchGreaseAead, EchGreasePayloadLength,
-        Http1IdleTimeout, Http1Settings, Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings,
-        Http2HuffmanCoding, Http2IdleTimeout, Http2IndexingLimit, Http2NameReference,
-        Http2Priority, Http2ProxyConnections, Http2PseudoHeader, Http2RejectedConnect,
-        Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
-        Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed,
-        Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
-        Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
-        Http3Setting, Http3SettingOrder, Http3Settings, InvalidClientHintSettings,
-        InvalidHttp1Settings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
-        InvalidHttp3Settings, InvalidProxyConnectTemplate, InvalidRequestTemplate,
-        InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup,
-        ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate, RequestField,
-        RequestTemplate, SessionTicketOrder, SessionTickets, SignatureScheme, TcpAddressAdvance,
-        TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
-        TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings,
-        TlsVersion, TlsVersionRange, TrustAnchorIds, UdpSettings, WebSocketConnectionPolicy,
-        WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
-        WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-        WebSocketSettings,
+        EchGreaseSettings, EchSettings, Http1IdleTimeout, Http1Settings, Http2CookieCrumbs,
+        Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding, Http2IdleTimeout,
+        Http2IndexingLimit, Http2NameReference, Http2Priority, Http2ProxyConnections,
+        Http2PseudoHeader, Http2RejectedConnect, Http2SensitiveProxyAuthorization, Http2Setting,
+        Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
+        Http2UnindexedMatch, Http3AltUsed, Http3ClientSettings, Http3CookieCrumbs,
+        Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
+        Http3QpackStreamOrder, Http3RequestSettings, Http3Setting, Http3SettingOrder,
+        Http3Settings, InvalidClientHintSettings, InvalidHttp1Settings, InvalidHttp2Settings,
+        InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProxyConnectTemplate,
+        InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
+        NamedGroup, ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate,
+        RequestField, RequestTemplate, SessionTicketOrder, SessionTickets, SignatureScheme,
+        TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection,
+        TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
+        TlsSettings, TlsVersion, TlsVersionRange, TrustAnchorIds, UdpSettings,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
+        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
+        WebSocketRefusedStreamRetry, WebSocketSettings,
     };
 
     /// Browser recipes and composed profiles grouped by brand and platform.

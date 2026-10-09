@@ -197,7 +197,9 @@ impl RequestBuilder {
     {
         let mut encoded = url::form_urlencoded::Serializer::new(String::new());
         encoded.extend_pairs(pairs);
-        self.request.append_query(&encoded.finish())?;
+        self.request
+            .append_query(&encoded.finish())
+            .map_err(|error| error.with_origin(self.request.origin()))?;
         Ok(self)
     }
 
@@ -622,6 +624,7 @@ impl RequestBuilder {
     /// # }
     /// ```
     pub async fn send(self) -> Result<Response<ResponseBody>, RequestError> {
+        let origin = self.request.origin();
         let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
         let span = debug_span!(
             "client.request",
@@ -649,8 +652,9 @@ impl RequestBuilder {
             span.record("selected_protocol", protocol.trace_name());
         }
         // Keep the public future small when callers join many requests.
-        let result =
-            crate::session::box_send(self.send_inner(&span).instrument(span.clone())).await;
+        let result = crate::session::box_send(self.send_inner(&span).instrument(span.clone()))
+            .await
+            .map_err(|error| error.with_origin(origin));
         if let Err(error) = &result
             && let Some(phase) = error.timeout_phase()
         {
@@ -860,7 +864,8 @@ impl RequestBuilder {
         let mut resolved = request;
 
         loop {
-            ensure_request_supported(selection, route, &resolved)?;
+            ensure_request_supported(selection, route, &resolved)
+                .map_err(|error| error.with_origin(resolved.origin()))?;
             let outcome = send_once(
                 &client,
                 &resolved,
@@ -881,7 +886,10 @@ impl RequestBuilder {
             )
             .await?;
             let mut response = outcome.response;
-            match redirect.follow(&response)? {
+            match redirect
+                .follow(&response)
+                .map_err(|error| error.with_origin(resolved.origin()))?
+            {
                 RedirectAction::Stop => {
                     if response_body_timeouts {
                         response
@@ -920,7 +928,8 @@ impl RequestBuilder {
                     }
                     let expect_continue = resolved.expect_continue;
                     let alternative = resolved.alternative.take().filter(|_| same_origin);
-                    resolved = ResolvedRequest::from_redirect_url(redirect.current_url())?;
+                    resolved = ResolvedRequest::from_redirect_url(redirect.current_url())
+                        .map_err(|error| error.with_origin(resolved.origin()))?;
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
                     resolved.alternative = alternative;
@@ -1297,6 +1306,10 @@ struct ResolvedRequest {
 }
 
 impl ResolvedRequest {
+    fn origin(&self) -> crate::RequestOrigin {
+        crate::RequestOrigin::from_endpoint(self.uri.scheme_str() == Some("https"), &self.endpoint)
+    }
+
     fn append_query(&mut self, encoded: &str) -> Result<(), RequestError> {
         if encoded.is_empty() {
             return Ok(());
