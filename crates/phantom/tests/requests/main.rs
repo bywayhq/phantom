@@ -24,6 +24,7 @@ mod direct_http;
 mod expect_continue;
 mod ping_failure_replay;
 mod plaintext_templates;
+mod query_authorization;
 mod redirects;
 mod request_templates;
 mod response_conveniences;

@@ -248,9 +248,12 @@ mod tests {
     #[test]
     fn authorization_headers_are_lowercase_sensitive_and_redacted()
     -> Result<(), Box<dyn std::error::Error>> {
-        let mut random = [0_u8; 16];
-        btls::rand::rand_bytes(&mut random)?;
-        let canary: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+        let canary = format!(
+            "{:x}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos()
+        );
         let basic = RequestHeader::basic_authorization("runtime-user", &canary)?;
         let bearer = RequestHeader::bearer_authorization(&canary)?;
         let expected_basic = basic_value("runtime-user", &canary, MAX_AUTHORIZATION_VALUE_BYTES)

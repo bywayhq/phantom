@@ -104,9 +104,12 @@ async fn forwarding_keeps_absolute_bytes_and_explicit_authorization_positions() 
                 "http://{address}"
             ))?))
             .build()?;
-        let mut random = [0_u8; 16];
-        btls::rand::rand_bytes(&mut random)?;
-        let canary: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+        let canary = format!(
+            "{:x}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos()
+        );
         let basic = RequestHeader::basic_authorization("runtime-user", &canary)?;
         let basic_value = String::from_utf8(basic.value().to_vec())?;
         let bearer = RequestHeader::bearer_authorization(&canary)?;

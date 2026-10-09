@@ -292,6 +292,7 @@ pub mod dns {
 
 /// An ordered request field preserving spelling, value bytes, and position.
 pub use phantom_net::request::RequestHeader;
+pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
 /// One declared request-trailer name retaining exact spelling and position.
 pub use phantom_net::request::RequestTrailerName;
 
