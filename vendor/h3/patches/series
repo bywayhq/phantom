@@ -22,4 +22,5 @@ reset-unsent-request.patch
 receive-bounds.patch
 frame-payload-length.patch
 peer-field-section-tests.patch
+test-sockets.patch
 publish-identity.patch
