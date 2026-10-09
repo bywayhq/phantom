@@ -8,6 +8,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -688,6 +689,191 @@ class WebTestHttpd:
         self.assertFalse(spawn.process.alive)
         self.assertIs(signal.getsignal(signal.SIGINT), previous)
         self.assertIn("shutdown exceeded", " ".join(raised.exception.shutdown_failures))
+
+
+class WptAcquisitionTests(unittest.TestCase):
+    def exercise_native_acquisition(self, *, interrupt=None, start_error=None):
+        context = multiprocessing.get_context("spawn")
+        original_popen = context.Process._Popen
+        native = []
+        resources = []
+        repository = Path(__file__).resolve().parents[3]
+        cases = load_case_ids(
+            repository / "scripts/conformance/wpt-eventsource/smoke.json"
+        )
+        output = "".join(f"CASE\tPASS\t{case}\n" for case in cases)
+        output += f"SUMMARY\t{len(cases)}\t0\n"
+        previous = signal.getsignal(signal.SIGINT)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            reports = Path(temporary)
+            marker = reports / "child-lifetime.json"
+            started_marker = reports / "child-started.txt"
+
+            def checkout(source):
+                resources.append(source.parent)
+                source.mkdir()
+                for case in cases:
+                    case_path = source / case.split("#", 1)[0]
+                    case_path.parent.mkdir(parents=True, exist_ok=True)
+                    case_path.touch()
+                package = source / "tools/wptserve"
+                package.mkdir(parents=True)
+                (package.parent / "localpaths.py").touch()
+                (package / "__init__.py").touch()
+                (package / "config.py").write_text("class Config(dict):\n    pass\n")
+                (package / "server.py").write_text(
+                    """import json
+from pathlib import Path
+from types import SimpleNamespace
+
+class WebTestHttpd:
+    def __init__(self, **kwargs):
+        self.source = Path(kwargs['doc_root'])
+        self.certificate = Path(kwargs['certificate'])
+        self.started = False
+        self.port = 49123
+        self.httpd = SimpleNamespace(server_close=lambda: None)
+
+    def start(self):
+        self.started = True
+        Path(STARTED_MARKER).write_text('server start observed')
+
+    def stop(self):
+        Path(MARKER).write_text(json.dumps({
+            'source_alive': self.source.exists(),
+            'certificate_alive': self.certificate.exists(),
+        }))
+        self.started = False
+""".replace("STARTED_MARKER", repr(str(started_marker))).replace(
+                        "MARKER", repr(str(marker))
+                    )
+                )
+
+            def certificate(directory):
+                leaf = directory / "leaf.pem"
+                leaf.write_text("controlled file lifetime marker")
+                return SimpleNamespace(
+                    certificate_pem=leaf, private_key_pem=leaf, root_der=leaf
+                )
+
+            def acquire(process):
+                popen = original_popen(process)
+                native.append(popen)
+                # BaseProcess.start has not installed the returned native handle.
+                self.assertIsNone(process.pid)
+                deadline = time.monotonic() + 8
+                while not started_marker.exists():
+                    if time.monotonic() >= deadline or popen.poll() is not None:
+                        raise AssertionError("native child did not reach startup")
+                    time.sleep(0.01)
+                if interrupt is not None:
+                    signal.raise_signal(signal.SIGINT)
+                if start_error is not None:
+                    raise start_error
+                return popen
+
+            def interrupted(signum, frame):
+                raise interrupt
+
+            observed_error = None
+            try:
+                if interrupt is not None:
+                    signal.signal(signal.SIGINT, interrupted)
+                with (
+                    patch.object(context.Process, "_Popen", staticmethod(acquire)),
+                    patch.object(runner, "_checkout_wpt", checkout),
+                    patch.object(runner, "generate_loopback_certificate", certificate),
+                    patch.object(
+                        runner, "_git_revision", return_value="fixture revision"
+                    ),
+                    patch.object(
+                        runner.subprocess,
+                        "run",
+                        return_value=subprocess.CompletedProcess([], 0, output, ""),
+                    ),
+                    contextlib.redirect_stdout(io.StringIO()),
+                ):
+                    try:
+                        runner.run("smoke", repository, reports / "reports")
+                    except (Exception, KeyboardInterrupt) as error:
+                        observed_error = error
+                alive_after_run = native[0].poll() is None
+                scratch_after_run = resources[0].exists()
+                child_exit = native[0].wait(8)
+                self.assertIsNotNone(child_exit, "native fixture child was not reaped")
+                lifetime = json.loads(marker.read_text())
+                summary_path = next((reports / "reports").glob("*/summary.json"))
+                summary = json.loads(summary_path.read_text())
+                return SimpleNamespace(
+                    error=observed_error,
+                    alive=alive_after_run,
+                    scratch=scratch_after_run,
+                    lifetime=lifetime,
+                    summary=summary,
+                    exitcode=child_exit,
+                )
+            finally:
+                signal.signal(signal.SIGINT, previous)
+                for popen in native:
+                    if popen.poll() is None:
+                        popen.terminate()
+                        self.assertIsNotNone(
+                            popen.wait(8), "fixture cleanup did not reap"
+                        )
+                    popen.close()
+                for root in resources:
+                    if root.exists():
+                        root.resolve().relative_to(
+                            Path(tempfile.gettempdir()).resolve()
+                        )
+                        shutil.rmtree(root)
+
+    def test_native_acquisition_positive_control_reaps_before_file_cleanup(self):
+        result = self.exercise_native_acquisition()
+
+        self.assertIsNone(result.error)
+        self.assertFalse(result.alive)
+        self.assertFalse(result.scratch)
+        self.assertEqual(result.exitcode, 0)
+        self.assertEqual(
+            result.lifetime, {"source_alive": True, "certificate_alive": True}
+        )
+        self.assertFalse(result.summary["run_failed"])
+
+    def test_native_acquisition_sigint_keeps_identity_and_reaps_before_cleanup(self):
+        interrupt = KeyboardInterrupt("native acquisition boundary marker")
+        result = self.exercise_native_acquisition(interrupt=interrupt)
+
+        self.assertIs(result.error, interrupt)
+        self.assertFalse(
+            result.alive, "run returned before observing native child exit"
+        )
+        self.assertFalse(result.scratch)
+        self.assertEqual(result.exitcode, 0)
+        self.assertEqual(
+            result.lifetime, {"source_alive": True, "certificate_alive": True}
+        )
+        self.assertTrue(result.summary["run_failed"])
+        self.assertIn(
+            "native acquisition boundary marker",
+            " ".join(result.summary["infrastructure_failures"]),
+        )
+
+    def test_uncertain_native_start_failure_retains_and_reports_scratch(self):
+        result = self.exercise_native_acquisition(
+            start_error=OSError("acquisition error marker")
+        )
+
+        self.assertTrue(result.scratch, "pid None does not prove there was no child")
+        self.assertEqual(
+            result.lifetime, {"source_alive": True, "certificate_alive": True}
+        )
+        self.assertTrue(result.summary["run_failed"])
+        failures = " ".join(result.summary["infrastructure_failures"])
+        self.assertIn("acquisition error marker", failures)
+        self.assertIn("acquisition", failures)
+        self.assertIn("files retained", failures)
 
 
 class WptEventSourceTests(unittest.TestCase):
