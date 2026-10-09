@@ -9,13 +9,9 @@ use crate::secret::{
 };
 use crate::{CryptoError, HeaderProtectionKey, PacketProtectionKey, QuicVersion, Result};
 
-#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_AES_128_GCM_SHA256: u16 = 0x1301;
-#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_AES_256_GCM_SHA384: u16 = 0x1302;
-#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 const TLS_CHACHA20_POLY1305_SHA256: u16 = 0x1303;
-#[allow(dead_code, reason = "SHA-384 QUIC traffic-secret storage")]
 const SHA384_LEN: usize = 48;
 
 /// Which endpoint owns the local half of a derived key pair.
@@ -60,7 +56,6 @@ impl fmt::Debug for DirectionKeys {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
 pub(crate) enum CipherSuite {
     Aes128GcmSha256,
     Aes256GcmSha384,
@@ -68,7 +63,6 @@ pub(crate) enum CipherSuite {
 }
 
 impl CipherSuite {
-    #[allow(dead_code, reason = "BoringSSL traffic-secret callback input")]
     pub(crate) fn from_id(id: u16) -> Result<Self> {
         match id {
             TLS_AES_128_GCM_SHA256 => Ok(Self::Aes128GcmSha256),
@@ -168,7 +162,6 @@ impl KeyMaterial {
         })
     }
 
-    #[allow(dead_code, reason = "QUIC 1-RTT key updates")]
     fn into_packet_key(self, suite: CipherSuite) -> Result<PacketProtectionKey> {
         suite.packet_key(&self.key.as_slice()[..self.key_len], self.iv.as_slice())
     }
@@ -183,13 +176,11 @@ pub(crate) fn derive_version_keys(
     KeyMaterial::derive(suite, traffic_secret, version)?.into_keys(suite)
 }
 
-#[allow(dead_code, reason = "QUIC traffic-secret storage")]
 pub(crate) enum TrafficSecret {
     Sha256(Secret<SHA256_LEN>),
     Sha384(Secret<SHA384_LEN>),
 }
 
-#[allow(dead_code, reason = "QUIC traffic-secret storage and updates")]
 impl TrafficSecret {
     pub(crate) fn new(digest: HkdfDigest, value: &[u8]) -> Result<Self> {
         match digest {
@@ -240,7 +231,6 @@ impl fmt::Debug for TrafficSecret {
     }
 }
 
-#[allow(dead_code, reason = "QUIC traffic-key installation")]
 pub(crate) struct TrafficKeys {
     pub(crate) local: DirectionKeys,
     pub(crate) remote: DirectionKeys,
@@ -252,7 +242,6 @@ impl fmt::Debug for TrafficKeys {
     }
 }
 
-#[allow(dead_code, reason = "QUIC traffic-key updates")]
 pub(crate) struct PacketKeyPair {
     pub(crate) local: PacketProtectionKey,
     pub(crate) remote: PacketProtectionKey,
@@ -265,7 +254,6 @@ impl fmt::Debug for PacketKeyPair {
 }
 
 /// Owns the application traffic secrets needed for QUIC key updates.
-#[allow(dead_code, reason = "QUIC traffic-key installation and updates")]
 pub(crate) struct TrafficKeySchedule {
     suite: CipherSuite,
     version: QuicVersion,
@@ -312,8 +300,8 @@ impl TestDerivationFailure {
     }
 }
 
-#[allow(dead_code, reason = "QUIC traffic-key installation and updates")]
 impl TrafficKeySchedule {
+    #[cfg(test)]
     pub(crate) fn new(
         cipher_suite: u16,
         side: EndpointSide,
@@ -389,9 +377,9 @@ impl TrafficKeySchedule {
     /// Advances both directions transactionally and returns the new packet keys.
     ///
     /// This operation remains fallible because HKDF and key construction can
-    /// fail. It must not implement Quinn's infallible `next_1rtt_keys` boundary
-    /// until the Session provider establishes explicit fail-closed propagation
-    /// or precomputes a successful next pair before Quinn can request it.
+    /// fail. The provider propagates failures through Quinn's fallible
+    /// `next_1rtt_keys` boundary. Neither traffic secret changes until both
+    /// replacement packet keys have been derived.
     pub(crate) fn next_packet_keys(&mut self) -> Result<PacketKeyPair> {
         #[cfg(test)]
         let attempt = {
