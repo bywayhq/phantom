@@ -1097,9 +1097,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "phantom-run-matrix-" + args.manifest.stem
     )
     work_dir = work_dir.resolve()
-    if "'" in str(work_dir):
-        # Stopping a hung attempt names this path in a PowerShell string.
-        parser.error("the work directory path cannot contain a single quote")
     problem = profile_path_problem(jobs, work_dir, args.retries + 1, sys.platform)
     if problem is not None:
         parser.error(problem)

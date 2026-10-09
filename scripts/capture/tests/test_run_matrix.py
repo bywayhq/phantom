@@ -940,6 +940,31 @@ class DryRunTests(unittest.TestCase):
 class WorkDirectoryTests(unittest.TestCase):
     LONGEST_ID = "proxy_route/firefox/https-proxy-auth-remembered-hostname"
 
+    def test_a_quoted_work_directory_is_passed_as_data(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "m.json"
+            path.write_text(
+                json.dumps(
+                    manifest(
+                        {
+                            "tool": "snapshot",
+                            "browsers": ["chrome"],
+                            "output_dir": "out",
+                        }
+                    )
+                )
+            )
+            work = Path(directory) / "O'Brien work"
+            with (
+                mock.patch(
+                    "scripts.capture.run_matrix.run_manifest", return_value=([], 0.0)
+                ) as run,
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                self.assertEqual(main([str(path), "--work-dir", str(work)]), 0)
+            self.assertEqual(run.call_args.kwargs["work_dir"], work.resolve())
+
     def test_attempt_directories_are_short_and_distinct(self) -> None:
         names = {
             attempt_directory(job_id, attempt)

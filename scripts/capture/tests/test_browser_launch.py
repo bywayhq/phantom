@@ -2,16 +2,19 @@ import argparse
 import asyncio
 import contextlib
 import io
+import json
 import os
 import shlex
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.capture import browser_launch
 from scripts.capture.browser_launch import (
@@ -25,12 +28,14 @@ from scripts.capture.browser_launch import (
     check_android_entry,
     check_browser_switches,
     chromium_arguments,
+    command_names_profile,
     firefox_arguments,
     firefox_user_js,
     host_chromium_flags,
     profile_process_ids,
     recorded_arguments,
     render_preferences,
+    terminate_profile_processes,
     with_android_entry,
 )
 
@@ -38,6 +43,124 @@ URL = "http://127.0.0.1:9450/run/token"
 
 
 class BrowserLaunchTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "win32", "Windows argument parser")
+    def test_profile_matches_whole_paths_including_quoted_windows_paths(self) -> None:
+        profile = Path("C:/Users/O'Brien/temporary profile")
+        for command in [
+            f'chrome --user-data-dir="{profile}"',
+            f'crashpad --database="{profile}/Crashpad"',
+            'firefox --profile "C:\\USERS\\O\'BRIEN\\TEMPORARY PROFILE"',
+        ]:
+            with self.subTest(command=command):
+                self.assertTrue(command_names_profile(command, profile, windows=True))
+        for suffix in [
+            "x",
+            "-other",
+            ".other",
+            "_other",
+            "@other",
+            ":other",
+            "'other",
+            " other",
+        ]:
+            with self.subTest(suffix=suffix):
+                self.assertFalse(
+                    command_names_profile(
+                        f'chrome --user-data-dir="{profile}{suffix}"',
+                        profile,
+                        windows=True,
+                    )
+                )
+        self.assertFalse(
+            command_names_profile(
+                f'chrome --user-data-dir="prefix{profile}"', profile, windows=True
+            )
+        )
+
+    def test_windows_profile_sweep_uses_data_and_skips_both_supervisors(self) -> None:
+        profile = Path("C:/Users/O'Brien/profile")
+        document = {
+            "Supervisor": 902,
+            "Processes": [
+                {"ProcessId": 901, "CommandLine": f'python "{profile}"'},
+                {"ProcessId": 902, "CommandLine": f'powershell "{profile}"'},
+                {
+                    "ProcessId": 903,
+                    "CommandLine": f'chrome --user-data-dir="{profile}"',
+                },
+                {
+                    "ProcessId": 904,
+                    "CommandLine": f'chrome --user-data-dir="{profile}x"',
+                },
+                {
+                    "ProcessId": 905,
+                    "CommandLine": f'crashpad --database="{profile}/Crashpad"',
+                },
+                {"ProcessId": 906, "CommandLine": None},
+            ],
+        }
+        listing = subprocess.CompletedProcess([], 0, json.dumps(document).encode())
+        stopped = subprocess.CompletedProcess([], 0)
+        with (
+            mock.patch.object(browser_launch.sys, "platform", "win32"),
+            mock.patch.object(browser_launch.os, "getpid", return_value=901),
+            mock.patch.object(
+                browser_launch,
+                "_windows_arguments",
+                side_effect=lambda command: [command.split('"')[1]],
+            ),
+            mock.patch.object(
+                browser_launch.subprocess, "run", side_effect=[listing, stopped]
+            ) as run,
+        ):
+            terminate_profile_processes(profile)
+        discovery, termination = [call.args[0][-1] for call in run.call_args_list]
+        self.assertNotIn(str(profile), discovery)
+        self.assertIn("903,905", termination)
+        for pid in [901, 902, 904, 906]:
+            self.assertNotIn(str(pid), termination)
+
+    def test_windows_profile_discovery_failure_is_not_reported_as_cleanup(self) -> None:
+        with (
+            mock.patch.object(browser_launch.sys, "platform", "win32"),
+            mock.patch.object(
+                browser_launch.subprocess,
+                "run",
+                side_effect=subprocess.CalledProcessError(1, "discovery"),
+            ),
+            self.assertRaises(subprocess.CalledProcessError),
+        ):
+            terminate_profile_processes(Path("C:/profile"))
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows profile sweep")
+    def test_windows_sweep_stops_exact_and_descendant_but_preserves_prefix_sibling(
+        self,
+    ) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            contextlib.ExitStack() as cleanup,
+        ):
+            profile = Path(directory) / "O'Brien profile"
+            targets = [str(profile), str(profile / "Crashpad"), str(profile) + "x"]
+            processes = []
+            for target in targets:
+                process = subprocess.Popen(
+                    [sys.executable, "-c", "import time; time.sleep(60)", target]
+                )
+                processes.append(process)
+                cleanup.callback(
+                    lambda process=process: (
+                        (process.kill(), process.wait(timeout=30))
+                        if process.poll() is None
+                        else None
+                    )
+                )
+            terminate_profile_processes(profile)
+            for process in processes[:2]:
+                process.wait(timeout=30)
+                self.assertIsNotNone(process.poll())
+            self.assertIsNone(processes[2].poll())
+
     def test_headless_chromium_arguments_isolate_profile_and_end_with_url(
         self,
     ) -> None:
