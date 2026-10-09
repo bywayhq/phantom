@@ -1,0 +1,314 @@
+{
+  "finding": "A57 shared composition",
+  "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+  "disposition": "request changes",
+  "coverage": [
+    {
+      "path": "scripts/conformance/autobahn.py",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "a7000389c96520fb9cf1299b319c5589f37e6849",
+      "git_sha256": "296b0592812b8884dcfed8e67133b62be9950f4329af6efa1a9440ff4314a67e",
+      "sha256": "92a934b7ab59b0353ab332d5af3f05a7f7ac4cb94e22cb9dbbc6e0a14d4812c7",
+      "reviewed_ranges": [
+        [
+          1,
+          536
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/docker_owner.py",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "1645a2700871ebc74c58714692ce1d19fbd05ef8",
+      "git_sha256": "3fc3a68364738c1fc422ade11bb2f88d23980a99ede16929ed0ac4c9f9ddbeff",
+      "sha256": "c3b9c93a88003ed0447971c781cfe365d0142e9820d21a377bc0d7ff3f303b91",
+      "reviewed_ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tls_anvil.py",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "dcc2c76cabc5fa1603598810d90c931c6ec0f986",
+      "git_sha256": "35b86c0cb78953c965f1f1113f8fcda3165b2c04c240564e6da894c19d580bcf",
+      "sha256": "49b33f96368467466fe20ca6c502cc7319d700db2d709782c59a23a7527d19b6",
+      "reviewed_ranges": [
+        [
+          1,
+          390
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tests/test_autobahn.py",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "6263289d505e7412aa12bcb44506758b309de8d8",
+      "git_sha256": "af9603030b90964f4100d0c3e6b388748ec53d3bd8e961f61f89df0c27f148d7",
+      "sha256": "0a76692c1086b31264ebc44448daa54cdc7a0fb7792cf99eb6252f25a872a2b9",
+      "reviewed_ranges": [
+        [
+          1,
+          517
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tests/test_docker_owner.py",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "37f665d8f436f308eef2e96a95c25ece3abb0c65",
+      "git_sha256": "c001a3114f6961c8825f105371f978ddadb1614ea7d276eee2fc661ee02a65ca",
+      "sha256": "68744006ffa4fa6b29fd46d891b528c55be411bac1d0fe267957b6f42c496655",
+      "reviewed_ranges": [
+        [
+          1,
+          165
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "scripts/conformance/tests/test_tls_anvil.py",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "d0af523ccec5160dd143d6a137b94b41e7c26b88",
+      "git_sha256": "b4da8e6f0a34639a6012f1b7b43a6ac61ca59d6dd7540e006e9117ec01a7ecc6",
+      "sha256": "ef317c492228b41e2ad04afe7b1c047ba057bd4ba4c2d1b64b3e219430594e3d",
+      "reviewed_ranges": [
+        [
+          1,
+          536
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": ".github/workflows/tls-anvil.yml",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "35f3641cbb847cc9bb51219fd68d5119cff41f66",
+      "git_sha256": "af26612f648669e0cb66acb8967471c5a9bd908f6fc79b006baf951b47866475",
+      "sha256": "5d3121370aa89f83d947edf667954dd533f31dcc0234498125b42bb7263cabf4",
+      "reviewed_ranges": [
+        [
+          1,
+          82
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "git_sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "sha256": "5a043848dfbe7c03c3879842e05c986690a5502d0a90d0e55adf1f843be0e9c0",
+      "reviewed_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "disposition": "complete independent manual source review"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "1c8a0fd474983f20bbdc2010d026c16c2cf8a163",
+      "git_sha256": "750dbf1d0acb50d2c8ec8dc9e5f00de9574098ab642d4de15686ce7d8c2df81d",
+      "sha256": "041c8b081692702371cc2636a441a3d66f4d349b49dc51e641b901779b4c12b6",
+      "reviewed_ranges": [
+        [
+          2450,
+          2477
+        ]
+      ],
+      "disposition": "partial changed-contract independent source review"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "revision": "efb5c691037dc9dc88f60413ad26c148ea02ebe8",
+      "git_blob": "e26aaecbb456122e4cb5cac80f2c790adb178727",
+      "git_sha256": "3521346ce0c129bb4a80d3f3e8b9fd6935743c3deb35b4f2b8be720093fb981f",
+      "sha256": "a3896f4dc4e03fdcaf236b19846ad17b00b0deb378779f93abbe2d2827b6ca98",
+      "reviewed_ranges": [
+        [
+          257,
+          293
+        ]
+      ],
+      "disposition": "partial changed-contract independent source review"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-shared-composed-windows.log",
+      "sha256": "3263a8aedacc0b0c7afd14653f588a3eb6c4c42b0683dd45196031ecaa0d99e8",
+      "reviewed_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-shared-composed-linux.log",
+      "sha256": "7ac20b08cdb78957289ed5409eb3e46b7da978d126db4f2b8b606914d0fc8940",
+      "reviewed_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-shared-ruff-linux.log",
+      "sha256": "b7d3eb5d1674f02557d61e84793929ab22030cf0de95cb1e765bcc9584b305f7",
+      "reviewed_ranges": [
+        [
+          1,
+          5
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-direct-help-linux.log",
+      "sha256": "56362706b243dc43bdf24bccceb7db1cd96b465e7a019b9095ac5b8191f2d7f0",
+      "reviewed_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-module-help-linux.log",
+      "sha256": "56362706b243dc43bdf24bccceb7db1cd96b465e7a019b9095ac5b8191f2d7f0",
+      "reviewed_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-tls-direct-help-linux.log",
+      "sha256": "9d93aba601210796ca4f14df25eb4b0f92afffe38f13309798dde17ad51263b8",
+      "reviewed_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-tls-module-help-linux.log",
+      "sha256": "9d93aba601210796ca4f14df25eb4b0f92afffe38f13309798dde17ad51263b8",
+      "reviewed_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-summary-interrupt-baseline-windows.log",
+      "sha256": "2229413c60718a94344d09518dbf985a62405a710aec79b34882a8f5bb5d52e3",
+      "reviewed_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "disposition": "full retained output read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-summary-interrupt-expanded-baseline-windows.log",
+      "sha256": "ecac5e182abe1256205670676488fb196213c9e8d1ba1df851c55591be91f0c5",
+      "reviewed_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "disposition": "full retained output read"
+    }
+  ],
+  "reproduction": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\a57-autobahn-summary-interrupt-repro.py",
+    "sha256": "7d88394f4693928d7d9e21f8ac20fbf9c8fa79d2655e405a21341fe3f86a2e8d",
+    "result": "16 passing controls and 2 intended failure at exact composed revision; actual runner with controlled subprocess/filesystem failure injection"
+  },
+  "findings": [
+    {
+      "priority": "P2",
+      "path": "scripts/conformance/autobahn.py",
+      "ranges": [
+        [
+          257,
+          279
+        ]
+      ],
+      "contract": "failed Docker log command and interrupted log retention both remain visible",
+      "observed": "KeyboardInterrupt writing container.log loses prior log status 7 and controlled log failure diagnostic; suite/removal failures still survive",
+      "remedy": "include KeyboardInterrupt in existing log-retention aggregation; keep lone original interruption when no prior command failure exists"
+    },
+    {
+      "priority": "P2",
+      "path": "scripts/conformance/autobahn.py",
+      "ranges": [
+        [
+          479,
+          495
+        ]
+      ],
+      "contract": "interrupted summary retention preserves existing suite/cleanup causes in diagnostics",
+      "observed": "only controlled summary interruption is raised after conformance failure and removal status 9; previously collected causes do not render",
+      "remedy": "include KeyboardInterrupt in existing summary-retention aggregation, as TLS runner already does"
+    },
+    {
+      "priority": "P3",
+      "path": "CONTRIBUTING.md",
+      "ranges": [
+        [
+          277,
+          280
+        ]
+      ],
+      "contract": "documentation does not promise durable report on report-write failure",
+      "observed": "unconditional remain in its report overstates retention when summary cannot be written",
+      "remedy": "say report or diagnostics and keep late daemon creation qualification"
+    }
+  ],
+  "accepted": [
+    "both direct/package imports use canonical shared owner functions",
+    "Autobahn repeated ownership/removal implementation removed, no unused wrapper",
+    "suite/readiness/logging policies remain with actual consumer and retain 30-second cleanup deadlines",
+    "TLS workflow adds both previously missing shared paths; Autobahn wildcard already covers them",
+    "source grouping added by root separates inspection, absence, log collection and removal"
+  ],
+  "verification": [
+    "root composed 84 Windows methods pass; full log read",
+    "root composed 84 Linux methods pass; full log read",
+    "root Linux Ruff lint/format and four direct/module help logs pass; full logs read",
+    "independent expanded harmless reproduction: 18 methods, 16 pass, 2 intended failure"
+  ],
+  "limits": [
+    "No Docker daemon, actual suite, OS signal, Cargo or measured cancellation executed",
+    "initial whole-log reads/captured output remain outside retained-size cap",
+    "absence after launch timeout does not cancel late daemon work",
+    "shared helper and TLS source match earlier exact independently reviewed sources; new root migration and relevant contracts reviewed here",
+    "Review covers this composition, not entire architecture audit"
+  ]
+}

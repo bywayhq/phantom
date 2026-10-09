@@ -315,9 +315,22 @@ the source at `78e664a0` with a required workflow trigger correction. Twelve
 source identities and ranges and eight retained log hashes were verified
 before import. Composition removes duplicated Autobahn container inspection
 and removal in favor of the same concrete owner checks. The combined
-84-method Windows suite passes. This does not establish actual Docker
-cleanup, cancellation of late daemon work, or bounded initial log memory.
-Composed independent review and Linux checks remain pending.
+84-method suite passes on Windows and Linux. The
+[composition review](a57-shared-composition-independent-review.json)
+then requires two interrupted Autobahn retention repairs. The
+[follow-up](a57-shared-composition-followup-review.json) approves their
+exact source at `54ebd468`: 88 composed methods pass on Windows and Linux,
+and an independent 21-method run confirms both CLI diagnostics. Thirty
+further historical source records were checked before importing the two
+composition reviews and the WPT review below. Full and partial credit remain
+distinct. These checks do not establish actual Docker cleanup, cancellation
+of late daemon work, or bounded initial log memory. Final gates remain open.
+
+The [WPT acquisition review](a56-production-independent-review.json)
+records a required repair at `18319655`. Its actual Windows child control
+exposes files deleted before the acquired child exits. The existing 25
+methods passing does not approve that ownership boundary. Native acquisition,
+serialization and combined interruption repairs remain under review.
 
 ## Limits of the record
 

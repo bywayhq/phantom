@@ -1,0 +1,218 @@
+{
+  "verdict": "request changes: native process acquisition interruption loses ownership",
+  "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+  "records": [
+    {
+      "path": "scripts/conformance/wpt_eventsource.py",
+      "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+      "git_blob": "2f6e7af408e0bfaeadef0a980824a3ed53be3a0f",
+      "sha256": "3b2156c112bc72aa62e8bbfb6409d1ad7f222df0a97d33cfdbfe7626638584ae",
+      "working_byte_sha256": "1c014cc1e8dde5948937622cdf301edcaeac26e5f2064450b24613ad2871c828",
+      "lines": 701,
+      "ranges": [
+        [
+          1,
+          701
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "independent manual read; A56 acquisition finding unresolved"
+    },
+    {
+      "path": "scripts/conformance/tests/test_wpt_eventsource.py",
+      "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+      "git_blob": "cf33bdac0c3f5f3e9ee259c6e28b5e169aaffa4f",
+      "sha256": "1afa442e8c3d0c6681fc6767c20363bcc47bd3525b990753ef06c823bd041da9",
+      "working_byte_sha256": "91e77d99253febb9a57e7baad601977884d73afe2b04c13b71a2a06af77b4236",
+      "lines": 757,
+      "ranges": [
+        [
+          1,
+          757
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "independent manual read; A56 acquisition finding unresolved"
+    },
+    {
+      "path": ".github/workflows/wpt-eventsource.yml",
+      "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+      "git_blob": "0c73dfc296b9a39e038d4fdc347e293e1a898c11",
+      "sha256": "2206f5d59e341cef42c2ea474f847a03cd9c65e7489cf166c30bfac0fd0eb007",
+      "working_byte_sha256": "9bccdba4286bedc43982e8ef592dc3a1fbedc739ab5d4ab8a26213ff14e15bb5",
+      "lines": 111,
+      "ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "scope": "full source",
+      "disposition": "independent manual read; A56 acquisition finding unresolved"
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/full.json",
+      "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+      "git_blob": "7656a54605fbfec404b6eda93276126d29208a9e",
+      "sha256": "d26eaa11652e2a76a6d49971ca332237a253e0b34baa7d14ad205f70ae741644",
+      "working_byte_sha256": "454f42b6ec88c7fee30b04d5d4b2916c6e372646fa0767a6804af120bc9977b8",
+      "lines": 34,
+      "ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "scope": "full source",
+      "disposition": "independent manual read; A56 acquisition finding unresolved"
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/smoke.json",
+      "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+      "git_blob": "6e34ebb8a059e55e10ca3903f029682258d84ab3",
+      "sha256": "d3ce0383b15ff53ee3f1e9d38e36314eebe2a8a21af7b996f4e4314ea951ca34",
+      "working_byte_sha256": "62be2b968ed2ac7a74d1cbc701106f363adb3ac5a81f4210d694e9627a7980ee",
+      "lines": 16,
+      "ranges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "scope": "full source",
+      "disposition": "independent manual read; A56 acquisition finding unresolved"
+    },
+    {
+      "path": "crates/phantom/examples/wpt_eventsource/main.rs",
+      "revision": "18319655224556055006f13ef4d08a0bf6ff3afa",
+      "git_blob": "81042c3f14ab58c78b4cdedd9717e8157f6ef9b2",
+      "sha256": "fcc345b0cf680d8dcd654bcf1830673a0c21f43033ca4b1c17da2acffba62216",
+      "working_byte_sha256": "87de4f49af75119d8a4cf0a25da7833eefd300e8e9efe3e3c3b5e3c365872480",
+      "lines": 237,
+      "ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "independent manual read; A56 acquisition finding unresolved"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\wpt-pinned-source\\server.py",
+      "revision": "7dbbcb8bcbf62683e6ac095da7d95a84b3672ab5",
+      "git_blob": "e34cd3601d42dbee60ac318c251e27261d929499",
+      "sha256": "5f8c2d15018bdc9d0600cc3f3dfaac9db5a715e7ed3686e611f251f1c71f1dee",
+      "lines": 1062,
+      "ranges": [
+        [
+          171,
+          320
+        ],
+        [
+          899,
+          1016
+        ]
+      ],
+      "scope": "bounded upstream server construction, serving and shutdown methods"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\process.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "9a5f6ca49fb78452678bed74f9b09491c688571f9f09edb97758933294356513",
+      "lines": 438,
+      "ranges": [
+        [
+          110,
+          126
+        ]
+      ],
+      "scope": "bounded BaseProcess.start ownership/finalization source"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\popen_spawn_win32.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "03dbaf94f9a13bc241ccd70453f1a68b1d90fea6095b53576605cfc2d379028d",
+      "lines": 131,
+      "ranges": [
+        [
+          44,
+          95
+        ]
+      ],
+      "scope": "bounded Popen.__init__ ownership/finalization source"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\util.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "027d6642308f741f94d44fc79c23e4d1a1c275159823720ccb05b0a8e705450a",
+      "lines": 489,
+      "ranges": [
+        [
+          320,
+          360
+        ]
+      ],
+      "scope": "bounded _exit_function ownership/finalization source"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-independent-focused-windows.log",
+      "sha256": "cfd641a7a179b66967b1f6aa505f33ae4303145ef13a2c90f58af988a81b88c9",
+      "scope": "reviewer-executed and full retained log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-independent-ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "scope": "reviewer-executed and full retained log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-independent-ruff-format.log",
+      "sha256": "97d85b4b6c185a05396e2d09a3c304ff0f7cc77f8b7b7bb7989ec6cd875b3898",
+      "scope": "reviewer-executed and full retained log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-independent-acquisition-repro-windows.log",
+      "sha256": "d7b8087703e9ecf2fcaef7f1fd789496b70f53ea1e595d8e8f0d48cfe7d5db28",
+      "scope": "reviewer-executed and full retained log read"
+    }
+  ],
+  "reproduction": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-independent-acquisition-repro.py",
+    "sha256": "35853d73775bda5a5dd3979e43c16eb4b94db22e64c49fcb02876daaf973ac35",
+    "control": "actual Windows spawn; independent external child-start marker; no TLS socket",
+    "injection": "KeyboardInterrupt after native _Popen constructor returns but before BaseProcess._popen assignment",
+    "observed": "child alive after run cleanup; scratch deleted; child stop observes source and certificate absent; child exits 1",
+    "cleanup": "reviewer retained exact spawned native handle, waited/reaped and finalized it; no unrelated process touched"
+  },
+  "findings": [
+    {
+      "id": "A56-independent-01",
+      "priority": "high",
+      "path": "scripts/conformance/wpt_eventsource.py",
+      "ranges": [
+        [
+          334,
+          357
+        ],
+        [
+          597,
+          620
+        ]
+      ],
+      "cause": "Process.start installs _popen only after native creation/serialization returns; unmasked SIGINT can interrupt before assignment",
+      "contract": "keep every acquired child owned and reap before deleting source/certificate files",
+      "remedy": "defer native SIGINT across process acquisition until the process handle is installed, then propagate interruption through owned cleanup; inspect synchronous partial native acquisition errors separately",
+      "required_regression": "actual SIGINT at the acquisition boundary and actual spawn; retain scratch through observed child exit and preserve interruption/failure report"
+    }
+  ],
+  "limitations": [
+    "Independent tests passed all 25 existing controls, which did not cover the acquisition boundary.",
+    "Native spawn fixture creates no TLS/WPT socket; no live WPT acceptance, browser parity, Linux/macOS process control or full integration gate claim.",
+    "Python 3.10 _exit_function joins active children without timeout: explicit owner waits are bounded, but impossible OS teardown cannot establish an absolute interpreter exit deadline.",
+    "Synchronous serialization/pipe failure after native process creation requires source assessment; it was not independently reproduced here.",
+    "Root must add breaking summary migration/change documentation and repeat combined platform verification.",
+    "Only main Rust adapter and pinned server boundary were reviewed; other scenario handlers/config/router are outside this independent change review."
+  ]
+}
