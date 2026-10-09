@@ -198,7 +198,7 @@ where
                         length == 0
                     } else {
                         length.is_multiple_of(6)
-                            && payload.chunks_exact(6).all(|setting| {
+                            && payload.as_chunks::<6>().0.iter().all(|setting| {
                                 let id = u16::from_be_bytes([setting[0], setting[1]]);
                                 let value = u32::from_be_bytes([
                                     setting[2], setting[3], setting[4], setting[5],
@@ -237,14 +237,12 @@ where
                 super::h2::write_frame(stream, kind, 1, 0, acknowledgement).await?;
                 stream.flush().await?;
             }
-            7 => {
-                if payload[4..8] != [0, 0, 0, 0] {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "peer sent HTTP/2 GOAWAY with an error",
-                    )
-                    .into());
-                }
+            7 if payload[4..8] != [0, 0, 0, 0] => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "peer sent HTTP/2 GOAWAY with an error",
+                )
+                .into());
             }
             _ => {}
         }
