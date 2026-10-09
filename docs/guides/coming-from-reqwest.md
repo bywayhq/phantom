@@ -30,7 +30,7 @@ choices, so Phantom asks you to make them
 - Phantom adds no headers such as `User-Agent`, and sends yours in the
   order you add them.
 - `PreparedRequestBody` encodes bounded form, JSON and multipart bodies.
-  JSON needs the `json` feature. Build URL query strings yourself.
+  JSON needs the `json` feature. `query_pairs` appends ordered string pairs.
 - [Environment proxies](routes-and-proxies.md#read-proxy-settings-from-the-environment)
   require an explicit snapshot.
 
@@ -40,7 +40,7 @@ choices, so Phantom asks you to make them
 | ALPN picks the protocol | `HttpProtocol` per request, or `get_negotiated` |
 | `default_headers`, `user_agent` | A [request template](request-templates.md), or `RequestHeader`s per request |
 | `json`, `form` | [`PreparedRequestBody`](request-bodies.md), then `prepared_body` |
-| `query` | Your own URL query builder |
+| `query` | `RequestBuilder::query_pairs` for string pairs |
 | Follows 10 redirects | `RedirectPolicy::limited(n)` |
 | `timeout`, `connect_timeout`, `read_timeout` | `RequestTimeouts` |
 | `Proxy::all` | `Route` with `HttpProxy`, `Socks5Proxy` or `ConnectUdpProxy` |
