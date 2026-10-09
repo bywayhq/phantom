@@ -248,7 +248,8 @@ fn prepare_profiled_request_head(
     request
         .extensions_mut()
         .insert(pseudo_header_order(request_settings)?);
-    validate_request(&request)?;
+    // ValidatedHeaders checks supplied fields before cookies are split.
+    validate_request_target(&request)?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
     Ok(request)
@@ -278,7 +279,8 @@ pub(super) fn prepare_request_body_with_trailers(
 ) -> Result<PreparedRequest, Http3Error> {
     PreparedTrailers::validate_body_plan(body.as_ref(), &trailers)?;
     apply_content_length(&mut request, body.as_ref().map(RequestBody::metadata))?;
-    validate_request(&request)?;
+    validate_request_target(&request)?;
+    validate_semantic_headers(request.headers())?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
     Ok(PreparedRequest {
@@ -339,7 +341,7 @@ fn exact_body_length(metadata: Option<RequestBodyMetadata>) -> Result<u64, Http3
     }
 }
 
-fn validate_request(request: &Request<()>) -> Result<(), Http3Error> {
+fn validate_request_target(request: &Request<()>) -> Result<(), Http3Error> {
     let uri = request.uri();
     if uri.scheme() != Some(&Scheme::HTTPS) || uri.authority().is_none() {
         return Err(invalid("HTTP/3 requests require an absolute HTTPS URI"));
@@ -358,9 +360,10 @@ fn validate_request(request: &Request<()>) -> Result<(), Http3Error> {
         ));
     }
 
-    validate_semantic_headers(request.headers())
+    Ok(())
 }
 
+#[cfg(test)]
 fn validate_semantic_headers(headers: &HeaderMap) -> Result<(), Http3Error> {
     if headers.len() > MAX_REQUEST_HEADERS {
         return Err(invalid("HTTP/3 request has too many headers"));
@@ -497,7 +500,6 @@ pub(super) fn prepare_extended_connect(
         .insert(OrderedHeaders::new(headers.ordered));
     request.extensions_mut().insert(protocol);
     request.extensions_mut().insert(pseudo_order);
-    validate_semantic_headers(request.headers())?;
     validate_ordered_headers(&request)?;
     Ok(request)
 }
