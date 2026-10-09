@@ -43,7 +43,7 @@ futures-util = { version = "=0.3.34", optional = true, default-features = false,
 parking_lot = { version = "=0.12.5", optional = true }
 phantom-net = { version = "=0.1.0", path = "../phantom-net" }
 phantom-profile = { version = "=0.1.0", path = "../phantom-profile" }
-psl = { version = "=2.1.238", optional = true }
+psl = { version = "=2.1.239", optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { version = "1.0.151", optional = true }
 sfv.workspace = true
