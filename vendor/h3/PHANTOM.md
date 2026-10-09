@@ -111,6 +111,20 @@ raw control-stream differential. Its explicit dynamic request policy waits for
 peer SETTINGS, then uses a connection-owned encoder. Stateless request encoding
 remains the default for other profiles.
 
+## Exact frame payload lengths
+
+`patches/frame-payload-length.patch` rejects a complete frame payload whose
+inner identifier is truncated. CANCEL_PUSH, GOAWAY and MAX_PUSH_ID also
+reject bytes after their single identifier. These failures produce
+`H3_FRAME_ERROR` before the decoded frame reaches its caller.
+
+A fragmented outer frame still waits for its remaining bytes. All legal
+variable-length identifier encodings remain accepted. PUSH_PROMISE retains
+its QPACK field section after the identifier, and unknown frames retain the
+incremental skip behavior below. Tests cover each identifier width, partial
+outer frames and complete malformed payloads. A controlled QUIC peer test
+checks the local error and the peer's connection-close code.
+
 ## Receive-frame buffering
 
 `patches/receive-bounds.patch` skips unknown frame payloads incrementally.

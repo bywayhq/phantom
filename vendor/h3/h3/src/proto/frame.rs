@@ -109,6 +109,7 @@ impl Frame<PayloadLen> {
             return Err(FrameError::Incomplete(minimum));
         }
 
+        // The complete declared payload is present: truncated inner fields are malformed.
         let mut payload = buf.take(payload_len);
 
         #[cfg(feature = "tracing")]
@@ -117,10 +118,24 @@ impl Frame<PayloadLen> {
         let frame = match ty {
             FrameType::HEADERS => Ok(Frame::Headers(payload.copy_to_bytes(payload_len))),
             FrameType::SETTINGS => Ok(Frame::Settings(Settings::decode(&mut payload)?)),
-            FrameType::CANCEL_PUSH => Ok(Frame::CancelPush(payload.get_var()?.try_into()?)),
-            FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(PushPromise::decode(&mut payload)?)),
-            FrameType::GOAWAY => Ok(Frame::Goaway(VarInt::decode(&mut payload)?)),
-            FrameType::MAX_PUSH_ID => Ok(Frame::MaxPushId(payload.get_var()?.try_into()?)),
+            FrameType::CANCEL_PUSH => Ok(Frame::CancelPush(
+                payload
+                    .get_var()
+                    .map_err(|_| FrameError::Malformed)?
+                    .try_into()?,
+            )),
+            FrameType::PUSH_PROMISE => Ok(Frame::PushPromise(
+                PushPromise::decode(&mut payload).map_err(|_| FrameError::Malformed)?,
+            )),
+            FrameType::GOAWAY => Ok(Frame::Goaway(
+                VarInt::decode(&mut payload).map_err(|_| FrameError::Malformed)?,
+            )),
+            FrameType::MAX_PUSH_ID => Ok(Frame::MaxPushId(
+                payload
+                    .get_var()
+                    .map_err(|_| FrameError::Malformed)?
+                    .try_into()?,
+            )),
             //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
             //# These frame
             //# types MUST NOT be sent, and their receipt MUST be treated as a
@@ -131,13 +146,18 @@ impl Frame<PayloadLen> {
             | FrameType::H2_CONTINUATION => Err(FrameError::UnsupportedFrame(ty.0)),
             FrameType::WEBTRANSPORT_BI_STREAM | FrameType::DATA => unreachable!(),
             _ => {
-                buf.advance(payload_len);
+                payload.advance(payload_len);
                 //= https://www.rfc-editor.org/rfc/rfc9114#section-7.2.8
                 //# Endpoints MUST
                 //# NOT consider these frames to have any meaning upon receipt.
                 Err(FrameError::UnknownFrame(ty.0))
             }
         };
+
+        // Successful decoding must consume exactly its declared payload.
+        if frame.is_ok() && payload.has_remaining() {
+            return Err(FrameError::Malformed);
+        }
 
         if let Ok(_frame) = &frame {
             #[cfg(feature = "tracing")]
