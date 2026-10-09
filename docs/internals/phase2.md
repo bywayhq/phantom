@@ -23,22 +23,21 @@ a passing focused test does not complete an item.
 
 ### 1. Routes
 
-The route lane has a shared TCP connection-leg owner and borrowed route
-values. HTTP/1.1, HTTP/2, and negotiated connectors use it for ordinary
-connections and proxy request/upgrade paths. This is an unmerged checkpoint:
-ECH/slower setup, plaintext/forwarding, and datagram routes still need
-consolidation. No route item is complete yet.
+The unmerged route lane now has one TCP connection-leg owner and route-taking
+HTTP/1.1, HTTP/2, negotiated, and HTTP/3 operations. It includes ECH,
+keep-slower setup, supplied streams, plaintext, forwarding, SOCKS5, and
+CONNECT-UDP. Independent reviews approved the protocol migrations and their
+validation and cancellation tests. Redundant public setup helpers are being
+removed; reusable raw-stream operations and the CONNECT parsing seam remain.
+No route item is complete until integration passes.
 
-Checkpoint `0a513cdc` passed formatting, workspace Clippy with all targets
-and features, and 623 focused tests. The tests cover connection future size,
-TCP settings/keepalive, TLS, route DNS ownership, source binding, proxies,
-and WebSockets. Independent review approved the ordinary connection,
-request, and upgrade consolidation after the migration fixes. The full
-integration gate and CI remain required. Ordinary TCP connection methods are
-removed. HTTP/1.1 route-specific request and TLS Upgrade methods are removed
-in favor of route-taking operations. HTTP/2 requests and extended CONNECT
-openings use routes too. ECH/slower, plaintext/forwarding, and datagram
-operation families remain pending.
+Checkpoint `e5558486` passed workspace Clippy with all targets and features.
+The earlier `c8544893` checkpoint passed 341 focused tests covering HTTP/3,
+route legs, DNS ownership, source binding, WebSockets, and setup future size.
+Before the final protocol migrations, `0a513cdc` passed formatting, workspace
+Clippy, and 623 focused tests. These results cover their named checkpoints;
+the combined runtime checks, downstream checks, full gate, and CI remain
+required.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
