@@ -221,9 +221,7 @@ mod tests {
 
     #[test]
     fn http_route_debug_redacts_basic_credentials() -> Result<(), Box<dyn std::error::Error>> {
-        let mut canary = [0_u8; 16];
-        btls::rand::rand_bytes(&mut canary)?;
-        let password = format!("{canary:02x?}");
+        let password = format!("{:?}", std::time::Instant::now());
         let credentials = HttpBasicCredentials::new("private-user", &password)?;
         let route = TcpRoute::HttpConnect(HttpConnectRoute {
             proxy: ProxyTransport::Tcp(Endpoint {

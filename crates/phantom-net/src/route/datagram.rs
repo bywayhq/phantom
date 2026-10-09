@@ -121,9 +121,7 @@ mod tests {
             &chromium::v154_http3(),
             &chromium::v154_http3_request(),
         )?;
-        let mut canary = [0_u8; 16];
-        btls::rand::rand_bytes(&mut canary)?;
-        let password = format!("{canary:02x?}");
+        let password = format!("{:?}", std::time::Instant::now());
         let credentials = HttpBasicCredentials::new("private-user", &password)?;
         let route = DatagramRoute::ConnectUdp(ConnectUdpRoute {
             proxy: Endpoint {
