@@ -96,6 +96,9 @@ struct State {
     entries: HashMap<Box<str>, Entry>,
     /// Shared resolutions in flight, at most `max_entries` of them.
     pending: HashMap<PendingKey, watch::Receiver<Option<Outcome>>>,
+    /// Shared resolutions still running, including those a clear detached
+    /// from `pending`. Their publishers release these reservations on drop.
+    shared_resolutions: usize,
     /// Advanced by [`AddressCache::clear`], so that a resolution started
     /// before the clear does not store its answer after it.
     generation: u64,
@@ -326,7 +329,7 @@ impl AddressCache {
             return Ok(Answer::Wait(receiver.clone()));
         }
         let generation = state.generation;
-        let shared = state.pending.len() < self.inner.settings.max_entries.get();
+        let shared = state.shared_resolutions < self.inner.settings.max_entries.get();
         if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
             drop(state);
             let resolution = resolver.lookup(&key.0);
@@ -338,6 +341,7 @@ impl AddressCache {
         }
         let (sender, receiver) = watch::channel(None);
         if shared {
+            state.shared_resolutions += 1;
             state.pending.insert(key.clone(), receiver.clone());
         }
         drop(state);
@@ -475,9 +479,14 @@ impl Publisher {
 
 impl Drop for Publisher {
     fn drop(&mut self) {
-        if self.sender.take().is_some() {
-            self.cache
-                .lock()
+        let unanswered = self.sender.take().is_some();
+        let mut state = self.cache.lock();
+        if self.shared {
+            state.shared_resolutions -= 1;
+        }
+
+        if unanswered {
+            state
                 .pending
                 .retain(|_, receiver| receiver.has_changed().is_ok());
         }

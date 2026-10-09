@@ -1,11 +1,14 @@
 use std::{
+    future::{Future, poll_fn},
     io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6},
     num::NonZeroUsize,
+    pin::Pin,
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
+    task::Poll,
     time::Duration,
 };
 
@@ -658,4 +661,158 @@ async fn lookups_past_the_shared_bound_run_inline_and_are_stored() -> TestResult
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     hung.abort();
     Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn clearing_and_cancelling_lookups_preserves_the_background_work_bound() -> TestResult {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let active = Arc::new(AtomicUsize::new(0));
+        let started = Arc::new(AtomicUsize::new(0));
+        let (open, gate) = watch::channel(false);
+        let resolver = gated_resolver(&active, &started, gate);
+        let cache =
+            AddressCache::with_resolver(settings(1, Duration::from_secs(600), None), resolver);
+
+        let mut first = Box::pin(cache.lookup("origin.phantom.test", 443));
+        assert!(!poll_lookup_once(&mut first).await);
+        while active.load(Ordering::SeqCst) == 0 {
+            tokio::task::yield_now().await;
+        }
+        drop(first);
+
+        for expected in 2..=5 {
+            cache.clear();
+            let mut next = Box::pin(cache.lookup("origin.phantom.test", 443));
+            assert!(!poll_lookup_once(&mut next).await);
+            drop(next);
+            while started.load(Ordering::SeqCst) < expected {
+                tokio::task::yield_now().await;
+            }
+
+            assert_eq!(
+                active.load(Ordering::SeqCst),
+                1,
+                "a cleared lookup must still count against background capacity"
+            );
+        }
+
+        open.send(true)?;
+        while active.load(Ordering::SeqCst) != 0 {
+            tokio::task::yield_now().await;
+        }
+        assert!(cache.is_empty(), "the old generation must not publish");
+
+        open.send(false)?;
+        let mut later = Box::pin(cache.lookup("origin.phantom.test", 443));
+        assert!(!poll_lookup_once(&mut later).await);
+        drop(later);
+        while started.load(Ordering::SeqCst) < 6 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(
+            active.load(Ordering::SeqCst),
+            1,
+            "completed old work must release capacity for a new background lookup"
+        );
+
+        open.send(true)?;
+        assert_eq!(
+            cache.lookup("origin.phantom.test", 443).await?,
+            [SocketAddr::new(V4, 443)]
+        );
+        assert_eq!(active.load(Ordering::SeqCst), 0);
+        Ok::<_, Box<dyn std::error::Error>>(())
+    })
+    .await?
+}
+
+#[test]
+fn dropping_the_resolver_runtime_releases_background_capacity_after_clear() -> TestResult {
+    let active = Arc::new(AtomicUsize::new(0));
+    let started = Arc::new(AtomicUsize::new(0));
+    let (open, gate) = watch::channel(false);
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), None),
+        gated_resolver(&active, &started, gate),
+    );
+    let first = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+
+    first.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut lookup = Box::pin(cache.lookup("origin.phantom.test", 443));
+            assert!(!poll_lookup_once(&mut lookup).await);
+            while active.load(Ordering::SeqCst) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+    })?;
+    cache.clear();
+    drop(first);
+    assert_eq!(active.load(Ordering::SeqCst), 0);
+
+    let second = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    second.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut lookup = Box::pin(cache.lookup("origin.phantom.test", 443));
+            assert!(!poll_lookup_once(&mut lookup).await);
+            drop(lookup);
+            while started.load(Ordering::SeqCst) < 2 {
+                tokio::task::yield_now().await;
+            }
+            assert_eq!(
+                active.load(Ordering::SeqCst),
+                1,
+                "a dropped runtime must free the old background reservation"
+            );
+
+            open.send(true)?;
+            assert_eq!(
+                cache.lookup("origin.phantom.test", 443).await?,
+                [SocketAddr::new(V4, 443)]
+            );
+            Ok::<_, Box<dyn std::error::Error>>(())
+        })
+        .await?
+    })
+}
+
+/// Counts live resolver futures independently of the cache's bookkeeping.
+struct LiveLookup(Arc<AtomicUsize>);
+
+impl Drop for LiveLookup {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+fn gated_resolver(
+    active: &Arc<AtomicUsize>,
+    started: &Arc<AtomicUsize>,
+    gate: watch::Receiver<bool>,
+) -> AddressResolver {
+    let active = Arc::clone(active);
+    let started = Arc::clone(started);
+    AddressResolver::from_fn(move |_| {
+        let active = Arc::clone(&active);
+        let started = Arc::clone(&started);
+        let mut gate = gate.clone();
+        async move {
+            active.fetch_add(1, Ordering::SeqCst);
+            let _live = LiveLookup(active);
+            started.fetch_add(1, Ordering::SeqCst);
+            gate.wait_for(|open| *open)
+                .await
+                .map_err(io::Error::other)?;
+            Ok(vec![V4])
+        }
+    })
+}
+
+async fn poll_lookup_once<F: Future>(lookup: &mut Pin<Box<F>>) -> bool {
+    poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context).is_ready())).await
 }
