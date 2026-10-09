@@ -191,7 +191,42 @@ pub(crate) struct ClientState {
 
 impl ClientOptions {
     /// Checks the options that do not depend on the transport.
-    pub(crate) fn validate_policies(&self) -> Result<(), BuildError> {
+    pub(crate) fn validate_policies(
+        &self,
+        profile_http1_bound: NonZeroUsize,
+    ) -> Result<(), BuildError> {
+        for (bound, message) in [
+            (
+                self.max_concurrent_http1_requests_per_origin
+                    .unwrap_or(profile_http1_bound),
+                "HTTP/1.1 active-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_pending_http1_requests_per_origin,
+                "HTTP/1.1 pending-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_concurrent_http2_requests_per_origin,
+                "HTTP/2 active-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_pending_http2_requests_per_origin,
+                "HTTP/2 pending-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_concurrent_http3_requests_per_origin,
+                "HTTP/3 active-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_pending_http3_requests_per_origin,
+                "HTTP/3 pending-request bound exceeds the semaphore limit",
+            ),
+        ] {
+            if bound.get() > tokio::sync::Semaphore::MAX_PERMITS {
+                return Err(BuildError::invalid_policy(message));
+            }
+        }
+
         if !self.request_timeouts.validate() {
             return Err(BuildError::invalid_policy(
                 "request timeout exceeds the runtime clock range",

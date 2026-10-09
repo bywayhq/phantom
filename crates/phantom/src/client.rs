@@ -1457,6 +1457,10 @@ impl ClientBuilder {
     /// profile's [`Http1Settings`] bound. Without either, the bound is one
     /// connection.
     ///
+    /// [`Self::build`] rejects a bound above [`tokio::sync::Semaphore::MAX_PERMITS`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
+    /// This also applies to the profile's bound when no override is set.
+    ///
     /// [`Http1Settings`]: crate::profile::Http1Settings
     pub fn max_concurrent_http1_requests_per_origin(
         mut self,
@@ -1471,6 +1475,9 @@ impl ClientBuilder {
     /// The default is 100. A pool key is the origin plus the complete route.
     /// A request beyond the limit fails with
     /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
+    ///
+    /// [`Self::build`] rejects a bound above [`tokio::sync::Semaphore::MAX_PERMITS`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     pub fn max_pending_http1_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1494,6 +1501,9 @@ impl ClientBuilder {
     /// The default is 100. The peer's stream limit also caps active requests.
     /// The bound covers all of a pool key's connections when
     /// [`Self::max_http2_connections_per_origin`] allows more than one.
+    ///
+    /// [`Self::build`] rejects a bound above [`tokio::sync::Semaphore::MAX_PERMITS`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     pub fn max_concurrent_http2_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1506,6 +1516,9 @@ impl ClientBuilder {
     ///
     /// The default is 100. A request beyond the limit fails with
     /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
+    ///
+    /// [`Self::build`] rejects a bound above [`tokio::sync::Semaphore::MAX_PERMITS`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     pub fn max_pending_http2_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1573,6 +1586,9 @@ impl ClientBuilder {
     /// The default is 100. The peer's stream limit also caps active requests.
     /// The bound covers all of a pool key's connections when
     /// [`Self::max_http3_connections_per_origin`] allows more than one.
+    ///
+    /// [`Self::build`] rejects a bound above [`tokio::sync::Semaphore::MAX_PERMITS`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     pub fn max_concurrent_http3_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1585,6 +1601,9 @@ impl ClientBuilder {
     ///
     /// The default is 100. A request beyond the limit fails with
     /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
+    ///
+    /// [`Self::build`] rejects a bound above [`tokio::sync::Semaphore::MAX_PERMITS`]
+    /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     pub fn max_pending_http3_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1801,7 +1820,8 @@ impl ClientBuilder {
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
     ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
     ///   delay or setup limit exceeds the runtime clock range;
-    ///   `max_http3_connections_per_origin` or
+    ///   an active or pending request bound exceeds
+    ///   [`tokio::sync::Semaphore::MAX_PERMITS`]; `max_http3_connections_per_origin` or
     ///   `max_http2_proxy_connections_per_route` is above its ceiling; disabled
     ///   authentication is combined with added roots, HTTP/3, or a
     ///   CONNECT-UDP route; Alt-Svc is enabled without negotiated H1/H2
@@ -1828,7 +1848,11 @@ impl ClientBuilder {
                 "max_http2_proxy_connections_per_route exceeds HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING",
             ));
         }
-        self.options.validate_policies()?;
+        self.options.validate_policies(
+            self.profile
+                .http1()
+                .map_or(NonZeroUsize::MIN, |http1| http1.max_connections_per_origin),
+        )?;
         #[cfg(feature = "https-records")]
         if let Some(udp) = self.profile.udp() {
             self.options.https_record_resolver = self
