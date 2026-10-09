@@ -126,17 +126,18 @@ where
         observed_headers.begin();
         let (mut sender, connection) = connection_builder()
             .handshake::<_, Empty<Bytes>>(stream)
-            .await?;
+            .await
+            .map_err(Http1Error::protocol)?;
         let driver = DriverTask::spawn(&runtime, connection.with_upgrades());
 
-        sender.ready().await?;
+        sender.ready().await.map_err(Http1Error::protocol)?;
         let mut response = match sender.try_send_request(prepared.into_request()).await {
             Ok(response) => response,
             Err(error) => {
                 driver.finish(DriverSignal::ProtocolError);
                 return Err(observed_headers
                     .take_limit_error()
-                    .unwrap_or_else(|| error.into_error().into()));
+                    .unwrap_or_else(|| Http1Error::protocol(error.into_error())));
             }
         };
         if let Some(error) = observed_headers.take_limit_error() {
@@ -168,7 +169,7 @@ where
         let (mut parts, incoming) = response.into_parts();
         drop(incoming);
         parts.extensions.insert(ordered_headers);
-        let upgraded = pending_upgrade.await?;
+        let upgraded = pending_upgrade.await.map_err(Http1Error::protocol)?;
         driver.finish(DriverSignal::Complete);
         if let Some(keepalive) = &keepalive {
             keepalive.upgraded();

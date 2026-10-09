@@ -24,6 +24,31 @@ pub use body::Http1Body;
 pub use connection::Http1Connection;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 
+/// Opaque failure from the HTTP/1.1 protocol driver.
+///
+/// You can inspect the underlying failure through [`StdError::source`].
+pub struct Http1ProtocolError {
+    source: wreq_proto::Error,
+}
+
+impl fmt::Debug for Http1ProtocolError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.source, formatter)
+    }
+}
+
+impl fmt::Display for Http1ProtocolError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.source, formatter)
+    }
+}
+
+impl StdError for Http1ProtocolError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.source)
+    }
+}
+
 /// Error returned by an HTTP/1.1 connection or request.
 #[derive(Debug)]
 pub enum Http1Error {
@@ -162,13 +187,13 @@ pub enum Http1Error {
     /// The connection was polled outside a Tokio runtime.
     RuntimeUnavailable,
     /// The HTTP protocol driver failed.
-    Protocol(wreq_proto::Error),
+    Protocol(Http1ProtocolError),
     /// A keep-alive connection that had already delivered a response closed
     /// or was reset before any byte of this request's response arrived.
     ///
     /// The request may have reached the peer. Only the caller can decide
     /// whether replaying it on another connection is safe.
-    ReusedConnectionClosed(wreq_proto::Error),
+    ReusedConnectionClosed(Http1ProtocolError),
 }
 
 impl fmt::Display for Http1Error {
@@ -298,25 +323,31 @@ impl fmt::Display for Http1Error {
 impl StdError for Http1Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            Self::Protocol(error) | Self::ReusedConnectionClosed(error) => Some(error),
+            Self::Protocol(error) | Self::ReusedConnectionClosed(error) => Some(&error.source),
             _ => None,
         }
     }
 }
 
-impl From<wreq_proto::Error> for Http1Error {
-    fn from(error: wreq_proto::Error) -> Self {
+impl Http1Error {
+    fn protocol(error: wreq_proto::Error) -> Self {
         if error.is_chunk_size_line_too_large() {
             Self::ChunkSizeLineTooLarge {
                 maximum: limits::MAX_CHUNK_SIZE_LINE_BYTES,
             }
         } else {
-            Self::Protocol(error)
+            Self::driver(error)
         }
     }
-}
 
-impl Http1Error {
+    fn driver(error: wreq_proto::Error) -> Self {
+        Self::Protocol(Http1ProtocolError { source: error })
+    }
+
+    fn reused_connection_closed(error: wreq_proto::Error) -> Self {
+        Self::ReusedConnectionClosed(Http1ProtocolError { source: error })
+    }
+
     fn trace_kind(&self) -> &'static str {
         match self {
             Self::TooManyHeaders { .. } => "too_many_headers",

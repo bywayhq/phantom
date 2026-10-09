@@ -81,7 +81,8 @@ impl Http1Connection {
         let (stream, observer) = ResponseHeadObserver::wrap(stream);
         let (sender, connection) = connection_builder()
             .handshake::<_, Http1RequestBody>(stream)
-            .await?;
+            .await
+            .map_err(Http1Error::protocol)?;
         Ok(Self {
             inner: Arc::new(ConnectionInner {
                 sender: Mutex::new(sender),
@@ -324,9 +325,9 @@ impl Http1Connection {
             if let Err(error) = sender.ready().await {
                 self.inner.stop(DriverSignal::ProtocolError);
                 if self.inner.closed_before_response(&error) {
-                    return Err(Http1Error::ReusedConnectionClosed(error));
+                    return Err(Http1Error::reused_connection_closed(error));
                 }
-                return Err(Http1Error::Protocol(error));
+                return Err(Http1Error::driver(error));
             }
             let request_allows_reuse = prepared.allows_reuse();
             let continue_signal = prepared.continue_signal().cloned();
@@ -341,9 +342,9 @@ impl Http1Connection {
                     }
                     let error = error.into_error();
                     if self.inner.closed_before_response(&error) {
-                        return Err(Http1Error::ReusedConnectionClosed(error));
+                        return Err(Http1Error::reused_connection_closed(error));
                     }
-                    return Err(error.into());
+                    return Err(Http1Error::protocol(error));
                 }
             };
             if let Some(error) = self.inner.observer.take_limit_error() {

@@ -1001,7 +1001,25 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
         })
         .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
-        assert!(matches!(result, Err(Http1Error::Protocol(_))));
+        let error = result.expect_err("malformed response must fail");
+        let Http1Error::Protocol(protocol) = &error else {
+            panic!("expected protocol failure: {error:?}");
+        };
+        let source = std::error::Error::source(&error)
+            .and_then(|source| source.downcast_ref::<wreq_proto::Error>())
+            .expect("outer error must retain the direct backend source");
+        assert!(source.is_parse());
+        let wrapped_source = std::error::Error::source(protocol)
+            .and_then(|source| source.downcast_ref::<wreq_proto::Error>())
+            .expect("opaque error must expose its backend source");
+        assert!(std::ptr::eq(source, wrapped_source));
+        assert_eq!(protocol.to_string(), source.to_string());
+        assert_eq!(format!("{protocol:?}"), format!("{source:?}"));
+        assert_eq!(
+            error.to_string(),
+            format!("HTTP/1.1 protocol error: {source}")
+        );
+        assert_eq!(format!("{error:?}"), format!("Protocol({source:?})"));
         assert_eq!(
             subscriber.outcomes_for("http1.response_head"),
             ["protocol_error"]
