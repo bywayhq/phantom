@@ -20,7 +20,10 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{sync::oneshot, task::JoinSet, time::timeout};
 
 use super::partial_download::{CleanupFailures, PartialDownload};
-use super::{BoxError, Config, MAX_REQUESTS, download_all, download_one, target::DownloadTarget};
+use super::{
+    BoxError, Config, MAX_REQUESTS, download_all, download_all_with_cleanup, download_one,
+    download_one_owned, target::DownloadTarget,
+};
 
 type TestResult<T = ()> = Result<T, BoxError>;
 const PEER_TIMEOUT: Duration = Duration::from_secs(10);
@@ -65,6 +68,16 @@ impl Drop for DownloadDirectory {
 
 fn offline_client() -> TestResult<Client> {
     Ok(Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?)
+}
+
+async fn recorded_download_one(
+    client: Client,
+    directory: PathBuf,
+    target: DownloadTarget,
+    cleanup: CleanupFailures,
+) -> TestResult {
+    let result = download_one_owned(client, directory, target, cleanup.clone()).await;
+    cleanup.finish(result)
 }
 
 #[tokio::test]
@@ -266,20 +279,23 @@ impl LoopbackPeer {
 }
 
 #[tokio::test]
-async fn successful_download_renames_only_its_observed_partial() -> TestResult {
+async fn successful_download_publishes_only_its_observed_partial() -> TestResult {
     let directory = DownloadDirectory::create()?;
     let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
     let target = DownloadTarget::loopback(peer.address)?;
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_one(
+    tasks.spawn(recorded_download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
+        cleanup.clone(),
     ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    assert!(directory.path()?.join(".first.part").exists());
+    let partial = cleanup.created_partial()?;
+    assert!(partial.exists());
     assert!(!directory.path()?.join("first").exists());
 
     peer.respond()?;
@@ -290,7 +306,8 @@ async fn successful_download_renames_only_its_observed_partial() -> TestResult {
     result??;
 
     assert_eq!(std::fs::read(directory.path()?.join("first"))?, WIRE_BODY);
-    assert!(!directory.path()?.join(".first.part").exists());
+    assert!(!partial.exists());
+    assert!(!partial.parent().ok_or("stage has no parent")?.exists());
 
     directory.finish()
 }
@@ -301,15 +318,18 @@ async fn failed_observed_download_removes_its_created_partial() -> TestResult {
     let mut peer = LoopbackPeer::bind(StatusCode::SERVICE_UNAVAILABLE)?;
     let target = DownloadTarget::loopback(peer.address)?;
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_one(
+    tasks.spawn(recorded_download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
+        cleanup.clone(),
     ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    assert!(directory.path()?.join(".first.part").exists());
+    let partial = cleanup.created_partial()?;
+    assert!(partial.exists());
 
     peer.respond()?;
     let result = timeout(PEER_TIMEOUT, tasks.join_next())
@@ -323,30 +343,37 @@ async fn failed_observed_download_removes_its_created_partial() -> TestResult {
         .ok_or("HTTP failure did not retain its cause")?;
     assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
     assert!(cause.to_string().contains("returned HTTP 503"));
-    assert!(!directory.path()?.join(".first.part").exists());
+    assert!(!partial.exists());
+    assert!(!partial.parent().ok_or("stage has no parent")?.exists());
     assert!(!directory.path()?.join("first").exists());
 
     directory.finish()
 }
 
 #[tokio::test]
-async fn failed_download_preserves_replacement_at_its_original_partial_path() -> TestResult {
+async fn failed_download_preserves_caller_replacement_of_shared_legacy_partial() -> TestResult {
     let directory = DownloadDirectory::create()?;
     let mut peer = LoopbackPeer::bind(StatusCode::SERVICE_UNAVAILABLE)?;
     let target = DownloadTarget::loopback(peer.address)?;
     let partial = directory.path()?.join(".first.part");
-    let moved = directory.path()?.join("moved-owned-file");
+    let sibling = directory.path()?.join("caller-sibling.part");
+    std::fs::write(&sibling, SENTINEL)?;
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_one(
+    tasks.spawn(recorded_download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
+        cleanup.clone(),
     ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    assert_eq!(std::fs::read(&partial)?, b"");
-    std::fs::rename(&partial, &moved)?;
+    let owned = cleanup.created_partial()?;
+    assert_eq!(std::fs::read(&owned)?, b"");
+    assert!(!partial.exists());
+    std::fs::write(&partial, b"caller-created legacy partial")?;
+    std::fs::rename(&partial, directory.path()?.join("caller-moved-file"))?;
     std::fs::write(&partial, SENTINEL)?;
     assert_eq!(std::fs::read(&partial)?, SENTINEL);
 
@@ -365,28 +392,41 @@ async fn failed_download_preserves_replacement_at_its_original_partial_path() ->
     assert!(cause.to_string().contains("returned HTTP 503"));
     assert_eq!(std::fs::read(&partial)?, SENTINEL);
     assert!(!directory.path()?.join("first").exists());
+    assert!(!owned.exists());
+    assert!(!owned.parent().ok_or("stage has no parent")?.exists());
+    assert_eq!(std::fs::read(&sibling)?, SENTINEL);
+    assert_eq!(
+        std::fs::read(directory.path()?.join("caller-moved-file"))?,
+        b"caller-created legacy partial"
+    );
 
     directory.finish()
 }
 
 #[tokio::test]
-async fn successful_download_publishes_written_file_without_consuming_replacement() -> TestResult {
+async fn successful_download_preserves_caller_replacement_of_shared_legacy_partial() -> TestResult {
     let directory = DownloadDirectory::create()?;
     let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
     let target = DownloadTarget::loopback(peer.address)?;
     let partial = directory.path()?.join(".first.part");
-    let moved = directory.path()?.join("moved-owned-file");
+    let sibling = directory.path()?.join("caller-sibling.part");
+    std::fs::write(&sibling, SENTINEL)?;
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_one(
+    tasks.spawn(recorded_download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
+        cleanup.clone(),
     ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    assert_eq!(std::fs::read(&partial)?, b"");
-    std::fs::rename(&partial, &moved)?;
+    let owned = cleanup.created_partial()?;
+    assert_eq!(std::fs::read(&owned)?, b"");
+    assert!(!partial.exists());
+    std::fs::write(&partial, b"caller-created legacy partial")?;
+    std::fs::rename(&partial, directory.path()?.join("caller-moved-file"))?;
     std::fs::write(&partial, SENTINEL)?;
     assert_eq!(std::fs::read(&partial)?, SENTINEL);
 
@@ -397,9 +437,15 @@ async fn successful_download_publishes_written_file_without_consuming_replacemen
     peer.finish().await?;
     result??;
 
-    assert_eq!(std::fs::read(&moved)?, WIRE_BODY);
+    assert!(!owned.exists());
     assert_eq!(std::fs::read(directory.path()?.join("first"))?, WIRE_BODY);
     assert_eq!(std::fs::read(&partial)?, SENTINEL);
+    assert_eq!(std::fs::read(&sibling)?, SENTINEL);
+    assert_eq!(
+        std::fs::read(directory.path()?.join("caller-moved-file"))?,
+        b"caller-created legacy partial"
+    );
+    assert!(!owned.parent().ok_or("stage has no parent")?.exists());
 
     directory.finish()
 }
@@ -462,6 +508,9 @@ fn cancelled_queued_write_cleans_its_exclusively_created_partial() -> TestResult
     runtime.block_on(async { timeout(PEER_TIMEOUT, drained).await })??;
     runtime.shutdown_timeout(PEER_TIMEOUT);
     assert!(!path.exists());
+    let owned = cleanup.created_partial()?;
+    assert!(!owned.exists());
+    assert!(!owned.parent().ok_or("stage has no parent")?.exists());
     directory.finish()
 }
 
@@ -477,11 +526,16 @@ async fn cancelled_batch_cleans_observed_partial_without_touching_foreign_paths(
         targets: vec![DownloadTarget::loopback(peer.address)?],
     };
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_all(peer.client.clone(), config));
+    tasks.spawn(download_all_with_cleanup(
+        peer.client.clone(),
+        config,
+        cleanup.clone(),
+    ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    let partial = directory.path()?.join(".first.part");
+    let partial = cleanup.created_partial()?;
     assert!(partial.exists());
     tasks.abort_all();
     let joined = timeout(PEER_TIMEOUT, tasks.join_next())
@@ -495,8 +549,9 @@ async fn cancelled_batch_cleans_observed_partial_without_touching_foreign_paths(
     );
     peer.cancel().await?;
 
+    let stage = partial.parent().ok_or("stage has no parent")?;
     timeout(PEER_TIMEOUT, async {
-        while partial.exists() {
+        while partial.exists() || stage.exists() {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
@@ -513,15 +568,18 @@ async fn output_created_during_download_is_preserved_and_owned_partial_removed()
     let target = DownloadTarget::loopback(peer.address)?;
     let output = directory.path()?.join("first");
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_one(
+    tasks.spawn(recorded_download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
+        cleanup.clone(),
     ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    assert!(directory.path()?.join(".first.part").exists());
+    let partial = cleanup.created_partial()?;
+    assert!(partial.exists());
     std::fs::write(&output, SENTINEL)?;
     peer.respond()?;
     let result = timeout(PEER_TIMEOUT, tasks.join_next())
@@ -538,7 +596,8 @@ async fn output_created_during_download_is_preserved_and_owned_partial_removed()
         io::ErrorKind::AlreadyExists
     );
     assert_eq!(std::fs::read(output)?, SENTINEL);
-    assert!(!directory.path()?.join(".first.part").exists());
+    assert!(!partial.exists());
+    assert!(!partial.parent().ok_or("stage has no parent")?.exists());
     directory.finish()
 }
 
@@ -552,11 +611,16 @@ async fn batch_failure_retains_http_cause_and_reports_partial_cleanup_failure() 
         targets: vec![DownloadTarget::loopback(peer.address)?],
     };
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_all(peer.client.clone(), config));
+    tasks.spawn(download_all_with_cleanup(
+        peer.client.clone(),
+        config,
+        cleanup.clone(),
+    ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    let partial = directory.path()?.join(".first.part");
+    let partial = cleanup.created_partial()?;
     // Replace the observed owned file with a test-owned directory. remove_file
     // must fail, so the cleanup diagnostic cannot silently disappear.
     std::fs::rename(&partial, directory.path()?.join("moved-owned-file"))?;
@@ -576,7 +640,7 @@ async fn batch_failure_retains_http_cause_and_reports_partial_cleanup_failure() 
     assert_eq!(source.kind(), io::ErrorKind::InvalidData);
     assert!(source.to_string().contains("returned HTTP 503"));
     assert!(error.to_string().contains("cleanup of "));
-    assert!(error.to_string().contains(".first.part failed: "));
+    assert!(error.to_string().contains("download.part failed: "));
     assert!(!directory.path()?.join("first").exists());
     directory.finish()
 }
@@ -591,15 +655,17 @@ async fn removal_failure_after_publication_keeps_completed_file_and_reports_both
     let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
     let target = DownloadTarget::loopback(peer.address)?;
 
+    let cleanup = CleanupFailures::default();
     let mut tasks = JoinSet::new();
-    tasks.spawn(download_one(
+    tasks.spawn(recorded_download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
+        cleanup.clone(),
     ));
 
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
-    let partial = directory.path()?.join(".first.part");
+    let partial = cleanup.created_partial()?;
     // Permit the active writer and hard-link creation, but deny deletion.
     let blocker = std::fs::OpenOptions::new()
         .read(true)
@@ -627,6 +693,72 @@ async fn removal_failure_after_publication_keeps_completed_file_and_reports_both
     assert_eq!(std::fs::read(&partial)?, WIRE_BODY);
 
     drop(blocker);
+    directory.finish()
+}
+
+#[test]
+fn staging_cleanup_reports_unowned_entries_without_removing_them() -> TestResult {
+    let directory = DownloadDirectory::create()?;
+    let cleanup = CleanupFailures::default();
+    let owner = PartialDownload::create(directory.path()?.join(".first.part"), cleanup.clone())?;
+    let partial = cleanup.created_partial()?;
+    let stage = partial.parent().ok_or("stage has no parent")?;
+    let unowned = stage.join("injected-cleanup-obstruction");
+    std::fs::write(&unowned, SENTINEL)?;
+
+    drop(owner);
+    let error = cleanup
+        .finish(Ok(()))
+        .err()
+        .ok_or("nonempty stage cleanup failure was ignored")?;
+    assert!(error.to_string().contains("cleanup of "));
+    assert!(
+        error
+            .source()
+            .and_then(|cause| cause.downcast_ref::<io::Error>())
+            .is_some()
+    );
+    assert!(!partial.exists());
+    assert_eq!(std::fs::read(unowned)?, SENTINEL);
+    assert!(stage.exists());
+
+    directory.finish()
+}
+
+#[cfg(unix)]
+#[test]
+fn distinct_staging_directories_have_owner_only_unix_permissions() -> TestResult {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let directory = DownloadDirectory::create()?;
+    let legacy = directory.path()?.join(".first.part");
+    let first_cleanup = CleanupFailures::default();
+    let second_cleanup = CleanupFailures::default();
+    let first = PartialDownload::create(legacy.clone(), first_cleanup.clone())?;
+    let second = PartialDownload::create(legacy, second_cleanup.clone())?;
+    let first_partial = first_cleanup.created_partial()?;
+    let second_partial = second_cleanup.created_partial()?;
+    let first_stage = first_partial.parent().ok_or("first stage has no parent")?;
+    let second_stage = second_partial
+        .parent()
+        .ok_or("second stage has no parent")?;
+
+    assert_ne!(first_stage, second_stage);
+    assert_eq!(
+        std::fs::metadata(first_stage)?.permissions().mode() & 0o777,
+        0o700
+    );
+    assert_eq!(
+        std::fs::metadata(second_stage)?.permissions().mode() & 0o777,
+        0o700
+    );
+    drop(first);
+    drop(second);
+    first_cleanup.finish(Ok(()))?;
+    second_cleanup.finish(Ok(()))?;
+    assert!(!first_stage.exists());
+    assert!(!second_stage.exists());
+
     directory.finish()
 }
 

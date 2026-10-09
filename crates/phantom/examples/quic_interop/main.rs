@@ -156,7 +156,14 @@ async fn build_client(ca_pem: &Path) -> Result<Client, BoxError> {
 }
 
 async fn download_all(client: Client, config: Config) -> Result<(), BoxError> {
-    let cleanup = CleanupFailures::default();
+    download_all_with_cleanup(client, config, CleanupFailures::default()).await
+}
+
+async fn download_all_with_cleanup(
+    client: Client,
+    config: Config,
+    cleanup: CleanupFailures,
+) -> Result<(), BoxError> {
     let mut downloads = JoinSet::new();
     for target in config.targets {
         downloads.spawn(download_one_owned(
