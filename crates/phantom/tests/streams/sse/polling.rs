@@ -238,7 +238,7 @@ fn stream_polling_reports_missing_timer_driver_once() -> TestResult<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "current_thread", start_paused = true)]
+#[tokio::test(flavor = "current_thread")]
 async fn cancelled_stream_poll_does_not_start_a_reconnect_between_polls() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
@@ -274,6 +274,9 @@ async fn cancelled_stream_poll_does_not_start_a_reconnect_between_polls() -> Tes
             .connect()
             .await?
             .into_body();
+        // Keep real time while TLS and socket I/O establish the response.
+        // Freeze only the reconnect delay controlled by this assertion.
+        tokio::time::pause();
         assert!(
             timeout(Duration::from_millis(500), next(&mut source))
                 .await
@@ -285,6 +288,7 @@ async fn cancelled_stream_poll_does_not_start_a_reconnect_between_polls() -> Tes
             second_seen_rx.try_recv(),
             Err(tokio::sync::oneshot::error::TryRecvError::Empty)
         ));
+        tokio::time::resume();
         assert!(next(&mut source).await.is_none());
         second_seen_rx.await?;
         assert_eq!(source.reconnects(), 1);
