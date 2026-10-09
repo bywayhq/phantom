@@ -296,17 +296,17 @@ impl fmt::Display for HttpConnectError {
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP CONNECT requires a Tokio runtime")
             }
-            Self::Connect(error) => write!(formatter, "proxy TCP connection failed: {error}"),
-            Self::ProxyTls(error) => write!(formatter, "proxy TLS negotiation failed: {error}"),
+            Self::Connect(_) => formatter.write_str("proxy TCP connection failed"),
+            Self::ProxyTls(_) => formatter.write_str("proxy TLS negotiation failed"),
             Self::UnsupportedAlpn { .. } => {
                 formatter.write_str("TLS proxy selected an unsupported application protocol")
             }
             Self::MissingNegotiatedAlpn => {
                 formatter.write_str("TLS proxy did not select h2 for HTTP/2 proxy transport")
             }
-            Self::ProxyHttp2(error) => write!(formatter, "HTTP/2 proxy session failed: {error}"),
-            Self::Write(error) => write!(formatter, "HTTP CONNECT request write failed: {error}"),
-            Self::Read(error) => write!(formatter, "HTTP CONNECT response read failed: {error}"),
+            Self::ProxyHttp2(_) => formatter.write_str("HTTP/2 proxy session failed"),
+            Self::Write(_) => formatter.write_str("HTTP CONNECT request write failed"),
+            Self::Read(_) => formatter.write_str("HTTP CONNECT response read failed"),
             Self::ResponseHeadTooLarge { maximum } => write!(
                 formatter,
                 "HTTP CONNECT response head exceeds {maximum} bytes"

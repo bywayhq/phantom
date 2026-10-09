@@ -95,7 +95,13 @@ impl Http2ProtocolError {
 
 impl fmt::Display for Http2ProtocolError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.source.fmt(formatter)
+        formatter.write_str(match self.kind {
+            Http2ProtocolErrorKind::Transport => "HTTP/2 byte transport failed",
+            Http2ProtocolErrorKind::StreamReset => "HTTP/2 stream reset",
+            Http2ProtocolErrorKind::ConnectionError => "HTTP/2 connection closed with GOAWAY",
+            Http2ProtocolErrorKind::Protocol => "HTTP/2 driver reported a protocol error",
+            Http2ProtocolErrorKind::Local => "HTTP/2 backend rejected a local operation",
+        })
     }
 }
 
@@ -304,7 +310,7 @@ pub enum Http2Error {
 impl fmt::Display for Http2Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidSettings(error) => error.fmt(formatter),
+            Self::InvalidSettings(_) => formatter.write_str("invalid HTTP/2 settings"),
             Self::UnsupportedSetting => formatter.write_str(
                 "HTTP/2 profile contains a setting unsupported by this transport version",
             ),
@@ -404,7 +410,7 @@ impl fmt::Display for Http2Error {
                 formatter,
                 "request content-length at index {index} requires a body with an exact size hint"
             ),
-            Self::RequestBody(error) => write!(formatter, "HTTP/2 request body failed: {error}"),
+            Self::RequestBody(_) => formatter.write_str("HTTP/2 request body failed"),
             Self::UnsupportedRequestBodyFrame => {
                 formatter.write_str("HTTP/2 request body returned an unsupported frame")
             }
@@ -432,7 +438,7 @@ impl fmt::Display for Http2Error {
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/2 connections require a Tokio runtime")
             }
-            Self::Protocol(error) => write!(formatter, "HTTP/2 protocol error: {error}"),
+            Self::Protocol(_) => formatter.write_str("HTTP/2 protocol error"),
         }
     }
 }
@@ -566,5 +572,32 @@ impl Http2Error {
             Self::RuntimeUnavailable => "runtime_unavailable",
             Self::Protocol(_) => "protocol",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error as _;
+
+    use super::{Http2Error, Http2ErrorKind, Http2ProtocolError, Http2ProtocolErrorKind};
+
+    #[test]
+    fn protocol_reset_category_retains_the_original_reason()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let backend = ::http2::Error::from(::http2::Reason::CANCEL);
+        let protocol = Http2ProtocolError::stream_reset(::http2::Reason::CANCEL);
+        assert_eq!(protocol.kind(), Http2ProtocolErrorKind::StreamReset);
+        assert_eq!(protocol.to_string(), "HTTP/2 stream reset");
+        let error = Http2Error::Protocol(protocol);
+        assert_eq!(error.kind(), Http2ErrorKind::Protocol);
+        assert_eq!(error.to_string(), "HTTP/2 protocol error");
+        let source = error.source().ok_or("opaque source missing")?;
+        let original = source
+            .source()
+            .and_then(|error| error.downcast_ref::<::http2::Error>())
+            .ok_or("original backend source missing")?;
+        assert_eq!(original.reason(), Some(::http2::Reason::CANCEL));
+        assert_eq!(original.to_string(), backend.to_string());
+        Ok(())
     }
 }

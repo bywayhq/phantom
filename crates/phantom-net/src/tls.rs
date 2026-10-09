@@ -1102,7 +1102,7 @@ impl TlsError {
         Self::new(
             TlsErrorKind::InvalidConfiguration,
             None,
-            source.to_string().into(),
+            "invalid TLS settings".into(),
             Some(Box::new(source)),
         )
     }

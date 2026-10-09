@@ -115,3 +115,80 @@ async fn bytes_conversion_preserves_payload_and_exact_framing() -> TestResult {
     }
     Ok(())
 }
+
+fn source_chain(error: &(dyn Error + 'static)) -> Vec<String> {
+    let mut messages = vec![error.to_string()];
+    let mut source = error.source();
+    while let Some(error) = source {
+        messages.push(error.to_string());
+        source = error.source();
+    }
+    messages
+}
+
+#[test]
+fn proxy_wrappers_keep_typed_sources_without_repeating_their_message() -> TestResult {
+    use std::io;
+
+    use phantom_net::{http1_or_2::Http1Or2TlsError, proxy::HttpConnectError};
+
+    const CAUSE: &str = "distinct transport failure marker";
+    let errors: Vec<Box<dyn Error>> = vec![
+        Box::new(Http1TlsError::Proxy(HttpConnectError::Read(
+            io::Error::other(CAUSE),
+        ))),
+        Box::new(Http2TlsError::Proxy(HttpConnectError::Read(
+            io::Error::other(CAUSE),
+        ))),
+        Box::new(Http1Or2TlsError::Proxy(HttpConnectError::Read(
+            io::Error::other(CAUSE),
+        ))),
+    ];
+    for error in errors {
+        assert_eq!(error.to_string(), "HTTP proxy failed");
+        let proxy = error
+            .source()
+            .and_then(|source| source.downcast_ref::<HttpConnectError>())
+            .ok_or("wrapper omitted typed proxy source")?;
+        assert_eq!(proxy.to_string(), "HTTP CONNECT response read failed");
+        let transport = proxy
+            .source()
+            .and_then(|source| source.downcast_ref::<io::Error>())
+            .ok_or("proxy omitted typed transport source")?;
+        assert_eq!(transport.to_string(), CAUSE);
+        assert_eq!(
+            source_chain(error.as_ref())
+                .join(": ")
+                .matches(CAUSE)
+                .count(),
+            1
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn invalid_tls_settings_keep_the_validator_as_the_only_detailed_cause() -> TestResult {
+    use phantom_profile::InvalidTlsSettings;
+
+    let mut tls = chrome::v154_tcp_tls();
+    tls.cipher_suites.clear();
+    let error = Http1TlsConnector::new(&tls)
+        .err()
+        .ok_or("empty cipher list accepted")?;
+    let tls_error = error.source().ok_or("TLS cause missing")?;
+    assert_eq!(tls_error.to_string(), "invalid TLS settings");
+    let validator = tls_error
+        .source()
+        .and_then(|source| source.downcast_ref::<InvalidTlsSettings>())
+        .ok_or("validator cause missing")?;
+    let detail = validator.to_string();
+    assert_eq!(
+        source_chain(&error)
+            .iter()
+            .filter(|message| **message == detail)
+            .count(),
+        1
+    );
+    Ok(())
+}

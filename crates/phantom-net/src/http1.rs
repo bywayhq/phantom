@@ -39,7 +39,7 @@ impl fmt::Debug for Http1ProtocolError {
 
 impl fmt::Display for Http1ProtocolError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.source, formatter)
+        formatter.write_str("HTTP/1 protocol driver failed")
     }
 }
 
@@ -330,11 +330,10 @@ impl fmt::Display for Http1Error {
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/1 connections require a Tokio runtime")
             }
-            Self::Protocol(error) => write!(formatter, "HTTP/1.1 protocol error: {error}"),
-            Self::ReusedConnectionClosed(error) => write!(
-                formatter,
-                "reused HTTP/1.1 connection closed before any response byte: {error}"
-            ),
+            Self::Protocol(_) => formatter.write_str("HTTP/1.1 protocol error"),
+            Self::ReusedConnectionClosed(_) => {
+                formatter.write_str("reused HTTP/1.1 connection closed before any response byte")
+            }
         }
     }
 }

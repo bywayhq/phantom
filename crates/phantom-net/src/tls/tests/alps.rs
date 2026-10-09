@@ -179,7 +179,11 @@ fn oversized_alps_settings_fail_before_stream_io() -> TestResult<()> {
         Err(error) => error,
     };
     assert_eq!(error.kind(), TlsErrorKind::InvalidConfiguration);
-    assert!(error.to_string().contains("alps.settings"));
+    assert_eq!(error.to_string(), "invalid TLS settings");
+    let source = std::error::Error::source(&error)
+        .and_then(|source| source.downcast_ref::<phantom_profile::InvalidTlsSettings>())
+        .ok_or("TLS error omitted its original validator source")?;
+    assert!(source.to_string().contains("alps.settings"));
     Ok(())
 }
 

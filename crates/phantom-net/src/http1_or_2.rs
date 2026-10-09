@@ -141,12 +141,12 @@ impl fmt::Display for Http1Or2TlsError {
         match self {
             Self::RuntimeUnavailable => formatter
                 .write_str("negotiated HTTP/1.1 or HTTP/2 requests require a Tokio runtime"),
-            Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
-            Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
-            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
-            Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
-            Self::Http1(error) => write!(formatter, "HTTP/1.1 connection failed: {error}"),
-            Self::Http2(error) => write!(formatter, "HTTP/2 connection failed: {error}"),
+            Self::Connect(_) => formatter.write_str("TCP connection failed"),
+            Self::Proxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks5Proxy(_) => formatter.write_str("SOCKS5 proxy failed"),
+            Self::Tls(_) => formatter.write_str("TLS connection failed"),
+            Self::Http1(_) => formatter.write_str("HTTP/1.1 connection failed"),
+            Self::Http2(_) => formatter.write_str("HTTP/2 connection failed"),
             Self::UnsupportedAlpn { selected } => write!(
                 formatter,
                 "TLS selected {} ALPN, which is unsupported by HTTP/1.1-or-HTTP/2 negotiation",

@@ -844,11 +844,11 @@ impl fmt::Display for Http2TlsError {
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/2 network requests require a Tokio runtime")
             }
-            Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
-            Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
-            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
-            Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
-            Self::Http2(error) => write!(formatter, "HTTP/2 request failed: {error}"),
+            Self::Connect(_) => formatter.write_str("TCP connection failed"),
+            Self::Proxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks5Proxy(_) => formatter.write_str("SOCKS5 proxy failed"),
+            Self::Tls(_) => formatter.write_str("TLS connection failed"),
+            Self::Http2(_) => formatter.write_str("HTTP/2 request failed"),
             Self::MissingNegotiatedAlpn => {
                 formatter.write_str("TLS completed without negotiating the required `h2` ALPN")
             }

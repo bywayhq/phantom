@@ -1016,12 +1016,9 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
             .and_then(|source| source.downcast_ref::<wreq_proto::Error>())
             .ok_or("opaque error must expose its backend source")?;
         assert!(std::ptr::eq(source, wrapped_source));
-        assert_eq!(protocol.to_string(), source.to_string());
+        assert_eq!(protocol.to_string(), "HTTP/1 protocol driver failed");
         assert_eq!(format!("{protocol:?}"), format!("{source:?}"));
-        assert_eq!(
-            error.to_string(),
-            format!("HTTP/1.1 protocol error: {source}")
-        );
+        assert_eq!(error.to_string(), "HTTP/1.1 protocol error");
         assert_eq!(format!("{error:?}"), format!("Protocol({source:?})"));
         assert_eq!(
             subscriber.outcomes_for("http1.response_head"),

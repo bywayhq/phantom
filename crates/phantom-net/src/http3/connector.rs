@@ -1889,11 +1889,7 @@ impl Http3ConnectorError {
 
 impl fmt::Display for Http3ConnectorError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.message)?;
-        if let Some(source) = &self.source {
-            write!(formatter, ": {source}")?;
-        }
-        Ok(())
+        formatter.write_str(self.message)
     }
 }
 
@@ -1951,6 +1947,24 @@ mod socks5_tests {
             .and_then(|source| source.downcast_ref::<Socks5Error>())
             .ok_or("proxy connector error omitted its SOCKS5 source")?;
         assert_eq!(source.kind(), Socks5ErrorKind::InvalidAuthentication);
+        Ok(())
+    }
+
+    #[test]
+    fn connector_keeps_a_typed_source_without_repeating_its_message() -> Result<(), Box<dyn Error>>
+    {
+        const CAUSE: &str = "distinct HTTP/3 connection failure";
+        let error = Http3ConnectorError::with_source(
+            Http3ConnectorErrorKind::Connect,
+            "HTTP/3 connection failed",
+            std::io::Error::other(CAUSE),
+        );
+        assert_eq!(error.to_string(), "HTTP/3 connection failed");
+        let source = error
+            .source()
+            .and_then(|source| source.downcast_ref::<std::io::Error>())
+            .ok_or("original transport cause missing")?;
+        assert_eq!(source.to_string(), CAUSE);
         Ok(())
     }
 

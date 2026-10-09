@@ -58,14 +58,14 @@ impl fmt::Display for Http1TlsError {
             Self::RuntimeUnavailable => {
                 formatter.write_str("HTTP/1 network requests require a Tokio runtime")
             }
-            Self::Connect(error) => write!(formatter, "TCP connection failed: {error}"),
-            Self::ForwardProxyConnect(error) => {
-                write!(formatter, "HTTP forward proxy connection failed: {error}")
+            Self::Connect(_) => formatter.write_str("TCP connection failed"),
+            Self::ForwardProxyConnect(_) => {
+                formatter.write_str("HTTP forward proxy connection failed")
             }
-            Self::Proxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
-            Self::Socks5Proxy(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
-            Self::Tls(error) => write!(formatter, "TLS connection failed: {error}"),
-            Self::Http1(error) => write!(formatter, "HTTP/1 request failed: {error}"),
+            Self::Proxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks5Proxy(_) => formatter.write_str("SOCKS5 proxy failed"),
+            Self::Tls(_) => formatter.write_str("TLS connection failed"),
+            Self::Http1(_) => formatter.write_str("HTTP/1 request failed"),
             Self::UnsupportedAlpn { selected } => write!(
                 formatter,
                 "TLS selected {} ALPN, which is unsupported by the HTTP/1 transport",

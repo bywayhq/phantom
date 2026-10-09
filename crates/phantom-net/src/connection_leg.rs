@@ -58,11 +58,11 @@ impl fmt::Display for ConnectionLegError {
             Self::Direct(DirectConnectError::RuntimeUnavailable) => {
                 formatter.write_str("TCP connections require a Tokio I/O runtime")
             }
-            Self::Direct(DirectConnectError::Connect(error)) => {
-                write!(formatter, "TCP connection failed: {error}")
+            Self::Direct(DirectConnectError::Connect(_)) => {
+                formatter.write_str("TCP connection failed")
             }
-            Self::HttpProxy(error) => write!(formatter, "HTTP proxy failed: {error}"),
-            Self::Socks5(error) => write!(formatter, "SOCKS5 proxy failed: {error}"),
+            Self::HttpProxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks5(_) => formatter.write_str("SOCKS5 proxy failed"),
         }
     }
 }

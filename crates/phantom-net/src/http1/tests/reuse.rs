@@ -590,11 +590,11 @@ async fn reused_connection_closed_before_response_is_typed() -> TestResult {
         let source = std::error::Error::source(&error)
             .and_then(|source| source.downcast_ref::<wreq_proto::Error>())
             .ok_or("reused connection error must retain its direct backend source")?;
-        assert_eq!(protocol.to_string(), source.to_string());
+        assert_eq!(protocol.to_string(), "HTTP/1 protocol driver failed");
         assert_eq!(format!("{protocol:?}"), format!("{source:?}"));
         assert_eq!(
             error.to_string(),
-            format!("reused HTTP/1.1 connection closed before any response byte: {source}")
+            "reused HTTP/1.1 connection closed before any response byte"
         );
         assert_eq!(
             format!("{error:?}"),
