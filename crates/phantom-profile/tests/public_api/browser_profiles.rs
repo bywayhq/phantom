@@ -52,7 +52,9 @@ fn windows_factories_keep_tcp_and_quic_tls_in_their_own_layers() {
                 .iter()
                 .any(|value| value.as_ref() == b"h2")
         );
-        let http3 = profile.http3().expect("Windows recipe must include HTTP/3");
+        let Some(http3) = profile.http3() else {
+            panic!("Windows recipe must include HTTP/3");
+        };
         assert_eq!(http3.tls(), &quic_tls, "{name}");
         assert_eq!(quic_tls.versions.min(), TlsVersion::Tls13, "{name}");
         assert_eq!(quic_tls.versions.max(), TlsVersion::Tls13, "{name}");
@@ -159,7 +161,10 @@ fn android_factories_leave_uncaptured_policies_absent() {
         (edge::v153_android(), edge::v153_android_quic_tls()),
         (brave::v153_android(), brave::v153_android_quic_tls()),
     ] {
-        assert_eq!(profile.http3().expect("HTTP/3 recipe").tls(), &tls);
+        let Some(http3) = profile.http3() else {
+            panic!("HTTP/3 recipe is missing");
+        };
+        assert_eq!(http3.tls(), &tls);
         assert_eq!(tls.alpn_protocols, vec![Box::<[u8]>::from(*b"h3")]);
         assert!(!tls.ech_from_https_records);
         assert!(!profile.tls().ech_from_https_records);
@@ -184,7 +189,8 @@ fn composed_profile_keeps_custom_layering_and_template_removal() {
 }
 
 #[test]
-fn composed_opera_profile_keeps_the_manual_profiles_draws() {
+fn composed_opera_profile_keeps_the_manual_profiles_draws() -> Result<(), std::convert::Infallible>
+{
     let mut composed = opera::v136_windows();
     let mut manual =
         ClientProfile::new(opera::v136_tcp_tls()).with_http3(Http3ClientSettings::new(
@@ -195,20 +201,17 @@ fn composed_opera_profile_keeps_the_manual_profiles_draws() {
         ));
     let mut composed_draws = 0;
     let mut manual_draws = 0;
-    composed
-        .draw_per_client(|| {
-            composed_draws += 1;
-            Ok::<_, std::convert::Infallible>(7)
-        })
-        .expect("infallible draw");
-    manual
-        .draw_per_client(|| {
-            manual_draws += 1;
-            Ok::<_, std::convert::Infallible>(7)
-        })
-        .expect("infallible draw");
+    composed.draw_per_client(|| {
+        composed_draws += 1;
+        Ok::<_, std::convert::Infallible>(7)
+    })?;
+    manual.draw_per_client(|| {
+        manual_draws += 1;
+        Ok::<_, std::convert::Infallible>(7)
+    })?;
     assert_eq!(composed_draws, 1);
     assert_eq!(composed_draws, manual_draws);
     assert_eq!(composed.tls(), manual.tls());
     assert_eq!(composed.http3(), manual.http3());
+    Ok(())
 }
