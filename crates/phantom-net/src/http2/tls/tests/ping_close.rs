@@ -60,13 +60,16 @@ async fn chromium_ping_timeout_close_sends_nothing_after_goaway() -> TestResult<
             [identity.root_der()],
         )?;
         let connection = connector
-            .connect_via(
-                crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                    host: "127.0.0.1",
-                    port: address.port(),
-                }),
-                TEST_SERVER_NAME,
-            )
+            .connect(crate::route::Http2Route::Origin(
+                crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    }),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                },
+            ))
             .await?;
         tokio::time::sleep(Duration::from_millis(600)).await;
         let result = connection

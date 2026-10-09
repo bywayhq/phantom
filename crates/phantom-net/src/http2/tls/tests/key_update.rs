@@ -78,7 +78,15 @@ async fn requested_key_update_preserves_http2_connection() -> TestResult<()> {
         });
 
         let connector = tls13_connector(&identity)?;
-        let connection = connector.connect(tcp, TEST_SERVER_NAME).await?;
+        let connection = connector
+            .connect(crate::route::Http2Route::Origin(
+                crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                },
+            ))
+            .await?;
         assert_response(&connection, "/during-update", b"before-after").await?;
         assert_response(&connection, "/after-update", b"reused").await?;
         drop(connection);

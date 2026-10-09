@@ -43,7 +43,15 @@ async fn fragmented_tls13_records_preserve_body_and_connection_reuse() -> TestRe
         });
 
         let connector = tls13_connector(&identity)?;
-        let connection = connector.connect(tcp, TEST_SERVER_NAME).await?;
+        let connection = connector
+            .connect(crate::route::Http2Route::Origin(
+                crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                },
+            ))
+            .await?;
         let response = connection
             .send_get(TEST_AUTHORITY, OriginForm::parse("/")?, Vec::new())
             .await?;

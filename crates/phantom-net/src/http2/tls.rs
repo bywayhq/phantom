@@ -22,10 +22,10 @@ use crate::{
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError},
     host_resolver::HostResolver,
-    proxy::{HttpConnectError, ProxyCredentialCache, Socks5Error},
-    route::TcpRoute,
+    proxy::{HttpConnectError, HttpsProxyConnector, ProxyCredentialCache, Socks5Error},
+    route::{DirectTlsSetup, Http2Route, OriginRoute, ProxyTransport, TcpRoute},
     source_binding::SourceBinding,
-    tcp::{ForeignStream, TcpKeepaliveControl, TcpKeepaliveSource},
+    tcp::{TcpKeepaliveControl, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
@@ -294,219 +294,167 @@ impl Http2TlsConnector {
         &self.http2
     }
 
-    /// Establishes HTTP/2 over TLS on an already-connected byte stream.
+    /// Opens an exact HTTP/2 origin or TLS forward-proxy connection.
     ///
-    /// Missing ALPN and every selected protocol other than exact `h2` are
-    /// rejected before the HTTP/2 connection preface is written.
+    /// Direct origin connections offer early data. Other origin routes use
+    /// an ordinary TLS handshake. ECH follows the direct setup policy's
+    /// bounded lookup wait and retry after rejection.
+    ///
+    /// A forwarding route uses its proxy connector's TLS and HTTP/2 settings.
+    /// Its credentials select a pool partition and are not sent by this call.
     ///
     /// # Errors
     ///
-    /// Returns [`Http2TlsError`] when TLS negotiation, ALPS decoding, or the
-    /// HTTP/2 handshake fails.
-    pub async fn connect<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2)?;
-            self.connect_prepared(ForeignStream(stream), server_name, client)
+    /// Returns [`Http2TlsError`] for invalid routes or settings, connection
+    /// setup, TLS, ALPS, or HTTP/2 failures. Plaintext origins, plaintext
+    /// forwarding proxies, and retaining a slower attempt fail before I/O.
+    pub async fn connect(&self, route: Http2Route<'_>) -> Result<Http2Connection, Http2TlsError> {
+        match route {
+            Http2Route::Origin(origin) => {
+                self.trace_connect(pin!(async {
+                    origin
+                        .validate(false, false)
+                        .map_err(Http2TlsError::Connect)?;
+                    let client = translate_settings(&self.http2)?;
+                    self.connect_origin(origin, client, true, false).await
+                }))
                 .await
-        }))
-        .await
-    }
-
-    /// Opens a connection through `route` using this connector's origin TLS.
-    ///
-    /// Direct connections offer early data; tunneled connections perform the
-    /// ordinary origin handshake. Proxy TLS uses the route's proxy connector.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] for route setup, TLS, or protocol failures.
-    pub async fn connect_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2)?;
-            let direct = matches!(route, TcpRoute::Direct(_));
-            let stream =
-                connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
-                    .await?;
-            let stream = if direct {
-                self.tls
-                    .connect_offering_early_data(server_name, stream)
-                    .await?
-            } else {
-                self.tls.connect(server_name, stream).await?
-            };
-            let keepalive = stream.tcp_keepalive();
-            connect_over_tls(stream, client, false, keepalive).await
-        }))
-        .await
-    }
-
-    /// Establishes HTTP/2 over a new direct TCP and TLS connection that
-    /// offers Encrypted Client Hello with the `ECHConfigList` that `ech`
-    /// yields, as Chrome 154 does for an origin's HTTPS record.
-    ///
-    /// The bounded wait for `ech`, the check of the list, and the one retry
-    /// after a rejection are those of
-    /// [`Http1Or2TlsConnector::connect_direct_with_ech`](crate::http1_or_2::Http1Or2TlsConnector::connect_direct_with_ech).
-    /// With `None` the handshake is the one [`Self::connect_via`] makes.
-    /// This method never falls back to another HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] when connection setup, TLS negotiation, ECH,
-    /// ALPS decoding, or the HTTP/2 handshake fails.
-    #[cfg(feature = "https-records")]
-    pub async fn connect_direct_with_ech(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2)?;
-            let stream = crate::direct::connect_tls_with_ech(
-                &self.tls,
-                self.dialer(),
-                host,
-                port,
-                server_name,
-                ech,
-                true,
-            )
-            .await?;
-            let keepalive = stream.tcp_keepalive();
-            connect_over_tls(stream, client, false, keepalive).await
-        }))
-        .await
-    }
-
-    /// Opens one WebSocket extended CONNECT stream through `route` over HTTP/2.
-    ///
-    /// Settings and the complete ordered request fields are validated before
-    /// DNS or TCP I/O. The connection is configured with the profile's
-    /// dedicated five-field pseudo-header order and never falls back to H1.
-    ///
-    /// Direct routes offer early data as [`Self::connect_via`] does. Proxy
-    /// routes use an ordinary origin TLS handshake. On a direct route, the
-    /// connection preface and SETTINGS travel in it, and the CONNECT waits
-    /// for the server's answer: Firefox 157 starts its HTTP/2 session in
-    /// early data and holds the WebSocket transaction until the session is
-    /// established (`nsHttpConnection::Start0RTTSpdy` and
-    /// `nsHttpConnection::MoveTransactionsToSpdy`,
-    /// `netwerk/protocol/http/nsHttpConnection.cpp:203-221` and `272-305` at
-    /// tag `FIREFOX_157_0_RELEASE`). After a rejection the preface and
-    /// SETTINGS go out again on the same connection. A handshake that then
-    /// fails returns the [`Http2TlsError::Tls`] a fresh connection returns,
-    /// and a server that rejects the early data and selects another ALPN
-    /// protocol returns [`Http2TlsError::UnsupportedAlpn`], or
-    /// [`Http2TlsError::MissingNegotiatedAlpn`] when it selects none.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] when the profile has no extended CONNECT
-    /// order, request validation fails, connection setup fails, the peer does
-    /// not advertise support, or the HTTP/2 stream fails.
-    pub async fn send_extended_connect_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
-        let client = self.prepare_extended_connect(authority, &target, &headers)?;
-        let direct = matches!(route, TcpRoute::Direct(_));
-        let stream =
-            connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref()).await?;
-        if direct {
-            let stream = self
-                .tls
-                .connect_offering_early_data(server_name, stream)
-                .await?;
-            self.extended_connect_over_tls(stream, client, authority, target, headers)
-                .await
-        } else {
-            self.send_prepared_extended_connect(
-                stream,
-                server_name,
-                client,
-                authority,
-                target,
-                headers,
-            )
-            .await
+            }
+            Http2Route::Forward { proxy, credentials } => {
+                let ProxyTransport::Tls {
+                    endpoint,
+                    server_name,
+                    connector,
+                } = proxy
+                else {
+                    return Err(HttpConnectError::ForwardingRequiresHttp2.into());
+                };
+                connector
+                    .connect_forward_http2_with_credentials(
+                        endpoint.host,
+                        endpoint.port,
+                        server_name,
+                        credentials,
+                    )
+                    .await
+                    .map_err(Into::into)
+            }
         }
     }
 
-    /// Opens one direct WebSocket extended CONNECT stream over exact HTTP/2
-    /// on a connection that offers Encrypted Client Hello with the
-    /// `ECHConfigList` that `ech` yields.
+    /// Sends one request through an HTTP/2 origin or TLS forwarding route.
     ///
-    /// The connection is set up as [`Self::connect_direct_with_ech`] sets it
-    /// up, and the stream is opened as [`Self::send_extended_connect_via`]
-    /// opens it. Settings and the complete ordered request fields are
-    /// validated before DNS or TCP I/O.
+    /// Request, settings, and route validation finish before I/O. Origin
+    /// routes use an ordinary TLS handshake, including direct connections.
+    /// Forwarding uses the proxy connector's profile and `:scheme=http`.
+    /// Credentials select its pool partition. Supply any authorization
+    /// header explicitly in `headers`.
     ///
     /// # Errors
     ///
-    /// Returns [`Http2TlsError`] as [`Self::send_extended_connect_via`]
-    /// does, or an ECH failure from the handshake.
-    #[cfg(feature = "https-records")]
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_extended_connect_direct_with_ech(
+    /// Returns [`Http2TlsError`] for request validation, unsupported route
+    /// setup, TLS negotiation, or HTTP/2 failures.
+    pub async fn send(
         &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
+        route: Http2Route<'_>,
+        method: Method,
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
-        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
-        let client = self.prepare_extended_connect(authority, &target, &headers)?;
-        let stream = crate::direct::connect_tls_with_ech(
-            &self.tls,
-            self.dialer(),
-            host,
-            port,
-            server_name,
-            ech,
-            true,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http2Body>, Http2TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let settings = match &route {
+                    Http2Route::Origin(origin) => {
+                        origin
+                            .validate(false, false)
+                            .map_err(Http2TlsError::Connect)?;
+                        &self.http2
+                    }
+                    Http2Route::Forward { proxy, .. } => {
+                        forward_connector(proxy)?.forward_http2_settings()?
+                    }
+                };
+                let mut prepared =
+                    PreparedRequest::new(settings, method, authority, target, headers, body)?;
+                if matches!(&route, Http2Route::Forward { .. }) {
+                    let mut parts = prepared.request.uri().clone().into_parts();
+                    parts.scheme = Some(http::uri::Scheme::HTTP);
+                    *prepared.request.uri_mut() = http::Uri::from_parts(parts)
+                        .map_err(|error| Http2Error::InvalidRequestUri(error.into()))?;
+                }
+                debug!("HTTP/2 request prepared");
+                let connection = match route {
+                    Http2Route::Origin(origin) => {
+                        self.connect_origin(origin, prepared.client, false, false)
+                            .await?
+                    }
+                    Http2Route::Forward { proxy, credentials } => {
+                        let ProxyTransport::Tls {
+                            endpoint,
+                            server_name,
+                            connector,
+                        } = proxy
+                        else {
+                            return Err(HttpConnectError::ForwardingRequiresHttp2.into());
+                        };
+                        connector
+                            .connect_forward_http2_with_credentials(
+                                endpoint.host,
+                                endpoint.port,
+                                server_name,
+                                credentials,
+                            )
+                            .await?
+                    }
+                };
+                let response = connection
+                    .send_prepared_request(prepared.request, prepared.body, prepared.trailers)
+                    .await?;
+                Span::current().record("status", response.status().as_u16());
+                Ok(response)
+            }),
         )
-        .await?;
-        self.extended_connect_over_tls(stream, client, authority, target, headers)
-            .await
+        .await
     }
 
-    /// Opens the extended CONNECT stream on a new direct connection whose
-    /// handshake may have returned to send early data.
+    /// Opens one WebSocket extended CONNECT stream over an origin route.
     ///
-    /// When that handshake then fails, this reports the error a fresh
-    /// connection reports.
-    async fn extended_connect_over_tls<S>(
+    /// Settings and ordered headers are validated before I/O. Direct routes
+    /// offer early data. Their connection preface and SETTINGS travel in it,
+    /// while CONNECT waits for the server's answer. Firefox 157 starts its
+    /// HTTP/2 session in early data and holds the WebSocket transaction until
+    /// the session is established (`nsHttpConnection::Start0RTTSpdy` and
+    /// `nsHttpConnection::MoveTransactionsToSpdy`,
+    /// `netwerk/protocol/http/nsHttpConnection.cpp:203-221` and `272-305` at
+    /// tag `FIREFOX_157_0_RELEASE`). A rejected early-data preface and SETTINGS
+    /// are sent again on the same connection. Proxy routes use ordinary TLS.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] for invalid settings, headers or routes,
+    /// connection setup, unsupported peer extended CONNECT, or stream errors.
+    /// Forwarding routes are rejected before I/O. This never changes protocol.
+    pub async fn extended_connect(
         &self,
-        stream: TlsStream<S>,
-        client: Http2Builder,
+        route: Http2Route<'_>,
         authority: &str,
         target: OriginForm,
         headers: Vec<RequestHeader>,
-    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        let keepalive = stream.tcp_keepalive();
-        let connection = connect_over_tls(stream, client, true, keepalive).await?;
+    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let Http2Route::Origin(origin) = route else {
+            return Err(invalid_route("extended CONNECT requires an origin route"));
+        };
+        origin
+            .validate(false, false)
+            .map_err(Http2TlsError::Connect)?;
+        let connection = self.connect_origin(origin, client, true, true).await?;
         connection
             .send_extended_connect_with_settings(&self.http2, authority, target, headers)
             .await
@@ -517,154 +465,62 @@ impl Http2TlsConnector {
             })
     }
 
-    /// Sends one empty-body HTTP/2 GET after an exact `h2` TLS negotiation.
-    ///
-    /// `server_name` controls certificate verification and SNI; `authority`
-    /// becomes the HTTP `:authority` value and may include a port. Request
-    /// preparation completes before the supplied stream is touched. Missing
-    /// ALPN and every selected protocol other than exact `h2` are rejected
-    /// before the HTTP/2 connection preface is written.
-    pub async fn send_get<S>(
+    async fn connect_origin(
         &self,
-        stream: S,
-        server_name: &str,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http2Body>, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        self.send_request(
-            stream,
+        origin: OriginRoute<'_>,
+        client: Http2Builder,
+        early_data: bool,
+        extended_connect: bool,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        origin
+            .validate(false, false)
+            .map_err(Http2TlsError::Connect)?;
+        let OriginRoute::Tls {
+            tcp,
             server_name,
-            Method::GET,
-            authority,
-            target,
-            headers,
-            None,
-        )
-        .await
-    }
-
-    /// Sends one HTTP/2 request after an exact `h2` TLS negotiation.
-    ///
-    /// Request preparation completes before the supplied stream is touched.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        method: Method,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http2Body>, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared =
-                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
-                self.send_prepared_request(ForeignStream(stream), server_name, prepared)
-                    .await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one empty-body HTTP/2 GET through `route` over origin TLS.
-    ///
-    /// Request and HTTP/2 settings validation finish before route I/O.
-    /// `server_name` controls TLS authentication and SNI; `authority` becomes
-    /// the request's `:authority` value. Route failures never select another
-    /// route or HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] for request, route, TLS, or HTTP/2 failures.
-    pub async fn send_get_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http2Body>, Http2TlsError> {
-        self.send_request_via(
-            route,
-            server_name,
-            Method::GET,
-            authority,
-            target,
-            headers,
-            None,
-        )
-        .await
-    }
-
-    /// Sends one HTTP/2 request through `route` over origin TLS.
-    ///
-    /// Request and HTTP/2 settings validation finish before route I/O. Every
-    /// route uses an ordinary origin TLS handshake for this one-shot request.
-    /// Proxy TLS uses the route's independent proxy connector.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http2TlsError`] for request, route, TLS, or HTTP/2 failures.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-        method: Method,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http2Body>, Http2TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared =
-                    PreparedRequest::new(&self.http2, method, authority, target, headers, body)?;
+            setup,
+        } = origin
+        else {
+            return Err(invalid_route("HTTP/2 origins require TLS"));
+        };
+        match setup {
+            DirectTlsSetup::Default => {
+                let direct = matches!(&tcp, TcpRoute::Direct(_));
                 let stream =
-                    connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
+                    connection_leg::connect(tcp, self.dialer(), self.proxy_credentials.as_ref())
                         .await?;
-                self.send_prepared_request(stream, server_name, prepared)
-                    .await
-            }),
-        )
-        .await
-    }
-
-    async fn send_prepared_request<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        prepared: PreparedRequest,
-    ) -> Result<Response<Http2Body>, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        debug!("HTTP/2 request prepared");
-        let connection = self
-            .connect_prepared(stream, server_name, prepared.client)
-            .await?;
-        let response = connection
-            .send_prepared_request(prepared.request, prepared.body, prepared.trailers)
-            .await?;
-        Span::current().record("status", response.status().as_u16());
-        Ok(response)
+                let stream = if early_data && direct {
+                    self.tls
+                        .connect_offering_early_data(server_name, stream)
+                        .await?
+                } else {
+                    self.tls.connect(server_name, stream).await?
+                };
+                let keepalive = stream.tcp_keepalive();
+                connect_over_tls(stream, client, extended_connect, keepalive).await
+            }
+            #[cfg(feature = "https-records")]
+            DirectTlsSetup::Ech(ech) => {
+                let TcpRoute::Direct(endpoint) = tcp else {
+                    return Err(invalid_route("ECH requires a direct TCP route"));
+                };
+                let stream = crate::direct::connect_tls_with_ech(
+                    &self.tls,
+                    self.dialer(),
+                    endpoint.host,
+                    endpoint.port,
+                    server_name,
+                    ech,
+                    early_data,
+                )
+                .await?;
+                let keepalive = stream.tcp_keepalive();
+                connect_over_tls(stream, client, extended_connect, keepalive).await
+            }
+            DirectTlsSetup::KeepSlower(_) => {
+                Err(invalid_route("HTTP/2 cannot retain a slower connection"))
+            }
+        }
     }
 
     /// Validates settings and the extended CONNECT request before any I/O.
@@ -678,27 +534,6 @@ impl Http2TlsConnector {
         let client = translate_extended_connect_settings(&self.http2)?;
         validate_extended_connect(authority, target, headers)?;
         Ok(client)
-    }
-
-    async fn send_prepared_extended_connect<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        client: Http2Builder,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http2ExtendedConnectOutcome, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        let connection = self
-            .connect_prepared_extended(stream, server_name, client)
-            .await?;
-        connection
-            .send_extended_connect_with_settings(&self.http2, authority, target, headers)
-            .await
-            .map_err(Into::into)
     }
 
     /// Opens one WebSocket extended CONNECT stream on an established connection.
@@ -724,47 +559,6 @@ impl Http2TlsConnector {
             .send_extended_connect_with_settings(&self.http2, authority, target, headers)
             .await
             .map_err(Into::into)
-    }
-
-    async fn connect_prepared<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        client: Http2Builder,
-    ) -> Result<Http2Connection, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        self.connect_prepared_kind(stream, server_name, client, false)
-            .await
-    }
-
-    async fn connect_prepared_extended<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        client: Http2Builder,
-    ) -> Result<Http2Connection, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        self.connect_prepared_kind(stream, server_name, client, true)
-            .await
-    }
-
-    async fn connect_prepared_kind<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        client: Http2Builder,
-        extended_connect: bool,
-    ) -> Result<Http2Connection, Http2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        let stream = self.tls.connect(server_name, stream).await?;
-        let keepalive = stream.tcp_keepalive();
-        connect_over_tls(stream, client, extended_connect, keepalive).await
     }
 
     /// Runs `operation` in the connection span and records its outcome.
@@ -832,6 +626,22 @@ impl Http2TlsConnector {
         };
         outcome_guard.finish(outcome);
         result
+    }
+}
+
+fn invalid_route(message: &'static str) -> Http2TlsError {
+    Http2TlsError::Connect(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        message,
+    ))
+}
+
+fn forward_connector<'a>(
+    proxy: &ProxyTransport<'a>,
+) -> Result<&'a HttpsProxyConnector, Http2TlsError> {
+    match proxy {
+        ProxyTransport::Tls { connector, .. } => Ok(connector),
+        ProxyTransport::Tcp(_) => Err(HttpConnectError::ForwardingRequiresHttp2.into()),
     }
 }
 

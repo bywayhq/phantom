@@ -373,6 +373,17 @@ impl HttpsProxyConnector {
         Ok(self.http2_connection(&target).await?.into_connection())
     }
 
+    /// Validates exact HTTP/2 forwarding before request preparation or I/O.
+    pub(crate) fn forward_http2_settings(&self) -> Result<&Http2Settings, HttpConnectError> {
+        if self.protocol != HttpsProxyProtocol::Http2 {
+            return Err(HttpConnectError::ForwardingRequiresHttp2);
+        }
+        self.http2_builder()?;
+        self.http2
+            .as_ref()
+            .ok_or(HttpConnectError::MissingHttp2Settings)
+    }
+
     pub(crate) async fn connect_tunnel(
         &self,
         proxy_host: &str,

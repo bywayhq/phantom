@@ -81,15 +81,20 @@ async fn streams_http2_over_certificate_verified_tls() -> TestResult<()> {
 
         let connector = test_connector(&identity)?;
         let response = connector
-            .send_get_via(
-                TcpRoute::Direct(Endpoint {
-                    host: "127.0.0.1",
-                    port: address.port(),
+            .send(
+                crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                    tcp: TcpRoute::Direct(Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    }),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
                 }),
-                TEST_SERVER_NAME,
+                http::Method::GET,
                 TEST_AUTHORITY,
                 OriginForm::parse("/secure?item=1")?,
                 vec![RequestHeader::new("accept", "*/*")],
+                None,
             )
             .await?;
         assert_eq!(response.status(), 207);
@@ -148,7 +153,15 @@ async fn reusable_connect_applies_alpn_and_alps_to_multiple_requests() -> TestRe
 
         let connector = alps_test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
-        let connection = connector.connect(tcp, TEST_SERVER_NAME).await?;
+        let connection = connector
+            .connect(crate::route::Http2Route::Origin(
+                crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                },
+            ))
+            .await?;
         assert_eq!(
             connection.accept_ch_for_origin("https://server.phantom.test:8443"),
             Some(&b"Sec-CH-UA-Arch"[..])
@@ -175,13 +188,16 @@ async fn reusable_connect_direct_serves_multiple_requests() -> TestResult<()> {
 
         let connector = test_connector(&identity)?;
         let connection = connector
-            .connect_via(
-                crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                    host: "127.0.0.1",
-                    port: address.port(),
-                }),
-                TEST_SERVER_NAME,
-            )
+            .connect(crate::route::Http2Route::Origin(
+                crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    }),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                },
+            ))
             .await?;
         request_and_collect(&connection, "/direct-one", vec![]).await?;
         request_and_collect(&connection, "/direct-two", vec![]).await?;
@@ -220,18 +236,21 @@ async fn reusable_connect_http_connect_keeps_origin_data_out_of_proxy_head() -> 
             HttpConnectHeader::field(RequestHeader::new("Proxy-Authorization", "Basic cHJveHk=")),
         ];
         let connection = connector
-            .connect_via(
-                crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
-                    proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
-                        host: "127.0.0.1",
-                        port: address.port(),
+            .connect(crate::route::Http2Route::Origin(
+                crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                        proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                            host: "127.0.0.1",
+                            port: address.port(),
+                        }),
+                        authority: TEST_AUTHORITY,
+                        headers: &connect_headers,
+                        credentials: None,
                     }),
-                    authority: TEST_AUTHORITY,
-                    headers: &connect_headers,
-                    credentials: None,
-                }),
-                TEST_SERVER_NAME,
-            )
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                },
+            ))
             .await?;
         let origin_headers = vec![RequestHeader::new("x-origin-secret", "not-for-proxy")];
         request_and_collect(&connection, "/tunneled-one", origin_headers).await?;
@@ -283,12 +302,19 @@ async fn rejects_missing_and_http1_alpn_without_http2_bytes() -> TestResult<()> 
             let tcp = TcpStream::connect(address).await?;
             let subscriber = OutcomeSubscriber::default();
             let result = connector
-                .send_get(
-                    tcp,
-                    TEST_SERVER_NAME,
+                .send(
+                    crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                        tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(
+                            tcp,
+                        )),
+                        server_name: TEST_SERVER_NAME,
+                        setup: crate::route::DirectTlsSetup::Default,
+                    }),
+                    http::Method::GET,
                     TEST_AUTHORITY,
                     OriginForm::parse("/")?,
                     vec![],
+                    None,
                 )
                 .with_subscriber(Dispatch::new(subscriber.clone()))
                 .await;
@@ -349,12 +375,17 @@ async fn alps_settings_frame_allows_response_before_wire_settings() -> TestResul
         let connector = alps_test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
         let response = connector
-            .send_get(
-                tcp,
-                TEST_SERVER_NAME,
+            .send(
+                crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                }),
+                http::Method::GET,
                 TEST_AUTHORITY,
                 OriginForm::parse("/alps")?,
                 vec![],
+                None,
             )
             .await?;
         assert_eq!(response.status(), 204);
@@ -396,12 +427,19 @@ async fn alps_without_a_settings_frame_still_requires_wire_settings() -> TestRes
             let tcp = TcpStream::connect(address).await?;
             let subscriber = OutcomeSubscriber::default();
             let result = connector
-                .send_get(
-                    tcp,
-                    TEST_SERVER_NAME,
+                .send(
+                    crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                        tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(
+                            tcp,
+                        )),
+                        server_name: TEST_SERVER_NAME,
+                        setup: crate::route::DirectTlsSetup::Default,
+                    }),
+                    http::Method::GET,
                     TEST_AUTHORITY,
                     OriginForm::parse("/alps")?,
                     vec![],
+                    None,
                 )
                 .with_subscriber(Dispatch::new(subscriber.clone()))
                 .await;
@@ -444,12 +482,17 @@ async fn malformed_peer_alps_fails_before_http2_plaintext() -> TestResult<()> {
         let tcp = TcpStream::connect(address).await?;
         let subscriber = OutcomeSubscriber::default();
         let result = connector
-            .send_get(
-                tcp,
-                TEST_SERVER_NAME,
+            .send(
+                crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                    tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: crate::route::DirectTlsSetup::Default,
+                }),
+                http::Method::GET,
                 TEST_AUTHORITY,
                 OriginForm::parse("/")?,
                 vec![],
+                None,
             )
             .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
@@ -486,12 +529,19 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
     let (client, _server) = duplex(128);
     let subscriber = OutcomeSubscriber::default();
     let result = connector
-        .send_get(
-            TouchCountingStream::new(client, Arc::clone(&touches)),
-            TEST_SERVER_NAME,
+        .send(
+            crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(
+                    TouchCountingStream::new(client, Arc::clone(&touches)),
+                )),
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default,
+            }),
+            http::Method::GET,
             TEST_AUTHORITY,
             OriginForm::parse("/")?,
             vec![RequestHeader::new("host", TEST_SERVER_NAME)],
+            None,
         )
         .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
@@ -505,12 +555,19 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
     let result = connector
-        .send_get(
-            TouchCountingStream::new(client, Arc::clone(&touches)),
-            TEST_SERVER_NAME,
+        .send(
+            crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(
+                    TouchCountingStream::new(client, Arc::clone(&touches)),
+                )),
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default,
+            }),
+            http::Method::GET,
             "user@example.test",
             OriginForm::parse("/")?,
             vec![],
+            None,
         )
         .await;
     assert!(matches!(
@@ -527,12 +584,17 @@ fn invalid_request_fails_before_route_setup() -> TestResult<()> {
     let connector = test_connector(&identity)?;
     let mut context = std::task::Context::from_waker(std::task::Waker::noop());
     for route in validation_routes() {
-        let mut request = pin!(connector.send_get_via(
-            route,
-            TEST_SERVER_NAME,
+        let mut request = pin!(connector.send(
+            crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: route,
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default
+            }),
+            http::Method::GET,
             "user@example.test",
             OriginForm::parse("/")?,
             vec![],
+            None
         ));
         assert!(matches!(
             request.as_mut().poll(&mut context),
@@ -550,12 +612,15 @@ fn invalid_extended_connect_fails_before_route_setup() -> TestResult<()> {
     let connector = test_connector(&identity)?;
     let mut context = std::task::Context::from_waker(std::task::Waker::noop());
     for route in validation_routes() {
-        let mut request = pin!(connector.send_extended_connect_via(
-            route,
-            TEST_SERVER_NAME,
+        let mut request = pin!(connector.extended_connect(
+            crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: route,
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default
+            }),
             "user@example.test",
             OriginForm::parse("/")?,
-            vec![],
+            vec![]
         ));
         assert!(matches!(
             request.as_mut().poll(&mut context),
@@ -602,12 +667,17 @@ async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
 
     let result = connector
-        .send_get(
-            client,
-            TEST_SERVER_NAME,
+        .send(
+            crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(client)),
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default,
+            }),
+            http::Method::GET,
             TEST_AUTHORITY,
             OriginForm::parse("/")?,
             Vec::new(),
+            None,
         )
         .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
