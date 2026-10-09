@@ -39,6 +39,7 @@ from scripts.capture.run_matrix import (
     run_with_retry,
     scenario_file,
     schedule,
+    slug,
     summary_table,
 )
 
@@ -547,6 +548,73 @@ class CleanupFailureTests(unittest.TestCase):
                     str(raised.exception),
                 )
 
+    def test_close_and_sweep_failures_both_keep_their_original_causes(self) -> None:
+        container = mock.Mock()
+        close_error = OSError("job close failed")
+        sweep_error = OSError("profile discovery failed")
+        container.close.side_effect = close_error
+        with (
+            mock.patch.object(
+                run_matrix, "stop_processes_naming", side_effect=sweep_error
+            ) as sweep,
+            self.assertRaises(run_matrix.CleanupError) as raised,
+        ):
+            run_matrix.end_attempt(container, Path("owned"))
+
+        sweep.assert_called_once_with(Path("owned"))
+        self.assertIs(raised.exception.__cause__, close_error)
+        self.assertEqual(
+            [error for _operation, error in raised.exception.failures],
+            [close_error, sweep_error],
+        )
+        self.assertIn(
+            "close process container: job close failed", str(raised.exception)
+        )
+        self.assertIn(
+            "sweep profile processes: profile discovery failed", str(raised.exception)
+        )
+
+    def test_normal_attempt_cleanup_failure_is_reported_and_invalidates_resume(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+            process = mock.Mock()
+            process.wait.return_value = 0
+            container = mock.Mock(process=process)
+            item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
+            item.outputs[0].write_bytes(b"format=fake\n")
+            records = CompletionRecords(root / "work" / "completed")
+            records.remember(item, shared_host=False, concurrency=1)
+
+            with (
+                mock.patch.object(
+                    run_matrix, "ProcessContainer", return_value=container
+                ),
+                mock.patch.object(
+                    run_matrix,
+                    "stop_processes_naming",
+                    side_effect=OSError("profile discovery failed"),
+                ),
+            ):
+                (result,), _wall = run_manifest(
+                    [item],
+                    work_dir=root / "work",
+                    limit=1,
+                    retries=0,
+                    force=True,
+                    log=lambda _line: None,
+                )
+
+            container.close.assert_called_once()
+            self.assertEqual(result.status, "failed")
+            self.assertIn("cleanup", result.attempts[0].detail)
+            self.assertIn("profile discovery failed", result.attempts[0].detail)
+            self.assertEqual(records.mismatch(item), "no completion record")
+
     def test_interrupt_cleanup_failure_still_joins_workers_and_returns_results(
         self,
     ) -> None:
@@ -620,7 +688,7 @@ class CleanupFailureTests(unittest.TestCase):
             )
 
             def attempt(_job, _number, _work, **kwargs):
-                attempts.add("owned-attempt", container, root / "owned")
+                attempts.add(slug(item.id) + ".1", container, root / "owned")
                 registered.set()
                 release.wait(10)
                 finished.set()
@@ -679,6 +747,77 @@ class CleanupFailureTests(unittest.TestCase):
             self.assertIn("cleanup", detail)
             self.assertIn("profile discovery failed", detail)
 
+    def test_named_cleanup_failure_does_not_fail_another_interrupted_owner(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            items = expand_manifest(
+                manifest(fake_capture(scenarios=["fail", "slow"])),
+                base=root,
+                tools=FAKE_TOOLS,
+            )
+            releases = {item.id: threading.Event() for item in items}
+            registered = {item.id: threading.Event() for item in items}
+            attempts = Attempts()
+            join = threading.Thread.join
+            interrupted = False
+            owned_threads = []
+
+            def attempt(item, _number):
+                container = mock.Mock()
+                container.close.side_effect = releases[item.id].set
+                attempts.add(slug(item.id) + ".1", container, root / slug(item.id))
+                registered[item.id].set()
+                releases[item.id].wait(10)
+                return Attempt(False, 0.2, "stopped")
+
+            def sweep(directory):
+                if directory == root / slug(items[0].id):
+                    raise OSError("first owner's discovery failed")
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    for event in registered.values():
+                        self.assertTrue(event.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                return join(thread, *args, **kwargs)
+
+            try:
+                with (
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    mock.patch.object(
+                        run_matrix, "stop_processes_naming", side_effect=sweep
+                    ),
+                ):
+                    results, _wall = run_manifest(
+                        items,
+                        work_dir=root / "work",
+                        limit=2,
+                        retries=0,
+                        force=False,
+                        attempt=attempt,
+                        attempts=attempts,
+                        log=lambda _line: None,
+                    )
+            finally:
+                for release in releases.values():
+                    release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual(
+                [result.status for result in results], ["failed", "stopped"]
+            )
+            self.assertIn(
+                "first owner's discovery failed", results[0].attempts[0].detail
+            )
+            self.assertEqual(results[1].attempts[0].detail, "stopped")
+            self.assertEqual([len(result.attempts) for result in results], [1, 1])
+
     def test_interrupt_cleanup_failure_removes_a_racing_completion_record(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -694,7 +833,7 @@ class CleanupFailureTests(unittest.TestCase):
             owned_threads = []
 
             def attempt(_job, _number):
-                attempts.add("owned-attempt", container, root / "owned")
+                attempts.add(slug(item.id) + ".1", container, root / "owned")
                 registered.set()
                 release.wait(10)
                 item.outputs[0].parent.mkdir(parents=True, exist_ok=True)

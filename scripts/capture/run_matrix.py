@@ -943,10 +943,23 @@ def schedule(
             join()
 
     if cleanup_error is not None:
-        for index in interrupted_indices:
+        failures = dict.fromkeys(interrupted_indices, cleanup_error)
+        if isinstance(cleanup_error, CleanupError):
+            named_failures = {}
+            matched_names = set()
+            for index in interrupted_indices:
+                prefix = slug(jobs[index].id) + "."
+                for name, error in cleanup_error.failures:
+                    if name.startswith(prefix):
+                        named_failures[index] = error
+                        matched_names.add(name)
+            # Unknown callback failures cannot be attributed to one owner.
+            if matched_names == {name for name, _error in cleanup_error.failures}:
+                failures = named_failures
+        for index, error in failures.items():
             result = results[index]
             result.status = "failed"
-            detail = f"cleanup failed: {cleanup_error}"
+            detail = f"cleanup failed: {error}"
             if result.attempts:
                 outcome = result.attempts[-1]
                 outcome.ok = False
