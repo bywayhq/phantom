@@ -17,11 +17,21 @@ use tokio_btls::SslStream;
 
 use super::{
     TestResult,
+    polling::read,
     tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
 };
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_event_source_reconnects_with_committed_state_and_stops_on_204() -> TestResult<()> {
+    reconnect_with_committed_state(false).await
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn stream_polling_retains_reconnect_delay_request_and_committed_id() -> TestResult<()> {
+    reconnect_with_committed_state(true).await
+}
+
+async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -101,7 +111,9 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
     assert_eq!(info.effective_uri().path(), "/events");
 
     let mut source = response.into_body();
-    let event = source.next_event().await?.ok_or("first event missing")?;
+    let event = read(&mut source, poll_stream)
+        .await?
+        .ok_or("first event missing")?;
     assert_eq!(event.data(), "one");
     assert_eq!(event.id(), "first");
     assert_eq!(source.last_event_id(), "first");
@@ -111,14 +123,14 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
         .map_err(|_| "server stopped before completing the first SSE response")?;
 
     assert!(
-        timeout(Duration::from_millis(900), source.next_event())
+        timeout(Duration::from_millis(900), read(&mut source, poll_stream))
             .await
             .is_err(),
         "reconnect completed before its server-supplied delay"
     );
     let resumed_at = Instant::now();
     {
-        let reconnect = source.next_event();
+        let reconnect = read(&mut source, poll_stream);
         tokio::pin!(reconnect);
         tokio::select! {
             result = &mut reconnect => {
@@ -144,7 +156,7 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
     release_second
         .send(())
         .map_err(|_| "server stopped before reconnect response release")?;
-    let stopped = source.next_event().await?;
+    let stopped = read(&mut source, poll_stream).await?;
     assert_eq!(
         Instant::now().duration_since(continued_at),
         Duration::ZERO,
@@ -153,7 +165,7 @@ async fn session_event_source_reconnects_with_committed_state_and_stops_on_204()
     assert_eq!(stopped, None);
     assert!(source.is_closed());
     assert_eq!(source.reconnects(), 1);
-    assert_eq!(source.next_event().await?, None);
+    assert_eq!(read(&mut source, poll_stream).await?, None);
 
     advance(Duration::from_secs(1)).await;
     let (listener, first_head, second_head) = server.await??;

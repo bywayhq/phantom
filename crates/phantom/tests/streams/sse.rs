@@ -1,5 +1,7 @@
 //! Public SSE response-decoder integration tests.
 
+mod polling;
+
 use crate::support::h3 as h3_support;
 #[path = "sse/idle.rs"]
 mod idle;

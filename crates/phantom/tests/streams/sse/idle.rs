@@ -9,14 +9,26 @@ use tokio::{
     time::{Instant, sleep, timeout},
 };
 use tokio_btls::SslStream;
+use tracing::instrument::WithSubscriber;
 
 use super::{
     TestResult,
+    polling::read,
     tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
+    tracing_support::OutcomeSubscriber,
 };
 
 #[tokio::test(flavor = "current_thread")]
 async fn ordinary_body_timeouts_end_when_event_stream_is_established() -> TestResult<()> {
+    ordinary_body_timeouts(false).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn stream_polling_ends_ordinary_body_timeouts_when_established() -> TestResult<()> {
+    ordinary_body_timeouts(true).await
+}
+
+async fn ordinary_body_timeouts(poll_stream: bool) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -59,8 +71,7 @@ async fn ordinary_body_timeouts_end_when_event_stream_is_established() -> TestRe
     release_event
         .send(())
         .map_err(|_| "server stopped before SSE event release")?;
-    let event = source
-        .next_event()
+    let event = read(&mut source, poll_stream)
         .await?
         .ok_or("event stream ended before the delayed event")?;
     assert_eq!(event.data(), "later");
@@ -70,6 +81,15 @@ async fn ordinary_body_timeouts_end_when_event_stream_is_established() -> TestRe
 
 #[tokio::test(flavor = "current_thread")]
 async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
+    activity_resets_deadline(false).await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn stream_polling_retains_idle_deadline_after_cancelled_read() -> TestResult<()> {
+    activity_resets_deadline(true).await
+}
+
+async fn activity_resets_deadline(poll_stream: bool) -> TestResult<()> {
     const IDLE_TIMEOUT: Duration = Duration::from_secs(1);
     // Activity at 400 ms and 800 ms keeps the source alive past the first
     // deadline; the cancelled read leaves about 500 ms of the reset deadline.
@@ -132,19 +152,31 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
         .await
         .map_err(|_| "server stopped before the idle response was ready")?;
 
-    let active = source
-        .next_event()
+    let active = read(&mut source, poll_stream)
         .await?
         .ok_or("event after keepalive comment was missing")?;
     assert_eq!(active.data(), "alive");
     // Without the activity resets, the deadline from the response head
     // would expire during this cancelled read.
+    let subscriber = OutcomeSubscriber::default();
     assert!(
-        timeout(CANCELLED_READ, source.next_event()).await.is_err(),
+        timeout(
+            CANCELLED_READ,
+            read(&mut source, poll_stream).with_subscriber(subscriber.dispatch()),
+        )
+        .await
+        .is_err(),
         "idle deadline elapsed too early"
     );
+    if !poll_stream {
+        assert_eq!(subscriber.outcomes_for("sse.next_event"), ["cancelled"]);
+        assert_eq!(
+            subscriber.outcomes_for("sse.event_source.next_event"),
+            ["cancelled"]
+        );
+    }
     let resumed_at = Instant::now();
-    let event = timeout(IDLE_TIMEOUT * 2, source.next_event())
+    let event = timeout(IDLE_TIMEOUT * 2, read(&mut source, poll_stream))
         .await
         .map_err(|_| "cancelling the read discarded the idle deadline")??
         .ok_or("reconnected event was missing")?;
@@ -167,6 +199,15 @@ async fn activity_resets_a_cancellation_safe_deadline() -> TestResult<()> {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn timeout_without_a_reconnect_budget_is_terminal() -> TestResult<()> {
+    terminal_idle_timeout(false).await
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn stream_polling_reports_idle_timeout_once() -> TestResult<()> {
+    terminal_idle_timeout(true).await
+}
+
+async fn terminal_idle_timeout(poll_stream: bool) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -194,8 +235,7 @@ async fn timeout_without_a_reconnect_budget_is_terminal() -> TestResult<()> {
         .await?;
     let mut source = response.into_body();
     let started_at = Instant::now();
-    let error = source
-        .next_event()
+    let error = read(&mut source, poll_stream)
         .await
         .err()
         .ok_or("idle response remained open without a reconnect budget")?;
@@ -205,7 +245,7 @@ async fn timeout_without_a_reconnect_budget_is_terminal() -> TestResult<()> {
         Duration::from_secs(1)
     );
     assert!(source.is_closed());
-    assert_eq!(source.next_event().await?, None);
+    assert_eq!(read(&mut source, poll_stream).await?, None);
     server.await??;
     Ok(())
 }
