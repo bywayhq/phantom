@@ -169,7 +169,7 @@ fn chrome_android_154_client_hints_accept_another_model() -> TestResult {
     };
     let captured = v154_android_client_hints();
     assert_eq!(model(&captured).as_deref(), Some(&br#""Pixel 7""#[..]));
-    let other = v154_android_client_hints_for_model("Pixel 9");
+    let other = v154_android_client_hints_for_model("Pixel 9")?;
     other.validate()?;
     assert_eq!(model(&other).as_deref(), Some(&br#""Pixel 9""#[..]));
     let without_model = |settings: &crate::ClientHintSettings| {
@@ -182,5 +182,65 @@ fn chrome_android_154_client_hints_accept_another_model() -> TestResult {
     };
     assert_eq!(without_model(&captured), without_model(&other));
     assert_eq!(super::model_value(r#"a"b\c"#), r#""a\"b\\c""#);
+    Ok(())
+}
+
+#[test]
+fn android_model_constructors_reject_nonprintable_strings() -> TestResult {
+    let mut invalid = (0..=31_u8)
+        .chain([127])
+        .map(|byte| format!("model{}name", char::from(byte)))
+        .collect::<Vec<_>>();
+    invalid.extend(["\u{80}", "\u{e9}", "\u{1f642}"].map(str::to_owned));
+    for model in &invalid {
+        for result in [
+            v154_android_client_hints_for_model(model),
+            crate::browser::edge::v153_android_client_hints_for_model(model),
+            crate::browser::opera::v102_android_client_hints_for_model(model),
+        ] {
+            let error = result.err().ok_or("invalid model was accepted")?;
+            assert_eq!(error.kind(), crate::ValidationErrorKind::InvalidValue);
+            assert_eq!(error.field(), "model");
+            assert!(!error.to_string().contains(model));
+            assert!(!format!("{error:?}").contains(model));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn android_model_constructors_preserve_printable_strings_and_recipe_fields() -> TestResult {
+    for (model, expected) in [
+        ("", r#""""#),
+        (" ~", r#"" ~""#),
+        (r#"a"b\c"#, r#""a\"b\\c""#),
+    ] {
+        for (captured, settings) in [
+            (
+                v154_android_client_hints(),
+                v154_android_client_hints_for_model(model)?,
+            ),
+            (
+                crate::browser::edge::v153_android_client_hints(),
+                crate::browser::edge::v153_android_client_hints_for_model(model)?,
+            ),
+            (
+                crate::browser::opera::v102_android_client_hints(),
+                crate::browser::opera::v102_android_client_hints_for_model(model)?,
+            ),
+        ] {
+            settings.validate()?;
+            assert_eq!(captured.hints().len(), settings.hints().len());
+            for (original, changed) in captured.hints().iter().zip(settings.hints()) {
+                assert_eq!(original.name(), changed.name());
+                assert_eq!(original.delivery(), changed.delivery());
+                if changed.name() == "sec-ch-ua-model" {
+                    assert_eq!(changed.value(), expected.as_bytes());
+                } else {
+                    assert_eq!(original, changed);
+                }
+            }
+        }
+    }
     Ok(())
 }
