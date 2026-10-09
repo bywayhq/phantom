@@ -4,7 +4,7 @@ use super::*;
 use tokio::task::JoinSet;
 
 struct Peer {
-    _endpoint: quinn::Endpoint,
+    endpoint: quinn::Endpoint,
     connection: quinn::Connection,
     send: h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>,
     _driver: JoinSet<h3::error::ConnectionError>,
@@ -39,7 +39,7 @@ impl Peer {
         send.peer_settings().ready().await?;
         assert!(connection.close_reason().is_none());
         Ok(Self {
-            _endpoint: endpoint,
+            endpoint,
             connection,
             send,
             _driver: driver,
@@ -185,9 +185,51 @@ async fn a_peer_close_allows_the_proxy_address_to_be_released() -> TestResult<()
 
         peer.connection
             .close(0_u32.into(), b"controlled peer teardown");
-        peer._endpoint.wait_idle().await;
+        peer.endpoint.wait_idle().await;
         drop(proxy);
         address_released(address).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_duplicate_control_stream_retains_the_protocol_failure() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let proxy = MasqueProxy::spawn(&identity, ProxyMode::Relay)?;
+        let peer = Peer::connect(&identity, proxy.address).await?;
+
+        let mut duplicate = peer.connection.open_uni().await?;
+        // A second control stream is forbidden, even with valid SETTINGS.
+        duplicate.write_all(&[0x00, 0x04, 0x00]).await?;
+        let close = peer.connection.closed().await;
+        assert!(matches!(
+            close,
+            quinn::ConnectionError::ApplicationClosed(ref error)
+                if error.error_code.into_inner() == h3::error::Code::H3_STREAM_CREATION_ERROR.value()
+        ));
+
+        let failures = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let failures = proxy.take_failures();
+                if !failures.is_empty() {
+                    return failures;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        assert_eq!(failures.len(), 1);
+        let failure = failures.into_iter().next().ok_or("missing protocol failure")?;
+        let failure = failure.downcast::<h3::error::ConnectionError>()?;
+        assert!(matches!(
+            *failure,
+            h3::error::ConnectionError::Local {
+                error: h3::error::LocalError::Application { code, .. },
+                ..
+            } if code == h3::error::Code::H3_STREAM_CREATION_ERROR
+        ));
+        Ok(())
     })
     .await
 }

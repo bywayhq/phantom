@@ -86,13 +86,30 @@ struct ProxyLog {
     requests: Vec<ObservedConnectUdp>,
     /// Outer connections on which the client presented a certificate.
     client_certificates: usize,
+    failures: Vec<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct CloseState {
+    generation: u64,
+    closed: bool,
+}
+
+/// Closing the endpoint is distinct from dropping its last user handle:
+/// active connections otherwise keep Quinn's endpoint driver and socket alive.
+struct ProxyEndpoint(quinn::Endpoint);
+
+impl Drop for ProxyEndpoint {
+    fn drop(&mut self) {
+        self.0.close(0_u32.into(), b"test proxy owner dropped");
+    }
 }
 
 /// A running CONNECT-UDP proxy; aborted on drop.
 pub(crate) struct MasqueProxy {
     pub(crate) address: SocketAddr,
     log: Arc<Mutex<ProxyLog>>,
-    close: watch::Sender<bool>,
+    close: watch::Sender<CloseState>,
     task: JoinHandle<()>,
 }
 
@@ -126,16 +143,36 @@ impl MasqueProxy {
         mode: ProxyMode,
     ) -> TestResult<Self> {
         let log = Arc::new(Mutex::new(ProxyLog::default()));
-        let (close, close_rx) = watch::channel(false);
+        let (close, mut close_rx) = watch::channel(CloseState::default());
         let task_log = Arc::clone(&log);
         let task = tokio::spawn(async move {
-            while let Some(incoming) = endpoint.accept().await {
-                lock(&task_log).connections += 1;
-                let log = Arc::clone(&task_log);
-                let close_rx = close_rx.clone();
-                tokio::spawn(async move {
-                    let _ = serve_connection(incoming, mode, log, close_rx).await;
-                });
+            let endpoint = ProxyEndpoint(endpoint);
+            let mut connections = JoinSet::new();
+            loop {
+                tokio::select! {
+                    biased;
+                    changed = close_rx.changed() => {
+                        if changed.is_err() {
+                            break;
+                        }
+                    }
+                    completed = connections.join_next(), if !connections.is_empty() => {
+                        match completed {
+                            Some(Ok(Ok(()))) | None => {}
+                            Some(Ok(Err(error))) => lock(&task_log).failures.push(error),
+                            Some(Err(error)) => lock(&task_log).failures.push(error.into()),
+                        }
+                    }
+                    incoming = endpoint.0.accept() => {
+                        let Some(incoming) = incoming else { break };
+                        lock(&task_log).connections += 1;
+                        let log = Arc::clone(&task_log);
+                        let close_rx = close_rx.clone();
+                        // Snapshot in the accepting owner, before the child can be scheduled.
+                        let state = *close_rx.borrow();
+                        connections.spawn(serve_connection(incoming, mode, log, close_rx, state));
+                    }
+                }
             }
         });
         Ok(Self {
@@ -167,14 +204,22 @@ impl MasqueProxy {
         lock(&self.log).client_certificates
     }
 
+    /// Takes completed background failures without turning them into a quiet result.
+    pub(crate) fn take_failures(&self) -> Vec<Box<dyn std::error::Error + Send + Sync>> {
+        std::mem::take(&mut lock(&self.log).failures)
+    }
+
     /// Closes every open outer QUIC connection.
     pub(crate) fn close_connections(&self) {
-        let _ = self.close.send(true);
+        self.close.send_modify(|state| {
+            state.generation = state.generation.wrapping_add(1);
+            state.closed = true;
+        });
     }
 
     /// Accepts outer connections normally again after a close.
     pub(crate) fn reopen(&self) {
-        let _ = self.close.send(false);
+        self.close.send_modify(|state| state.closed = false);
     }
 }
 
@@ -188,12 +233,47 @@ async fn serve_connection(
     incoming: quinn::Incoming,
     mode: ProxyMode,
     log: Arc<Mutex<ProxyLog>>,
-    mut close: watch::Receiver<bool>,
+    mut close: watch::Receiver<CloseState>,
+    initial: CloseState,
 ) -> TestResult<()> {
-    let quinn = incoming.await?;
+    let quinn = tokio::select! {
+        biased;
+        () = connection_closed(&mut close, initial) => return Ok(()),
+        connected = incoming => connected?,
+    };
     if presented_leaf(&quinn).is_some() {
         lock(&log).client_certificates += 1;
     }
+
+    // This covers H3 setup, partial HEADERS, rejection responses and the relay,
+    // including awaits nested inside those stages rather than only loop edges.
+    tokio::select! {
+        biased;
+        () = connection_closed(&mut close, initial) => {
+            quinn.close(0_u32.into(), b"test proxy closed the connection");
+            Ok(())
+        }
+        result = serve_connected(&quinn, mode, log) => result,
+    }
+}
+
+async fn connection_closed(close: &mut watch::Receiver<CloseState>, initial: CloseState) {
+    loop {
+        let state = *close.borrow_and_update();
+        if initial.closed || state.closed || state.generation != initial.generation {
+            return;
+        }
+        if close.changed().await.is_err() {
+            return;
+        }
+    }
+}
+
+async fn serve_connected(
+    quinn: &quinn::Connection,
+    mode: ProxyMode,
+    log: Arc<Mutex<ProxyLog>>,
+) -> TestResult<()> {
     let mut builder = h3::server::builder();
     builder
         .enable_extended_connect(mode != ProxyMode::WithoutExtendedConnect)
@@ -244,7 +324,16 @@ async fn serve_connection(
         stream.send_response(response.body(())?).await?;
         stream.finish().await?;
         // Hold the connection until the client closes it.
-        let _ = connection.accept().await;
+        match connection.accept().await {
+            Ok(None) => {}
+            // The rejection test peer deliberately closes QUIC with code zero.
+            Err(h3::error::ConnectionError::Remote(
+                h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
+                ..,
+            )) => {}
+            Err(error) => return Err(error.into()),
+            Ok(Some(_)) => return Err("unexpected second CONNECT-UDP request".into()),
+        }
         return Ok(());
     }
 
@@ -265,40 +354,30 @@ async fn serve_connection(
     let quarter_stream_id = stream.id().into_inner() / 4;
     let mut prefix = Vec::new();
     encode_varint(quarter_stream_id, &mut prefix);
-    let _ = quinn.send_datagram(datagram(&prefix, UNKNOWN_CONTEXT_PAYLOAD));
+    quinn.send_datagram(datagram(&prefix, UNKNOWN_CONTEXT_PAYLOAD))?;
     prefix.push(0);
 
     let mut buffer = vec![0; MAX_UDP_PAYLOAD];
     loop {
         tokio::select! {
             received = quinn.read_datagram() => {
-                let Ok(mut payload) = received else { break };
+                let mut payload = received?;
                 let Some(stream_id) = decode_varint(&mut payload) else { continue };
                 let Some(context) = decode_varint(&mut payload) else { continue };
                 if stream_id == quarter_stream_id && context == 0 {
-                    let _ = udp.send(&payload).await;
+                    udp.send(&payload).await?;
                 }
             }
             received = udp.recv(&mut buffer) => match received {
                 Ok(count) => {
-                    let _ = quinn.send_datagram(datagram(&prefix, &buffer[..count]));
+                    quinn.send_datagram(datagram(&prefix, &buffer[..count]))?;
                 }
                 // Windows reports an earlier ICMP port-unreachable here.
                 Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
-                Err(_) => break,
+                Err(error) => return Err(error.into()),
             },
-            changed = close.changed() => {
-                let closed = changed.is_err() || *close.borrow_and_update();
-                if closed {
-                    quinn.close(0_u32.into(), b"test proxy closed the connection");
-                    break;
-                }
-            }
         }
     }
-    drop(stream);
-    drop(connection);
-    Ok(())
 }
 
 fn datagram(prefix: &[u8], payload: &[u8]) -> Bytes {
