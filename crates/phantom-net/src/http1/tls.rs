@@ -184,7 +184,7 @@ impl Http1TlsConnector {
     ///
     /// The options cover direct origin connections and connections to HTTP
     /// and SOCKS5 proxies. An HTTPS proxy connection uses the options of the
-    /// [`HttpsProxyConnector`] passed with it.
+    /// [`crate::proxy::HttpsProxyConnector`] passed with it.
     /// The settings are checked before any DNS or socket I/O. Invalid
     /// settings fail each connection attempt with
     /// [`std::io::ErrorKind::InvalidInput`], and settings this host cannot
@@ -201,7 +201,7 @@ impl Http1TlsConnector {
     ///
     /// Without a cache, every challenge-driven exchange starts without
     /// credentials. An HTTPS proxy uses the cache of the
-    /// [`HttpsProxyConnector`] passed with it. Clones of this connector share
+    /// [`crate::proxy::HttpsProxyConnector`] passed with it. Clones of this connector share
     /// `cache`.
     #[must_use]
     pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
@@ -219,7 +219,7 @@ impl Http1TlsConnector {
     ///
     /// The binding covers direct origin connections and connections to HTTP
     /// and SOCKS5 proxies. An HTTPS proxy connection uses the binding of the
-    /// [`HttpsProxyConnector`] passed with it. An invalid binding fails each
+    /// [`crate::proxy::HttpsProxyConnector`] passed with it. An invalid binding fails each
     /// connection attempt with [`std::io::ErrorKind::InvalidInput`] before
     /// any DNS or socket I/O; see [`SourceBinding::validate`].
     #[must_use]
@@ -252,7 +252,7 @@ impl Http1TlsConnector {
     ///
     /// The resolver covers direct origin hosts, HTTP and SOCKS5 proxy hosts,
     /// and the target of a local-DNS SOCKS5 route. An HTTPS proxy host is
-    /// resolved through the [`HttpsProxyConnector`] passed with it. A target
+    /// resolved through the [`crate::proxy::HttpsProxyConnector`] passed with it. A target
     /// that a proxy resolves is never looked up locally. Clones of this
     /// connector share `resolver`.
     #[must_use]
