@@ -679,6 +679,69 @@ class CleanupFailureTests(unittest.TestCase):
             self.assertIn("cleanup", detail)
             self.assertIn("profile discovery failed", detail)
 
+    def test_interrupt_cleanup_failure_removes_a_racing_completion_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+            release, registered = threading.Event(), threading.Event()
+            attempts = Attempts()
+            container = mock.Mock()
+            container.close.side_effect = release.set
+            join = threading.Thread.join
+            interrupted = False
+            owned_threads = []
+
+            def attempt(_job, _number):
+                attempts.add("owned-attempt", container, root / "owned")
+                registered.set()
+                release.wait(10)
+                item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
+                item.outputs[0].write_bytes(b"format=fake\n")
+                return Attempt(True, 2.0)
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    self.assertTrue(registered.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                return join(thread, *args, **kwargs)
+
+            try:
+                with (
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=OSError("profile discovery failed"),
+                    ),
+                ):
+                    (result,), _wall = run_manifest(
+                        [item],
+                        work_dir=root / "work",
+                        limit=1,
+                        retries=0,
+                        force=False,
+                        attempt=attempt,
+                        attempts=attempts,
+                        log=lambda _line: None,
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual(result.status, "failed")
+            self.assertEqual(len(result.attempts), 1)
+            self.assertEqual(result.seconds, 2.0)
+            self.assertFalse(result.attempts[0].ok)
+            self.assertIn("profile discovery failed", result.attempts[0].detail)
+            records = CompletionRecords(root / "work" / "completed")
+            self.assertEqual(records.mismatch(item), "no completion record")
+
 
 class RetryTests(unittest.TestCase):
     def test_a_failed_attempt_is_retried_once(self) -> None:

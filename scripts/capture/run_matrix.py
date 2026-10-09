@@ -685,10 +685,31 @@ def profile_path_problem(
     )
 
 
+class CleanupError(RuntimeError):
+    """Keep every failed cleanup operation and its original exception."""
+
+    def __init__(self, failures: Sequence[tuple[str, Exception]]) -> None:
+        self.failures = tuple(failures)
+        super().__init__(
+            "capture cleanup failed: "
+            + "; ".join(f"{operation}: {error}" for operation, error in failures)
+        )
+
+
 def end_attempt(container: ProcessContainer, temporary: Path) -> None:
-    container.close()
+    failures = []
+    try:
+        container.close()
+    except Exception as error:  # noqa: BLE001 - cleanup continues before reporting
+        failures.append(("close process container", error))
+
     # A browser outside the container still names the attempt's directory.
-    stop_processes_naming(temporary)
+    try:
+        stop_processes_naming(temporary)
+    except Exception as error:  # noqa: BLE001 - retain the failed cleanup operation
+        failures.append(("sweep profile processes", error))
+    if failures:
+        raise CleanupError(failures) from failures[0][1]
 
 
 class Attempts:
@@ -715,9 +736,15 @@ class Attempts:
         """Start no more attempts and end every running attempt's processes."""
         with self.lock:
             self.stopped.set()
-            running = list(self.running.values())
-        for container, temporary in running:
-            end_attempt(container, temporary)
+            running = list(self.running.items())
+        failures = []
+        for name, (container, temporary) in running:
+            try:
+                end_attempt(container, temporary)
+            except CleanupError as error:
+                failures.append((name, error))
+        if failures:
+            raise CleanupError(failures) from failures[0][1]
 
 
 def attempt_timeout(job: Job, *, shared_host: bool, limit: int) -> float:
@@ -895,12 +922,39 @@ def schedule(
             while thread.ident is not None and thread.is_alive():
                 thread.join(0.2)
 
+    cleanup_error = None
+    interrupted_indices = []
     try:
         dispatch()
         join()
     except KeyboardInterrupt:
-        on_interrupt()
-        join()
+        stopped.set()
+        with condition:
+            interrupted_indices = [
+                index
+                for index, thread in enumerate(threads)
+                if thread.ident is not None and index not in results
+            ]
+        try:
+            on_interrupt()
+        except Exception as error:  # noqa: BLE001 - joined and reported below
+            cleanup_error = error
+        finally:
+            join()
+
+    if cleanup_error is not None:
+        for index in interrupted_indices:
+            result = results[index]
+            result.status = "failed"
+            detail = f"cleanup failed: {cleanup_error}"
+            if result.attempts:
+                outcome = result.attempts[-1]
+                outcome.ok = False
+                outcome.detail = (
+                    f"{outcome.detail}; {detail}" if outcome.detail else detail
+                )
+            else:
+                result.attempts.append(Attempt(False, 0.0, detail))
     return [
         results.get(index, JobResult(job, "not-run")) for index, job in enumerate(jobs)
     ]
@@ -1048,6 +1102,11 @@ def run_manifest(
         stopped=attempts.stopped,
         on_interrupt=attempts.stop,
     )
+    # A worker can publish success before interrupt cleanup marks it failed.
+    # An uncertain shutdown must not leave a resumable completion record.
+    for result in ran:
+        if result.status == "failed":
+            records.forget(result.job)
     wall = time.perf_counter() - begin
     by_id = {result.job.id: result for result in [*skipped, *ran]}
     return [by_id[job.id] for job in jobs], wall
