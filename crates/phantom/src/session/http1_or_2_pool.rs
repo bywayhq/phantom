@@ -733,21 +733,19 @@ impl PoolEntry {
             && let Some(discovery) = &self.https_records
         {
             let mut ech = std::pin::pin!(discovery.tcp_ech(endpoint, connector.alpn_protocols()));
-            return connector
-                .connect(OriginRoute::Tls {
-                    tcp: tcp(),
-                    server_name: endpoint.host(),
-                    setup: DirectTlsSetup::Ech(ech.as_mut()),
-                })
-                .await;
-        }
-        connector
-            .connect(OriginRoute::Tls {
+            return super::box_send(connector.connect(OriginRoute::Tls {
                 tcp: tcp(),
                 server_name: endpoint.host(),
-                setup: DirectTlsSetup::KeepSlower(&self.connections.family),
-            })
-            .await
+                setup: DirectTlsSetup::Ech(ech.as_mut()),
+            }))
+            .await;
+        }
+        super::box_send(connector.connect(OriginRoute::Tls {
+            tcp: tcp(),
+            server_name: endpoint.host(),
+            setup: DirectTlsSetup::KeepSlower(&self.connections.family),
+        }))
+        .await
     }
 
     /// Phase one: bounded admission before ALPN selects a protocol.
@@ -1284,14 +1282,9 @@ impl PoolEntry {
             server_name: endpoint.host(),
             setup: DirectTlsSetup::Default,
         });
-        // Bound the challenge/retry future only for authenticated proxies.
-        let opened = if matches!(route, Route::HttpProxy(proxy) if proxy.basic_credentials().is_some())
-        {
-            super::box_send(operation).await
-        } else {
-            operation.await
-        };
-        opened.map_err(RequestError::http1_or_2_connection_setup)
+        super::box_send(operation)
+            .await
+            .map_err(RequestError::http1_or_2_connection_setup)
     }
 }
 
