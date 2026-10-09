@@ -14,36 +14,27 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
-- `Http3Connector` opens connections with `connect(DatagramRoute, server_name)`
-  and sends one-shot requests with `send`. Migrate: replace `connect_direct`
-  with `DatagramRoute::Direct`, SOCKS5 connection methods with
-  `DatagramRoute::Socks5`, and CONNECT-UDP methods with
-  `DatagramRoute::ConnectUdp`. Use `DirectEch` with a pinned lookup instead of
-  `connect_direct_with_ech`. Replace `send_get_direct` and
-  `send_request_direct` with `send`, passing `Method::GET` and no body for
-  GET. Keep the dial target, origin TLS name, and request authority separate.
-  Connection-based request and WebSocket operations remain available.
-
-- `phantom-net`'s HTTP/1.1, HTTP/2, and negotiated TLS connectors use
-  `connect_via(route, server_name)` instead of ordinary direct, HTTP CONNECT,
-  HTTPS CONNECT, and SOCKS5 connection methods. Migrate: construct a
-  `phantom_net::route::TcpRoute` for the connection path and pass the origin
-  TLS name separately. Replace `connect_direct` with `TcpRoute::Direct`;
-  `connect_http_connect[_with_basic_auth]` and
-  `connect_https_connect[_with_basic_auth]` with `TcpRoute::HttpConnect`;
-  and `connect_socks5_{local,remote}[_with_auth]` with `TcpRoute::Socks5`.
-  The route holds ordered CONNECT headers, optional proxy credentials,
-  and local or remote SOCKS5 DNS selection. HTTP/1.1 one-shot requests and
-  TLS Upgrade openings also take these routes. Migrate:
-  `send_get_{direct,http_connect,socks5_local,socks5_remote}` becomes
-  `send_get_via`; `send_request_*` for these routes, including HTTPS CONNECT
-  and authenticated forms, becomes `send_request_via`; and TLS
-  `upgrade_get_*` for these routes becomes `upgrade_get_via`. Pass the route
-  before the origin TLS name and request fields. HTTP/2 one-shot requests
-  use `send_get_via` and `send_request_via` in the same way. Replace HTTP/2
-  `send_extended_connect_{direct,http_connect,https_connect,socks5_local,socks5_remote}`
-  and authenticated forms with `send_extended_connect_via`. Openings on an
-  existing HTTP/2 connection continue to use `send_extended_connect_on`.
+- `phantom-net` connectors now take route values. HTTP/1.1 uses
+  `connect(Http1Route)`, `send`, and `upgrade`; HTTP/2 uses
+  `connect(Http2Route)`, `send`, and `extended_connect`. Negotiated HTTP/1.1
+  or HTTP/2 uses `connect(OriginRoute)`. HTTP/3 uses
+  `connect(DatagramRoute, server_name)` and `send`. Route-specific connection,
+  request, GET, and Upgrade methods are removed. Migrate: construct
+  `TcpRoute::Direct`, `HttpConnect`, `Socks5`, or `Connected`, then select
+  `OriginRoute::Plaintext` or `Tls`. Wrap it in the protocol's `Origin`
+  route, or use `Forward` with the proxy's transport. HTTP/1.1 origin routes
+  take `Http1Target::Origin`; forwarding takes `Http1Target::Absolute`.
+  Replace GET helpers with `send`, `Method::GET`, and no body. HTTP/1.1 and
+  negotiated connection openings return `(connection, optional_slower)`.
+  Replace direct ECH methods with `DirectTlsSetup::Ech` and a pinned lookup;
+  replace slower-connection methods with `KeepSlower`, or plaintext family
+  memory. These policies require a direct route. Keep-slower setup is only
+  supported for HTTP/1.1 and negotiated connection openings. Wrap supplied
+  streams in `ConnectedStream::new` instead of passing them to a connector.
+  For HTTP/3, use `DatagramRoute::Direct`, `Socks5`, or `ConnectUdp`, and
+  `DirectEch` for a pinned ECH lookup. Keep dial targets, origin TLS names,
+  and request authorities separate. Connection-based HTTP/2 and HTTP/3
+  WebSocket operations remain available.
 
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.
