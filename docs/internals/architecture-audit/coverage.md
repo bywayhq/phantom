@@ -16,7 +16,7 @@ Pending means that discovery or assignment has not established review.
 | Capture and conformance tooling | Tool lifecycle | Input validation, process ownership, tests | In progress |
 | Development, CI and release tooling | Maintainer workflow | Commands, failure handling, workflow callers | In progress |
 | Documentation and public API inventories | Published contracts | Source comparison, examples, retained evidence | Pending |
-| Repository configuration | Maintainer boundaries | Active callers and enforcement | Pending |
+| Repository configuration | Maintainer boundaries | Active callers and enforcement | Bounded source pass recorded; remaining configuration and enforcement pending |
 | Combined architecture | Independent final review | Cross-crate lifecycles and integrated changes | Pending |
 
 ## First pass evidence
@@ -105,15 +105,37 @@ Capture review reproduces a preassignment child escaping Windows job cleanup,
 a profile-prefix sweep stopping a different profile, and a quoted path
 preventing cleanup. Tests use harmless owned processes, rather than browsers.
 The sweep's exact, descendant and prefix-sibling Windows controls pass.
-The launch remedy still fails its abrupt-runner-death control with the
-dependency-managed interpreter, so the containment correction remains open.
+The initial launch remedy fails its abrupt-runner-death control with the
+dependency-managed interpreter. A native bootstrap repair then passes all
+86 focused tests on Windows and native Linux at `1d5f3f99`; eleven Windows-only
+cases skip on Linux. Independent review identifies a separate cleanup-failure
+path, so complete shutdown verification remains open.
 
 Two actual HTTP/3 decoder regressions fail for retained unknown payload and
 oversized SETTINGS. The fragmented unknown-frame and following GOAWAY control
 passes. HTTP/3 cookie preparation also fails three new count, byte and
 extended CONNECT regressions; ten controls pass. Its facade regression fails
-before a successful exchange. The proposed remedies and composed reviews
-remain pending; these failing tests are evidence, not passed gates.
+before a successful exchange. Those failing tests establish the defects.
+The incremental-frame repair passes 36 decoder and 52 connection tests,
+including actual QUIC peers. The cookie repair passes all 185 transport HTTP/3
+tests and seven facade cookie tests. Independent source reviews approve both
+repairs. Identity refresh, full canonical replay and final integration remain
+pending.
+
+The frame payload-length baseline at `cb06e4af` passes 39 decoder controls and
+fails two malformed-payload regressions. Its actual QUIC peer also publishes
+GOAWAY instead of the required frame error. The known-payload declaration cap
+does not resolve this separate parsing path. Three deterministic capture cleanup
+tests fail at `ec51ac17`; the initial correction passes its four focused tests,
+but repeated interruption remains under review. These are open repairs.
+
+The [maintainer configuration record](maintainer-configuration-coverage.json)
+contains seven complete integration-owner reads covering optional command
+hooks, review duties, permissions, byte-preservation attributes, ignored
+artifacts and dependency policy. Its 335 lines were read as source. The optional
+hooks deliberately fail open on absent tooling; they do not replace the full
+gate. This establishes configuration coverage without claiming runtime
+permission enforcement or an executed advisory/license scan.
 
 The ACK parser repair passes 357 Quinn-proto unit tests and its complete
 Windows vendor check. Its renamed Quinn dependent also passes that check.

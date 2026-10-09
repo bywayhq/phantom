@@ -36,12 +36,14 @@ No finding is resolved by an assignment or a proposed fix.
 | A27 | P2 | SOCKS CONNECT errors retain their negotiation category | Upstream UnknownAuthMethod also denotes an unknown CONNECT reply | Red/green test; review approved; proxy suite and lint pass |
 | A28 | P2 | ACK_FREQUENCY validates the selected wire format | A one-byte flag is decoded as a variable-length integer | Real connection regression red/green; review approved; vendor replay passes |
 | A29 | P3 | Windows option tests survive reserved UDP ports | A raw port-zero bind bypasses the retry helper | Shared binder repair; 37 UDP tests pass; review approved |
-| A30 | P2 | Capture containment owns children before they run | Job assignment follows an already-running process | Barrier controls pass; dependency-managed interpreter shutdown fails; repair in progress |
-| A31 | P2 | Profile sweeps preserve unrelated processes | Windows substring matching kills a different profile and quoted paths fail | Exact, descendant and prefix-sibling Windows controls pass; independent repair review pending |
+| A30 | P2 | Capture containment owns children before they run | Job assignment follows an already-running process | Native bootstrap independently approved; 86 focused Windows tests pass; A37 shutdown gap remains |
+| A31 | P2 | Profile sweeps preserve unrelated processes | Windows substring matching kills a different profile and quoted paths fail | Exact, descendant and prefix-sibling controls pass; independent review approved; A37 caller gap remains |
 | A32 | P3 | ECH support documentation states what is checked | Parameter support does not validate the HPKE public key | Source correction and independent review approved; seven parser tests pass |
 | A33 | P3 | Short tests stay with their module | AcceptCh's 51-line tests use a separate directory and path annotation | Inline move independently approved; all three tests pass |
-| A34 | P2 | HTTP/3 control parsing bounds retained payloads | Control decoding waits for an entire peer-declared non-DATA payload | Two decoder regressions fail; following GOAWAY control passes; canonical repair in progress |
-| A35 | P2 | HTTP/3 cookie limits apply before splitting | Semantic validation repeats supplied-field limits over emitted crumbs | Count, byte and extended CONNECT regressions fail; facade request fails; repair in progress |
+| A34 | P2 | HTTP/3 control parsing bounds retained payloads | Control decoding waits for an entire peer-declared non-DATA payload | Red/green tests; 36 decoder and 52 peer tests pass; review approved; packaging pending |
+| A35 | P2 | HTTP/3 cookie limits apply before splitting | Semantic validation repeats supplied-field limits over emitted crumbs | Red/green tests; 185 transport HTTP/3 and seven facade cookie tests pass; review approved |
+| A36 | P2 | Known frame fields consume exactly their declared payload | Single-ID parsing leaves trailing bytes or treats a complete truncated field as partial input | Two decoder and one real-peer regressions fail; valid controls pass; canonical repair in progress |
+| A37 | P2 | Capture shutdown continues after individual cleanup errors | First close or profile-sweep failure skips later owners and reporting | Three regressions fail; initial repair passes four controls; repeated interruption still open |
 
 ## Initial source evidence
 
@@ -317,10 +319,52 @@ The facade's exact HTTP/3 request also fails before a successful exchange.
 The remedy must retain protocol validation, supplied-field limits, generated
 field accounting, and the separate peer SETTINGS field-section bound.
 
-The capture repair's Windows run selects 85 tests. Profile matching and
-startup-barrier controls pass, but the abrupt-runner-death control fails with
-the dependency-managed interpreter. That failure remains open; it prevents
-accepting the containment repair. No passing full capture suite is claimed.
+The initial capture repair's Windows run selects 85 tests but fails the
+abrupt-runner-death control with the dependency-managed interpreter. A delayed
+assignment regression then confirms that the Windows virtualenv redirector
+creates the actual interpreter before job assignment. The repaired bootstrap
+starts that actual interpreter, while the original tool keeps its virtualenv,
+arguments, environment and exit status. Independent source review approves
+those startup and matching paths. At `1d5f3f99`, all 86 focused capture tests
+pass on Windows and on native Linux, where eleven Windows-only cases skip.
+Shutdown after a separate cleanup failure remains open as A37.
+
+The A34 repair at `6274e222` passes 36 decoder tests and 52 connection tests,
+including actual QUIC peers, header-only excessive-load rejection and missing
+SETTINGS. Independent review approves incremental skipping, cancellation,
+EOF, following-frame parsing and request QPACK reservations. Identity refresh,
+canonical full replay and integration gates remain pending. The declared
+known-payload cap is not a whole-buffer claim; A36 examines complete malformed
+known payloads separately.
+
+The A35 repair at `a21cd99c` passes all 185 transport HTTP/3 tests and seven
+facade cookie tests. Its original facade error source reports too many headers;
+the correction observes all 101 distinct Cookie values in order and receives
+204. Independent review confirms that original limits, generated fields,
+protocol semantics and peer emitted-field limits remain enforced.
+
+A36 concerns `proto/frame.rs`, its length-limited payload reader, and the
+frame decoder's incomplete-input handling. A single-ID frame can parse its ID
+without consuming the rest of its declared payload. A completely present
+payload with an incomplete inner varint can also return Incomplete, even
+though more outer bytes cannot repair that payload. PUSH_PROMISE shares the
+inner-varint path. At `cb06e4af`, two real decoder regressions fail and 39
+controls pass, including valid wide IDs and fragmented outer input. The QUIC
+peer regression receives GOAWAY instead of the required frame error.
+Independent review approves the regression stage; the runtime repair is in
+progress through its separate canonical patch.
+
+A37 uses controlled failures in capture shutdown. At `ec51ac17`, both a first
+container-close failure and a first profile-sweep failure leave the second
+container unclosed. Two other tests show interruption propagating the cleanup
+error before worker joins and publishable results. All three tests fail on
+that baseline, with two failing subcases in the first test. No real processes
+are killed by this fault injection. The repair must finish cleanup fan-out,
+retain the original causes, join workers and publish unsuccessful results.
+The first repair at `0afa0f4e` passes all four focused tests, including a success
+racing interrupted cleanup and removal of its completion record. Independent
+review identifies a remaining second-interruption path during cleanup or join
+that can still skip reporting. That path remains open.
 
 ## Rejected candidates
 

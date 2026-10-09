@@ -2450,6 +2450,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Apply HTTP/3 request header count and size limits before splitting cookies,
+  including extended CONNECT. Large valid cookies can produce more than 100
+  fields; peer field-section limits still apply to the emitted fields.
+- Contain Windows capture tools before they start, including tools run from
+  virtual environments. Stop assigned children when the runner exits and
+  fail the attempt if Windows refuses containment.
+- Match whole profile paths during Windows capture cleanup. Preserve profiles
+  with a shared prefix and accept work paths with spaces or apostrophes.
+- Discard unknown HTTP/3 frame payloads incrementally and reject declared
+  known buffered payloads above 1 MiB. DATA remains streaming, and following
+  frames keep their boundaries.
+
 - Clarify that `EchConfig::is_supported` checks configuration parameters and
   public names. It does not validate the HPKE public key or prove that a
   handshake will succeed.

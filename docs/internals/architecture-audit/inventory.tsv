@@ -1,15 +1,15 @@
 path	surface	review	evidence
-.claude/agents/gate-reviewer.md	documentation	pending	
-.claude/hooks/check-rust-format.sh	configuration	pending	
-.claude/hooks/guard-command.sh	configuration	pending	
-.claude/settings.json	configuration	pending	
+.claude/agents/gate-reviewer.md	documentation	source-complete	maintainer-configuration-coverage.json#.claude/agents/gate-reviewer.md
+.claude/hooks/check-rust-format.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/check-rust-format.sh
+.claude/hooks/guard-command.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/guard-command.sh
+.claude/settings.json	configuration	source-complete	maintainer-configuration-coverage.json#.claude/settings.json
 .claude/skills/browser-capture/SKILL.md	documentation	pending	
 .claude/skills/lane/SKILL.md	documentation	pending	
 .claude/skills/phantom-docs/SKILL.md	documentation	pending	
 .claude/skills/vendor-refresh/SKILL.md	documentation	pending	
 .config/nextest.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .dockerignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-.gitattributes	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.gitattributes	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#.gitattributes
 .github/CODEOWNERS	configuration	pending	
 .github/ISSUE_TEMPLATE/bug_report.yml	configuration	pending	
 .github/ISSUE_TEMPLATE/config.yml	configuration	pending	
@@ -29,7 +29,7 @@ path	surface	review	evidence
 .github/workflows/tls-anvil.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/upstream-freshness.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/wpt-eventsource.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-.gitignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+.gitignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#.gitignore
 AGENTS.md	documentation	pending	
 CHANGELOG.md	documentation	pending	
 CLAUDE.md	documentation	pending	
@@ -650,7 +650,7 @@ crates/phantom/tests/support/tracing.rs	crate	pending
 crates/phantom/tests/support/tunnel_proxy.rs	crate	pending	
 crates/phantom/tests/support/websocket.rs	crate	pending	
 crates/phantom/tests/support/websocket_origin.rs	crate	pending	
-deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
+deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#deny.toml
 docs/README.md	documentation	source-complete	docs-contract-coverage.json#docs/README.md
 docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md
 docs/explanation/validation.md	documentation	source-partial	docs-contract-coverage.json#docs/explanation/validation.md
