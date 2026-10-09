@@ -1,7 +1,8 @@
 # Roadmap
 
-Phases 1 and 2 are complete within their agreed scope. Release preparation
-comes next, followed by hardening, profiling, and an architecture audit.
+Phases 1 and 2 are complete within their agreed scope. The
+[architecture audit](internals/architecture-audit.md) is now in progress
+before release preparation. Hardening and profiling remain later work.
 This page states intent, not commitments or dates; for exact current
 support, see [Coverage](reference/coverage.md).
 

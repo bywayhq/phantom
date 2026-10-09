@@ -1,0 +1,532 @@
+[
+  {
+    "path": "crates/phantom-profile/Cargo.toml",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/README.md",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/brave.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/brave/android.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/brave/android/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/brave/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/android.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/android/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/hook_tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/http3_tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/quic_tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/chrome/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/edge.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/edge/android.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/edge/android/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/edge/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/firefox.rs",
+    "coverage": "partial",
+    "sections": "Lines 1-185; remaining recipe definitions unread"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/firefox/android.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/firefox/hook_tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/firefox/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/opera.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/opera/android.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/opera/android/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/opera/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/browser/opera/tests/hash_set_order.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/client.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/client_hints.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/client_hints/navigation_capture.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/client_hints/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/cookie.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/dns_cache.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/dns_cache/tests.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http1.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http1/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http2.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http2/session_capture.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http2/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http3.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/http3/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/lib.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/proxy_connect.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/proxy_connect/tests.rs",
+    "coverage": "partial",
+    "sections": "Initial 85 lines and new canary regression in isolated audit-profile-debug lane; remaining baseline tests unread"
+  },
+  {
+    "path": "crates/phantom-profile/src/quic.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/quic/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/request_template.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/request_template/capture.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/request_template/tests.rs",
+    "coverage": "partial",
+    "sections": "Initial imports/macros and first tests; new canary regression reviewed in isolated audit-profile-debug lane; remaining baseline tests unread"
+  },
+  {
+    "path": "crates/phantom-profile/src/tcp.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/tcp/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/tls.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/tls/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/udp.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/url_trust.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/validation.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/websocket.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-profile/src/websocket/tests.rs",
+    "coverage": "partial",
+    "sections": "Initial 110 lines and new canary regression in isolated audit-profile-debug lane; remaining baseline tests unread"
+  },
+  {
+    "path": "crates/phantom-profile/tests/public_api/api_policy.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/tests/public_api/browser_profiles.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/tests/public_api/http3_public_api.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/tests/public_api/main.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/tests/public_api/quic_public_api.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-profile/tests/public_api/traits.rs",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/Cargo.toml",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/README.md",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/callback_state.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/callback_state/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session/tests/lifecycle.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session/tests/post_handshake.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session/tests/provider.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session/tests/resumption.rs",
+    "coverage": "partial",
+    "sections": "Lines 1-530; remaining baseline tests unread; three new regression tests reviewed in isolated audit-quic-tickets lane"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/client_session/tests/support.rs",
+    "coverage": "partial",
+    "sections": "Lines 1-85; remaining harness unread"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/quic_callbacks.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/quic_callbacks/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/server.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/backend/server/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/ech.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/error.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/header.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/hkdf.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/initial.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/key_log.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/key_schedule.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/key_schedule/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/lib.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/packet.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/quinn.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/reset.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/reset/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/resumption.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/retry.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/secret.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/suite_tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/transport_parameters.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/transport_parameters/tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/transport_parameters/wire.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/src/version_2_tests.rs",
+    "coverage": "complete",
+    "sections": "Entire file read in bounded chunks; source/test contract inspection only, not executed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/testdata/rfc9001-client-initial.hex",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  },
+  {
+    "path": "crates/phantom-quic-btls/testdata/rfc9001-server-initial.hex",
+    "coverage": "partial",
+    "sections": "Unreviewed; no source coverage claimed"
+  }
+]

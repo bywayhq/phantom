@@ -88,7 +88,10 @@ error names `TimeoutPhase::WebSocketHandshake`
 
 ## Connection pools
 
-`ClientBuilder` can set each bound to any nonzero value. A
+Pool bounds are nonzero. Active and waiting request bounds must also fit
+`tokio::sync::Semaphore::MAX_PERMITS`; `build` rejects larger values with
+`BuildErrorKind::InvalidPolicy`. H3 connection counts have their separate
+ceiling below. A
 [pool key](glossary.md#pool-key) is the origin plus the complete route.
 
 | Bound | Default | Builder method |

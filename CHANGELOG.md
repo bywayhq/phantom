@@ -2426,6 +2426,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject client admission bounds above the runtime semaphore limit with
+  `BuildErrorKind::InvalidPolicy`, including the effective HTTP/1.1 profile
+  bound, before preparing a connection.
+- Discard an isolated QUIC session cache when applying a TLS profile that
+  disables tickets. Later early-data opt-in cannot use its old tickets.
+- Keep shared address-resolution work counted across cache clears and
+  caller cancellation. Completion and runtime shutdown release capacity.
+- Redact arbitrary request, WebSocket, and CONNECT template values from
+  debug output, including nested profile formatting.
 - Enforce the total request deadline when reading buffered response data.
   A ready body frame still satisfies the read-idle limit.
 
