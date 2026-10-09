@@ -54,6 +54,14 @@ impl BuildError {
     pub(crate) fn invalid_base_url(source: impl StdError + Send + Sync + 'static) -> Self {
         Self::with_source(BuildErrorKind::InvalidBaseUrl, "invalid base URL", source)
     }
+
+    pub(crate) fn unsupported_base_url() -> Self {
+        Self {
+            kind: BuildErrorKind::InvalidBaseUrl,
+            message: "base URL scheme must be http or https",
+            source: None,
+        }
+    }
     pub(crate) fn invalid_policy(message: &'static str) -> Self {
         Self {
             kind: BuildErrorKind::InvalidPolicy,

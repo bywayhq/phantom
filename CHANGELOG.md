@@ -1027,6 +1027,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Resolve relative HTTP request URLs with `ClientBuilder::base_url`.
+  Standard URL joining applies, and absolute request URLs override the base.
+- Run ordered caller-header hooks through `ClientBuilder::header_hook` and
+  `RequestBuilder::header_hook`. Inspect the initial method and resolved URI,
+  then set, append, or remove caller headers before validation. Templates
+  retain their positions. Retries reuse hook results, and redirects strip
+  credentials without rerunning callbacks. `without_header_hooks` opts out.
+  Hook errors preserve their source while keeping diagnostics private.
+
 - Warn when a `phantom-net::request::RequestBody` is discarded, including
   bodies created from a one-shot streaming source.
 

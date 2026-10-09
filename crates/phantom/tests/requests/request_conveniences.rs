@@ -47,20 +47,23 @@ async fn base_urls_and_hooks_preserve_template_order_and_request_overrides() -> 
         };
         let calls = Arc::new(AtomicUsize::new(0));
         let hook_calls = calls.clone();
-        let client =
-            Client::builder(ClientProfile::new(tls_settings()).with_request_template(template))
-                .base_url(&format!("http://{address}/api/"))?
-                .header_hook(move |context| {
-                    hook_calls.fetch_add(1, Ordering::Relaxed);
-                    assert_eq!(context.uri().path(), "/api/users");
-                    assert_eq!(context.uri().query(), Some("page=2"));
-                    context.set(RequestHeader::new("x-token", "first"))
-                })
-                .header_hook(|context| {
-                    assert_eq!(context.headers()[0].value(), b"first");
-                    context.set(RequestHeader::new("x-token", "second"))
-                })
-                .build()?;
+        let client = Client::builder(
+            ClientProfile::new(tls_settings())
+                .with_http2(phantom::profile::browser::chrome::v154_http2())
+                .with_request_template(template),
+        )
+        .base_url(&format!("http://{address}/api/"))?
+        .header_hook(move |context| {
+            hook_calls.fetch_add(1, Ordering::Relaxed);
+            assert_eq!(context.uri().path(), "/api/users");
+            assert_eq!(context.uri().query(), Some("page=2"));
+            context.set(RequestHeader::new("x-token", "first"))
+        })
+        .header_hook(|context| {
+            assert_eq!(context.headers()[0].value(), b"first");
+            context.set(RequestHeader::new("x-token", "second"))
+        })
+        .build()?;
         client
             .get(HttpProtocol::Http1, "users")?
             .query_pairs([("page", "2")])?
@@ -170,6 +173,81 @@ async fn invalid_hooks_and_changed_prepared_metadata_fail_before_connecting() ->
             .ok_or("invalid metadata unexpectedly succeeded")?;
         assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
     }
+    assert!(
+        timeout(Duration::from_millis(50), listener.accept())
+            .await
+            .is_err()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn status_retries_reuse_the_hook_result() -> TestResult<()> {
+    timeout(Duration::from_secs(10), async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let mut heads = Vec::new();
+            for status in ["503 Service Unavailable", "204 No Content"] {
+                let (mut stream, _) = listener.accept().await?;
+                heads.push(read_head(&mut stream).await?);
+                stream
+                    .write_all(
+                        format!(
+                            "HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        )
+                        .as_bytes(),
+                    )
+                    .await?;
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
+        });
+        let calls = Arc::new(AtomicUsize::new(0));
+        let hook_calls = calls.clone();
+        let retry = phantom::StatusRetry::new(
+            &[phantom::StatusCode::SERVICE_UNAVAILABLE],
+            NonZeroUsize::MIN,
+            Duration::ZERO,
+        )?;
+        let client = Client::builder(ClientProfile::new(tls_settings()))
+            .retry_policy(phantom::RetryPolicy::none().with_status_retry(retry))
+            .header_hook(move |context| {
+                let count = hook_calls.fetch_add(1, Ordering::Relaxed);
+                context.set(RequestHeader::new("X-Sequence", count.to_string()))
+            })
+            .build()?;
+        client
+            .get(HttpProtocol::Http1, &format!("http://{address}/retry"))?
+            .send()
+            .await?
+            .into_body()
+            .collect_with_limit(0)
+            .await?;
+        let heads = server.await??;
+        assert_eq!(heads[0], heads[1]);
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await?
+}
+
+#[cfg(feature = "sse")]
+#[tokio::test]
+async fn event_source_hooks_cannot_change_the_managed_event_id() -> TestResult<()> {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let client = Client::builder(ClientProfile::new(tls_settings()))
+        .header_hook(|context| context.append(RequestHeader::new("Last-Event-ID", "injected")))
+        .build()?;
+    let error = client
+        .event_source(
+            HttpProtocol::Http1,
+            &format!("http://{}/events", listener.local_addr()?),
+        )?
+        .connect()
+        .await
+        .err()
+        .ok_or("managed field changed")?;
+    assert!(std::error::Error::source(&error).is_some());
     assert!(
         timeout(Duration::from_millis(50), listener.accept())
             .await

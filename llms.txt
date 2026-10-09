@@ -53,6 +53,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
 - [Browser profiles](docs/guides/profiles.md): choose a built-in profile or build a custom one
 - [Request templates and client hints](docs/guides/request-templates.md): a browser's request headers in its order, and client hints
 - [Request bodies](docs/guides/request-bodies.md): bounded form, JSON, and multipart uploads with declared header positions
+- [Base URLs and header hooks](docs/guides/request-customization.md): relative URLs and ordered caller-header customization
 - [Routes and proxies](docs/guides/routes-and-proxies.md): routes, HTTP proxies, proxy authentication, trust roots
 - [SOCKS5 and CONNECT-UDP proxies](docs/guides/socks-and-connect-udp.md): SOCKS5 tunnels and UDP ASSOCIATE, and HTTP/3 through CONNECT-UDP
 - [Retries and replays](docs/guides/retries.md): when Phantom sends a request again

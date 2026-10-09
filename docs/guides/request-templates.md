@@ -94,6 +94,9 @@ browser and version
 
 ## Fill declared caller slots
 
+For reusable caller-header changes, see
+[base URLs and header hooks](request-customization.md).
+
 Set the template before calling `fill_slots`. Fill only names the template
 declares for every protocol the request may use.
 

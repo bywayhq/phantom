@@ -99,6 +99,10 @@ struct GettingStartedDoctests;
 struct ClientGuideDoctests;
 
 #[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/request-customization.md")]
+struct RequestCustomizationGuideDoctests;
+
+#[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/responses.md")]
 struct ResponsesGuideDoctests;
 

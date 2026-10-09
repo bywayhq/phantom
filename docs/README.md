@@ -20,6 +20,8 @@ Find the page you need below. If you're new, start at the top.
   browser's headers.
 - [Request bodies](guides/request-bodies.md): bounded form, JSON, and multipart
   uploads with explicit header placement.
+- [Base URLs and header hooks](guides/request-customization.md): shared request
+  defaults and ordered caller headers.
 - [Routes and proxies](guides/routes-and-proxies.md): HTTP proxies and trust
   roots.
 - [SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md): SOCKS5,

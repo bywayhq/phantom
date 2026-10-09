@@ -6,6 +6,10 @@ listed as supported are unsupported.
 
 ## At a glance
 
+HTTP requests support [base URLs and ordered header hooks](../guides/request-customization.md).
+Hooks edit caller headers before template expansion. Redirects do not rerun
+hooks, and WebSocket openings do not use them.
+
 Phantom reproduces HTTP-client traffic. It has no browser engine: no DOM,
 JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprinting.
 Coverage is listed separately for each network layer.

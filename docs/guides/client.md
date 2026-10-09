@@ -4,6 +4,9 @@ Set up a `Client` once, then send requests on the protocol you choose, with
 your own headers, a body and trailers. You can also give the client a
 certificate for servers that ask for one.
 
+Use [base URLs and header hooks](request-customization.md) for shared request
+defaults.
+
 > Read [Getting started](../getting-started.md) first.
 
 ## Configure the client

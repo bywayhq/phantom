@@ -487,10 +487,13 @@ origin-scoped identities, cancellation, and body replay rules. Upload tests
 cover header placement. Encoding tests cover multipart framing and escaping.
 The HTTP/1.1 harness makes no claim about TLS, HTTP/2, or HTTP/3 parity.
 
-Non-goals remain arbitrary header middleware, proxy-to-direct fallback,
-silent protocol changes, automatic `Link` following, base-URL joining, and
-a blocking API. Publishing follows Phase 2 completion. Hardening remains
-in Phase 3.
+Base URLs and ordered caller-header hooks were added after the Phase 2 API
+work. These hooks run before template expansion and retain redirect
+credential stripping.
+
+Non-goals remain arbitrary wire-header middleware, proxy-to-direct fallback,
+silent protocol changes, automatic `Link` following, and a blocking API.
+Publishing follows Phase 2 completion. Hardening remains in Phase 3.
 
 ## Release to crates.io
 

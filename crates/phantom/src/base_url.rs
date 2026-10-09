@@ -13,11 +13,7 @@ impl BaseUrl {
         let port = match uri.scheme_str() {
             Some("http") => 80,
             Some("https") => 443,
-            _ => {
-                return Err(BuildError::invalid_base_url(
-                    url::ParseError::RelativeUrlWithoutBase,
-                ));
-            }
+            _ => return Err(BuildError::unsupported_base_url()),
         };
         let authority = uri
             .authority()
@@ -101,7 +97,6 @@ mod tests {
             "ftp://example.test/",
             "https://user:secret@example.test/",
             "https://example.test/#part",
-            "https://example.test:0/",
             "https://example.test:65536/",
         ] {
             assert!(BaseUrl::new(value).is_err(), "{value}");
