@@ -214,9 +214,20 @@ leg).
 
 `Route::connect_udp` selects it. The proxy leg uses HTTP/3 by default.
 `ConnectUdpProxy::with_http2_transport` selects HTTP/2 extended CONNECT, and
-`with_http1_transport` selects HTTP/1.1 Upgrade. `phantom-net` exposes the
-same paths as `Http3Connector::connect_connect_udp`,
-`connect_connect_udp_with_basic_auth`, and `connect_connect_udp_over_tcp`.
+`with_http1_transport` selects HTTP/1.1 Upgrade. In `phantom-net`, call
+`Http3Connector::connect` with `DatagramRoute::ConnectUdp(ConnectUdpRoute)`
+and the origin's TLS server name.
+
+The route's `transport` selects an independent proxy connector:
+
+- `ConnectUdpTransport::Http3` carries the outer HTTP/3 leg.
+- `ConnectUdpTransport::Tls` carries the outer TLS leg. Its `protocol`
+  selects HTTP/1.1 Upgrade or HTTP/2 extended CONNECT.
+
+The route also carries the proxy endpoint, request authority, expanded path,
+ordered headers, and optional `credentials`. Credentials enable the same
+challenge-driven Basic exchange on either transport. The origin connector
+keeps the inner QUIC profile and trust separate from the proxy leg.
 
 No leg ever falls back to another leg, route, or protocol.
 
