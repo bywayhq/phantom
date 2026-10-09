@@ -658,8 +658,10 @@ impl std::error::Error for InvalidDatagramFrameSize {}
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AckFrequencyDraft {
-    /// draft-ietf-quic-ack-frequency-02: `min_ack_delay` is `0xff02de1a`, and a frame carries a
-    /// packet tolerance and a one-byte Ignore Order flag.
+    /// Firefox 157's older format (neqo 0.31.1): `min_ack_delay` is `0xff02de1a`, and a frame
+    /// carries a packet tolerance and a one-byte Ignore Order flag.
+    ///
+    /// The wire fields match draft-ietf-quic-ack-frequency-00, sections 3 and 4.
     Draft02,
     /// draft-ietf-quic-ack-frequency-07: `min_ack_delay` is `0xff04de1b`, and a frame carries an
     /// ack-eliciting threshold and a reordering threshold.

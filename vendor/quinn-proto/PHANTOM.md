@@ -137,14 +137,26 @@ as unknown. The endpoint never sends the frame.
 
 `patches/ack-frequency-draft-02.patch` adds
 `TransportConfig::ack_frequency_draft`. With `AckFrequencyDraft::Draft02`
-the local `min_ack_delay` is advertised under draft 02's `0xff02de1a`
+the local `min_ack_delay` uses Firefox 157's older `0xff02de1a` identifier
 instead of draft 07's `0xff04de1b`, and a received `ACK_FREQUENCY` frame is
-read with draft 02's fields: a packet tolerance N becomes an ack-eliciting
+read with Firefox's fields: a packet tolerance N becomes an ack-eliciting
 threshold of N - 1, and an Ignore Order byte of 1 or 0 becomes a reordering
 threshold of 0 or 1. A tolerance of 0 or another Ignore Order value is a
-`FRAME_ENCODING_ERROR`. A peer's draft 02 parameter is skipped as unknown, so
+`FRAME_ENCODING_ERROR`. A peer's older parameter is skipped as unknown, so
 without the default draft 07 parameter the peer is not sent `ACK_FREQUENCY` or
 `IMMEDIATE_ACK` frames.
+
+`patches/ack-frequency-receive-format.patch` selects the receive format before
+reading the frame. Firefox's Ignore Order field is exactly one byte, so an
+invalid flag cannot consume a following frame as part of a varint. The default
+draft 07 format keeps its varint reordering threshold. Initial, Handshake,
+1-RTT, and closed-connection frame readers use the selected format.
+
+The older format comes from Firefox tag `FIREFOX_157_0_RELEASE`, which vendors
+neqo 0.31.1: `neqo-transport/src/frame.rs` reads an unsigned byte and rejects
+values other than 0 or 1, and `src/tparams.rs` uses `0xff02de1a`. These wire
+fields match draft-ietf-quic-ack-frequency-00, sections 3 and 4. The public
+`Draft02` variant keeps its existing spelling.
 
 `patches/quic-v2.patch` implements QUIC version 2 (RFC 9369) and compatible
 version negotiation (RFC 9368) for clients:
@@ -200,9 +212,11 @@ The ordered canonical source and test deltas are stored in
 `patches/fallible-key-updates.patch`, `patches/fallible-initial-keys.patch`,
 `patches/profiled-transport-parameters.patch`,
 `patches/profiled-transport-limits.patch`, `patches/reset-stream-at.patch`,
-`patches/ack-frequency-draft-02.patch`, and `patches/quic-v2.patch`. Apply
-them in that order. `PHANTOM.md` and the patch files are packaging metadata
-and are not part of the patches.
+`patches/ack-frequency-draft-02.patch`, `patches/quic-v2.patch`,
+`patches/provider-startup-errors.patch`, and
+`patches/ack-frequency-receive-format.patch`. Apply them in that order.
+`PHANTOM.md` and the patch files are packaging metadata and are not part of
+the patches.
 
 ## Refreshing the vendor copy
 
@@ -270,6 +284,7 @@ cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::transpo
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked reset_at
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked reset_stream_at
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked draft02
+cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked draft07
 cargo test --manifest-path vendor/quinn-proto/Cargo.toml --locked tests::quic_v2
 cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml --all-targets --locked -- -D warnings
 cargo check --manifest-path vendor/quinn-proto/Cargo.toml --no-default-features --locked

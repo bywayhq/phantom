@@ -356,3 +356,29 @@ fn draft07_accepts_each_reordering_varint_width_and_following_ping() {
         );
     }
 }
+
+#[test]
+fn draft02_invalid_flag_is_an_encoding_error_in_initial_and_handshake() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let mut transport = TransportConfig::default();
+    transport.ack_frequency_draft(AckFrequencyDraft::Draft02);
+    let mut config = client_config();
+    config.transport_config(Arc::new(transport));
+    let (client_ch, _) = pair.connect_with(config);
+    let now = pair.time;
+    let conn = pair.client_conn_mut(client_ch);
+    for initial in [false, true] {
+        let invalid = [0x40, 0xaf, 0, 2, 0x43, 0xe8, 0x40, 0, 1];
+        let error = conn
+            .process_early_frames_for_test(now, initial, &invalid)
+            .unwrap_err();
+        assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
+        assert_eq!(error.frame, Some(frame::FrameType::ACK_FREQUENCY));
+        let canonical = [0x40, 0xaf, 0, 2, 0x43, 0xe8, 1];
+        let error = conn
+            .process_early_frames_for_test(now, initial, &canonical)
+            .unwrap_err();
+        assert_eq!(error.code, TransportErrorCode::PROTOCOL_VIOLATION);
+    }
+}

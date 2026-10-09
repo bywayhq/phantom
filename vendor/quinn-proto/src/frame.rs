@@ -8,8 +8,8 @@ use bytes::{Buf, BufMut, Bytes};
 use tinyvec::TinyVec;
 
 use crate::{
-    Dir, MAX_CID_SIZE, RESET_TOKEN_SIZE, ResetToken, StreamId, TransportError, TransportErrorCode,
-    VarInt,
+    AckFrequencyDraft, Dir, MAX_CID_SIZE, RESET_TOKEN_SIZE, ResetToken, StreamId, TransportError,
+    TransportErrorCode, VarInt,
     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
     range_set::ArrayRangeSet,
     shared::{ConnectionId, EcnCodepoint},
@@ -550,6 +550,7 @@ pub(crate) struct Iter {
     bytes: Bytes,
     last_ty: Option<FrameType>,
     reset_stream_at: bool,
+    ack_frequency_draft: AckFrequencyDraft,
 }
 
 impl Iter {
@@ -567,6 +568,7 @@ impl Iter {
             bytes: payload,
             last_ty: None,
             reset_stream_at: false,
+            ack_frequency_draft: AckFrequencyDraft::Draft07,
         })
     }
 
@@ -575,6 +577,12 @@ impl Iter {
     /// Otherwise the frame type is unknown, and its body is never read, as upstream treats it.
     pub(crate) fn reset_stream_at(mut self, accept: bool) -> Self {
         self.reset_stream_at = accept;
+        self
+    }
+
+    /// Selects whether ACK_FREQUENCY ends with a byte flag or a varint threshold.
+    pub(crate) fn ack_frequency_draft(mut self, draft: AckFrequencyDraft) -> Self {
+        self.ack_frequency_draft = draft;
         self
     }
 
@@ -718,7 +726,16 @@ impl Iter {
                 sequence: self.bytes.get()?,
                 ack_eliciting_threshold: self.bytes.get()?,
                 request_max_ack_delay: self.bytes.get()?,
-                reordering_threshold: self.bytes.get()?,
+                reordering_threshold: match self.ack_frequency_draft {
+                    AckFrequencyDraft::Draft02 => {
+                        let flag = self.bytes.get::<u8>()?;
+                        if flag > 1 {
+                            return Err(IterErr::Malformed);
+                        }
+                        VarInt(u64::from(flag))
+                    }
+                    AckFrequencyDraft::Draft07 => self.bytes.get()?,
+                },
             }),
             FrameType::IMMEDIATE_ACK => Frame::ImmediateAck,
             _ => {
@@ -978,9 +995,9 @@ pub(crate) struct AckFrequency {
 }
 
 impl AckFrequency {
-    /// Reads a frame decoded with draft 07 field names as a draft 02 frame
+    /// Maps the older Firefox wire fields to the draft 07 ACK behavior
     ///
-    /// Draft 02 (section 4) sends Sequence Number, Packet Tolerance, Update Max Ack Delay, and a
+    /// Firefox 157 (neqo 0.31.1) sends Sequence Number, Packet Tolerance, Update Max Ack Delay, and a
     /// one-byte Ignore Order flag. A packet tolerance of N means acknowledging every Nth
     /// ack-eliciting packet, which is an ack-eliciting threshold of N - 1; ignoring order is a
     /// reordering threshold of 0, and not ignoring it is 1.
@@ -1184,7 +1201,11 @@ mod test {
     fn draft02_ack_frequency_ignore_order_byte_decodes() {
         // neqo writes Ignore Order as one byte after three varints.
         let buf = vec![0x40, 0xaf, 0x0a, 0x05, 0x47, 0xd0, 0x01];
-        let frames = frames(buf);
+        let frames = Iter::new(Bytes::from(buf))
+            .unwrap()
+            .ack_frequency_draft(AckFrequencyDraft::Draft02)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
         assert_matches!(
             &frames[0],
             Frame::AckFrequency(AckFrequency {
@@ -1194,5 +1215,75 @@ mod test {
                 reordering_threshold: VarInt(1),
             })
         );
+    }
+
+    #[test]
+    fn draft02_parser_checks_every_flag_byte_and_following_frame() {
+        for flag in 0..=u8::MAX {
+            for following in [0, 1] {
+                let mut bytes = vec![0x40, 0xaf, 0, 2, 0x43, 0xe8, flag, following];
+                bytes.extend_from_slice(&[0; 7]);
+                let mut frames = Iter::new(Bytes::from(bytes))
+                    .unwrap()
+                    .ack_frequency_draft(AckFrequencyDraft::Draft02);
+                let first = frames.next().unwrap();
+                if flag > 1 {
+                    let error = TransportError::from(first.unwrap_err());
+                    assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
+                    assert_eq!(error.frame, Some(FrameType::ACK_FREQUENCY));
+                    assert!(frames.next().is_none());
+                    continue;
+                }
+                let Frame::AckFrequency(frame) = first.unwrap() else {
+                    panic!("ACK_FREQUENCY decoded as another frame");
+                };
+                assert_eq!(frame.reordering_threshold, VarInt(u64::from(flag)));
+                let normalized = frame.read_as_draft02().unwrap();
+                assert_eq!(normalized.ack_eliciting_threshold, VarInt(1));
+                assert_eq!(normalized.reordering_threshold, VarInt(u64::from(1 - flag)));
+                match following {
+                    0 => assert_matches!(frames.next(), Some(Ok(Frame::Padding))),
+                    _ => assert_matches!(frames.next(), Some(Ok(Frame::Ping))),
+                }
+                assert_eq!(frames.count(), 7);
+            }
+        }
+    }
+
+    #[test]
+    fn draft02_parser_requires_the_ignore_order_byte() {
+        let mut frames = Iter::new(Bytes::from_static(&[0x40, 0xaf, 0, 2, 0x43, 0xe8]))
+            .unwrap()
+            .ack_frequency_draft(AckFrequencyDraft::Draft02);
+        let error = TransportError::from(frames.next().unwrap().unwrap_err());
+        assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
+        assert_eq!(error.frame, Some(FrameType::ACK_FREQUENCY));
+        assert!(frames.next().is_none());
+    }
+
+    #[test]
+    fn draft07_parser_keeps_varint_thresholds_and_following_frame() {
+        let cases: &[(&[u8], u64)] = &[
+            (&[1], 1),
+            (&[0x40, 0x40], 64),
+            (&[0x80, 0, 0x40, 0], 16_384),
+            (&[0xc0, 0, 0, 0, 0x40, 0, 0, 0], 1 << 30),
+        ];
+        for &(encoded, expected) in cases {
+            let mut bytes = vec![0x40, 0xaf, 0, 1, 0x43, 0xe8];
+            bytes.extend_from_slice(encoded);
+            bytes.extend_from_slice(&[0, 1]);
+            let mut frames = Iter::new(Bytes::from(bytes)).unwrap();
+            assert_matches!(
+                frames.next(),
+                Some(Ok(Frame::AckFrequency(AckFrequency {
+                    reordering_threshold: VarInt(value),
+                    ..
+                }))) if value == expected
+            );
+            assert_matches!(frames.next(), Some(Ok(Frame::Padding)));
+            assert_matches!(frames.next(), Some(Ok(Frame::Ping)));
+            assert!(frames.next().is_none());
+        }
     }
 }

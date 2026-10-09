@@ -873,7 +873,7 @@ impl VersionInformation {
     }
 }
 
-/// `min_ack_delay` in draft-ietf-quic-ack-frequency-02, section 3
+/// Firefox 157/neqo 0.31.1 `min_ack_delay` (draft-ietf-quic-ack-frequency-00, section 3)
 const MIN_ACK_DELAY_DRAFT02: u64 = 0xff02_de1a;
 
 fn decode_cid(len: usize, value: &mut Option<ConnectionId>, r: &mut impl Buf) -> Result<(), Error> {
