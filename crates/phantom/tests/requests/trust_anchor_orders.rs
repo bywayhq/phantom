@@ -4,9 +4,9 @@
 use std::{net::Ipv4Addr, time::Duration};
 
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, HttpProxy, Route,
+    Client, HttpProtocol, HttpProxy, Route,
     profile::{
-        ClientProfile, Http3ClientSettings, TrustAnchorIds,
+        ClientProfile, TrustAnchorOrder, TrustAnchorOrders,
         browser::{chrome, opera},
     },
 };
@@ -53,7 +53,13 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
         .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
         .orders()
         .iter()
-        .map(|order| order.iter().map(|id| id.to_vec()).collect::<Vec<_>>())
+        .map(|order| {
+            order
+                .as_slice()
+                .iter()
+                .map(|id| id.to_vec())
+                .collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>();
     let mut drawn = Vec::new();
     for _ in 0..12 {
@@ -123,12 +129,10 @@ async fn opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors() -
     Ok(())
 }
 
-/// A per-client list whose orders hold different IDs cannot be drawn from,
-/// so building a client with one in its HTTP/3 TLS settings fails instead of
-/// fixing one of its orders.
+/// Invalid candidate lists fail before they can enter a connection profile.
 #[test]
-fn http3_per_client_orders_with_different_ids_fail_the_build() -> TestResult<()> {
-    let mut tls = opera::v136_quic_tls();
+fn http3_per_client_orders_with_different_ids_fail_construction() -> TestResult<()> {
+    let tls = opera::v136_quic_tls();
     let order = tls
         .requested_trust_anchor_ids
         .as_ref()
@@ -136,24 +140,12 @@ fn http3_per_client_orders_with_different_ids_fail_the_build() -> TestResult<()>
         .orders()
         .first()
         .cloned()
-        .ok_or("Opera 136 H3 recipe listed no trust-anchor order")?;
-    let mut shorter = order.clone();
+        .ok_or("Opera 136 H3 recipe listed no order")?;
+    let mut shorter = order.as_slice().to_vec();
     shorter.pop();
-    tls.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(vec![order, shorter]));
-    let http3 = Http3ClientSettings::new(
-        tls,
-        chrome::v154_quic(),
-        chrome::v154_http3(),
-        chrome::v154_http3_request(),
-    );
-    let profile = ClientProfile::new(opera::v136_tcp_tls()).with_http3(http3);
-
-    let error = match Client::builder(profile).build() {
-        Ok(_) => return Err("an undrawable HTTP/3 per-client list was accepted".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
-    // The HTTP/3 connector rejects the list, not the client's draw.
-    assert!(error.to_string().starts_with("failed to configure HTTP/3"));
+    let error = TrustAnchorOrders::new(vec![order, TrustAnchorOrder::new(shorter)?])
+        .err()
+        .ok_or("different trust-anchor multisets were accepted")?;
+    assert_eq!(error.field(), "requested_trust_anchor_ids");
     Ok(())
 }

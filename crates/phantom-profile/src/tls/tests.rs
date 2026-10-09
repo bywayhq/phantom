@@ -632,7 +632,7 @@ fn tls_12_rejects_requested_trust_anchors() {
     let mut settings = minimal_settings();
     settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
     settings.key_shares.clear();
-    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(Vec::new()));
+    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(TrustAnchorOrder::empty()));
 
     let error = settings.validate().err();
     assert_eq!(
@@ -714,8 +714,10 @@ fn permuted_extension_order_accepts_a_quic_tail() -> Result<(), InvalidTlsSettin
 #[test]
 fn trust_anchor_ids_may_be_omitted_or_explicitly_empty() -> Result<(), Box<dyn Error>> {
     let mut settings = minimal_settings();
-    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(Vec::new()));
-
+    let empty = TrustAnchorOrder::new(Vec::new())?;
+    assert_eq!(empty, TrustAnchorOrder::empty());
+    assert!(empty.as_ref().is_empty());
+    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(empty));
     settings.validate()?;
     settings.requested_trust_anchor_ids = None;
     settings.validate()?;
@@ -723,34 +725,38 @@ fn trust_anchor_ids_may_be_omitted_or_explicitly_empty() -> Result<(), Box<dyn E
 }
 
 #[test]
-fn trust_anchor_ids_must_be_nonempty_and_fit_one_byte_lengths() {
-    let invalid_ids = [Box::default(), vec![0; 256].into_boxed_slice()];
-
-    for id in invalid_ids {
-        let mut settings = minimal_settings();
-        settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(vec![id]));
-        let error = settings.validate().err();
+fn trust_anchor_ids_must_be_nonempty_and_fit_one_byte_lengths() -> Result<(), Box<dyn Error>> {
+    for id in [Box::default(), vec![0; 256].into_boxed_slice()] {
+        let error = TrustAnchorOrder::new(vec![id]).err();
         assert_eq!(
             error.as_ref().map(InvalidTlsSettings::field),
             Some("requested_trust_anchor_ids")
         );
     }
+    let ids = vec![Box::from(&b"x"[..]), vec![0; 255].into_boxed_slice()];
+    let order = TrustAnchorOrder::try_from(ids.clone())?;
+    assert_eq!(order.as_slice(), ids);
+    assert_eq!(order.as_ref(), ids);
+    Ok(())
 }
 
 #[test]
 fn trust_anchor_id_list_must_fit_the_extension_body() -> Result<(), Box<dyn Error>> {
-    let mut settings = minimal_settings();
     let mut ids = (0..u8::MAX)
-        .map(|_| vec![0; u8::MAX as usize].into_boxed_slice())
+        .map(|_| vec![0; 255].into_boxed_slice())
         .collect::<Vec<_>>();
     ids.push(vec![0; 252].into_boxed_slice());
-    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(ids.clone()));
-
-    settings.validate()?;
-    ids.push(Box::from(&b"x"[..]));
-    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::Fixed(ids));
-
-    let error = settings.validate().err();
+    let order = TrustAnchorOrder::new(ids.clone())?;
+    assert_eq!(
+        order
+            .as_slice()
+            .iter()
+            .map(|id| id.len() + 1)
+            .sum::<usize>(),
+        65533
+    );
+    ids[255] = vec![0; 253].into_boxed_slice();
+    let error = TrustAnchorOrder::new(ids).err();
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("requested_trust_anchor_ids")
@@ -758,32 +764,39 @@ fn trust_anchor_id_list_must_fit_the_extension_body() -> Result<(), Box<dyn Erro
     Ok(())
 }
 
-fn orders(lists: &[&[&[u8]]]) -> Vec<Vec<Box<[u8]>>> {
-    lists
+fn orders(lists: &[&[&[u8]]]) -> Result<TrustAnchorOrders, InvalidTlsSettings> {
+    let orders = lists
         .iter()
-        .map(|ids| ids.iter().map(|id| Box::from(*id)).collect())
-        .collect()
+        .map(|ids| TrustAnchorOrder::new(ids.iter().map(|id| Box::from(*id)).collect()))
+        .collect::<Result<Vec<_>, _>>()?;
+    TrustAnchorOrders::new(orders)
 }
 
 #[test]
 fn drawn_trust_anchor_orders_must_list_the_same_ids() -> Result<(), Box<dyn Error>> {
     let mut settings = minimal_settings();
-    let same = orders(&[&[b"a", b"b", b"c"], &[b"c", b"a", b"b"]]);
+    let same = orders(&[&[b"a", b"b", b"c"], &[b"c", b"a", b"b"]])?;
     settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(same.clone()));
     settings.validate()?;
     settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerConnection(same));
     settings.validate()?;
-
-    for ids in [
-        TrustAnchorIds::PerClient(Vec::new()),
-        TrustAnchorIds::PerConnection(Vec::new()),
-        TrustAnchorIds::PerClient(orders(&[&[b"a", b"b"], &[b"a", b"c"]])),
-        TrustAnchorIds::PerConnection(orders(&[&[b"a", b"b"], &[b"a"]])),
-        TrustAnchorIds::PerConnection(orders(&[&[b"a", b"a"], &[b"a", b"b"]])),
-        TrustAnchorIds::PerClient(orders(&[&[b""]])),
+    for lists in [
+        &[][..],
+        &[
+            &[b"a".as_slice(), b"b".as_slice()][..],
+            &[b"a".as_slice(), b"c".as_slice()][..],
+        ][..],
+        &[
+            &[b"a".as_slice(), b"b".as_slice()][..],
+            &[b"a".as_slice()][..],
+        ][..],
+        &[
+            &[b"a".as_slice(), b"a".as_slice()][..],
+            &[b"a".as_slice(), b"b".as_slice()][..],
+        ][..],
+        &[&[b"".as_slice()][..]][..],
     ] {
-        settings.requested_trust_anchor_ids = Some(ids);
-        let error = settings.validate().err();
+        let error = orders(lists).err();
         assert_eq!(
             error.as_ref().map(InvalidTlsSettings::field),
             Some("requested_trust_anchor_ids")
@@ -793,48 +806,80 @@ fn drawn_trust_anchor_orders_must_list_the_same_ids() -> Result<(), Box<dyn Erro
 }
 
 #[test]
-fn trust_anchor_order_draw_divides_the_random_range_evenly() {
-    let ids = TrustAnchorIds::PerConnection(orders(&[&[b"a", b"b"], &[b"b", b"a"], &[b"a", b"b"]]));
-    // The first `random` that selects order `k` is ceil(k * 2^64 / 3).
-    let first = |k: u128| u64::try_from((k << 64).div_ceil(3));
-    let (second, third) = (first(1).unwrap_or(0), first(2).unwrap_or(0));
-    let selected = |random| ids.select(random).map(<[_]>::to_vec);
-    let order = |index: usize| Some(ids.orders()[index].clone());
-    assert_eq!(selected(0), order(0));
-    assert_eq!(selected(second - 1), order(0));
-    assert_eq!(selected(second), order(1));
-    assert_eq!(selected(third - 1), order(1));
-    assert_eq!(selected(third), order(2));
-    assert_eq!(selected(u64::MAX), order(2));
-
-    let fixed = TrustAnchorIds::Fixed(orders(&[&[b"x"]]).remove(0));
-    assert_eq!(fixed.orders().len(), 1);
-    assert_eq!(fixed.select(u64::MAX), Some(&fixed.orders()[0][..]));
-    assert_eq!(TrustAnchorIds::PerClient(Vec::new()).select(0), None);
+fn checked_orders_keep_repeated_ids_candidates_and_empty_orders() -> Result<(), Box<dyn Error>> {
+    let listed = orders(&[
+        &[b"b", b"a", b"a"],
+        &[b"a", b"b", b"a"],
+        &[b"b", b"a", b"a"],
+    ])?;
+    assert_eq!(listed.as_slice().len(), 3);
+    assert_eq!(
+        listed.as_ref()[0].as_ref(),
+        &[
+            Box::from(&b"b"[..]),
+            Box::from(&b"a"[..]),
+            Box::from(&b"a"[..])
+        ]
+    );
+    assert_eq!(listed.as_slice()[0], listed.as_slice()[2]);
+    let copied = TrustAnchorOrders::try_from(listed.as_slice().to_vec())?;
+    assert_eq!(copied, listed);
+    let empty = orders(&[&[], &[]])?;
+    assert_eq!(empty.as_slice().len(), 2);
+    assert!(
+        empty
+            .as_slice()
+            .iter()
+            .all(|order| order.as_slice().is_empty())
+    );
+    Ok(())
 }
 
 #[test]
-fn per_client_draw_fixes_only_a_per_client_order() {
-    let lists = orders(&[&[b"a", b"b"], &[b"b", b"a"]]);
+fn trust_anchor_order_draw_divides_the_random_range_evenly() -> Result<(), Box<dyn Error>> {
+    let ids =
+        TrustAnchorIds::PerConnection(orders(&[&[b"a", b"b"], &[b"b", b"a"], &[b"a", b"b"]])?);
+    // The first random value selecting order k is ceil(k * 2^64 / 3).
+    let first = |k: u128| u64::try_from((k << 64).div_ceil(3));
+    let (second, third) = (first(1)?, first(2)?);
+    for (random, index) in [
+        (0, 0),
+        (second - 1, 0),
+        (second, 1),
+        (third - 1, 1),
+        (third, 2),
+        (u64::MAX, 2),
+    ] {
+        let selected = ids.select(random).ok_or("no selected order")?;
+        assert!(std::ptr::eq(selected, &ids.orders()[index]));
+    }
+    let fixed = TrustAnchorIds::Fixed(TrustAnchorOrder::new(vec![Box::from(&b"x"[..])])?);
+    assert_eq!(fixed.orders().len(), 1);
+    assert_eq!(fixed.select(u64::MAX), Some(&fixed.orders()[0]));
+    Ok(())
+}
+
+#[test]
+fn per_client_draw_fixes_only_a_per_client_order() -> Result<(), Box<dyn Error>> {
+    let lists = orders(&[&[b"a", b"b"], &[b"b", b"a"]])?;
     let mut settings = minimal_settings();
     settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(lists.clone()));
-    assert_eq!(settings.draw_per_client(|| Ok::<_, ()>(u64::MAX)), Ok(()));
+    let mut draws = 0;
+    settings
+        .draw_per_client(|| {
+            draws += 1;
+            Ok::<_, ()>(u64::MAX)
+        })
+        .map_err(|()| "draw failed")?;
+    assert_eq!(draws, 1);
     assert_eq!(
         settings.requested_trust_anchor_ids,
-        Some(TrustAnchorIds::Fixed(lists[1].clone()))
+        Some(TrustAnchorIds::Fixed(lists.as_slice()[1].clone()))
     );
-
-    // Nothing is drawn, so `random` is not called; an invalid per-client list
-    // stays for validation to reject.
     for ids in [
         None,
-        Some(TrustAnchorIds::Fixed(lists[0].clone())),
+        Some(TrustAnchorIds::Fixed(lists.as_slice()[0].clone())),
         Some(TrustAnchorIds::PerConnection(lists)),
-        Some(TrustAnchorIds::PerClient(orders(&[
-            &[b"a", b"b"],
-            &[b"a", b"c"],
-        ]))),
-        Some(TrustAnchorIds::PerClient(Vec::new())),
     ] {
         settings.requested_trust_anchor_ids = ids.clone();
         assert_eq!(
@@ -843,14 +888,35 @@ fn per_client_draw_fixes_only_a_per_client_order() {
         );
         assert_eq!(settings.requested_trust_anchor_ids, ids);
     }
+    Ok(())
 }
 
 #[test]
-fn failed_per_client_draw_returns_the_error_and_keeps_the_list() {
+fn one_empty_candidate_still_draws_once_per_client() -> Result<(), Box<dyn Error>> {
+    let mut settings = minimal_settings();
+    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerClient(orders(&[&[]])?));
+    let mut draws = 0;
+    settings
+        .draw_per_client(|| {
+            draws += 1;
+            Ok::<_, ()>(0)
+        })
+        .map_err(|()| "draw failed")?;
+    assert_eq!(draws, 1);
+    assert_eq!(
+        settings.requested_trust_anchor_ids,
+        Some(TrustAnchorIds::Fixed(TrustAnchorOrder::empty()))
+    );
+    settings.validate()?;
+    Ok(())
+}
+
+#[test]
+fn failed_per_client_draw_returns_the_error_and_keeps_the_list() -> Result<(), Box<dyn Error>> {
     let ids = Some(TrustAnchorIds::PerClient(orders(&[
         &[b"a", b"b"],
         &[b"b", b"a"],
-    ])));
+    ])?));
     let mut settings = minimal_settings();
     settings.requested_trust_anchor_ids = ids.clone();
     assert_eq!(
@@ -858,4 +924,35 @@ fn failed_per_client_draw_returns_the_error_and_keeps_the_list() {
         Err("no entropy")
     );
     assert_eq!(settings.requested_trust_anchor_ids, ids);
+    Ok(())
+}
+
+#[test]
+fn trust_anchor_values_are_send_sync_and_hashable() -> Result<(), Box<dyn Error>> {
+    fn check<T: Send + Sync + std::hash::Hash>() {}
+    check::<TrustAnchorOrder>();
+    check::<TrustAnchorOrders>();
+    check::<TrustAnchorIds>();
+    let a = orders(&[&[b"a", b"b"], &[b"b", b"a"]])?;
+    let mut values = std::collections::HashSet::new();
+    assert!(values.insert(a.clone()));
+    assert!(!values.insert(a));
+    assert!(values.insert(orders(&[&[b"b", b"a"], &[b"a", b"b"]])?));
+    Ok(())
+}
+
+#[test]
+fn static_id_checks_match_checked_constructor_bounds() {
+    let exact = vec![0_u8; 255];
+    let too_long = vec![0_u8; 256];
+    assert!(TrustAnchorOrder::valid_recipe_ids(&[]));
+    assert!(TrustAnchorOrder::valid_recipe_ids(&[&exact]));
+    assert!(!TrustAnchorOrder::valid_recipe_ids(&[&[]]));
+    assert!(!TrustAnchorOrder::valid_recipe_ids(&[&too_long]));
+    let tail = vec![0_u8; 252];
+    let mut ids = vec![exact.as_slice(); 255];
+    ids.push(&tail);
+    assert!(TrustAnchorOrder::valid_recipe_ids(&ids));
+    ids.push(b"x");
+    assert!(!TrustAnchorOrder::valid_recipe_ids(&ids));
 }

@@ -656,6 +656,7 @@ fn assert_same_resumed_shape(
                 .ok_or("recipe omitted trust-anchor IDs")?;
             assert!(ids.orders().iter().any(|order| {
                 order
+                    .as_slice()
                     .iter()
                     .map(AsRef::as_ref)
                     .eq(emitted.iter().map(Vec::as_slice))

@@ -68,6 +68,7 @@ use crate::{
     tls::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
         SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion, TrustAnchorIds,
+        TrustAnchorOrder,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -1407,8 +1408,12 @@ pub fn v154_quic() -> QuicTransportSettings {
     }
 }
 
+const _: () = assert!(TrustAnchorOrder::valid_recipe_ids(V154_TRUST_ANCHOR_IDS));
+
 fn trust_anchor_ids(ids: &[&[u8]]) -> TrustAnchorIds {
-    TrustAnchorIds::Fixed(ids.iter().map(|id| Box::from(*id)).collect())
+    TrustAnchorIds::Fixed(TrustAnchorOrder::from_recipe(
+        ids.iter().map(|id| Box::from(*id)).collect(),
+    ))
 }
 
 /// Returns the Windows connection profile for Chrome 154.

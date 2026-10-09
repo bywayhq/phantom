@@ -1,7 +1,7 @@
 //! Chromium-family (Chrome, Edge, Brave, and Opera) TLS differential tests.
 
 use phantom_profile::{
-    TlsSettings, TrustAnchorIds,
+    TlsSettings, TrustAnchorIds, TrustAnchorOrders,
     browser::{
         brave,
         chrome::{self, v154_tcp_tls},
@@ -240,7 +240,9 @@ async fn per_connection_trust_anchor_order_is_drawn_for_each_tcp_connection() ->
         .ok_or("Opera 136 recipe omitted trust-anchor IDs")?
         .orders()
         .to_vec();
-    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerConnection(listed));
+    settings.requested_trust_anchor_ids = Some(TrustAnchorIds::PerConnection(
+        TrustAnchorOrders::new(listed)?,
+    ));
     let orders = recipe_trust_anchor_orders(&settings)?;
     let mut emitted = Vec::new();
     for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 16).await? {
@@ -267,7 +269,7 @@ fn recipe_trust_anchor_orders(settings: &TlsSettings) -> TestResult<Vec<Vec<Vec<
         .ok_or("recipe omitted trust-anchor IDs")?
         .orders()
         .iter()
-        .map(|order| order.iter().map(|id| id.to_vec()).collect())
+        .map(|order| order.as_slice().iter().map(|id| id.to_vec()).collect())
         .collect())
 }
 

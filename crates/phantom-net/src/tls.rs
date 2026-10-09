@@ -1296,12 +1296,14 @@ fn random_u64() -> Result<u64, ErrorStack> {
 fn draw_trust_anchor_order(ids: &TrustAnchorIds) -> Result<&[Box<[u8]>], TlsError> {
     let random =
         random_u64().map_err(|error| TlsError::backend("requested_trust_anchor_ids", error))?;
-    ids.select(random).ok_or_else(|| {
-        TlsError::configuration(
-            "requested_trust_anchor_ids",
-            "a drawn trust anchor ID order needs at least one order to draw from",
-        )
-    })
+    ids.select(random)
+        .map(|order| order.as_slice())
+        .ok_or_else(|| {
+            TlsError::configuration(
+                "requested_trust_anchor_ids",
+                "a drawn trust anchor ID order needs at least one order to draw from",
+            )
+        })
 }
 
 fn encode_trust_anchor_ids(ids: &[Box<[u8]>]) -> Box<[u8]> {

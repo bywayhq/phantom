@@ -7,6 +7,25 @@ use crate::http2::{
 };
 use crate::{TrustAnchorIds, browser::chrome};
 
+#[test]
+fn static_recipe_checks_reject_missing_or_nonpermutation_candidates() {
+    use super::{V136_TCP_ORDERS, valid_recipe_orders};
+    assert!(valid_recipe_orders(&V136_TCP_ORDERS));
+    assert!(!valid_recipe_orders(&[]));
+    let mut order = V136_TCP_ORDERS[0];
+    order.0 = 0;
+    assert!(!valid_recipe_orders(&[order]));
+    order.0 = 1;
+    order.1[0] = order.1[1];
+    assert!(!valid_recipe_orders(&[order]));
+    order.1[0] = 32;
+    assert!(!valid_recipe_orders(&[order]));
+    assert!(!valid_recipe_orders(&[
+        (usize::MAX, V136_TCP_ORDERS[0].1),
+        (1, V136_TCP_ORDERS[0].1)
+    ]));
+}
+
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/client-hints/opera/136.0.6008.52/windows-11-26200/navigation.txt"
@@ -76,7 +95,11 @@ fn opera_136_recipes_keep_the_backend_ech_grease_aead_policy() {
 /// The IDs every order of `ids` lists, sorted; the drawn variants require
 /// each order to list the same IDs.
 fn id_set(ids: &TrustAnchorIds) -> Vec<Box<[u8]>> {
-    let mut set = ids.orders().first().cloned().unwrap_or_default();
+    let mut set = ids
+        .orders()
+        .first()
+        .map(|order| order.as_slice().to_vec())
+        .unwrap_or_default();
     set.sort_unstable();
     set
 }
@@ -91,17 +114,22 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
     let Some(ids @ TrustAnchorIds::PerClient(orders)) = &opera.requested_trust_anchor_ids else {
         return Err("Opera 136 recipe does not draw its trust-anchor order per client".into());
     };
-    assert_eq!(orders.len(), 29);
+    assert_eq!(orders.as_slice().len(), 29);
     let ids_listed = id_set(ids);
     assert_eq!(ids_listed.len(), 32);
     let mut expected = chrome::v154_tcp_tls();
     let Some(TrustAnchorIds::Fixed(chrome_ids)) = &expected.requested_trust_anchor_ids else {
         return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
     };
-    assert!(chrome_ids.iter().all(|id| ids_listed.contains(id)));
+    assert!(
+        chrome_ids
+            .as_slice()
+            .iter()
+            .all(|id| ids_listed.contains(id))
+    );
     let added = ids_listed
         .iter()
-        .filter(|id| !chrome_ids.contains(id))
+        .filter(|id| !chrome_ids.as_slice().contains(id))
         .map(|id| id.as_ref())
         .collect::<Vec<_>>();
     assert_eq!(
@@ -125,7 +153,7 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
             "Opera 136 H3 recipe does not draw its trust-anchor order per connection".into(),
         );
     };
-    assert_eq!(quic_orders.len(), 20);
+    assert_eq!(quic_orders.as_slice().len(), 20);
     assert_eq!(id_set(quic_ids), ids_listed);
     let mut expected = chrome::v154_quic_tls();
     expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
@@ -316,7 +344,7 @@ fn recipe_orders(ids: Option<TrustAnchorIds>) -> TestResult<Vec<Vec<Vec<u8>>>> {
     let mut orders = ids
         .orders()
         .iter()
-        .map(|order| order.iter().map(|id| id.to_vec()).collect())
+        .map(|order| order.as_slice().iter().map(|id| id.to_vec()).collect())
         .collect::<Vec<_>>();
     orders.sort_unstable();
     Ok(orders)

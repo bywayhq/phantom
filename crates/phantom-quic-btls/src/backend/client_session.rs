@@ -732,8 +732,8 @@ fn draw_trust_anchor_order(ids: &TrustAnchorIds) -> Result<Vec<u8>, ClientSessio
             .ok_or(ClientSessionError::BackendFailure(
                 "trust anchor order draw",
             ))?;
-    let mut encoded = Vec::with_capacity(order.iter().map(|id| 1 + id.len()).sum());
-    for id in order {
+    let mut encoded = Vec::with_capacity(order.as_slice().iter().map(|id| 1 + id.len()).sum());
+    for id in order.as_slice() {
         let length = u8::try_from(id.len())
             .map_err(|_| ClientSessionError::BackendFailure("trust anchor ID length"))?;
         encoded.push(length);

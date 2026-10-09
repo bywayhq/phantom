@@ -147,7 +147,13 @@ fn opera_136_quic_trust_anchor_order_is_drawn_per_connection() -> TestResult<()>
         .ok_or("Opera 136 H3 recipe omitted trust-anchor IDs")?
         .orders()
         .iter()
-        .map(|order| order.iter().map(|id| id.to_vec()).collect::<Vec<_>>())
+        .map(|order| {
+            order
+                .as_slice()
+                .iter()
+                .map(|id| id.to_vec())
+                .collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>();
     let connector = Http3Connector::new(
         &settings,

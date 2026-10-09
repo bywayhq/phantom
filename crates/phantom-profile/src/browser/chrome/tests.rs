@@ -152,7 +152,11 @@ fn chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process()
     let Some(TrustAnchorIds::Fixed(recipe)) = v154_tcp_tls().requested_trust_anchor_ids else {
         return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
     };
-    let recipe = recipe.iter().map(|id| id.to_vec()).collect::<Vec<_>>();
+    let recipe = recipe
+        .as_slice()
+        .iter()
+        .map(|id| id.to_vec())
+        .collect::<Vec<_>>();
     assert_eq!(recipe.len(), 28);
     assert_eq!(recipe, observed);
     assert!(
@@ -339,7 +343,7 @@ fn chrome_154_trust_anchor_ids_match_every_retained_client_hello_in_every_proces
         return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
     };
     let mut list = Vec::new();
-    for id in &ids {
+    for id in ids.as_slice() {
         list.push(u8::try_from(id.len())?);
         list.extend_from_slice(id);
     }

@@ -68,7 +68,7 @@ use crate::{
     browser::chrome,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     request_template::RequestTemplate,
-    tls::{TlsSettings, TrustAnchorIds},
+    tls::{TlsSettings, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders},
 };
 
 // Chromium 152 encodes the trust-anchor ID list by iterating an
@@ -376,19 +376,54 @@ const V136_QUIC_ORDERS: [(usize, [u8; 32]); 19] = [
     ),
 ];
 
-/// Expands `orders` into the list a draw selects from: each order once for
-/// every observation of it, so the draw follows the observed frequencies.
-fn observed_orders(orders: &[(usize, [u8; 32])]) -> Vec<Vec<Box<[u8]>>> {
-    orders
+// Each candidate is a permutation of the same checked ID array. Counts keep
+// repeated draw slots, and at least one slot must exist.
+const fn valid_recipe_orders(orders: &[(usize, [u8; 32])]) -> bool {
+    let mut total = 0usize;
+    let mut index = 0;
+    while index < orders.len() {
+        let Some(sum) = total.checked_add(orders[index].0) else {
+            return false;
+        };
+        total = sum;
+        let mut seen = 0_u32;
+        let mut position = 0;
+        while position < 32 {
+            let id = orders[index].1[position];
+            if id >= 32 {
+                return false;
+            }
+            let bit = 1_u32 << id;
+            if seen & bit != 0 {
+                return false;
+            }
+            seen |= bit;
+            position += 1;
+        }
+        index += 1;
+    }
+    total != 0
+}
+
+const _: () = {
+    assert!(TrustAnchorOrder::valid_recipe_ids(&V136_TRUST_ANCHOR_IDS));
+    assert!(valid_recipe_orders(&V136_TCP_ORDERS));
+    assert!(valid_recipe_orders(&V136_QUIC_ORDERS));
+};
+
+/// Keeps one draw slot for each observation of an order.
+fn observed_orders(orders: &[(usize, [u8; 32])]) -> TrustAnchorOrders {
+    let orders = orders
         .iter()
         .flat_map(|(count, positions)| {
             let order = positions
                 .iter()
                 .map(|&position| Box::from(V136_TRUST_ANCHOR_IDS[usize::from(position)]))
                 .collect::<Vec<_>>();
-            std::iter::repeat_n(order, *count)
+            std::iter::repeat_n(TrustAnchorOrder::from_recipe(order), *count)
         })
-        .collect()
+        .collect();
+    TrustAnchorOrders::from_recipe(orders)
 }
 
 /// Returns TLS settings captured from Opera 136.0.6008.52 on Windows 11.
