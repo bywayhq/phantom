@@ -164,6 +164,39 @@ impl RequestBuilder {
         })
     }
 
+    /// Appends query pairs in their supplied order, including duplicate names.
+    ///
+    /// Existing path and query bytes stay unchanged. Only the new pairs are
+    /// form-encoded: spaces become `+`, and literal `+` becomes `%2B`.
+    /// Each pair adds `name=value`, including empty names or values.
+    /// Repeated calls append more pairs. An empty iterator changes nothing.
+    /// Templates, body settings and pinned alternatives stay attached.
+    ///
+    /// ```no_run
+    /// # fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+    /// let request = client.get(phantom::HttpProtocol::Http1, "https://example.com/?tag=old")?
+    ///     .query_pairs([("tag", "new"), ("tag", "last")])?;
+    /// # drop(request);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError`] if the resulting URI or request targets cannot
+    /// be represented. No network I/O or request-body polling occurs.
+    pub fn query_pairs<I, K, V>(mut self, pairs: I) -> Result<Self, RequestError>
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let mut encoded = url::form_urlencoded::Serializer::new(String::new());
+        encoded.extend_pairs(pairs);
+        self.request.append_query(&encoded.finish())?;
+        Ok(self)
+    }
+
     /// Appends a request header, keeping its spelling and position.
     ///
     /// A new builder has no caller headers. The URI supplies `Host`.
@@ -1255,6 +1288,36 @@ struct ResolvedRequest {
 }
 
 impl ResolvedRequest {
+    fn append_query(&mut self, encoded: &str) -> Result<(), RequestError> {
+        if encoded.is_empty() {
+            return Ok(());
+        }
+        let mut target = self.uri.path().to_owned();
+        target.push('?');
+        if let Some(existing) = self.uri.query() {
+            target.push_str(existing);
+            if !existing.is_empty() {
+                target.push('&');
+            }
+        }
+        target.push_str(encoded);
+
+        let mut parts = self.uri.clone().into_parts();
+        parts.path_and_query = Some(target.parse().map_err(RequestError::invalid_uri)?);
+        let uri = Uri::from_parts(parts).map_err(RequestError::invalid_uri_parts)?;
+        let target = OriginForm::parse(uri.path_and_query().map_or("/", |value| value.as_str()))
+            .map_err(RequestError::invalid_target)?;
+        let absolute_target =
+            AbsoluteForm::from_uri(uri.clone()).map_err(RequestError::invalid_absolute_target)?;
+        let url = url::Url::parse(&uri.to_string()).map_err(RequestError::invalid_url)?;
+
+        self.uri = uri;
+        self.url = url;
+        self.target = target;
+        self.absolute_target = absolute_target;
+        Ok(())
+    }
+
     fn new(uri: &Uri) -> Result<Self, RequestError> {
         let default_port = match uri.scheme_str() {
             Some("http") => 80,
@@ -1454,6 +1517,153 @@ mod tests {
                 .template
                 .is_none()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn appending_queries_keeps_raw_targets_and_normalized_redirect_state()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let original = "https://example.test/a/%2e%2e/final?x=%2f+old&bare&x=second&&";
+        let mut request = ResolvedRequest::new(&original.parse()?)?;
+        let endpoint = request.endpoint.clone();
+        request.append_query("x=new&empty=&=value")?;
+        let expected = format!("{original}&x=new&empty=&=value");
+        assert_eq!(request.uri.to_string(), expected);
+        assert_eq!(request.endpoint, endpoint);
+        assert_eq!(
+            request.target,
+            phantom_net::request::OriginForm::parse(
+                "/a/%2e%2e/final?x=%2f+old&bare&x=second&&&x=new&empty=&=value"
+            )?
+        );
+        assert_eq!(
+            request.absolute_target,
+            phantom_net::request::AbsoluteForm::parse(&expected)?
+        );
+        assert_eq!(
+            request.url.query(),
+            Some("x=%2f+old&bare&x=second&&&x=new&empty=&=value")
+        );
+        assert_eq!(
+            request.url.join("?follow=next")?.as_str(),
+            "https://example.test/final?follow=next"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn failed_query_updates_leave_all_resolved_fields_unchanged()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut request = ResolvedRequest::new(&"https://example.test/old?q=original".parse()?)?;
+        let original_uri = request.uri.clone();
+        let original_url = request.url.clone();
+        let original_target = request.target.clone();
+        let original_absolute_target = request.absolute_target.clone();
+        request.expect_continue = Some(std::time::Duration::from_millis(37));
+        request.alternative = super::PinnedAlternative::parse("alternative.test", 443);
+        let original_alternative = request.alternative.clone();
+        let error = request
+            .append_query("invalid\r\nquery")
+            .err()
+            .ok_or("invalid URI accepted")?;
+        assert_eq!(error.kind(), RequestErrorKind::InvalidUri);
+        assert_eq!(request.uri, original_uri);
+        assert_eq!(request.url, original_url);
+        assert_eq!(request.target, original_target);
+        assert_eq!(request.absolute_target, original_absolute_target);
+        assert_eq!(
+            request.expect_continue,
+            Some(std::time::Duration::from_millis(37))
+        );
+        assert_eq!(request.alternative, original_alternative);
+        Ok(())
+    }
+
+    #[test]
+    fn query_pairs_keep_template_choices_body_waits_and_pinned_alternatives()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use phantom_profile::{ClientProfile, browser::chrome};
+
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
+            .with_request_template(chrome::v154_windows_navigation_template());
+        let client = crate::Client::builder(profile).build()?;
+        let explicit =
+            crate::PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
+        let default = client
+            .inner
+            .request_template
+            .as_ref()
+            .ok_or("missing default")?;
+        let wait = std::time::Duration::from_millis(37);
+        let mut initial = client
+            .get(HttpProtocol::Http1, "https://example.test/path?old=%2f")?
+            .body("payload")
+            .expect_continue(wait)
+            .alt_svc_alternative("alternative.test", 8443);
+        initial.request.alternative = super::PinnedAlternative::parse("resolved.test", 9443);
+        let original_alternative = initial.request.alternative.clone();
+        for (request, expected_template) in [
+            (initial, Some(default)),
+            (
+                client
+                    .get(HttpProtocol::Http1, "https://example.test/path")?
+                    .template(&explicit),
+                Some(&explicit),
+            ),
+            (
+                client
+                    .get(HttpProtocol::Http1, "https://example.test/path")?
+                    .without_template(),
+                None,
+            ),
+        ] {
+            let old_wait = request.request.expect_continue;
+            let old_body_len = request.body.exact_length();
+            let old_builder_alternative = request.alternative.clone();
+            let old_resolved_alternative = request.request.alternative.clone();
+            let request = request.query_pairs([("q", "one"), ("q", "two")])?;
+            assert_eq!(request.request.expect_continue, old_wait);
+            assert_eq!(request.body.exact_length(), old_body_len);
+            assert_eq!(request.alternative, old_builder_alternative);
+            assert_eq!(request.request.alternative, old_resolved_alternative);
+            if old_wait.is_some() {
+                assert_eq!(request.request.alternative, original_alternative);
+                assert_eq!(request.alternative, Some(("alternative.test".into(), 8443)));
+            }
+            match expected_template {
+                Some(expected) => assert!(std::ptr::eq(
+                    expected
+                        .fields_for(HttpProtocol::Http1)
+                        .ok_or("missing H1 fields")?,
+                    request
+                        .request
+                        .template
+                        .as_ref()
+                        .ok_or("template lost")?
+                        .fields_for(HttpProtocol::Http1)
+                        .ok_or("missing H1 fields")?,
+                )),
+                None => assert!(request.request.template.is_none()),
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn empty_query_inputs_preserve_the_existing_empty_query_marker()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use phantom_profile::{ClientProfile, browser::chrome};
+        let client = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
+        for original in ["https://example.test/path", "https://example.test/path?"] {
+            let request = client
+                .get(HttpProtocol::Http1, original)?
+                .query_pairs(std::iter::empty::<(&str, &str)>())?;
+            assert_eq!(request.request.uri.to_string(), original);
+            assert_eq!(
+                request.query_pairs([("", "")])?.request.uri.to_string(),
+                "https://example.test/path?="
+            );
+        }
         Ok(())
     }
 

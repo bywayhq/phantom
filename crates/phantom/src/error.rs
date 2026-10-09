@@ -435,6 +435,15 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn invalid_uri_parts(source: http::uri::InvalidUriParts) -> Self {
+        Self::with_source(
+            RequestErrorKind::InvalidUri,
+            None,
+            "invalid request URI",
+            source,
+        )
+    }
+
     pub(crate) fn invalid_redirect_header(source: http::header::ToStrError) -> Self {
         Self::with_source(
             RequestErrorKind::Redirect,
