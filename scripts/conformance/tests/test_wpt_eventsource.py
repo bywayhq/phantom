@@ -433,6 +433,36 @@ class WptLifecycleTests(WptRunFixture):
         self.assertIn("original adapter interruption marker", failures)
         self.assertIn("summary publication: KeyboardInterrupt", failures)
 
+    def test_summary_sigint_and_write_failure_preserve_interruption_and_all_causes(
+        self,
+    ):
+        for prior_interrupt in (False, True):
+            with self.subTest(prior_interrupt=prior_interrupt):
+                adapter_error = (
+                    KeyboardInterrupt("first adapter interruption marker")
+                    if prior_interrupt
+                    else OSError("first adapter failure marker")
+                )
+                write = Path.write_text
+
+                def failed_write(path, *args, _write=write, **kwargs):
+                    result = _write(path, *args, **kwargs)
+                    if path.name == "summary.json":
+                        signal.raise_signal(signal.SIGINT)
+                        raise OSError("summary write failure marker")
+                    return result
+
+                with patch.object(Path, "write_text", failed_write):
+                    result = self.exercise(adapter_error=adapter_error)
+
+                self.assertIsInstance(result.error, KeyboardInterrupt)
+                if prior_interrupt:
+                    self.assertIs(result.error, adapter_error)
+                self.assertTrue(result.server.closed)
+                self.assertIn(str(adapter_error), result.stderr)
+                self.assertIn("summary write failure marker", result.stderr)
+                self.assertIn("summary publication: KeyboardInterrupt", result.stderr)
+
     def test_complete_full_case_set_passes(self):
         result = self.exercise()
 
