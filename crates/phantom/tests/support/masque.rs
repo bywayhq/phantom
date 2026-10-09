@@ -831,6 +831,9 @@ fn decode_capsule(input: &[u8]) -> Option<(u64, Vec<u8>, usize)> {
 }
 
 #[cfg(test)]
+mod h3_ownership_controls;
+
+#[cfg(test)]
 mod tests {
     use std::{
         future::pending,
