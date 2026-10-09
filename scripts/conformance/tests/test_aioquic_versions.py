@@ -185,6 +185,7 @@ class AioquicOwnershipTests(unittest.TestCase):
 
     def test_success_closes_server_and_preserves_published_artifacts(self):
         asyncio.run(versions.run(self.args))
+
         self.assertEqual(self.server.close_calls, 1)
         self.assertEqual(self.args.port_file.read_text(encoding="utf-8"), "49123")
         self.assertEqual(
@@ -195,6 +196,7 @@ class AioquicOwnershipTests(unittest.TestCase):
 
     def test_success_releases_certificate_scratch_directory(self):
         asyncio.run(versions.run(self.args))
+
         self.assertEqual(self.server.close_calls, 1)
         self.assertTrue(self.args.root.is_file())
         self.assertFalse(
@@ -204,8 +206,10 @@ class AioquicOwnershipTests(unittest.TestCase):
 
     def test_port_publication_failure_closes_acquired_server(self):
         self.args.port_file = self.outputs / "missing-parent" / "port"
+
         with self.assertRaises(FileNotFoundError):
             asyncio.run(versions.run(self.args))
+
         self.serve.assert_called_once()
         self.assertTrue(self.args.root.is_file())
         self.assertEqual(
@@ -218,8 +222,10 @@ class AioquicOwnershipTests(unittest.TestCase):
     def test_certificate_failure_releases_scratch_before_server_preparation(self):
         error = FileNotFoundError("controlled certificate preparation failure")
         self.cert_error = error
+
         with self.assertRaises(FileNotFoundError) as failed:
             asyncio.run(versions.run(self.args))
+
         self.assertIs(failed.exception, error)
         self.serve.assert_not_called()
         self.assertEqual(self.server.close_calls, 0)

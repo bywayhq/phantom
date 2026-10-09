@@ -1,6 +1,6 @@
 # A49 independent review
 
-Test-only source approved at39f4377701cc90e82cfbf6552e6b621695c39895.
+Test-only source approved at 39f4377701cc90e82cfbf6552e6b621695c39895.
 No actionable findings. Full test and negotiation modules were read. Tests
 exercise real raw HeaderValue input and the socket-ready configuration API,
 with exact InvalidHeader errors and valid whitespace/quoted-value settings
@@ -14,13 +14,13 @@ the engine and propagate failures as invalid handshakes. This source trace is
 not a real three-protocol opening execution result. Exact hashes/ranges and
 remaining gates are in the companion JSON. Production review remains pending.
 
-Production source approved at4aa8fa9031035c47cbb7b4b91963214af7c48aba.
+Production source approved at 4aa8fa9031035c47cbb7b4b91963214af7c48aba.
 No actionable findings. The change restricts padding at three parameter
 boundaries to SP/HTAB. Unicode spaces remain part of the name/value and reach
 existing InvalidHeader validation. ASCII and quoted/escaped decimal parsing,
 unrelated-extension classification and client/server policy remain intact.
 The canonical patch hash and applied source bytes were verified against the
-exact signed source. Replay evidence reports48-file equality; replay and tests
+exact signed source. Replay evidence reports equality across 48 files; replay and tests
 were not rerun by this reviewer. The inherited full-file formatting caveat
 remains for root's vendor check. Root owns final identity, docs and full gates.
 
