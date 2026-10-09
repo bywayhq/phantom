@@ -23,7 +23,7 @@
          last
 --- a/src/hpack/table.rs
 +++ b/src/hpack/table.rs
-@@ -128,17 +128,20 @@
+@@ -128,16 +128,19 @@
          self.max_size
      }
 
@@ -53,4 +53,3 @@
 +            value.set_sensitive(true);
          }
      }
-
