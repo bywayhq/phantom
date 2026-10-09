@@ -2,6 +2,7 @@ use std::{fmt, time::Duration};
 
 use http::{HeaderName, Response, StatusCode};
 use phantom_net::request::RequestHeader;
+use phantom_profile::{ClientHintDelivery, RequestField};
 use tokio::time::Instant;
 use tracing::{Instrument, debug, debug_span, field};
 
@@ -176,7 +177,10 @@ impl SseRequestBuilder {
     /// position and nothing while the ID is empty. Without a placeholder, a
     /// nonempty ID is appended after every template field. A literal
     /// `Last-Event-ID` field is rejected. [`SseRequestBuilder::connect`]
-    /// validates the template before any I/O.
+    /// validates the template before any I/O. The client's inherited request
+    /// template may position the managed field with an optional caller slot,
+    /// but may not supply a default `Last-Event-ID` value. Automatic client
+    /// hints may not supply this managed field either.
     pub fn headers(mut self, headers: Vec<SseHeader>) -> Self {
         self.request.headers = headers;
         self
@@ -264,7 +268,9 @@ impl SseRequestBuilder {
     /// Returns [`SseError`] with kind:
     ///
     /// - [`SseErrorKind::InvalidRequestHeader`] for a literal `Last-Event-ID`
-    ///   field or an invalid or repeated placeholder, before any I/O;
+    ///   field, an invalid or repeated placeholder, or a default
+    ///   `Last-Event-ID` value in the inherited request template or automatic
+    ///   client hints, before any I/O;
     /// - [`SseErrorKind::InvalidReconnectDelay`] or
     ///   [`SseErrorKind::InvalidIdleTimeout`] for a delay too large to add to
     ///   the runtime clock, before any I/O;
@@ -423,7 +429,54 @@ pub(super) struct SseRequest {
 
 impl SseRequest {
     fn validate_headers(&self) -> Result<(), SseError> {
-        validate_template(&self.headers, self.protocol)
+        validate_template(&self.headers, self.protocol)?;
+
+        if let Some(template) = &self.client.inner.request_template {
+            let retry = self.client.retry_policy();
+            let fallback = self.protocol == HttpProtocol::Http3
+                && retry.http2_fallback()
+                && retry.max_retries() != Some(0);
+            for protocol in [Some(self.protocol), fallback.then_some(HttpProtocol::Http2)]
+                .into_iter()
+                .flatten()
+            {
+                if let Some(fields) = template.fields_for(protocol) {
+                    validate_client_fields(fields)?;
+                }
+            }
+        }
+
+        if let Some(hints) = &self.client.inner.client_hints {
+            let template = self.client.inner.request_template.as_ref();
+            let emits_managed_hint = hints.hints().iter().any(|hint| {
+                hint.name().eq_ignore_ascii_case(LAST_EVENT_ID)
+                    && (hint.delivery() == ClientHintDelivery::Default
+                        || template.is_none_or(|template| {
+                            template.requested_client_hint_placement()
+                                && !template.client_hint_slots().is_empty()
+                        }))
+            });
+            if emits_managed_hint {
+                let uri = match &self.client.inner.base_url {
+                    Some(base) => base.resolve(&self.uri).map_err(SseError::request)?,
+                    None => crate::authority::parse_absolute_uri(&self.uri)
+                        .map_err(crate::request::request_uri_error)
+                        .map_err(SseError::request)?,
+                };
+                let url = url::Url::parse(&uri.to_string())
+                    .map_err(RequestError::invalid_url)
+                    .map_err(SseError::request)?;
+                // A redirect can reach a trustworthy origin and enable hints.
+                if crate::request::secure_context::is_potentially_trustworthy(&url)
+                    || self.client.state.redirect_policy.max_hops().is_some()
+                {
+                    return Err(SseError::invalid_request_header(
+                        "automatic client hint supplies a managed Last-Event-ID",
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn send(&self, last_event_id: &str) -> Result<Response<ResponseBody>, RequestError> {
@@ -452,6 +505,39 @@ impl SseRequest {
             None => request,
         }
     }
+}
+
+/// A managed ID must stay absent while empty, including after an ID reset.
+fn validate_client_fields(fields: &[RequestField]) -> Result<(), SseError> {
+    for field in fields {
+        if !field
+            .name()
+            .is_some_and(|name| name.eq_ignore_ascii_case(LAST_EVENT_ID))
+        {
+            continue;
+        }
+
+        let supplies_default = match field {
+            RequestField::Literal { .. } => true,
+            RequestField::ByTrust {
+                trustworthy,
+                untrustworthy,
+                ..
+            } => trustworthy.is_some() || untrustworthy.is_some(),
+            RequestField::ByForwarding {
+                unforwarded,
+                forwarded,
+                ..
+            } => unforwarded.is_some() || forwarded.is_some(),
+            _ => false,
+        };
+        if supplies_default {
+            return Err(SseError::invalid_request_header(
+                "inherited request template supplies a default Last-Event-ID",
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Rejects literal `Last-Event-ID` fields and invalid or repeated placeholders.
