@@ -42,6 +42,21 @@ impl DownloadTarget {
         })
     }
 
+    #[cfg(test)]
+    pub(super) fn loopback(address: std::net::SocketAddr) -> Result<Self, InvalidTarget> {
+        if !address.ip().is_loopback() || address.port() == 0 {
+            return Err(InvalidTarget::new(
+                "test target must name a bound loopback peer",
+            ));
+        }
+        let url = Url::parse(&format!("https://{address}/first"))
+            .map_err(|_| InvalidTarget::new("invalid loopback test URL"))?;
+        Ok(Self {
+            url,
+            file_name: "first".to_owned(),
+        })
+    }
+
     pub(super) fn url(&self) -> &Url {
         &self.url
     }
