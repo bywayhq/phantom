@@ -280,6 +280,13 @@ diagnostics when the report cannot be written. A timed-out Docker launch can
 still create a container after inspection reports
 it absent. Retained ownership metadata identifies that run for recovery.
 
+WPT EventSource summaries keep observed scenario results separate from
+`infrastructure_failures`. Check `run_failed` for the overall outcome:
+setup or shutdown can fail even when `failure_count` is zero. The runner
+observes its child exiting before removing temporary server files. If child
+exit cannot be established, it retains those files and reports their path.
+Cleanup and publication failures remain in the report or command diagnostics.
+
 The QUIC interoperability download example creates a staging directory beside
 each output. Publication requires hard-link support on that filesystem and
 refuses an existing output. Each invocation removes only its staging file

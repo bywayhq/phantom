@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Separate WPT EventSource observations from runner failures. Migrate:
+  readers of `summary.json` must use `run_failed` for the overall result and
+  `infrastructure_failures` for setup, shutdown and cleanup errors.
+  `case_count`, `failure_count`, `cases` and `failures` now describe only
+  observed scenarios. The runner reaps its owned server before removing
+  temporary files and retains those files when child exit is unobserved.
+
 - Bound replay frame metadata as well as retained body bytes. Migrate:
   `buffered_streaming_body` and `buffered_streaming_body_with_trailers`
   now omit previously read empty DATA frames on another attempt. They keep
