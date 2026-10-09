@@ -146,70 +146,109 @@ mod tests {
     };
     use crate::request::RequestHeader;
 
+    fn credential_canary() -> Result<String, std::time::SystemTimeError> {
+        let elapsed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+        Ok(format!("{:032x}", elapsed.as_nanos()))
+    }
+
     #[test]
-    fn basic_encoder_matches_the_rfc_7617_example() -> Result<(), Box<dyn std::error::Error>> {
-        // RFC 7617's example is encoder data, not authentication to a peer.
+    fn basic_encoder_keeps_the_separator_and_round_trips_credentials()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let username = credential_canary()?;
+        let password = credential_canary()?;
         let encoded =
-            basic_value("Aladdin", "open sesame", 100).map_err(|error| format!("{error:?}"))?;
-        assert_eq!(&*encoded, b"Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==");
+            basic_value(&username, &password, 100).map_err(|error| format!("{error:?}"))?;
+        assert_eq!(&encoded[..6], b"Basic ");
+        let decoded = btls::base64::decode_block(std::str::from_utf8(&encoded[6..])?)?;
+        assert_eq!(decoded, format!("{username}:{password}").as_bytes());
         Ok(())
     }
 
     #[test]
-    fn basic_value_limits_are_inclusive_and_checked_before_encoding() {
+    fn basic_value_limits_are_inclusive_and_checked_before_encoding()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let password = credential_canary()?;
+        assert_eq!(password.len(), 32);
         assert_eq!(basic_encoded_length(3), Some(10));
         assert_eq!(basic_encoded_length(usize::MAX), None);
-        assert!(basic_value("Aladdin", "open sesame", 34).is_ok());
+        assert!(basic_value("Aladdin", &password, 62).is_ok());
         assert_eq!(
-            basic_value("Aladdin", "open sesame", 33),
+            basic_value("Aladdin", &password, 61),
             Err(BasicAuthorizationError::TooLarge)
         );
         assert_eq!(
             basic_value(
                 "u",
-                &"x".repeat(MAX_AUTHORIZATION_VALUE_BYTES),
+                &password.repeat(MAX_AUTHORIZATION_VALUE_BYTES / password.len()),
                 MAX_AUTHORIZATION_VALUE_BYTES
             ),
             Err(BasicAuthorizationError::TooLarge)
         );
+        Ok(())
     }
 
     #[test]
-    fn basic_constructors_reject_invalid_credentials_without_retaining_values() {
+    fn basic_constructors_reject_invalid_credentials_without_retaining_values()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let username = credential_canary()?;
+        let password = credential_canary()?;
+        let mut empty = password.clone();
+        empty.clear();
         for (username, password, kind) in [
-            ("", "", InvalidAuthorizationKind::BasicUsername),
-            ("bad:name", "", InvalidAuthorizationKind::BasicUsername),
-            ("bad\r\nname", "", InvalidAuthorizationKind::BasicUsername),
-            ("naïve", "", InvalidAuthorizationKind::BasicUsername),
             (
-                "user",
-                "bad\nvalue",
+                empty.clone(),
+                password.clone(),
+                InvalidAuthorizationKind::BasicUsername,
+            ),
+            (
+                format!("{username}:suffix"),
+                password.clone(),
+                InvalidAuthorizationKind::BasicUsername,
+            ),
+            (
+                format!("{username}\r\n"),
+                password.clone(),
+                InvalidAuthorizationKind::BasicUsername,
+            ),
+            (
+                format!("{username}é"),
+                password.clone(),
+                InvalidAuthorizationKind::BasicUsername,
+            ),
+            (
+                username.clone(),
+                format!("{password}\n"),
                 InvalidAuthorizationKind::BasicPassword,
             ),
             (
-                "user",
-                "bad\0value",
+                username.clone(),
+                format!("{password}\0"),
                 InvalidAuthorizationKind::BasicPassword,
             ),
             (
-                "user",
-                "bad\u{7f}value",
+                username.clone(),
+                format!("{password}\u{7f}"),
                 InvalidAuthorizationKind::BasicPassword,
             ),
-            ("user", "naïve", InvalidAuthorizationKind::BasicPassword),
+            (
+                username,
+                format!("{password}é"),
+                InvalidAuthorizationKind::BasicPassword,
+            ),
         ] {
-            let Err(error) = RequestHeader::basic_authorization(username, password) else {
+            let Err(error) = RequestHeader::basic_authorization(&username, &password) else {
                 panic!("invalid credentials accepted");
             };
             assert_eq!(error.kind(), kind);
             let diagnostic = format!("{error:?} {error}");
             if !username.is_empty() {
-                assert!(!diagnostic.contains(username));
+                assert!(!diagnostic.contains(&username));
             }
             if !password.is_empty() {
-                assert!(!diagnostic.contains(password));
+                assert!(!diagnostic.contains(&password));
             }
         }
+        Ok(())
     }
 
     #[test]
