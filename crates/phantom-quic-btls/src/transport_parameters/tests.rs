@@ -243,12 +243,11 @@ fn reserved_identifier_draws_include_both_bounds_and_reject_excess() -> Result<(
             let mut entropy = WireEntropy::from_bytes(bytes);
             assert_eq!(entropy.reserved_transport_parameter_id(width)?, 58);
             let mut exhausted = WireEntropy::from_bytes([u8::MAX; ENTROPY_LEN]);
-            assert!(
-                exhausted
-                    .reserved_transport_parameter_id(width)
-                    .unwrap_err()
-                    .is_entropy_failure()
-            );
+            let error = exhausted
+                .reserved_transport_parameter_id(width)
+                .err()
+                .ok_or("exhausted entropy was accepted")?;
+            assert!(error.is_entropy_failure());
         }
     }
     Ok(())
