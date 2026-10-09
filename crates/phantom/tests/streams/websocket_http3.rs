@@ -5,6 +5,7 @@
 
 mod origin;
 
+use crate::support::client_certificate::{ClientIdentity, quic_endpoint_requiring};
 use crate::support::h3 as h3_support;
 use crate::support::masque as masque_support;
 use crate::support::socks5_udp as socks5_udp_support;
@@ -526,6 +527,87 @@ async fn http3_websocket_travels_through_a_socks5_udp_association() -> TestResul
             assert!(observed.origin_datagrams > 0);
             assert_eq!(origin.methods(), ["CONNECT"]);
         }
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn direct_http3_websocket_uses_the_origin_scoped_client_certificate() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let mapped = ClientIdentity::p256()?;
+        let default = ClientIdentity::p256()?;
+        // Only the mapped certificate's authority can authenticate here.
+        let origin = Origin::serve(
+            quic_endpoint_requiring(&identity, &mapped.authority_der)?,
+            Behavior::ECHO,
+            0,
+        );
+        let client = client_builder(&identity, extended_request_settings())
+            .client_certificate(default.certificate()?)
+            .client_certificate_for(
+                &format!("https://{}", origin.address),
+                mapped.certificate()?,
+            )
+            .build()?;
+        let mut socket = client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/mtls"))?
+            .connect()
+            .await?;
+        assert_eq!(socket.handshake_response().version(), Version::HTTP_3);
+        assert_echoes(&mut socket).await?;
+        assert_eq!(origin.connections(), 1);
+        assert_eq!(origin.methods(), ["CONNECT"]);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin()
+-> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let proxy_identity = TestIdentity::generate()?;
+        let mapped = ClientIdentity::p256()?;
+        let default = ClientIdentity::p256()?;
+        let origin = Origin::serve(
+            quic_endpoint_requiring(&identity, &mapped.authority_der)?,
+            Behavior::ECHO,
+            0,
+        );
+        let proxy = MasqueProxy::spawn_requesting_client_certificates(
+            &proxy_identity,
+            ProxyMode::Relay,
+            &mapped.authority_der,
+        )?;
+        let client = client_builder(&identity, extended_request_settings())
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
+            .client_certificate(default.certificate()?)
+            .client_certificate_for(
+                &format!("https://{}", origin.address),
+                mapped.certificate()?,
+            )
+            // Even an explicit mapping for the proxy is an origin setting.
+            .client_certificate_for(&format!("https://{}", proxy.address), mapped.certificate()?)
+            .build()?;
+        let mut socket = client
+            .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/mtls"))?
+            .connect()
+            .await?;
+        assert_eq!(socket.handshake_response().version(), Version::HTTP_3);
+        assert_echoes(&mut socket).await?;
+        assert_eq!(origin.connections(), 1);
+        assert_eq!(origin.methods(), ["CONNECT"]);
+        assert_eq!(proxy.connections(), 1);
+        assert_eq!(proxy.client_certificates(), 0);
+        let requests = proxy.requests();
+        let [request] = requests.as_slice() else {
+            return Err("expected one CONNECT-UDP tunnel".into());
+        };
+        assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
         Ok(())
     })
     .await
