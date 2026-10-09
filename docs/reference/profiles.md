@@ -178,12 +178,14 @@ order is chosen. Every variant sends the same IDs; only the order changes.
 
 `TlsSettings::session_ticket_order` picks which saved ticket a new TCP
 connection to an origin offers, and which one is dropped when the origin
-already holds `session_tickets_per_origin` tickets. QUIC connections do not
-use it.
+reaches the TCP limit in `TlsSettings::session_tickets`. Its checked
+`SessionTickets` value enables tickets with a limit from 1 through 10, or
+disables them. QUIC uses enablement and keeps its own ticket storage policy;
+it ignores the TCP limit and order.
 
 | Variant | Offers first | Drops when full | Recipes |
 | --- | --- | --- | --- |
-| `NewestFirst` | The newest ticket | The oldest ticket | Chromium-family `*_tls`, which keep 2 tickets |
+| `NewestFirst` | The newest ticket | The oldest ticket | Chromium-family `*_tcp_tls`, which keep 2 tickets |
 | `OldestConnectionFirst` | The first connection to store a ticket, newest of its tickets first | The ticket it would offer next | `firefox::v157_tcp_tls`, which keeps 10 |
 | `OldestFirst` | The oldest ticket | The oldest ticket | `firefox::v156_android_tcp_tls`, which keeps 10 |
 

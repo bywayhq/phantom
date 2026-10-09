@@ -183,7 +183,7 @@ Supported:
 - [ALPN](glossary.md#alpn) and [ALPS](glossary.md#alps).
 - Bounded, client-owned TLS ticket caches for H1 and H2, partitioned by exact
   [origin](glossary.md#origin) and route. Each keeps the recipe's
-  `session_tickets_per_origin` (2 for the Chromium family, 10 for Firefox),
+  TCP ticket limit in `SessionTickets` (2 for Chromium, 10 for Firefox),
   offers them in the recipe's
   [ticket order](profiles.md#tls-session-ticket-order), and uses each TLS
   1.3 ticket once. A resumed

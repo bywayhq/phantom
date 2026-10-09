@@ -56,7 +56,7 @@ server at once. The Chromium and Firefox recipes allow 6. Without
 ([HTTP/1.1 connections](../reference/profiles.md#http11-connections)).
 
 `windows` or `android` in a recipe name says which platform the recipe
-copies. Phantom sends it the same way on any host
+copies. Socket behavior still depends on the host OS
 ([Recipe names and platforms](../reference/profiles.md#recipe-names-and-platforms)).
 
 ## Build a custom profile

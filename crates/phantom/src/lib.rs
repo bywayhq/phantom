@@ -263,12 +263,13 @@ pub mod profile {
         InvalidHttp3Settings, InvalidProxyConnectTemplate, InvalidRequestTemplate,
         InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup,
         ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate, RequestField,
-        RequestTemplate, SessionTicketOrder, SignatureScheme, TcpAddressAdvance, TcpAddressRacing,
-        TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
-        TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
-        TrustAnchorIds, UdpSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
-        WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
-        WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
+        RequestTemplate, SessionTicketOrder, SessionTickets, SignatureScheme, TcpAddressAdvance,
+        TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
+        TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings,
+        TlsVersion, TlsVersionRange, TrustAnchorIds, UdpSettings, WebSocketConnectionPolicy,
+        WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
+        WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
+        WebSocketSettings,
     };
 
     /// Browser recipes and composed profiles grouped by brand and platform.

@@ -92,8 +92,8 @@ an Edge template without `User-Agent` fails.
 
 Every public option must change what Phantom does, with a test that observes
 the change. For example, `TlsSettings::session_ticket_order` chooses which
-saved TCP ticket a connection offers. `session_tickets_per_origin` bounds how
-many it keeps. An option that only parses would misdescribe your traffic.
+saved TCP ticket a connection offers. The TCP limit in `SessionTickets`
+bounds how many it keeps. An option that only parses would misdescribe your traffic.
 
 ## State belongs to one client and has a bound
 

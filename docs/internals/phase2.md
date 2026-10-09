@@ -23,22 +23,13 @@ a passing focused test does not complete an item.
 
 ### 1. Routes
 
-The unmerged route lane now has one TCP connection-leg owner and route-taking
-HTTP/1.1, HTTP/2, negotiated, and HTTP/3 operations. It includes ECH,
-keep-slower setup, supplied streams, plaintext, forwarding, SOCKS5, and
-CONNECT-UDP. Independent reviews approved the protocol migrations and their
-validation and cancellation tests. Redundant public setup helpers are being
-removed; reusable raw-stream operations and the CONNECT parsing seam remain.
-No route item is complete until integration passes.
-
-Checkpoint `c8ede964` passed all 2,862 tests, workspace and Linux Clippy,
-rustdoc, doctests, and MSRV checks. Its full gate found an unused lint
-expectation and nested setup futures that exceeded the nightly compiler's
-type-checking limit. The fixes passed the pinned nightly check at `989ec209`.
-Downstream API tests passed with default and optional features at `f7889bb6`;
-its default-feature rustdoc also passed with warnings denied. Reviewed
-follow-ups keep packet crypto private and replace legacy module filenames.
-The final full gate, path/git downstream checks, and CI remain required.
+The route change merged at `7b99fcaf` in
+[PR 185](https://github.com/bywayhq/phantom/pull/185). The full Windows/Linux
+gate passed all 23 steps and 2,862 tests on that commit. All 43 PR checks
+passed, including Windows, macOS, and security scanning. Path/git downstream
+consumers and ShellCheck passed before the final test-only redaction repair.
+Fixtures, vendored sources, and the lockfile are unchanged. Push CI on
+`main` is still running.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
@@ -80,6 +71,11 @@ request, or opt out for that request. Independent source reviews approved
 these changes and their credential-safe redirect behavior. Combined
 compilation, gate checks, and CI remain required.
 
+
+Checked TLS version ranges and ticket settings are also in the unmerged
+API lane. They preserve browser recipe values and keep TCP limits separate
+from QUIC's ticket storage. Source review found test-helper migration
+mistakes; those are repaired. Compilation and integration checks remain.
 
 - [ ] Settings constructors and their evolution policy are settled.
   Invalid combinations are prevented by types where practical; remaining

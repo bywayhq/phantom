@@ -14,6 +14,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Use checked TLS version ranges and session-ticket settings. Migrate:
+  replace `TlsSettings::min_version` and `max_version` with `versions:
+  TlsVersionRange::new(min, max)?`, `only(version)`, or `TLS12_TO_TLS13`.
+  Replace the `session_tickets` boolean and `session_tickets_per_origin`
+  count with `SessionTickets::enabled(count)?` or `disabled()`. Enabled
+  TCP limits remain `1..=10`; disabled tickets carry no limit. QUIC uses
+  enablement while retaining its separate ticket storage policy.
+
+
 - Group browser recipes under `profile::browser::{chrome, edge, brave,
   opera, firefox}` in the facade and `phantom_profile::browser` in the
   profile crate. Migrate: replace the old root browser modules with these

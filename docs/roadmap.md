@@ -486,10 +486,10 @@ baseline comes first, so the lints guide the refactor rather than follow it.
 - Decide how the 26 public profile settings structs (135 `pub` fields)
   grow: `#[non_exhaustive]` with constructors, or an explicit versioning
   policy. Let the constructors make invalid combinations unrepresentable.
-  `TlsSettings` pairs `session_tickets: bool` with a per-origin count and
-  `ech_grease: bool` with a payload policy, and accepts a `min_version`
-  above `max_version`; today only the 10 `validate()` methods, with about
-  144 rejection sites, catch these when `ClientBuilder::build` runs.
+  Checked TLS version ranges and session-ticket settings prevent reversed
+  endpoints and invalid TCP ticket counts. ECH still pairs an enabled flag
+  with payload settings; group those into a checked policy next. Keep the
+  existing validators for dependencies between settings.
 - Group the 23 public `phantom-profile` modules: browser recipes under one
   module beside the protocol settings modules, with one naming rule for
   Chrome and Chromium (today `chromium` holds the Chrome desktop recipes and

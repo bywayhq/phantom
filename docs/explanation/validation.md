@@ -5568,7 +5568,7 @@ Replay against Phantom, in `crates/phantom-net/src/tls/tests/resumption.rs`:
   `the_firefox_recipe_keeps_ten_tickets_per_origin` stores eleven tickets
   over ten connections with `firefox::v157_tcp_tls` and keeps ten.
 
-The recipes carry the retention as `TlsSettings::session_tickets_per_origin`
+The recipes carry the TCP retention in `TlsSettings::session_tickets`
 (2 for the Chromium family, 10 for Firefox), the order as
 `TlsSettings::session_ticket_order`, the `session_ticket` choice as
 `TlsSettings::session_ticket_extension_when_resuming`, and early data as
