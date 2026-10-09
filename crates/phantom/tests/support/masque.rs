@@ -105,6 +105,15 @@ impl Drop for ProxyEndpoint {
     }
 }
 
+struct ProxyConnection<'a>(&'a quinn::Connection);
+
+impl Drop for ProxyConnection<'_> {
+    fn drop(&mut self) {
+        self.0
+            .close(0_u32.into(), b"test proxy closed the connection");
+    }
+}
+
 /// A running CONNECT-UDP proxy; aborted on drop.
 pub(crate) struct MasqueProxy {
     pub(crate) address: SocketAddr,
@@ -245,15 +254,21 @@ async fn serve_connection(
         lock(&log).client_certificates += 1;
     }
 
-    // This covers H3 setup, partial HEADERS, rejection responses and the relay,
-    // including awaits nested inside those stages rather than only loop edges.
+    let serving = serve_connected(&quinn, mode, log);
+    tokio::pin!(serving);
+    // This guard drops before the pinned serving future: H3's own Drop sends
+    // H3_NO_ERROR, which must not replace the proxy's explicit QUIC close.
+    let _connection = ProxyConnection(&quinn);
+
+    // Keep serving pinned through this branch so explicit close precedes H3
+    // teardown, including cancellation during its nested setup/relay awaits.
     tokio::select! {
         biased;
         () = connection_closed(&mut close, initial) => {
             quinn.close(0_u32.into(), b"test proxy closed the connection");
             Ok(())
         }
-        result = serve_connected(&quinn, mode, log) => result,
+        result = &mut serving => result,
     }
 }
 
