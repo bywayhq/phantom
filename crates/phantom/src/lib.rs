@@ -56,10 +56,10 @@
 //! `danger-disable-verification`, because it lets anyone on the path read and
 //! change the connection.
 //!
-//! With `https-records`, [`ClientBuilder::https_record_discovery`] discovers
+//! With `https-records`, `ClientBuilder::https_record_discovery` discovers
 //! HTTP/3 endpoints. Profiles with `ech_from_https_records` can use Encrypted
 //! Client Hello from those records. Direct handshakes wait up to 50 ms for
-//! that lookup. [`AddressResolver::system_nameservers`] sends DNS queries
+//! that lookup. `AddressResolver::system_nameservers` sends DNS queries
 //! that report record TTLs, the time each result can stay cached.
 //!
 //! # Further reading
@@ -402,7 +402,7 @@ pub mod profile {
 
 /// HTTPS DNS record (RFC 9460) lookups used for HTTP/3 discovery.
 ///
-/// See [`ClientBuilder::https_record_discovery`]. Requires the
+/// See `ClientBuilder::https_record_discovery`. Requires the
 /// `https-records` feature.
 #[cfg(feature = "https-records")]
 pub mod dns {
