@@ -57,7 +57,7 @@
 //! change the connection.
 //!
 //! With `https-records`, `ClientBuilder::https_record_discovery` discovers
-//! HTTP/3 endpoints. Profiles with `ech_from_https_records` can use Encrypted
+//! HTTP/3 endpoints. Profiles with `EchSettings::HttpsRecords` can use Encrypted
 //! Client Hello from those records. Direct handshakes wait up to 50 ms for
 //! that lookup. `AddressResolver::system_nameservers` sends DNS queries
 //! that report record TTLs, the time each result can stay cached.

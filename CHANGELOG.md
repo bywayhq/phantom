@@ -14,6 +14,26 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Separate client timeout policies from per-request overrides. Migrate:
+  keep `RequestTimeouts` on `ClientBuilder::request_timeouts`; pass
+  `RequestTimeoutOverrides` to `RequestBuilder::timeouts` and
+  `SseRequestBuilder::request_timeouts`. Each override is `Inherit`,
+  `Disabled`, or `Limit(duration)`; unchanged fields inherit client limits.
+
+- Replace independent ECH fields with checked `EchSettings`. Migrate:
+  replace `ech_grease`, `ech_grease_payload_length`, `ech_grease_aeads`, and
+  `ech_from_https_records` with `TlsSettings::ech`. Choose `Disabled`,
+  `Grease(EchGreaseSettings::new(payload_length, aeads)?)`, or
+  `HttpsRecords(settings)`. The checked constructor preserves valid payload
+  and AEAD choices. HTTPS record discovery remains opt-in.
+
+- Keep `RequestError` formatting to its category and safe context.
+  Migrate: use `std::error::Error::source` to inspect the original cause
+  instead of parsing `Display` or `Debug`. The source chain is preserved.
+  `origin()` exposes only scheme, canonical host, and effective port;
+  `replay_observation()` reports connection observations, not permission
+  to resend a method or body.
+
 - Use checked TLS version ranges and session-ticket settings. Migrate:
   replace `TlsSettings::min_version` and `max_version` with `versions:
   TlsVersionRange::new(min, max)?`, `only(version)`, or `TLS12_TO_TLS13`.
@@ -960,6 +980,17 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HostResolver::new().with_override(..).with_resolver(..).with_cache(..)`.
 
 ### Added
+
+- Cap caller-enabled retries across redirects with
+  `RetryPolicy::with_max_retries`. Per-kind eligibility and limits still
+  apply. Browser-required replays keep their separate limits.
+
+- Parse bounded `Link` header values with `parse_link_headers`. Targets,
+  repeated parameters, relations, and anchors remain data for the caller
+  to interpret. Parsing preserves order and makes no request.
+
+- Inspect safe request origins and connection replay observations,
+  including the failing redirect hop and deferred response-body errors.
 
 - Append ordered query pairs with `RequestBuilder::query_pairs`. Existing
   path and query bytes stay unchanged; new pairs retain order and duplicates.

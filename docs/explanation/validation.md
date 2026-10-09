@@ -159,7 +159,7 @@ Capture comparisons normalize only per-connection randomness:
   which is consistent with NSS taking the choice from the low bit of fresh
   per-handshake random bytes. The comparison therefore treats the AEAD as
   per-connection randomness. `firefox::v157_tcp_tls` lists both AEADs in
-  `ech_grease_aeads`, and the patched BoringSSL backend draws one uniformly
+  `EchGreaseSettings::aeads`, and the patched BoringSSL backend draws one uniformly
   per connection from fresh random bytes, keeping it across a
   HelloRetryRequest. `firefox_157_recipe_draws_either_ech_grease_aead_per_connection`
   replays both retained captures, then requires 200 loopback connections from
@@ -172,7 +172,7 @@ Capture comparisons normalize only per-connection randomness:
   compare that cipher suite exactly, and
   `chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection` checks it
   on 64 connections from one connector for each of Chrome 154 and Edge 153.
-  Chromium-family recipes leave `ech_grease_aeads` empty and rely on the
+  Chromium-family recipes leave `EchGreaseSettings::aeads` empty and rely on the
   backend default, which selects AES-128-GCM because the recipes set
   `aes_hardware`.
 - `user-agent`, `sec-ch-ua`, `sec-ch-ua-mobile`, and `sec-ch-ua-platform` are
@@ -814,7 +814,7 @@ them.
 
 The recipes follow from those results. `brave::v154_tcp_tls` and
 `brave::v154_quic_tls` remove the trust-anchor IDs from the Chromium
-recipes, and both keep `ech_from_https_records`.
+recipes, and both keep `EchSettings::HttpsRecords`.
 `opera::v136_tcp_tls` and `opera::v136_quic_tls` replace the Chromium ID list
 with Opera's 32 IDs, in an order drawn per client over TCP and per
 connection over QUIC. Neither browser has an H2, QUIC, H3,
@@ -946,7 +946,7 @@ the names `dns_over_https.opera.doh_mode`,
 alone timed out with no lookup. With Opera's set in the throwaway profile it
 sent its lookups to the capture server and used the record's `ech` over TCP
 and QUIC, as Chrome 154 does. `opera::v136_tcp_tls` and `v136_quic_tls` therefore
-keep `ech_from_https_records`. See [Real ECH evidence](#real-ech-evidence).
+keep `EchSettings::HttpsRecords`. See [Real ECH evidence](#real-ech-evidence).
 Without a record, every Opera 135 and 136 ClientHello carried ECH GREASE.
 
 Tests: the `brave_154_*` and `opera_136_*` tests in `phantom-profile` and
@@ -1328,7 +1328,7 @@ captured model, and `v154_android_client_hints_for_model` sends another. Only
 the Pixel 7 value is captured.
 
 `v154_android_tcp_tls` and `v154_android_quic_tls` are the Chromium recipes with
-`ech_from_https_records` off. The H2, QUIC, H3, H3 request, and WebSocket
+`EchSettings::Grease`. The H2, QUIC, H3, H3 request, and WebSocket
 functions return the Chromium recipes. The templates change only
 `User-Agent` in the Chromium templates. The H3 startups were opened by
 intent, so the H3 lists in the templates are the Chromium ones.
@@ -1434,7 +1434,7 @@ Limits:
   no Chrome for Android TCP, HTTP/1.1 connection, or address-cache recipe.
 - No capture shows Chrome for Android using an HTTPS record's `ech`, because
   the device cannot be given a DNS-over-HTTPS resolver as the desktop capture
-  was, so `ech_from_https_records` is off.
+  was, so the recipes use `EchSettings::Grease`.
 - No proxy, SSE, or Alt-Svc racing capture exists for Android, so there is no
   Chrome for Android proxy CONNECT or cookie-placement recipe. No Android
   capture carries a cookie either: the H2 and H3 recipes split `cookie` into
@@ -1472,8 +1472,8 @@ apply unchanged. A cleared Brave profile shows no first-run screen.
 Between the two emulators, the only client-hint value that changed was the
 platform version, from `"15.0.0"` to `"17.0.0"`. The model stayed empty.
 
-`brave::v153_android_tcp_tls` is `brave::v154_tcp_tls` with `ech_from_https_records`
-off, for the reason given for Chrome for Android, and `v153_android_quic_tls` is
+`brave::v153_android_tcp_tls` is `brave::v154_tcp_tls` with `EchSettings::Grease`,
+for the reason given for Chrome for Android, and `v153_android_quic_tls` is
 `brave::v154_quic_tls` with the same change. The H2, QUIC, H3, and WebSocket
 functions return the Chromium recipes. The templates apply desktop Brave's
 changes to the Chromium templates with Chrome's reduced Android `User-Agent`,
@@ -1532,7 +1532,7 @@ carry this literal value, where the headless desktop Edge templates leave
 `User-Agent` to the caller.
 
 `v153_android_tcp_tls` and `v153_android_quic_tls` are desktop Edge's recipes with
-`ech_from_https_records` off. `v153_http2`, `v153_quic`, `v153_http3`, and
+`EchSettings::Grease`. `v153_http2`, `v153_quic`, `v153_http3`, and
 `v153_http3_request` return the Chromium recipes.
 `v153_android_client_hints()` sends the captured model, and
 `v153_android_client_hints_for_model` sends another. The templates change only
@@ -4584,7 +4584,7 @@ Limits:
 With discovery enabled, an HTTPS DNS record that lists `h3` for the origin's
 own host and port sends a later negotiated request over H3 to the origin,
 without an `Alt-Used` field and without delaying any request whose profile
-leaves `ech_from_https_records` unset.
+does not use `EchSettings::HttpsRecords`.
 
 `crates/phantom/tests/http3/https_records.rs` runs a loopback DNS server from
 `phantom-testkit` beside a loopback H2 origin and H3 endpoint on the same
@@ -4633,7 +4633,7 @@ Limits, as differences from Chrome:
   1122, with the limits in `net/base/features.cc` lines 88-97). Phantom
   resolves addresses through the operating system, so its HTTPS queries come
   from a second DNS client. No request waits for them, except the TLS
-  handshake of a profile that sets `ech_from_https_records`; see
+  handshake of a profile that uses `EchSettings::HttpsRecords`; see
   [Real ECH evidence](#real-ech-evidence).
 - An unanswered query is resent after 333 ms and again 333 ms later, on the
   resolver library's schedule rather than Chrome's.
@@ -4818,7 +4818,7 @@ submodule commit `f1f2556a`, states the rules the recipe follows:
   configurations mean GREASE and the true name. A second rejection is
   returned to the caller.
 
-Phantom implements this as `TlsSettings::ech_from_https_records`, set in
+Phantom implements this as `TlsSettings::ech: EchSettings::HttpsRecords`, used in
 `chrome::v154_tcp_tls` and kept by `edge::v154_tcp_tls`. Edge's network stack
 source is not public, so for Edge these rules rest on the captures, which
 show the same outer fields and retry, and not on its source. The wait is computed from Phantom's own address
@@ -5025,9 +5025,9 @@ pins, `80bf9559`, states the rules the recipe follows:
   new TCP connection therefore offers the stale configuration, is rejected,
   and retries, until the record expires.
 
-Phantom implements this through the same `TlsSettings::ech_from_https_records`
-field, set in `chrome::v154_quic_tls` and kept by `edge::v154_quic_tls`
-and `brave::v154_quic_tls`. `opera::v136_quic_tls` clears it. The connector
+Phantom implements this through the same `EchSettings::HttpsRecords`
+setting, used in `chrome::v154_quic_tls` and kept by `edge::v154_quic_tls`,
+`brave::v154_quic_tls`, and `opera::v136_quic_tls`. The connector
 checks the list, waits for the lookup as a TCP connection does, and offers ECH
 through `QuicClientConfig::with_ech`. A rejection is an HTTP/3 setup failure
 like any other: a sequential client fails the request and marks the
@@ -5064,7 +5064,7 @@ Limits:
   request to the origin offers the same stale configuration and fails until
   the record expires. Marking the alternative broken does not stop an exact
   request.
-- Setting `ech_from_https_records = false` on the value
+- Selecting `EchSettings::Grease` on the value
   `chrome::v154_quic_tls` returns sends GREASE on HTTP/3 and avoids both
   failures.
 
@@ -5797,7 +5797,7 @@ Limits:
   `security/nss/lib/ssl/tls13exthandle.c:864-873`, `tls13con.c:7041-7078`,
   and `tls13ech.c:1350-1558`). No Firefox recipe offers ECH from HTTPS
   records, so only a custom profile that sets both
-  `TlsSettings::tcp_early_data` and `TlsSettings::ech_from_https_records`
+  `TlsSettings::tcp_early_data` and `EchSettings::HttpsRecords`
   meets this ([roadmap](../roadmap.md)). An exact request or a WebSocket
   opening whose server picks another ALPN protocol after a rejection fails
   instead of restarting, as Firefox restarts the transaction.

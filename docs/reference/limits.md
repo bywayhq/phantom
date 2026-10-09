@@ -48,7 +48,15 @@ extended CONNECT stream once on the same session
 
 ## Timeouts
 
-`RequestTimeouts` sets each phase; none is set by default.
+`RequestTimeouts` sets the client's limits; none is set by default.
+`RequestTimeoutOverrides` changes individual limits for one request or SSE
+connection. Unchanged fields inherit the client limit.
+
+| Override | Effect |
+| --- | --- |
+| `TimeoutOverride::Inherit` | Keep the client limit |
+| `TimeoutOverride::Disabled` | Remove that limit |
+| `TimeoutOverride::Limit(duration)` | Use this duration, including zero |
 
 | Timeout phase | Method | Limits |
 | --- | --- | --- |
@@ -60,6 +68,13 @@ extended CONNECT stream once on the same session
 
 Each phase limit restarts for every redirect, retry, and replay. The total
 limit is one deadline over all attempts, delays, and the final response body.
+
+`RetryPolicy::with_max_retries(Some(n))` caps caller-enabled retries across
+all redirect hops. Connection setup, reused connections, unprocessed
+requests, status retries, and explicit HTTP/2 fallback share the cap.
+`Some(0)` disables those retries; `None` adds no combined cap. Each kind
+keeps its own eligibility and limit. Profile-required replays keep their
+separate limits. The cap never makes a one-shot body replayable.
 
 A WebSocket connect applies none of these. It has one handshake timeout,
 `WebSocketRequestBuilder::handshake_timeout`, over the whole opening, whose

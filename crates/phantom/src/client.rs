@@ -1338,9 +1338,10 @@ impl ClientBuilder {
     ///
     /// The default is [`RequestTimeouts::new`](crate::RequestTimeouts::new),
     /// which sets no limit.
-    /// [`RequestBuilder::timeouts`](crate::RequestBuilder::timeouts) replaces
-    /// this policy for one request. Every timeout is disabled unless
-    /// explicitly present in `timeouts`. A duration the runtime clock cannot
+    /// [`RequestBuilder::timeouts`](crate::RequestBuilder::timeouts) overrides
+    /// individual limits for one request. Unchanged limits inherit this policy;
+    /// [`TimeoutOverride::Disabled`](crate::TimeoutOverride::Disabled) removes
+    /// one limit. A duration the runtime clock cannot
     /// represent fails [`Self::build`] with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     pub fn request_timeouts(mut self, timeouts: crate::RequestTimeouts) -> Self {
@@ -1644,7 +1645,7 @@ impl ClientBuilder {
     /// lookup advertises `h3`. A failed lookup counts as no advertisement.
     ///
     /// A profile that sets
-    /// [`TlsSettings::ech_from_https_records`](crate::profile::TlsSettings::ech_from_https_records),
+    /// [`EchSettings::HttpsRecords`](crate::profile::EchSettings::HttpsRecords),
     /// as the Chrome 154, Edge 154, Brave 154, and Opera 136 recipes do, also
     /// uses the records for Encrypted Client Hello on every direct TLS
     /// connection over TCP: those of negotiated and exact-protocol HTTP/1.1
@@ -1652,14 +1653,14 @@ impl ClientBuilder {
     /// starts the origin's lookup when none is cached, and its TLS handshake
     /// waits for it at most 20% of the address resolution time, clamped to
     /// 5-50 ms, then offers the record's `ech`. An HTTP/3 profile that sets
-    /// the field does the same on a direct QUIC connection to the origin's
+    /// that setting does the same on a direct QUIC connection to the origin's
     /// own host and port, which starts once the lookup ends within that
     /// bound; a rejected QUIC connection is not repeated. Exact HTTP/3
     /// requests, and negotiated ones under
     /// [`AltSvcPolicy::sequential`](crate::AltSvcPolicy::sequential), then
     /// keep failing on the stale configuration until the cached record
-    /// expires; set `ech_from_https_records = false` on the profile's
-    /// HTTP/3 TLS settings to send ECH GREASE instead.
+    /// expires; use [`EchSettings::Grease`](crate::profile::EchSettings::Grease)
+    /// on the profile's HTTP/3 TLS settings to send ECH GREASE instead.
     ///
     /// Results are cached per origin for the records' TTL, capped at one day,
     /// or 60 seconds when there is no TTL, as after a failed lookup. The

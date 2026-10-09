@@ -123,10 +123,10 @@ name, which retained single macOS runs match.
 ## TLS ClientHello shape
 
 Three `TlsSettings` fields shape the ClientHello beyond its lists of
-values: `extension_order`, `ech_grease_payload_length`, and
+values: `extension_order`, the GREASE payload length in `ech`, and
 `tls12_extensions_in_tls13_client_hello`.
 
-| Recipe | `extension_order` | `ech_grease_payload_length` | `tls12_extensions_in_tls13_client_hello` |
+| Recipe | `extension_order` | ECH GREASE payload length | `tls12_extensions_in_tls13_client_hello` |
 | --- | --- | --- | --- |
 | Chromium-family `*_tcp_tls` and `*_quic_tls` | `Permuted`: every extension shuffled per connection | `BackendDefault`: 144, 176, 208, or 240 bytes, drawn per connection | `false` |
 | `firefox::v157_tcp_tls` | `Fixed`: Firefox's order | `FromClientHello { maximum_name_length: 100 }` | `true`; no effect, as the recipe also offers TLS 1.2 |
@@ -144,6 +144,12 @@ values: `extension_order`, `ech_grease_payload_length`, and
   `extended_master_secret` and a one-byte `renegotiation_info` to a
   ClientHello that offers only TLS 1.3, as every Firefox QUIC ClientHello
   does.
+
+`TlsSettings::ech` selects `EchSettings::Disabled`, `Grease(settings)`, or
+`HttpsRecords(settings)`. `EchGreaseSettings::new(payload_length, aeads)`
+checks the payload and AEAD list. `backend_default()` retains the backend's
+defaults. `HttpsRecords` also requires configured HTTPS record discovery;
+without it, the setting still sends GREASE. Firefox recipes use `Grease`.
 
 ## Trust anchor ID order
 

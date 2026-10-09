@@ -126,6 +126,27 @@ retries run out, Phantom returns the last response.
 asks, up to `maximum`. If the server asks for longer, Phantom returns the
 response at once.
 
+## Cap retries across the whole request
+
+Set one cap for the retries you enable, shared across redirects:
+
+```rust
+use phantom::RetryPolicy;
+
+let policy = RetryPolicy::none()
+    .with_reused_connection_replay(true)
+    .with_max_retries(Some(2));
+assert_eq!(policy.max_retries(), Some(2));
+```
+
+The cap covers connection setup, reused-connection and unprocessed-request
+replays, status retries, and explicit HTTP/2 fallback. It does not enable
+them. Each kind also keeps its own limit. `Some(0)` stops these retries;
+`None` leaves their combined count uncapped.
+
+Browser-required replays, such as proxy authentication, missing client
+hints, and profile PING resends, keep their separate limits.
+
 ## Limits
 
 - `RequestBuilder::retry_policy` replaces the client's whole policy for one

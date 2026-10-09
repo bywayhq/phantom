@@ -88,6 +88,37 @@ fn classify(error: &RequestError) -> &'static str {
 `RequestErrorKind` may gain variants, so keep a fallback arm. Error messages
 leave out credentials, cookies and request bodies.
 
+`RequestError::origin` identifies the failing hop by scheme, host and port.
+It leaves out the path, query and user information. Body read errors keep
+the responding hop's origin. Invalid input may have no validated origin.
+
+`replay_observation` reports what the connection observed. It does not
+grant permission to retry. A reused connection or unanswered PING can fail
+after the server has received the request. Use the retry policy and your
+method and body semantics to decide.
+
+## Read links without following them
+
+Parse `Link` fields with a size limit, then choose how to use each target:
+
+```rust
+use phantom::{ResponseBody, parse_link_headers};
+
+fn next_page(response: &http::Response<ResponseBody>) -> Result<Option<String>, phantom::LinkParseError> {
+    let links = parse_link_headers(
+        response.headers().get_all(http::header::LINK).iter().map(http::HeaderValue::as_bytes),
+        16 * 1024,
+    )?;
+    Ok(links.iter().find(|link| link.has_relation("next"))
+        .map(|link| link.target().to_owned()))
+}
+```
+
+Targets stay relative when the server sends relative references. Resolve
+them against the response URL, respecting any `anchor`, before using them.
+The parser preserves repeated parameters and returns no partial list on
+failure. It makes no request.
+
 ## Let the server answer before the body
 
 Send `Expect: 100-continue` so a server can refuse a large body before any
