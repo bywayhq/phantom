@@ -11,9 +11,9 @@ Pending means that discovery or assignment has not established review.
 | HTTP, proxy, resolver, TCP and TLS transports | Transport lifecycle | Source, cancellation and resource contracts | In progress |
 | Profiles and QUIC TLS backend | Profile and FFI boundaries | Validation, public contracts, FFI assumptions | In progress |
 | Testkit and fuzz workspace | Harness contracts | Parser bounds, independent oracles, fixtures | Source pass recorded; fixes in progress |
-| Vendored modifications | Fork integration | Ordered patches, relevant upstream code | Pending |
-| Manifests and feature/platform matrix | Dependency boundaries | Resolved graph, enabled lints, CI rows | Pending |
-| Capture and conformance tooling | Tool lifecycle | Input validation, process ownership, tests | Pending |
+| Vendored modifications | Fork integration | Ordered patches, relevant upstream code | In progress |
+| Manifests and feature/platform matrix | Dependency boundaries | Resolved graph, enabled lints, CI rows | In progress |
+| Capture and conformance tooling | Tool lifecycle | Input validation, process ownership, tests | In progress |
 | Development, CI and release tooling | Maintainer workflow | Commands, failure handling, workflow callers | In progress |
 | Documentation and public API inventories | Published contracts | Source comparison, examples, retained evidence | Pending |
 | Repository configuration | Maintainer boundaries | Active callers and enforcement | Pending |
@@ -42,7 +42,14 @@ The integration owner inspected all workspace manifests and their feature,
 target, and lint declarations. The two FFI crates deliberately declare
 their lints separately so they can deny, rather than forbid, unsafe code
 at the audited module boundary. No current baseline mismatch was found.
-The resolved dependency graph still needs a separate recorded check.
+Resolved metadata at `efb0cb3c` confirms the production dependency direction:
+the client uses network and profile crates, network uses profiles and the
+QUIC backend, and the backend uses profiles. Profile and testkit crates have
+no first-party production dependencies. Test dependencies are separate.
+The selected forks all resolve to local renamed packages. The full feature
+set resolves, which does not prove each feature combination compiles.
+After the ACK parser repair, the selected-source tree confirms Quinn-proto
+`.4`, Quinn `.4`, and H3 dependencies `.9` through those same local paths.
 
 Testkit and fuzz review has a [per-file record](testkit-fuzz-coverage.json).
 It covers all assigned source, tests, small configuration and prose, including
@@ -72,6 +79,30 @@ further complete file reads, including SOCKS tunnels, UDP associations and
 HTTPS CONNECT. The [documentation pass](docs-contract-coverage.json) records
 page reads, source comparisons and explicit gaps. A full page read establishes
 text coverage, rather than proof of every linked implementation or claim.
+
+The [client lifecycle continuation](client-lifecycle-continuation-coverage.json)
+records pool and prune ownership, cookies, hints, attempts, decoding and replay.
+Its 51 complete reads and one partial request read use exact committed blob
+hashes. The [network lifecycle continuation](net-lifecycle-continuation-coverage.json)
+adds CONNECT-UDP, TCP and independent body, upload and platform test contracts.
+The [establishment continuation](net-establishment-continuation-coverage.json)
+adds TLS, negotiated protocols, HTTP/3 wrappers, DNS inputs and adversarial
+tests. Its final DNS range completes the earlier partial read. Network hashes
+identify Windows working bytes at the recorded revision. All 99 new records
+were checked against their respective hash basis and line ranges. These
+passes retain their gaps and do not imply runtime verification.
+
+Capture review reproduces a preassignment child escaping Windows job cleanup,
+a profile-prefix sweep stopping a different profile, and a quoted path
+preventing cleanup. Tests use harmless owned processes, rather than browsers.
+The launch and sweep remedies are in progress.
+
+The ACK parser repair passes 357 Quinn-proto unit tests and its complete
+Windows vendor check. Its renamed Quinn dependent also passes that check.
+The H3 family passes its complete native Linux vendor check at `27acd346`,
+including exact archive replay and the updated dependencies. The UDP test
+repair passes 37 Windows tests. Independent source review approves both
+repairs; these checks do not establish final integration or whole-fork review.
 
 The composed client passes 604 unit tests, 48 selected SSE stream tests and
 21 response-decoding request tests, including proxy and redirect controls.

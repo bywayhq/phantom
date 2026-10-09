@@ -1,0 +1,1440 @@
+{
+  "baseline": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "comparison_snapshot": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+  "mode": "Read-only source review; no Cargo or runtime tests.",
+  "previous_composition_report": "target/architecture-audit/gate-composition-review.md",
+  "files": [
+    {
+      "path": "crates/phantom/src/content_coding.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "d11ee5e9d08c0d9318d8bdbd58c766d54e1b14b53c8b871465021a9129ca2ecc",
+      "physical_lines": 475,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          475
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding/field.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "9cd6dca643804ac2633172c84099112e54221aec3f9e43336d9b9709abce17eb",
+      "physical_lines": 204,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          204
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding/inflate.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "71d52743d2df9fbfa69d78b5b62bc8c7a3117ef686571b212f4cb34ca6b361c6",
+      "physical_lines": 139,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          139
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding/brotli_stream.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "e53643aa2b1c1b339f74054d49b0eb03afb1704811e756351ff44cb031941154",
+      "physical_lines": 75,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          75
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding/zstd_stream.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "a1c7c4118d59b24cd86041fc549065149af8a0a2c665df9cc4430e6a7723a1ea",
+      "physical_lines": 109,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding/gzip.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "c30acf4b1d8a5df2f6045b706de33e909804ae62443e192fd67d4813ef4e9f32",
+      "physical_lines": 218,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          218
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/content_coding/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "3c8ffecf54e96d46dac41f217e3809f2ba79e0fd27377252828a83da76bf69d1",
+      "physical_lines": 590,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          590
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/body.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "038d1dd838683de447bb95c1f898b6c05417b9604b8074fb7bfb5def5342dd7a",
+      "physical_lines": 456,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          456
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/prune_timer.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "f2381a13f57f5e5a498745b03c531136774d614cca9f51f2ba1fc02569c6997d",
+      "physical_lines": 478,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          478
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "1f6584069d0272d1d7870ac42247e596c07aa051d751d21c0d2360852c22f661",
+      "physical_lines": 1025,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1025
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/admission.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "24a8cb8ae9985f8554d2912e6715487670095cf6963ff634d0bc7646fe4af338",
+      "physical_lines": 120,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          120
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http2_connections.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "526f4a9d52302b680c7ceb05fb183d4b494346f08fb5ff751e2f287cfa4a661c",
+      "physical_lines": 178,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http3_connections.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "340ed15b9286e688fbe779b21534c883388f7193d4da729d250a260971569143",
+      "physical_lines": 226,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          226
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/cookies.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "dde7a3657d7b99bce82c1eeb61189f68d4873f56ddabe4fc32ba36b0435db740",
+      "physical_lines": 776,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          776
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/cookies/types.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "0c8ba5b2bd676a9f8502f7a45b1f12d814be9b28f94810042d19d45ddd19ff91",
+      "physical_lines": 147,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          147
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/cookies/snapshot.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "8667942c408533ade3a97bd6415ac5d25c31d7bc8063cf9d17e6ae74dab679b5",
+      "physical_lines": 701,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          701
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "a7c0587a771b44f7d5eb30f297e15c9f543966ba59a3f17bffce0353c80820a8",
+      "physical_lines": 596,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          596
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/client_hints/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "b344ed496e2d40147b6ee31f1837f8a5b36cf98cc3a52dbfbb1c65a70f946d08",
+      "physical_lines": 658,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          658
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/replay.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "11312272bb01b7dcd58744231a949d648e3ad1edc01000d565e59fe5e2d538b8",
+      "physical_lines": 226,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          226
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "92f27b08d1a260b47e909c976b670f176566d622d2fb21b88f21f541aeed3a1b",
+      "physical_lines": 1406,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1406
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "42b715cb0d5b01ab78644ac22e67ade3b8093c5eec6bd45de5b9e90cbafcc7c2",
+      "physical_lines": 1195,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1195
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "d80787e13c7ff699959a0e21e783ee284782b5fc7bdb8d9738f3b7da51c0bf16",
+      "physical_lines": 1082,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1082
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "c04a84017369af6665152cdb7e5a69d5142d180681d30d99b887425592531cab",
+      "physical_lines": 1697,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1697
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_or_2_pool.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "41aa71813cb80f09c38841c858c8310545cdcdc6e13fab84f42b9e487bc6e647",
+      "physical_lines": 2321,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          2321
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "453c22d9b292d4efd701e2652e8cfa626195bce549746f0fc5e3169ea39025c8",
+      "physical_lines": 1181,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1181
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "0272d65d2571833d87d08d24f65234d4fc3c6d9c2c1795c6025ba920072c75c1",
+      "physical_lines": 502,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          502
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/policy.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "6767c0c3912c450e6cffc3b576be021a773b44143b2e316ee241770db44b176b",
+      "physical_lines": 368,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          368
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "ecb35de779c4d463e25483cbd23c79a961caba3a9aadcc650f6ea45945976474",
+      "physical_lines": 1162,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1162
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/retry.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "235f1fdd7f4d88fff060dd9a4a3ebdab5a07e236b4c1a14427fd01b7caf9e532",
+      "physical_lines": 1316,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1316
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/replay_buffer.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "5863f42f31a2d9a1949ba91ad956a10abe4489006a8cc087d9f9129e106153ff",
+      "physical_lines": 456,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          456
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/retry/retry_after.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "47eda974eb37747b34dc998bae61190d454397c65a572652ab46cd919ed0a2f7",
+      "physical_lines": 245,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          245
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/snapshot.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "6e96fcfabc67b16cd07a5136ab8594440103142b92fdcf01ce6ca80b0ad70af5",
+      "physical_lines": 332,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          332
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/replay_buffer/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "57c76d213e3ccb1b4e2b825bc4768f9b89f4d65b602c7b0ee0a1ac9895457724",
+      "physical_lines": 304,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          304
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/alt_svc_attempt/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "ac7cdccf9e4c7d07d2fe03be707c94346e6f00fb6361aa210113d1fa0559796c",
+      "physical_lines": 653,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          653
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "6c70ea68734eacf1c4c9302f300b18f29183b90f1601b27240ae66809b357610",
+      "physical_lines": 388,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          388
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "5448334b37c43bd8ce309ba0c1507e49314f7f0f088d6099a782403389187125",
+      "physical_lines": 226,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          226
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "14f52dd108a22a7cd66740dc09a491584fcda6a5900ecffa7403f50418bea3a7",
+      "physical_lines": 1042,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          1042
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/timeout.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "7160028e1177b53978f8af4d270ecf57a987677bbcc66553ee96b0d20c36101f",
+      "physical_lines": 904,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          904
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "a37913cb96692fbc91602954907608e5e53db6041ed99c6f0d7ede61c1b1ee61",
+      "physical_lines": 365,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          365
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_pool/tests/slower_connection.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "473b4b907f6bcd911ab1ecee13eb9118f1961a4e6d1a5b91d98661ee97e44b98",
+      "physical_lines": 368,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          368
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_or_2_pool/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "333ce4b195a0f8e8374db872acb32c996e45f0369b7bd30cc78fc065874c09ee",
+      "physical_lines": 655,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          655
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "4c1a58a7aed0808ce4c6c3d167cd26722b0c7f1f8721bf2ba6452388199cbe4c",
+      "physical_lines": 258,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "49805c5ac5e4709c19924ad49199968908d896c7ae03cfed3025bc4252163866",
+      "physical_lines": 350,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          350
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/cookies/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "b1814b3ace916c49193f9da1e32dd7e8b78e0496d5863fe1db95e7403df116ed",
+      "physical_lines": 611,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          611
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/cookies/snapshot/tests.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "7e3a71ba38716a8746ee02ef97d14266592a257481923ec5b561660c5f00d943",
+      "physical_lines": 535,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          535
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request_body.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "d2c35ff7321d4ba1ec17d67ee5eb0ca1c6144d609618ace51d451e92943ab4cc",
+      "physical_lines": 576,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          576
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request/field_lists.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "f1c5a6b637980e4a96d1580c097e2899fa6ce9a76544881068e2dae480e4c42c",
+      "physical_lines": 230,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          230
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/redirect.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "0e02a40a8c29b99d9bb09acb05fbfa16ee9456313aff5c42d2b7c41dd51e0775",
+      "physical_lines": 246,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          246
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/address_families.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "de9f1eb53405cf4aca9446afe9e5722d389996fc4dda2dfbc179681586583d4f",
+      "physical_lines": 75,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          75
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/session/stream_count.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "38d0a620a612d1f1322788fcdbd1f3e8435cc0e486586c176c583d1727cc23f8",
+      "physical_lines": 61,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/tests/requests/content_coding.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "153d6ce5863aa9a2a801292d8d844c568e1d868676360a6d5ab8b1156e786e76",
+      "physical_lines": 691,
+      "read_kind": "full_source",
+      "ranges": [
+        [
+          1,
+          691
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "sha256": "415ff066cbfb6d15b7d8b4abeaf37f5d3316e0b2c7718d6124d7895e008a36bd",
+      "physical_lines": 2317,
+      "read_kind": "partial_source",
+      "ranges": [
+        [
+          757,
+          1547
+        ]
+      ],
+      "claim": "Every recorded line inspected; child modules and runtime interleavings are separate coverage."
+    }
+  ],
+  "other_pass_coverage": [
+    {
+      "path": "crates/phantom/src/client.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        2726
+      ],
+      "sha256": "828aeb6efc52840d6bb152900ce059364ba9ca5cdf9603576a83619fd399e213",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/client/certificate_origin_tests.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        134
+      ],
+      "sha256": "8a986cc19a70b5fbc3828b08baffb2313e5899ea4cfbe355a409ea942f243cf7",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/client/option_tests.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        154
+      ],
+      "sha256": "916031a5ffd749b76f19fa02456facbe49f84935262c180c3156a8ebe65b531e",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/client/dns_cache_tests.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        374
+      ],
+      "sha256": "76aefbc9b9d9a7374e697cdb2fde9fdd4ded5b2b89c03d08649b237e5ea7d99b",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/environment_proxy.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        550
+      ],
+      "sha256": "cfcffe94b328b807ed1e94724926b3e2d3dfbf8e2655f2466e834476bba23ccf",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/environment_proxy/tests.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        530
+      ],
+      "sha256": "5a6b061b6ee50b6f3fb033e0ea37034fec8dac30d9ca4a109e0891cd7e386746",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/authority.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        330
+      ],
+      "sha256": "2225889e7d0b7fcd31e0dcc847930d7251f0cea684686b46572862df49d745f6",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/base_url.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        122
+      ],
+      "sha256": "acfd278bcfa0a556eb5cb65f1b073bf3429c4a5dfa04664e8a720c218d934ea6",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/diagnostics.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        69
+      ],
+      "sha256": "bd84de684a0c5c4a266c0d11f0d0d8ae537146bd0160dd018317c176ac2bc97b",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/request_slots.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        337
+      ],
+      "sha256": "f44d0bfa11d7bde5d67f59b9391d58ffda181cb50a1f02475960e1a99b8f7d9d",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        2317
+      ],
+      "sha256": "caada6b80b1de05835b08904f1b371f7891c88dd20ea4ebab6e42b38248a8ec2",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/request/secure_context.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        92
+      ],
+      "sha256": "41adbb7b57635f252388b25e634cb7170c8a28866b09c73f4b91c545bdd8912c",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "read_kind": "full_source",
+      "ranges": [
+        1,
+        571
+      ],
+      "sha256": "b765a201d430467e2f14b01c5401c2c4255c0ad0871d2d2c5b10da5d4db16874",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom-profile/src/request_template.rs",
+      "read_kind": "partial_source",
+      "ranges": [
+        [
+          241,
+          271
+        ],
+        [
+          601,
+          716
+        ]
+      ],
+      "sha256": "f86df0488267da823d317f4378e9881a381ec9d98a7898810cd10ac36e57eeea",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/request/template/tests.rs",
+      "read_kind": "partial_source",
+      "ranges": [
+        392,
+        446
+      ],
+      "sha256": "feafade2f60c3c1595e28c072ce79f7e2ec6bb3d3b4113c1cf1d98faa21aee62",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/header_hook.rs",
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        257
+      ],
+      "sha256": "39e5317507df26a9912406b2426133cda2798ee5f200f6399cfa07553b9d70bd",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/request/secure_context.rs",
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        92
+      ],
+      "sha256": "41adbb7b57635f252388b25e634cb7170c8a28866b09c73f4b91c545bdd8912c",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "crates/phantom/src/redirect/tests.rs",
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        341
+      ],
+      "sha256": "097d7ff1dd5f340a252d2693b22ed225df58ed6cf94c79875d1cbce74456a8fc",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    },
+    {
+      "path": "docs/guides/request-customization.md",
+      "read_kind": "full_source_with_followup_hunks",
+      "ranges": [
+        1,
+        96
+      ],
+      "sha256": "9e35372d245a9f53f426ee6a97881e98eac6ff79e638c6dc2d92b574873dce05",
+      "status": "Prior separate source pass; not independently promoted to complete in this continuation."
+    }
+  ],
+  "remaining_paths": [
+    "crates/phantom/src/authority.rs",
+    "crates/phantom/src/base_url.rs",
+    "crates/phantom/src/client.rs",
+    "crates/phantom/src/client/certificate_origin_tests.rs",
+    "crates/phantom/src/client/dns_cache_tests.rs",
+    "crates/phantom/src/client/option_tests.rs",
+    "crates/phantom/src/diagnostics.rs",
+    "crates/phantom/src/environment_proxy.rs",
+    "crates/phantom/src/environment_proxy/tests.rs",
+    "crates/phantom/src/error.rs",
+    "crates/phantom/src/header_hook.rs",
+    "crates/phantom/src/lib.rs",
+    "crates/phantom/src/link.rs",
+    "crates/phantom/src/link/tests.rs",
+    "crates/phantom/src/redirect/tests.rs",
+    "crates/phantom/src/request.rs",
+    "crates/phantom/src/request/field_lists/tests.rs",
+    "crates/phantom/src/request/secure_context.rs",
+    "crates/phantom/src/request/template.rs",
+    "crates/phantom/src/request/template/tests.rs",
+    "crates/phantom/src/request_body/tests.rs",
+    "crates/phantom/src/request_body/tests/json.rs",
+    "crates/phantom/src/request_slots.rs",
+    "crates/phantom/src/response.rs",
+    "crates/phantom/src/route.rs",
+    "crates/phantom/src/route/connect_udp.rs",
+    "crates/phantom/src/route/connect_udp/tests.rs",
+    "crates/phantom/src/route/socks5.rs",
+    "crates/phantom/src/sse.rs",
+    "crates/phantom/src/sse/decoder.rs",
+    "crates/phantom/src/sse/event_source.rs",
+    "crates/phantom/src/sse/event_source/request.rs",
+    "crates/phantom/src/sse/event_source/request/tests.rs",
+    "crates/phantom/src/sse/tests.rs",
+    "crates/phantom/src/websocket.rs",
+    "crates/phantom/src/websocket/compression.rs",
+    "crates/phantom/src/websocket/connection.rs",
+    "crates/phantom/src/websocket/error.rs",
+    "crates/phantom/src/websocket/handshake.rs",
+    "crates/phantom/src/websocket/handshake/response.rs",
+    "crates/phantom/src/websocket/handshake/syntax.rs",
+    "crates/phantom/src/websocket/http1.rs",
+    "crates/phantom/src/websocket/http2.rs",
+    "crates/phantom/src/websocket/http3.rs",
+    "crates/phantom/src/websocket/message.rs",
+    "crates/phantom/src/websocket/retry.rs",
+    "crates/phantom/src/websocket/retry/tests.rs",
+    "crates/phantom/src/websocket/trace.rs",
+    "crates/phantom/tests/http3/alt_svc_frames.rs",
+    "crates/phantom/tests/http3/alt_svc_persistence.rs",
+    "crates/phantom/tests/http3/alt_svc_pinned.rs",
+    "crates/phantom/tests/http3/alt_svc_race.rs",
+    "crates/phantom/tests/http3/connect_udp.rs",
+    "crates/phantom/tests/http3/http2_fallback.rs",
+    "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+    "crates/phantom/tests/http3/http3.rs",
+    "crates/phantom/tests/http3/http3_early_data.rs",
+    "crates/phantom/tests/http3/http3_retries.rs",
+    "crates/phantom/tests/http3/http3_session_resumption.rs",
+    "crates/phantom/tests/http3/http3_upgrade.rs",
+    "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+    "crates/phantom/tests/http3/https_record_ech.rs",
+    "crates/phantom/tests/http3/https_record_ech_exact.rs",
+    "crates/phantom/tests/http3/https_record_ech_http3.rs",
+    "crates/phantom/tests/http3/https_records.rs",
+    "crates/phantom/tests/http3/main.rs",
+    "crates/phantom/tests/proxies/environment.rs",
+    "crates/phantom/tests/proxies/forward_proxy.rs",
+    "crates/phantom/tests/proxies/main.rs",
+    "crates/phantom/tests/proxies/negotiated_proxy.rs",
+    "crates/phantom/tests/proxies/proxy.rs",
+    "crates/phantom/tests/proxies/proxy/auth.rs",
+    "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+    "crates/phantom/tests/proxies/proxy_field_order.rs",
+    "crates/phantom/tests/proxies/proxy_h2.rs",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+    "crates/phantom/tests/proxies/socks5.rs",
+    "crates/phantom/tests/proxies/socks5/auth.rs",
+    "crates/phantom/tests/proxies/socks5_local.rs",
+    "crates/phantom/tests/requests/client.rs",
+    "crates/phantom/tests/requests/client_certificates.rs",
+    "crates/phantom/tests/requests/client_certificates/per_origin.rs",
+    "crates/phantom/tests/requests/client_hints.rs",
+    "crates/phantom/tests/requests/connection_retries.rs",
+    "crates/phantom/tests/requests/cookie_crumbs.rs",
+    "crates/phantom/tests/requests/cookies.rs",
+    "crates/phantom/tests/requests/diagnostics.rs",
+    "crates/phantom/tests/requests/direct_http.rs",
+    "crates/phantom/tests/requests/error_context.rs",
+    "crates/phantom/tests/requests/expect_continue.rs",
+    "crates/phantom/tests/requests/expect_continue/http3.rs",
+    "crates/phantom/tests/requests/main.rs",
+    "crates/phantom/tests/requests/ping_failure_replay.rs",
+    "crates/phantom/tests/requests/plaintext_templates.rs",
+    "crates/phantom/tests/requests/prepared_bodies.rs",
+    "crates/phantom/tests/requests/prepared_bodies/slots.rs",
+    "crates/phantom/tests/requests/prepared_bodies/trailers.rs",
+    "crates/phantom/tests/requests/prepared_bodies/uploads.rs",
+    "crates/phantom/tests/requests/query_authorization.rs",
+    "crates/phantom/tests/requests/redirects.rs",
+    "crates/phantom/tests/requests/request_conveniences.rs",
+    "crates/phantom/tests/requests/request_templates.rs",
+    "crates/phantom/tests/requests/request_templates/default_profile.rs",
+    "crates/phantom/tests/requests/request_templates/fixture.rs",
+    "crates/phantom/tests/requests/request_templates/wire.rs",
+    "crates/phantom/tests/requests/response_conveniences.rs",
+    "crates/phantom/tests/requests/send_futures.rs",
+    "crates/phantom/tests/requests/source_binding.rs",
+    "crates/phantom/tests/requests/stale_connection_replay.rs",
+    "crates/phantom/tests/requests/status_retry.rs",
+    "crates/phantom/tests/requests/timeouts.rs",
+    "crates/phantom/tests/requests/tracing.rs",
+    "crates/phantom/tests/requests/trust_anchor_orders.rs",
+    "crates/phantom/tests/requests/unprocessed_replay.rs",
+    "crates/phantom/tests/sessions/dns_overrides.rs",
+    "crates/phantom/tests/sessions/early_data_server.rs",
+    "crates/phantom/tests/sessions/http2_connections.rs",
+    "crates/phantom/tests/sessions/http3_connections.rs",
+    "crates/phantom/tests/sessions/main.rs",
+    "crates/phantom/tests/sessions/negotiated.rs",
+    "crates/phantom/tests/sessions/negotiated_parallel.rs",
+    "crates/phantom/tests/sessions/runtimes.rs",
+    "crates/phantom/tests/sessions/session.rs",
+    "crates/phantom/tests/sessions/session/proxy_auth.rs",
+    "crates/phantom/tests/sessions/session_http1.rs",
+    "crates/phantom/tests/sessions/session_http1_parallel.rs",
+    "crates/phantom/tests/sessions/session_http2_authority.rs",
+    "crates/phantom/tests/sessions/session_http2_idle.rs",
+    "crates/phantom/tests/sessions/session_http2_lifecycle.rs",
+    "crates/phantom/tests/sessions/session_http3.rs",
+    "crates/phantom/tests/sessions/session_tcp_early_data.rs",
+    "crates/phantom/tests/sessions/session_tls_resumption.rs",
+    "crates/phantom/tests/sessions/websocket_resumption.rs",
+    "crates/phantom/tests/streams/environment_routes.rs",
+    "crates/phantom/tests/streams/main.rs",
+    "crates/phantom/tests/streams/sse.rs",
+    "crates/phantom/tests/streams/sse/idle.rs",
+    "crates/phantom/tests/streams/sse/polling.rs",
+    "crates/phantom/tests/streams/sse/reconnect.rs",
+    "crates/phantom/tests/streams/sse/request.rs",
+    "crates/phantom/tests/streams/sse_browser_reconnect.rs",
+    "crates/phantom/tests/streams/websocket.rs",
+    "crates/phantom/tests/streams/websocket/adversarial.rs",
+    "crates/phantom/tests/streams/websocket/compression.rs",
+    "crates/phantom/tests/streams/websocket/routing.rs",
+    "crates/phantom/tests/streams/websocket_handshake.rs",
+    "crates/phantom/tests/streams/websocket_http2.rs",
+    "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+    "crates/phantom/tests/streams/websocket_http3.rs",
+    "crates/phantom/tests/streams/websocket_http3/origin.rs",
+    "crates/phantom/tests/streams/websocket_profile.rs",
+    "crates/phantom/tests/streams/websocket_profile/fixture.rs",
+    "crates/phantom/tests/streams/websocket_profile/proxy.rs",
+    "crates/phantom/tests/streams/websocket_profile/server.rs",
+    "crates/phantom/tests/streams/websocket_trust.rs",
+    "crates/phantom/tests/support.rs",
+    "crates/phantom/tests/support/client_certificate.rs",
+    "crates/phantom/tests/support/ech.rs",
+    "crates/phantom/tests/support/h2.rs",
+    "crates/phantom/tests/support/h3.rs",
+    "crates/phantom/tests/support/http3_upgrade.rs",
+    "crates/phantom/tests/support/masque.rs",
+    "crates/phantom/tests/support/shared_port.rs",
+    "crates/phantom/tests/support/socks5.rs",
+    "crates/phantom/tests/support/socks5_udp.rs",
+    "crates/phantom/tests/support/tls.rs",
+    "crates/phantom/tests/support/tracing.rs",
+    "crates/phantom/tests/support/tunnel_proxy.rs",
+    "crates/phantom/tests/support/websocket.rs",
+    "crates/phantom/tests/support/websocket_origin.rs"
+  ],
+  "remaining_interpretation": "Exhaustive uncompleted paths for this continuation only. Previous passes may cover these; union requires their exact records. Not an assertion that every path is in this bounded lifecycle assignment.",
+  "findings": [],
+  "known_fixed_findings": [
+    "A01 ready wire total deadline",
+    "A03 disabled isolated QUIC tickets",
+    "A04 address resolver task ownership",
+    "A06 managed SSE defaults/hints",
+    "A23 HTTPS lookup task ownership",
+    "A24 empty streaming replay frames",
+    "A25 forwarding Accept-Encoding selection",
+    "A26 prepared-template Debug"
+  ],
+  "source_coverage_complete": false,
+  "source_inventory_cross_check": {
+    "revision": "efb0cb3cadb3f7afa6bc9b1f4821a1510ef001f0",
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "sha256": "9e51ab90e1aae9acf1428387a0496d71f89ec2209d4ab03a7d40d6d2552bc792",
+    "status": "Inventory rows inspected and mapped to every continuation record; pending/partial labels describe the prior checkpoint, not newly inferred complete source coverage.",
+    "records": [
+      {
+        "path": "crates/phantom/src/content_coding.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/content_coding.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/content_coding/field.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/content_coding/inflate.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/content_coding/brotli_stream.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/content_coding/zstd_stream.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/content_coding/gzip.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/content_coding/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/body.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/prune_timer.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/admission.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http2_connections.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http3_connections.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/cookies.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/session/cookies.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/cookies/types.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/cookies/snapshot.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/session/cookies/snapshot.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/client_hints.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/client_hints/tests.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/session/client_hints/tests.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/replay.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/attempt.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/request/attempt.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_pool.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http2_pool.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http3_pool.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_or_2_pool.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/alt_svc.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/alt_svc/policy.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/session/alt_svc/policy.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/alt_svc_attempt.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/retry.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/replay_buffer.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/request/replay_buffer.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/retry/retry_after.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/alt_svc/snapshot.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/replay_buffer/tests.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/alt_svc_attempt/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/alt_svc/https_records/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/alt_svc/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/timeout.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_pool/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_pool/tests/slower_connection.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_or_2_pool/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/cookies/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/cookies/snapshot/tests.rs",
+        "prior_inventory_review": "pending",
+        "prior_evidence": "",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request_body.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/request_body.rs | docs-contract-coverage.json#crates/phantom/src/request_body.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request/field_lists.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/request/field_lists.rs | docs-contract-coverage.json#crates/phantom/src/request/field_lists.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/redirect.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/redirect.rs | docs-contract-coverage.json#crates/phantom/src/redirect.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/address_families.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/session/address_families.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/session/stream_count.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/session/stream_count.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/tests/requests/content_coding.rs",
+        "prior_inventory_review": "source-partial",
+        "prior_evidence": "docs-contract-coverage.json#crates/phantom/tests/requests/content_coding.rs",
+        "new_read_kind": "full_source"
+      },
+      {
+        "path": "crates/phantom/src/request.rs",
+        "prior_inventory_review": "source-complete",
+        "prior_evidence": "client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs",
+        "new_read_kind": "partial_source"
+      }
+    ]
+  },
+  "hash_basis": "exact committed git blob"
+}

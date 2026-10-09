@@ -34,7 +34,13 @@ No finding is resolved by an assignment or a proposed fix.
 | A25 | P2 | Response decoding uses the actual template encoding | Forwarding-condition defaults differ from cached trust defaults | Proxy wire regression red; direct control passes; fix and composed source review approved |
 | A26 | P2 | Prepared-template debug protects cached header values | Derived Debug prints copied Accept-Encoding values | Canary regression red; nested builder control passes; fix and review approved |
 | A27 | P2 | SOCKS CONNECT errors retain their negotiation category | Upstream UnknownAuthMethod also denotes an unknown CONNECT reply | Red/green test; review approved; proxy suite and lint pass |
-| A28 | P2 | ACK_FREQUENCY validates the selected wire format | A one-byte flag is decoded as a variable-length integer | Source candidate; receive-format investigation pending |
+| A28 | P2 | ACK_FREQUENCY validates the selected wire format | A one-byte flag is decoded as a variable-length integer | Real connection regression red/green; review approved; vendor replay passes |
+| A29 | P3 | Windows option tests survive reserved UDP ports | A raw port-zero bind bypasses the retry helper | Shared binder repair; 37 UDP tests pass; review approved |
+| A30 | P2 | Capture containment owns children before they run | Job assignment follows an already-running process | Windows child-survival reproduction confirmed; launch remedy pending |
+| A31 | P2 | Profile sweeps preserve unrelated processes | Windows substring matching kills a different profile and quoted paths fail | Real owned-process controls reproduce both defects; repair pending |
+| A32 | P3 | ECH support documentation states what is checked | Parameter support does not validate the HPKE public key | Source qualification confirmed; documentation correction pending |
+| A33 | P3 | Short tests stay with their module | AcceptCh's 51-line tests use a separate directory and path annotation | Layout mismatch confirmed; inline move pending |
+| A34 | P2 | HTTP/3 control parsing bounds retained payloads | Control decoding waits for an entire peer-declared non-DATA payload | Source candidate; retained-buffer and next-frame regressions pending |
 
 ## Initial source evidence
 
@@ -235,6 +241,63 @@ and reports Authentication instead of Negotiation. The regression fails on
 the starting implementation. The correction passes 98 proxy tests and
 all-target, all-feature transport Clippy. Explicit authentication rejection
 retains its category and typed source. Independent review approved the change.
+
+## Further regression evidence
+
+A28's real connection baseline accepts invalid flag `0x40` as a zero
+threshold after consuming the following padding. Canonical flag controls
+and the modern format's four varint widths pass on the same baseline.
+The repair passes all 357 Quinn-proto unit tests, including every flag byte
+and valid/invalid early-space controls. Independent review checks all three
+parser sites and exact canonical patch replay. The renamed forks move to
+Quinn-proto `.4`, Quinn `.4`, and the H3 family `.9`. Complete Windows
+Quinn-proto and Quinn vendor checks pass. The full H3 vendor check passes
+in the native Linux checkout at `27acd346`, with exact archive replay,
+focused tests and dependent builds. Full integration gates remain pending.
+
+A29 retains the real bound-socket option rejection and disabled-option
+assertions. Its setup now uses the shared binder with no UDP options.
+All 37 UDP tests pass on Windows, including the controlled reserved-port
+retry and the actual `WSAEINVAL` check. No production socket behavior changes.
+Independent review approves the test repair.
+
+A30's Windows reproduction waits for an owned child before assigning its
+parent to the attempt's job. The container reports containment, but the child
+is outside that job and survives its close. The parent stops, and held
+process handles safely stop the surviving test child. Ordinary attempt
+cleanup also sweeps its temporary directory, so this does not establish
+that every normal cancellation leaks. The confirmed gap is early child
+creation before job assignment, including abrupt runner exit without the
+sweep. A launch barrier or atomic ownership mechanism still needs design,
+regression tests and independent review.
+
+A31's separate Windows controls start harmless owned processes with profile
+paths. The matching process stops, but a different profile whose path shares
+the prefix also stops. An apostrophe in the target path prevents the matching
+process from stopping. Every surviving control is safely terminated through
+its own retained process handle. The matrix CLI rejects quoted work paths,
+but the shared browser cleanup helper has no equivalent restriction.
+The process-ownership lane is repairing matching and data transfer together.
+
+A32 concerns `EchConfig::is_supported` and its parser test comment. The
+method checks supported parameters and names, while cryptographic public-key
+validation happens later in HPKE setup. The native oracle in the parser test
+checks configuration-list acceptance, rather than encryption or a completed
+handshake. The correction will qualify those two comments without changing
+the native-compatible validation behavior.
+
+A33 concerns `accept_ch.rs` and `accept_ch/tests.rs`. The separate file holds
+three short tests and needs no separate fixture directory. Moving them inline
+removes the unnecessary path annotation and follows the working agreement.
+No runtime defect or broader abstraction change is established.
+
+A34 traces the active HTTP/3 control stream through `FrameStream`,
+`BufRecvStream` and frame decoding. The decoder waits for the complete
+declared payload before discarding an unknown frame. The control path has
+no identified retained-payload cap, while consuming transport chunks can
+replenish QUIC receive credit. A retained-buffer regression and a following
+valid control-frame test are required before selecting a canonical repair.
+Large unknown frames must retain the protocol's ignore behavior.
 
 ## Rejected candidates
 

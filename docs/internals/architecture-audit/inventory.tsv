@@ -56,8 +56,8 @@ crates/phantom-net/examples/capture_http2_tls/fixture.rs	crate	pending
 crates/phantom-net/examples/capture_http3_request.rs	crate	pending	
 crates/phantom-net/examples/quic_version_interop.rs	crate	pending	
 crates/phantom-net/examples/tls_anvil_client.rs	crate	pending	
-crates/phantom-net/src/accept_ch.rs	crate	pending	
-crates/phantom-net/src/accept_ch/tests.rs	crate	pending	
+crates/phantom-net/src/accept_ch.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/accept_ch.rs
+crates/phantom-net/src/accept_ch/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/accept_ch/tests.rs
 crates/phantom-net/src/address_cache.rs	crate	pending	
 crates/phantom-net/src/address_cache/tests.rs	crate	pending	
 crates/phantom-net/src/address_cache/tests/routes.rs	crate	pending	
@@ -65,14 +65,14 @@ crates/phantom-net/src/authorization.rs	crate	pending
 crates/phantom-net/src/connection_leg.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/connection_leg.rs
 crates/phantom-net/src/connection_setup_futures.rs	crate	pending	
 crates/phantom-net/src/direct.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/direct.rs
-crates/phantom-net/src/dns.rs	crate	source-partial	net-remaining-coverage.json#crates/phantom-net/src/dns.rs
+crates/phantom-net/src/dns.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns.rs | net-establishment-continuation-coverage.json#crates/phantom-net/src/dns.rs
 crates/phantom-net/src/dns/address_lookup.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/address_lookup.rs
 crates/phantom-net/src/dns/address_lookup/tests.rs	crate	pending	
-crates/phantom-net/src/dns/ech_config.rs	crate	pending	
-crates/phantom-net/src/dns/ech_config/tests.rs	crate	pending	
-crates/phantom-net/src/dns/https_record.rs	crate	pending	
+crates/phantom-net/src/dns/ech_config.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/ech_config.rs
+crates/phantom-net/src/dns/ech_config/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/ech_config/tests.rs
+crates/phantom-net/src/dns/https_record.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/https_record.rs
 crates/phantom-net/src/dns/query_sockets.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/dns/query_sockets.rs
-crates/phantom-net/src/dns/tests.rs	crate	pending	
+crates/phantom-net/src/dns/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/dns/tests.rs
 crates/phantom-net/src/host_resolver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/host_resolver.rs
 crates/phantom-net/src/host_resolver/tests.rs	crate	pending	
 crates/phantom-net/src/http1.rs	crate	pending	
@@ -83,30 +83,30 @@ crates/phantom-net/src/http1/limits.rs	crate	pending
 crates/phantom-net/src/http1/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/request.rs
 crates/phantom-net/src/http1/response_head.rs	crate	pending	
 crates/phantom-net/src/http1/tests.rs	crate	pending	
-crates/phantom-net/src/http1/tests/driver_lifecycle.rs	crate	pending	
+crates/phantom-net/src/http1/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/driver_lifecycle.rs
 crates/phantom-net/src/http1/tests/expect_continue.rs	crate	pending	
 crates/phantom-net/src/http1/tests/request_wire.rs	crate	pending	
-crates/phantom-net/src/http1/tests/response_body.rs	crate	pending	
+crates/phantom-net/src/http1/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http1/tests/response_body.rs
 crates/phantom-net/src/http1/tests/response_limits.rs	crate	pending	
 crates/phantom-net/src/http1/tests/reuse.rs	crate	pending	
 crates/phantom-net/src/http1/tests/upgrade.rs	crate	pending	
-crates/phantom-net/src/http1/tls.rs	crate	pending	
+crates/phantom-net/src/http1/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls.rs
 crates/phantom-net/src/http1/tls/error.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/tls/error.rs
-crates/phantom-net/src/http1/tls/tests.rs	crate	pending	
+crates/phantom-net/src/http1/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1/tls/tests.rs
 crates/phantom-net/src/http1/upgrade.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http1/upgrade.rs
-crates/phantom-net/src/http1_or_2.rs	crate	pending	
-crates/phantom-net/src/http1_or_2/tests.rs	crate	pending	
-crates/phantom-net/src/http1_or_2/tests/early_data.rs	crate	pending	
-crates/phantom-net/src/http1_or_2/tests/ech.rs	crate	pending	
+crates/phantom-net/src/http1_or_2.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2.rs
+crates/phantom-net/src/http1_or_2/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests.rs
+crates/phantom-net/src/http1_or_2/tests/early_data.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/early_data.rs
+crates/phantom-net/src/http1_or_2/tests/ech.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http1_or_2/tests/ech.rs
 crates/phantom-net/src/http2.rs	crate	pending	
-crates/phantom-net/src/http2/alps.rs	crate	pending	
+crates/phantom-net/src/http2/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/alps.rs
 crates/phantom-net/src/http2/alps/tests.rs	crate	pending	
 crates/phantom-net/src/http2/alt_svc.rs	crate	pending	
 crates/phantom-net/src/http2/body.rs	crate	pending	
 crates/phantom-net/src/http2/connection.rs	crate	pending	
 crates/phantom-net/src/http2/driver.rs	crate	pending	
 crates/phantom-net/src/http2/error.rs	crate	pending	
-crates/phantom-net/src/http2/limits.rs	crate	pending	
+crates/phantom-net/src/http2/limits.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/limits.rs
 crates/phantom-net/src/http2/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs
 crates/phantom-net/src/http2/tests.rs	crate	pending	
 crates/phantom-net/src/http2/tests/adversarial_data_frames.rs	crate	pending	
@@ -116,8 +116,8 @@ crates/phantom-net/src/http2/tests/adversarial_malformed.rs	crate	pending
 crates/phantom-net/src/http2/tests/adversarial_wire.rs	crate	pending	
 crates/phantom-net/src/http2/tests/connection.rs	crate	pending	
 crates/phantom-net/src/http2/tests/continuation_matrix.rs	crate	pending	
-crates/phantom-net/src/http2/tests/driver_lifecycle.rs	crate	pending	
-crates/phantom-net/src/http2/tests/driver_shutdown.rs	crate	pending	
+crates/phantom-net/src/http2/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_lifecycle.rs
+crates/phantom-net/src/http2/tests/driver_shutdown.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_shutdown.rs
 crates/phantom-net/src/http2/tests/expect_continue.rs	crate	pending	
 crates/phantom-net/src/http2/tests/extended_connect.rs	crate	pending	
 crates/phantom-net/src/http2/tests/hpack_replay.rs	crate	pending	
@@ -126,37 +126,37 @@ crates/phantom-net/src/http2/tests/idle_close.rs	crate	pending
 crates/phantom-net/src/http2/tests/idle_ping.rs	crate	pending	
 crates/phantom-net/src/http2/tests/ping_peer.rs	crate	pending	
 crates/phantom-net/src/http2/tests/preface_ping.rs	crate	pending	
-crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	pending	
-crates/phantom-net/src/http2/tests/request_body_early_response.rs	crate	pending	
-crates/phantom-net/src/http2/tests/request_body_error.rs	crate	pending	
-crates/phantom-net/src/http2/tests/request_body_flow.rs	crate	pending	
-crates/phantom-net/src/http2/tests/request_body_validation.rs	crate	pending	
+crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs
+crates/phantom-net/src/http2/tests/request_body_early_response.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs
+crates/phantom-net/src/http2/tests/request_body_error.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs
+crates/phantom-net/src/http2/tests/request_body_flow.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_flow.rs
+crates/phantom-net/src/http2/tests/request_body_validation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_validation.rs
 crates/phantom-net/src/http2/tests/request_trailers.rs	crate	pending	
 crates/phantom-net/src/http2/tests/request_validation.rs	crate	pending	
 crates/phantom-net/src/http2/tests/request_wire.rs	crate	pending	
 crates/phantom-net/src/http2/tests/reset_churn.rs	crate	pending	
-crates/phantom-net/src/http2/tests/response_body.rs	crate	pending	
+crates/phantom-net/src/http2/tests/response_body.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/response_body.rs
 crates/phantom-net/src/http2/tests/stream_limit.rs	crate	pending	
-crates/phantom-net/src/http2/tls.rs	crate	pending	
-crates/phantom-net/src/http2/tls/tests.rs	crate	pending	
-crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs	crate	pending	
-crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs	crate	pending	
+crates/phantom-net/src/http2/tls.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls.rs
+crates/phantom-net/src/http2/tls/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests.rs
+crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/alps_concurrency_gate.rs
+crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/tls/tests/alps_hpack_last_wins.rs
 crates/phantom-net/src/http2/tls/tests/key_update.rs	crate	pending	
 crates/phantom-net/src/http2/tls/tests/ping_close.rs	crate	pending	
 crates/phantom-net/src/http2/tls/tests/record_shape.rs	crate	pending	
 crates/phantom-net/src/http2/tls/tests/routes.rs	crate	pending	
 crates/phantom-net/src/http2/tunnel.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/tunnel.rs
 crates/phantom-net/src/http2/upload.rs	crate	pending	
-crates/phantom-net/src/http3.rs	crate	pending	
-crates/phantom-net/src/http3/alps.rs	crate	pending	
+crates/phantom-net/src/http3.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3.rs
+crates/phantom-net/src/http3/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/alps.rs
 crates/phantom-net/src/http3/alps/tests.rs	crate	pending	
 crates/phantom-net/src/http3/body.rs	crate	pending	
 crates/phantom-net/src/http3/body/task.rs	crate	pending	
 crates/phantom-net/src/http3/capsule.rs	crate	pending	
-crates/phantom-net/src/http3/connect_udp.rs	crate	pending	
-crates/phantom-net/src/http3/connect_udp/tests.rs	crate	pending	
+crates/phantom-net/src/http3/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs
+crates/phantom-net/src/http3/connect_udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp/tests.rs
 crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs
-crates/phantom-net/src/http3/connector.rs	crate	pending	
+crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs
 crates/phantom-net/src/http3/datagram.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs
 crates/phantom-net/src/http3/driver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs
 crates/phantom-net/src/http3/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_data.rs
@@ -165,10 +165,10 @@ crates/phantom-net/src/http3/error.rs	crate	pending
 crates/phantom-net/src/http3/extended_connect.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/extended_connect.rs
 crates/phantom-net/src/http3/qlog.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/qlog.rs
 crates/phantom-net/src/http3/request.rs	crate	pending	
-crates/phantom-net/src/http3/settings.rs	crate	pending	
+crates/phantom-net/src/http3/settings.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/settings.rs
 crates/phantom-net/src/http3/tests.rs	crate	pending	
-crates/phantom-net/src/http3/tests/adversarial.rs	crate	pending	
-crates/phantom-net/src/http3/tests/connect_udp.rs	crate	pending	
+crates/phantom-net/src/http3/tests/adversarial.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/tests/adversarial.rs
+crates/phantom-net/src/http3/tests/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/tests/connect_udp.rs
 crates/phantom-net/src/http3/tests/connection.rs	crate	pending	
 crates/phantom-net/src/http3/tests/connector.rs	crate	pending	
 crates/phantom-net/src/http3/tests/cookie_crumbs.rs	crate	pending	
@@ -226,26 +226,26 @@ crates/phantom-net/src/socket_ffi.rs	crate	pending
 crates/phantom-net/src/socket_ffi/interface.rs	crate	pending	
 crates/phantom-net/src/socket_ffi/port_randomization.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/socket_ffi/port_randomization.rs
 crates/phantom-net/src/source_binding.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/source_binding.rs
-crates/phantom-net/src/source_binding/tests.rs	crate	pending	
-crates/phantom-net/src/tcp.rs	crate	pending	
+crates/phantom-net/src/source_binding/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/source_binding/tests.rs
+crates/phantom-net/src/tcp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp.rs
 crates/phantom-net/src/tcp/address_racing.rs	crate	pending	
 crates/phantom-net/src/tcp/address_racing/tests.rs	crate	pending	
-crates/phantom-net/src/tcp/backup_connection.rs	crate	pending	
-crates/phantom-net/src/tcp/backup_connection/tests.rs	crate	pending	
+crates/phantom-net/src/tcp/backup_connection.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection.rs
+crates/phantom-net/src/tcp/backup_connection/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/backup_connection/tests.rs
 crates/phantom-net/src/tcp/keepalive_schedule.rs	crate	pending	
 crates/phantom-net/src/tcp/keepalive_schedule/tests.rs	crate	pending	
-crates/phantom-net/src/tcp/tests.rs	crate	pending	
+crates/phantom-net/src/tcp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/tests.rs
 crates/phantom-net/src/tcp/tests/address_selection.rs	crate	pending	
 crates/phantom-net/src/tcp/tests/keepalive_paths.rs	crate	pending	
 crates/phantom-net/src/tcp/tests/paths.rs	crate	pending	
 crates/phantom-net/src/tcp/tests/port_randomization.rs	crate	pending	
-crates/phantom-net/src/tcp/tests/slower_connection.rs	crate	pending	
+crates/phantom-net/src/tcp/tests/slower_connection.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/tcp/tests/slower_connection.rs
 crates/phantom-net/src/tls.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls.rs
 crates/phantom-net/src/tls/client_certificate.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/client_certificate.rs
 crates/phantom-net/src/tls/compression.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/compression.rs
 crates/phantom-net/src/tls/configuration.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/configuration.rs
 crates/phantom-net/src/tls/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/tls/early_data.rs
-crates/phantom-net/src/tls/key_log.rs	crate	pending	
+crates/phantom-net/src/tls/key_log.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/tls/key_log.rs
 crates/phantom-net/src/tls/session_cache.rs	crate	pending	
 crates/phantom-net/src/tls/test_support.rs	crate	pending	
 crates/phantom-net/src/tls/test_support/nss_ech_grease.rs	crate	pending	
@@ -265,9 +265,9 @@ crates/phantom-net/src/tls/tests/tracing.rs	crate	pending
 crates/phantom-net/src/tls/tests/websocket_early_data.rs	crate	pending	
 crates/phantom-net/src/tracing_test.rs	crate	pending	
 crates/phantom-net/src/udp.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/udp.rs
-crates/phantom-net/src/udp/tests.rs	crate	pending	
-crates/phantom-net/src/udp/tests/paths.rs	crate	pending	
-crates/phantom-net/src/udp/tests/port_randomization.rs	crate	pending	
+crates/phantom-net/src/udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests.rs
+crates/phantom-net/src/udp/tests/paths.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests/paths.rs
+crates/phantom-net/src/udp/tests/port_randomization.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/udp/tests/port_randomization.rs
 crates/phantom-net/tests/browser_http2_fixtures.rs	crate	pending	
 crates/phantom-net/tests/browser_http2_fixtures/chrome.rs	crate	pending	
 crates/phantom-net/tests/browser_http2_fixtures/fixture.rs	crate	pending	
@@ -431,18 +431,18 @@ crates/phantom/examples/wpt_eventsource/request_cases.rs	crate	pending
 crates/phantom/examples/wpt_eventsource/stream_cases.rs	crate	pending	
 crates/phantom/src/authority.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/authority.rs | docs-contract-coverage.json#crates/phantom/src/authority.rs
 crates/phantom/src/base_url.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/base_url.rs | docs-contract-coverage.json#crates/phantom/src/base_url.rs
-crates/phantom/src/body.rs	crate	pending	
+crates/phantom/src/body.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/body.rs
 crates/phantom/src/client.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client.rs | docs-contract-coverage.json#crates/phantom/src/client.rs
 crates/phantom/src/client/certificate_origin_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/certificate_origin_tests.rs
 crates/phantom/src/client/dns_cache_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/dns_cache_tests.rs
 crates/phantom/src/client/option_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/option_tests.rs
-crates/phantom/src/content_coding.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/content_coding.rs
-crates/phantom/src/content_coding/brotli_stream.rs	crate	pending	
-crates/phantom/src/content_coding/field.rs	crate	pending	
-crates/phantom/src/content_coding/gzip.rs	crate	pending	
-crates/phantom/src/content_coding/inflate.rs	crate	pending	
-crates/phantom/src/content_coding/tests.rs	crate	pending	
-crates/phantom/src/content_coding/zstd_stream.rs	crate	pending	
+crates/phantom/src/content_coding.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/content_coding.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding.rs
+crates/phantom/src/content_coding/brotli_stream.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/brotli_stream.rs
+crates/phantom/src/content_coding/field.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/field.rs
+crates/phantom/src/content_coding/gzip.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/gzip.rs
+crates/phantom/src/content_coding/inflate.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/inflate.rs
+crates/phantom/src/content_coding/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/tests.rs
+crates/phantom/src/content_coding/zstd_stream.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/zstd_stream.rs
 crates/phantom/src/diagnostics.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/diagnostics.rs
 crates/phantom/src/environment_proxy.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy.rs | docs-contract-coverage.json#crates/phantom/src/environment_proxy.rs
 crates/phantom/src/environment_proxy/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy/tests.rs
@@ -451,68 +451,68 @@ crates/phantom/src/header_hook.rs	crate	source-complete	client-remaining-coverag
 crates/phantom/src/lib.rs	crate	pending	
 crates/phantom/src/link.rs	crate	pending	
 crates/phantom/src/link/tests.rs	crate	pending	
-crates/phantom/src/redirect.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect.rs | docs-contract-coverage.json#crates/phantom/src/redirect.rs
+crates/phantom/src/redirect.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect.rs | docs-contract-coverage.json#crates/phantom/src/redirect.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/redirect.rs
 crates/phantom/src/redirect/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/redirect/tests.rs | docs-contract-coverage.json#crates/phantom/src/redirect/tests.rs
-crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs
-crates/phantom/src/request/alt_svc_attempt.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs
-crates/phantom/src/request/alt_svc_attempt/tests.rs	crate	pending	
-crates/phantom/src/request/attempt.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/request/attempt.rs
-crates/phantom/src/request/field_lists.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/field_lists.rs | docs-contract-coverage.json#crates/phantom/src/request/field_lists.rs
+crates/phantom/src/request.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request.rs | docs-contract-coverage.json#crates/phantom/src/request.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request.rs
+crates/phantom/src/request/alt_svc_attempt.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/alt_svc_attempt.rs
+crates/phantom/src/request/alt_svc_attempt/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/request/alt_svc_attempt/tests.rs
+crates/phantom/src/request/attempt.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/attempt.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/attempt.rs
+crates/phantom/src/request/field_lists.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/field_lists.rs | docs-contract-coverage.json#crates/phantom/src/request/field_lists.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/field_lists.rs
 crates/phantom/src/request/field_lists/tests.rs	crate	pending	
-crates/phantom/src/request/replay.rs	crate	pending	
-crates/phantom/src/request/replay_buffer.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer.rs
-crates/phantom/src/request/replay_buffer/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs
+crates/phantom/src/request/replay.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/request/replay.rs
+crates/phantom/src/request/replay_buffer.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/replay_buffer.rs
+crates/phantom/src/request/replay_buffer/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request/replay_buffer/tests.rs
 crates/phantom/src/request/secure_context.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/secure_context.rs | docs-contract-coverage.json#crates/phantom/src/request/secure_context.rs
 crates/phantom/src/request/template.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request/template.rs | docs-contract-coverage.json#crates/phantom/src/request/template.rs
 crates/phantom/src/request/template/tests.rs	crate	source-partial	client-remaining-coverage.json#crates/phantom/src/request/template/tests.rs | docs-contract-coverage.json#crates/phantom/src/request/template/tests.rs
-crates/phantom/src/request_body.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_body.rs | docs-contract-coverage.json#crates/phantom/src/request_body.rs
+crates/phantom/src/request_body.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_body.rs | docs-contract-coverage.json#crates/phantom/src/request_body.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/request_body.rs
 crates/phantom/src/request_body/tests.rs	crate	pending	
 crates/phantom/src/request_body/tests/json.rs	crate	pending	
 crates/phantom/src/request_slots.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/request_slots.rs | docs-contract-coverage.json#crates/phantom/src/request_slots.rs
 crates/phantom/src/response.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/response.rs
-crates/phantom/src/retry.rs	crate	pending	
-crates/phantom/src/retry/retry_after.rs	crate	pending	
+crates/phantom/src/retry.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/retry.rs
+crates/phantom/src/retry/retry_after.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/retry/retry_after.rs
 crates/phantom/src/route.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/route.rs
 crates/phantom/src/route/connect_udp.rs	crate	pending	
 crates/phantom/src/route/connect_udp/tests.rs	crate	pending	
 crates/phantom/src/route/socks5.rs	crate	pending	
-crates/phantom/src/session.rs	crate	pending	
-crates/phantom/src/session/address_families.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/address_families.rs
-crates/phantom/src/session/admission.rs	crate	pending	
-crates/phantom/src/session/alt_svc.rs	crate	pending	
-crates/phantom/src/session/alt_svc/https_records.rs	crate	pending	
-crates/phantom/src/session/alt_svc/https_records/tests.rs	crate	pending	
-crates/phantom/src/session/alt_svc/policy.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/alt_svc/policy.rs
-crates/phantom/src/session/alt_svc/snapshot.rs	crate	pending	
-crates/phantom/src/session/alt_svc/tests.rs	crate	pending	
-crates/phantom/src/session/client_hints.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs
-crates/phantom/src/session/client_hints/tests.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/client_hints/tests.rs
-crates/phantom/src/session/cookies.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/cookies.rs
-crates/phantom/src/session/cookies/snapshot.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/cookies/snapshot.rs
-crates/phantom/src/session/cookies/snapshot/tests.rs	crate	pending	
-crates/phantom/src/session/cookies/tests.rs	crate	pending	
-crates/phantom/src/session/cookies/types.rs	crate	pending	
-crates/phantom/src/session/http1_or_2_pool.rs	crate	pending	
-crates/phantom/src/session/http1_or_2_pool/tests.rs	crate	pending	
-crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs	crate	pending	
-crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs	crate	pending	
-crates/phantom/src/session/http1_pool.rs	crate	pending	
-crates/phantom/src/session/http1_pool/tests.rs	crate	pending	
-crates/phantom/src/session/http1_pool/tests/slower_connection.rs	crate	pending	
-crates/phantom/src/session/http2_connections.rs	crate	pending	
-crates/phantom/src/session/http2_pool.rs	crate	pending	
-crates/phantom/src/session/http3_connections.rs	crate	pending	
-crates/phantom/src/session/http3_pool.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs
-crates/phantom/src/session/prune_timer.rs	crate	pending	
-crates/phantom/src/session/stream_count.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/stream_count.rs
-crates/phantom/src/session/tests.rs	crate	pending	
+crates/phantom/src/session.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session.rs
+crates/phantom/src/session/address_families.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/address_families.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/address_families.rs
+crates/phantom/src/session/admission.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/admission.rs
+crates/phantom/src/session/alt_svc.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc.rs
+crates/phantom/src/session/alt_svc/https_records.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/https_records.rs
+crates/phantom/src/session/alt_svc/https_records/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/https_records/tests.rs
+crates/phantom/src/session/alt_svc/policy.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/alt_svc/policy.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/policy.rs
+crates/phantom/src/session/alt_svc/snapshot.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/snapshot.rs
+crates/phantom/src/session/alt_svc/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/alt_svc/tests.rs
+crates/phantom/src/session/client_hints.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/client_hints.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints.rs
+crates/phantom/src/session/client_hints/tests.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/client_hints/tests.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/client_hints/tests.rs
+crates/phantom/src/session/cookies.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/cookies.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies.rs
+crates/phantom/src/session/cookies/snapshot.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/cookies/snapshot.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/snapshot.rs
+crates/phantom/src/session/cookies/snapshot/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/snapshot/tests.rs
+crates/phantom/src/session/cookies/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/tests.rs
+crates/phantom/src/session/cookies/types.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/cookies/types.rs
+crates/phantom/src/session/http1_or_2_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool.rs
+crates/phantom/src/session/http1_or_2_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests.rs
+crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests/early_data.rs
+crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_or_2_pool/tests/slower_connection.rs
+crates/phantom/src/session/http1_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool.rs
+crates/phantom/src/session/http1_pool/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests.rs
+crates/phantom/src/session/http1_pool/tests/slower_connection.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http1_pool/tests/slower_connection.rs
+crates/phantom/src/session/http2_connections.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_connections.rs
+crates/phantom/src/session/http2_pool.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http2_pool.rs
+crates/phantom/src/session/http3_connections.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_connections.rs
+crates/phantom/src/session/http3_pool.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/session/http3_pool.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/http3_pool.rs
+crates/phantom/src/session/prune_timer.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/prune_timer.rs
+crates/phantom/src/session/stream_count.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/session/stream_count.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/session/stream_count.rs
+crates/phantom/src/session/tests.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/session/tests.rs
 crates/phantom/src/sse.rs	crate	pending	
 crates/phantom/src/sse/decoder.rs	crate	pending	
 crates/phantom/src/sse/event_source.rs	crate	pending	
 crates/phantom/src/sse/event_source/request.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/src/sse/event_source/request.rs
 crates/phantom/src/sse/event_source/request/tests.rs	crate	pending	
 crates/phantom/src/sse/tests.rs	crate	pending	
-crates/phantom/src/timeout.rs	crate	pending	
+crates/phantom/src/timeout.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/timeout.rs
 crates/phantom/src/websocket.rs	crate	pending	
 crates/phantom/src/websocket/compression.rs	crate	pending	
 crates/phantom/src/websocket/connection.rs	crate	pending	
@@ -563,7 +563,7 @@ crates/phantom/tests/requests/client_certificates.rs	crate	pending
 crates/phantom/tests/requests/client_certificates/per_origin.rs	crate	pending	
 crates/phantom/tests/requests/client_hints.rs	crate	pending	
 crates/phantom/tests/requests/connection_retries.rs	crate	pending	
-crates/phantom/tests/requests/content_coding.rs	crate	source-partial	docs-contract-coverage.json#crates/phantom/tests/requests/content_coding.rs
+crates/phantom/tests/requests/content_coding.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/tests/requests/content_coding.rs | client-lifecycle-continuation-coverage.json#crates/phantom/tests/requests/content_coding.rs
 crates/phantom/tests/requests/cookie_crumbs.rs	crate	pending	
 crates/phantom/tests/requests/cookies.rs	crate	pending	
 crates/phantom/tests/requests/diagnostics.rs	crate	pending	
