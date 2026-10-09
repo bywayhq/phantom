@@ -427,6 +427,70 @@ mod tests {
     }
 
     #[test]
+    fn oversized_offer_stops_before_reading_a_sixth_parameter() {
+        use std::cell::Cell;
+
+        use PerMessageDeflateOfferParameter::{
+            ClientMaxWindowBits, ClientNoContextTakeover, ServerMaxWindowBits,
+            ServerNoContextTakeover,
+        };
+
+        let sixth_read = Cell::new(false);
+        let reads = Cell::new(0);
+        let parameters = [
+            ClientMaxWindowBits(Some(10)),
+            ServerMaxWindowBits(12),
+            ClientNoContextTakeover,
+            ServerNoContextTakeover,
+            ClientMaxWindowBits(None),
+        ]
+        .into_iter()
+        .chain(std::iter::once_with(|| {
+            sixth_read.set(true);
+            ServerNoContextTakeover
+        }))
+        .inspect(|_| reads.set(reads.get() + 1));
+
+        let result = PerMessageDeflate::new().offer_parameters(parameters);
+
+        assert_eq!(
+            result.as_ref().err().map(crate::WebSocketError::kind),
+            Some(WebSocketErrorKind::InvalidRequest)
+        );
+        assert!(
+            !sixth_read.get(),
+            "the fifth parameter already exceeds the bound"
+        );
+        assert_eq!(reads.get(), 5);
+    }
+
+    #[test]
+    fn accepts_four_offer_parameters_in_caller_order() -> Result<(), crate::WebSocketError> {
+        use PerMessageDeflateOfferParameter::{
+            ClientMaxWindowBits, ClientNoContextTakeover, ServerMaxWindowBits,
+            ServerNoContextTakeover,
+        };
+
+        let policy = PerMessageDeflate::new().offer_parameters([
+            ClientMaxWindowBits(Some(10)),
+            ServerMaxWindowBits(12),
+            ClientNoContextTakeover,
+            ServerNoContextTakeover,
+        ])?;
+
+        assert_eq!(
+            policy.parameters(),
+            &[
+                ClientMaxWindowBits(Some(10)),
+                ServerMaxWindowBits(12),
+                ClientNoContextTakeover,
+                ServerNoContextTakeover,
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
     fn validates_ordered_offer_parameters() -> Result<(), crate::WebSocketError> {
         use PerMessageDeflateOfferParameter::{
             ClientMaxWindowBits, ClientNoContextTakeover, ServerMaxWindowBits,
