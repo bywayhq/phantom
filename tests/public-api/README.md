@@ -1,8 +1,8 @@
 # Public API inventory
 
-Review the library exports in these generated files. They record the route
-checkpoint `92c519b5`, not the final Phase 2 API. Refresh them when that API
-is settled.
+Review the library exports in these generated files. They record the
+profile and request checkpoint `f0e0d961`. Further Phase 2 API work remains;
+refresh them when each change is integrated.
 
 Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 `x86_64-pc-windows-msvc`. `-sss` omits blanket, auto-trait, and derived
@@ -20,9 +20,9 @@ feature-gated documentation links need separate checks from all-feature docs.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 911 | Application client, ordered requests, responses, state |
-| `phantom-net` | 1,304 | Protocol connections, routes, resolvers, transport errors |
-| `phantom-profile` | 1,403 | Browser recipes and typed settings |
+| `phantom-http` | 849 | Application client, ordered requests, responses, state |
+| `phantom-net` | 1,326 | Protocol connections, routes, resolvers, transport errors |
+| `phantom-profile` | 1,454 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 187 | Quinn crypto provider, handshake state, typed errors |
 | `phantom-testkit` | 305 | Wire inspection and loopback test tools |
 

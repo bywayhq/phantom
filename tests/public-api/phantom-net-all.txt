@@ -185,14 +185,14 @@ pub phantom_net::http1::Http1Error::MismatchedHost::index: usize
 pub phantom_net::http1::Http1Error::MissingHost
 pub phantom_net::http1::Http1Error::MissingResponseHeaderOrder
 pub phantom_net::http1::Http1Error::MultipleHost
-pub phantom_net::http1::Http1Error::Protocol(wreq_proto::error::Error)
+pub phantom_net::http1::Http1Error::Protocol(phantom_net::http1::Http1ProtocolError)
 pub phantom_net::http1::Http1Error::RequestFramingHeader
 pub phantom_net::http1::Http1Error::RequestFramingHeader::name: alloc::boxed::Box<str>
 pub phantom_net::http1::Http1Error::RequestTrailersWithContentLength
 pub phantom_net::http1::Http1Error::RequestTrailersWithContentLength::index: usize
 pub phantom_net::http1::Http1Error::ResponseHeadTooLarge
 pub phantom_net::http1::Http1Error::ResponseHeadTooLarge::maximum: usize
-pub phantom_net::http1::Http1Error::ReusedConnectionClosed(wreq_proto::error::Error)
+pub phantom_net::http1::Http1Error::ReusedConnectionClosed(phantom_net::http1::Http1ProtocolError)
 pub phantom_net::http1::Http1Error::RuntimeUnavailable
 pub phantom_net::http1::Http1Error::TooManyHeaders
 pub phantom_net::http1::Http1Error::TooManyHeaders::count: usize
@@ -212,8 +212,6 @@ impl core::convert::From<phantom_net::http1::Http1Error> for phantom_net::http1:
 pub fn phantom_net::http1::Http1TlsError::from(phantom_net::http1::Http1Error) -> Self
 impl core::convert::From<phantom_net::http1::Http1Error> for phantom_net::http1_or_2::Http1Or2TlsError
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::http1::Http1Error) -> Self
-impl core::convert::From<wreq_proto::error::Error> for phantom_net::http1::Http1Error
-pub fn phantom_net::http1::Http1Error::from(wreq_proto::error::Error) -> Self
 impl core::error::Error for phantom_net::http1::Http1Error
 pub fn phantom_net::http1::Http1Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http1::Http1Error
@@ -286,6 +284,13 @@ pub async fn phantom_net::http1::Http1Connection::send_request_body(&self, http:
 pub async fn phantom_net::http1::Http1Connection::send_request_body_with_trailers(&self, http::method::Method, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_net::request::RequestBody>, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1Error>
 impl core::fmt::Debug for phantom_net::http1::Http1Connection
 pub fn phantom_net::http1::Http1Connection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::http1::Http1ProtocolError
+impl core::error::Error for phantom_net::http1::Http1ProtocolError
+pub fn phantom_net::http1::Http1ProtocolError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom_net::http1::Http1ProtocolError
+pub fn phantom_net::http1::Http1ProtocolError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom_net::http1::Http1ProtocolError
+pub fn phantom_net::http1::Http1ProtocolError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http1::Http1TlsConnector
 impl phantom_net::http1::Http1TlsConnector
 pub fn phantom_net::http1::Http1TlsConnector::alpn_protocols(&self) -> alloc::vec::Vec<alloc::boxed::Box<[u8]>>
@@ -327,6 +332,8 @@ impl phantom_net::request::OriginForm
 pub fn phantom_net::request::OriginForm::parse(&str) -> core::result::Result<Self, phantom_net::request::InvalidOriginForm>
 pub struct phantom_net::http1::RequestHeader
 impl phantom_net::request::RequestHeader
+pub fn phantom_net::request::RequestHeader::basic_authorization(impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
+pub fn phantom_net::request::RequestHeader::bearer_authorization(impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
 pub fn phantom_net::request::RequestHeader::is_sensitive(&self) -> bool
 pub fn phantom_net::request::RequestHeader::name(&self) -> &str
 pub fn phantom_net::request::RequestHeader::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::AsRef<[u8]>) -> Self
@@ -659,6 +666,8 @@ pub const fn phantom_net::request::RequestBodyMetadata::exact_length(self) -> co
 pub const fn phantom_net::request::RequestBodyMetadata::has_trailers(self) -> bool
 pub struct phantom_net::http2::RequestHeader
 impl phantom_net::request::RequestHeader
+pub fn phantom_net::request::RequestHeader::basic_authorization(impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
+pub fn phantom_net::request::RequestHeader::bearer_authorization(impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
 pub fn phantom_net::request::RequestHeader::is_sensitive(&self) -> bool
 pub fn phantom_net::request::RequestHeader::name(&self) -> &str
 pub fn phantom_net::request::RequestHeader::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::AsRef<[u8]>) -> Self
@@ -835,8 +844,6 @@ pub struct phantom_net::http3::Http3Error
 impl phantom_net::http3::Http3Error
 pub const fn phantom_net::http3::Http3Error::kind(&self) -> phantom_net::http3::Http3ErrorKind
 pub const fn phantom_net::http3::Http3Error::unprocessed(&self) -> core::option::Option<phantom_net::http3::Http3Unprocessed>
-impl core::convert::From<h3::error::error::StreamError> for phantom_net::http3::Http3Error
-pub fn phantom_net::http3::Http3Error::from(h3::error::error::StreamError) -> Self
 impl core::error::Error for phantom_net::http3::Http3Error
 pub fn phantom_net::http3::Http3Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http3::Http3Error
@@ -873,6 +880,8 @@ impl core::fmt::Debug for phantom_net::http3::QlogCapture
 pub fn phantom_net::http3::QlogCapture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http3::RequestHeader
 impl phantom_net::request::RequestHeader
+pub fn phantom_net::request::RequestHeader::basic_authorization(impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
+pub fn phantom_net::request::RequestHeader::bearer_authorization(impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
 pub fn phantom_net::request::RequestHeader::is_sensitive(&self) -> bool
 pub fn phantom_net::request::RequestHeader::name(&self) -> &str
 pub fn phantom_net::request::RequestHeader::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::AsRef<[u8]>) -> Self
@@ -1120,6 +1129,8 @@ pub const fn phantom_net::request::RequestBodyMetadata::exact_length(self) -> co
 pub const fn phantom_net::request::RequestBodyMetadata::has_trailers(self) -> bool
 pub struct phantom_net::request::RequestHeader
 impl phantom_net::request::RequestHeader
+pub fn phantom_net::request::RequestHeader::basic_authorization(impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
+pub fn phantom_net::request::RequestHeader::bearer_authorization(impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom_net::InvalidAuthorization>
 pub fn phantom_net::request::RequestHeader::is_sensitive(&self) -> bool
 pub fn phantom_net::request::RequestHeader::name(&self) -> &str
 pub fn phantom_net::request::RequestHeader::new(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::AsRef<[u8]>) -> Self
@@ -1254,6 +1265,11 @@ pub phantom_net::ClientCertificateErrorKind::Certificate
 pub phantom_net::ClientCertificateErrorKind::KeyMismatch
 pub phantom_net::ClientCertificateErrorKind::PrivateKey
 pub phantom_net::ClientCertificateErrorKind::SignatureScheme
+#[non_exhaustive] pub enum phantom_net::InvalidAuthorizationKind
+pub phantom_net::InvalidAuthorizationKind::BasicPassword
+pub phantom_net::InvalidAuthorizationKind::BasicUsername
+pub phantom_net::InvalidAuthorizationKind::BearerToken
+pub phantom_net::InvalidAuthorizationKind::TooLarge
 #[non_exhaustive] pub enum phantom_net::ServerAuthentication
 pub phantom_net::ServerAuthentication::DangerDisabled
 pub phantom_net::ServerAuthentication::WebPki
@@ -1273,6 +1289,12 @@ impl core::error::Error for phantom_net::ClientCertificateError
 pub fn phantom_net::ClientCertificateError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::ClientCertificateError
 pub fn phantom_net::ClientCertificateError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::InvalidAuthorization
+impl phantom_net::InvalidAuthorization
+pub const fn phantom_net::InvalidAuthorization::kind(self) -> phantom_net::InvalidAuthorizationKind
+impl core::error::Error for phantom_net::InvalidAuthorization
+impl core::fmt::Display for phantom_net::InvalidAuthorization
+pub fn phantom_net::InvalidAuthorization::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::InvalidSourceBinding
 impl phantom_net::source_binding::InvalidSourceBinding
 pub const fn phantom_net::source_binding::InvalidSourceBinding::field(&self) -> &'static str

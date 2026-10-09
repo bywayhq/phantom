@@ -1,55 +1,111 @@
 pub mod phantom_profile
-pub mod phantom_profile::brave
-pub fn phantom_profile::brave::v154_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::brave::v154_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::brave::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::brave::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::brave::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub mod phantom_profile::brave_android
-pub fn phantom_profile::brave_android::v153_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::brave_android::v153_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::brave_android::v153_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::brave_android::v153_http2() -> phantom_profile::http2::Http2Settings
-pub fn phantom_profile::brave_android::v153_http3() -> phantom_profile::http3::Http3Settings
-pub fn phantom_profile::brave_android::v153_http3_request() -> phantom_profile::http3::Http3RequestSettings
-pub fn phantom_profile::brave_android::v153_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::brave_android::v153_quic() -> phantom_profile::quic::QuicTransportSettings
-pub fn phantom_profile::brave_android::v153_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::brave_android::v153_websocket() -> phantom_profile::websocket::WebSocketSettings
-pub mod phantom_profile::chrome_android
-pub fn phantom_profile::chrome_android::v154_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::chrome_android::v154_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::chrome_android::v154_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chrome_android::v154_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chrome_android::v154_http2() -> phantom_profile::http2::Http2Settings
-pub fn phantom_profile::chrome_android::v154_http3() -> phantom_profile::http3::Http3Settings
-pub fn phantom_profile::chrome_android::v154_http3_request() -> phantom_profile::http3::Http3RequestSettings
-pub fn phantom_profile::chrome_android::v154_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::chrome_android::v154_quic() -> phantom_profile::quic::QuicTransportSettings
-pub fn phantom_profile::chrome_android::v154_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::chrome_android::v154_websocket() -> phantom_profile::websocket::WebSocketSettings
-pub mod phantom_profile::chromium
-pub fn phantom_profile::chromium::v154_cookie_placement() -> phantom_profile::cookie::CookiePlacement
-pub fn phantom_profile::chromium::v154_dns_cache() -> phantom_profile::dns_cache::DnsCacheSettings
-pub fn phantom_profile::chromium::v154_http1() -> phantom_profile::http1::Http1Settings
-pub fn phantom_profile::chromium::v154_http2() -> phantom_profile::http2::Http2Settings
-pub fn phantom_profile::chromium::v154_http3() -> phantom_profile::http3::Http3Settings
-pub fn phantom_profile::chromium::v154_http3_request() -> phantom_profile::http3::Http3RequestSettings
-pub fn phantom_profile::chromium::v154_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::chromium::v154_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::chromium::v154_macos_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chromium::v154_macos_fetch_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chromium::v154_macos_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chromium::v154_proxy_connect() -> phantom_profile::proxy_connect::ProxyConnectTemplate
-pub fn phantom_profile::chromium::v154_quic() -> phantom_profile::quic::QuicTransportSettings
-pub fn phantom_profile::chromium::v154_tcp() -> phantom_profile::tcp::TcpSettings
-pub fn phantom_profile::chromium::v154_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::chromium::v154_udp() -> phantom_profile::udp::UdpSettings
-pub fn phantom_profile::chromium::v154_websocket() -> phantom_profile::websocket::WebSocketSettings
-pub fn phantom_profile::chromium::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::chromium::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chromium::v154_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::chromium::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::browser
+pub mod phantom_profile::browser::brave
+pub fn phantom_profile::browser::brave::v153_android() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::brave::v153_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::brave::v153_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::brave::v153_android_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::browser::brave::v153_android_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::browser::brave::v153_android_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::browser::brave::v153_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::brave::v153_android_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::browser::brave::v153_android_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::brave::v153_android_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::brave::v153_android_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::browser::brave::v154_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::brave::v154_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::brave::v154_windows() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::brave::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::brave::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::brave::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::browser::chrome
+pub fn phantom_profile::browser::chrome::v154_android() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::chrome::v154_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::chrome::v154_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::chrome::v154_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_android_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::browser::chrome::v154_android_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::browser::chrome::v154_android_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::browser::chrome::v154_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_android_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::browser::chrome::v154_android_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::chrome::v154_android_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::chrome::v154_android_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::browser::chrome::v154_cookie_placement() -> phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::browser::chrome::v154_dns_cache() -> phantom_profile::dns_cache::DnsCacheSettings
+pub fn phantom_profile::browser::chrome::v154_http1() -> phantom_profile::http1::Http1Settings
+pub fn phantom_profile::browser::chrome::v154_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::browser::chrome::v154_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::browser::chrome::v154_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::browser::chrome::v154_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::chrome::v154_macos_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_macos_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_macos_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_proxy_connect() -> phantom_profile::proxy_connect::ProxyConnectTemplate
+pub fn phantom_profile::browser::chrome::v154_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::browser::chrome::v154_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::chrome::v154_tcp() -> phantom_profile::tcp::TcpSettings
+pub fn phantom_profile::browser::chrome::v154_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::chrome::v154_udp() -> phantom_profile::udp::UdpSettings
+pub fn phantom_profile::browser::chrome::v154_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::browser::chrome::v154_windows() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::chrome::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::chrome::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::browser::edge
+pub fn phantom_profile::browser::edge::v153_android() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::edge::v153_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::edge::v153_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::edge::v153_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::edge::v153_android_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::browser::edge::v153_android_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::browser::edge::v153_android_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::browser::edge::v153_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::edge::v153_android_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::browser::edge::v153_android_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::edge::v153_android_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::edge::v154_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::edge::v154_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::edge::v154_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::edge::v154_windows() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::edge::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::edge::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::edge::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::browser::firefox
+pub fn phantom_profile::browser::firefox::v156_android() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::firefox::v156_android_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::firefox::v157_cookie_placement() -> phantom_profile::cookie::CookiePlacement
+pub fn phantom_profile::browser::firefox::v157_dns_cache() -> phantom_profile::dns_cache::DnsCacheSettings
+pub fn phantom_profile::browser::firefox::v157_http1() -> phantom_profile::http1::Http1Settings
+pub fn phantom_profile::browser::firefox::v157_http2() -> phantom_profile::http2::Http2Settings
+pub fn phantom_profile::browser::firefox::v157_http3() -> phantom_profile::http3::Http3Settings
+pub fn phantom_profile::browser::firefox::v157_http3_request() -> phantom_profile::http3::Http3RequestSettings
+pub fn phantom_profile::browser::firefox::v157_macos_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_macos_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_macos_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_proxy_connect() -> phantom_profile::proxy_connect::ProxyConnectTemplate
+pub fn phantom_profile::browser::firefox::v157_quic() -> phantom_profile::quic::QuicTransportSettings
+pub fn phantom_profile::browser::firefox::v157_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::firefox::v157_tcp() -> phantom_profile::tcp::TcpSettings
+pub fn phantom_profile::browser::firefox::v157_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::firefox::v157_websocket() -> phantom_profile::websocket::WebSocketSettings
+pub fn phantom_profile::browser::firefox::v157_windows() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::firefox::v157_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
+pub mod phantom_profile::browser::opera
+pub fn phantom_profile::browser::opera::v102_android() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::opera::v102_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::opera::v102_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::opera::v102_android_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::opera::v136_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::opera::v136_quic_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::opera::v136_tcp_tls() -> phantom_profile::tls::TlsSettings
+pub fn phantom_profile::browser::opera::v136_windows() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::opera::v136_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
+pub fn phantom_profile::browser::opera::v136_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::opera::v136_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
 pub mod phantom_profile::client_hints
 #[non_exhaustive] pub enum phantom_profile::client_hints::ClientHintDelivery
 pub phantom_profile::client_hints::ClientHintDelivery::AcceptCh
@@ -87,45 +143,6 @@ pub phantom_profile::dns_cache::DnsCacheSettings::max_entries: core::num::nonzer
 pub phantom_profile::dns_cache::DnsCacheSettings::min_record_ttl: core::time::Duration
 pub phantom_profile::dns_cache::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>
 pub phantom_profile::dns_cache::DnsCacheSettings::ttl: core::time::Duration
-pub mod phantom_profile::edge
-pub fn phantom_profile::edge::v154_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::edge::v154_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::edge::v154_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::edge::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::edge::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::edge::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub mod phantom_profile::edge_android
-pub fn phantom_profile::edge_android::v153_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::edge_android::v153_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::edge_android::v153_android_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::edge_android::v153_android_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::edge_android::v153_http2() -> phantom_profile::http2::Http2Settings
-pub fn phantom_profile::edge_android::v153_http3() -> phantom_profile::http3::Http3Settings
-pub fn phantom_profile::edge_android::v153_http3_request() -> phantom_profile::http3::Http3RequestSettings
-pub fn phantom_profile::edge_android::v153_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::edge_android::v153_quic() -> phantom_profile::quic::QuicTransportSettings
-pub fn phantom_profile::edge_android::v153_tls() -> phantom_profile::tls::TlsSettings
-pub mod phantom_profile::firefox
-pub fn phantom_profile::firefox::v157_cookie_placement() -> phantom_profile::cookie::CookiePlacement
-pub fn phantom_profile::firefox::v157_dns_cache() -> phantom_profile::dns_cache::DnsCacheSettings
-pub fn phantom_profile::firefox::v157_http1() -> phantom_profile::http1::Http1Settings
-pub fn phantom_profile::firefox::v157_http2() -> phantom_profile::http2::Http2Settings
-pub fn phantom_profile::firefox::v157_http3() -> phantom_profile::http3::Http3Settings
-pub fn phantom_profile::firefox::v157_http3_request() -> phantom_profile::http3::Http3RequestSettings
-pub fn phantom_profile::firefox::v157_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::firefox::v157_macos_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::firefox::v157_macos_fetch_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::firefox::v157_macos_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::firefox::v157_proxy_connect() -> phantom_profile::proxy_connect::ProxyConnectTemplate
-pub fn phantom_profile::firefox::v157_quic() -> phantom_profile::quic::QuicTransportSettings
-pub fn phantom_profile::firefox::v157_tcp() -> phantom_profile::tcp::TcpSettings
-pub fn phantom_profile::firefox::v157_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::firefox::v157_websocket() -> phantom_profile::websocket::WebSocketSettings
-pub fn phantom_profile::firefox::v157_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::firefox::v157_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::firefox::v157_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub mod phantom_profile::firefox_android
-pub fn phantom_profile::firefox_android::v156_tls() -> phantom_profile::tls::TlsSettings
 pub mod phantom_profile::http1
 #[non_exhaustive] pub enum phantom_profile::http1::Http1IdleTimeout
 pub phantom_profile::http1::Http1IdleTimeout::CheckedOnRequest(core::time::Duration)
@@ -313,17 +330,6 @@ pub fn phantom_profile::http3::InvalidHttp3Settings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http3::InvalidHttp3Settings
 impl core::fmt::Display for phantom_profile::http3::InvalidHttp3Settings
 pub fn phantom_profile::http3::InvalidHttp3Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub mod phantom_profile::opera
-pub fn phantom_profile::opera::v136_http3_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::opera::v136_macos_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::opera::v136_tls() -> phantom_profile::tls::TlsSettings
-pub fn phantom_profile::opera::v136_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::opera::v136_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
-pub fn phantom_profile::opera::v136_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
-pub mod phantom_profile::opera_android
-pub fn phantom_profile::opera_android::v102_android_client_hints() -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::opera_android::v102_android_client_hints_for_model(&str) -> phantom_profile::client_hints::ClientHintSettings
-pub fn phantom_profile::opera_android::v102_tls() -> phantom_profile::tls::TlsSettings
 pub mod phantom_profile::proxy_connect
 #[non_exhaustive] pub enum phantom_profile::proxy_connect::Http2ProxyConnections
 pub phantom_profile::proxy_connect::Http2ProxyConnections::ByPurpose
@@ -670,6 +676,8 @@ pub phantom_profile::tls::TlsVersion::Tls13
 impl phantom_profile::tls::TlsVersion
 pub const fn phantom_profile::tls::TlsVersion::from_protocol_id(u16) -> core::option::Option<Self>
 pub const fn phantom_profile::tls::TlsVersion::protocol_id(self) -> u16
+impl core::convert::From<phantom_profile::tls::TlsVersion> for phantom_profile::tls::TlsVersionRange
+pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVersion) -> Self
 #[non_exhaustive] pub enum phantom_profile::tls::TrustAnchorIds
 pub phantom_profile::tls::TrustAnchorIds::Fixed(alloc::vec::Vec<alloc::boxed::Box<[u8]>>)
 pub phantom_profile::tls::TrustAnchorIds::PerClient(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
@@ -687,6 +695,15 @@ pub fn phantom_profile::tls::InvalidTlsSettings::field(&self) -> &'static str
 impl core::error::Error for phantom_profile::tls::InvalidTlsSettings
 impl core::fmt::Display for phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::InvalidTlsSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::tls::SessionTickets
+impl phantom_profile::tls::SessionTickets
+pub const fn phantom_profile::tls::SessionTickets::disabled() -> Self
+pub fn phantom_profile::tls::SessionTickets::enabled(u8) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+pub const fn phantom_profile::tls::SessionTickets::is_enabled(self) -> bool
+pub const fn phantom_profile::tls::SessionTickets::tcp_per_origin_limit(self) -> core::option::Option<core::num::nonzero::NonZeroU8>
+impl core::convert::TryFrom<u8> for phantom_profile::tls::SessionTickets
+pub type phantom_profile::tls::SessionTickets::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::SessionTickets::try_from(u8) -> core::result::Result<Self, Self::Error>
 pub struct phantom_profile::tls::TlsSettings
 pub phantom_profile::tls::TlsSettings::aes_hardware: bool
 pub phantom_profile::tls::TlsSettings::alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
@@ -704,22 +721,32 @@ pub phantom_profile::tls::TlsSettings::grease: bool
 pub phantom_profile::tls::TlsSettings::grease_signature_algorithms: bool
 pub phantom_profile::tls::TlsSettings::groups: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
 pub phantom_profile::tls::TlsSettings::key_shares: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
-pub phantom_profile::tls::TlsSettings::max_version: phantom_profile::tls::TlsVersion
-pub phantom_profile::tls::TlsSettings::min_version: phantom_profile::tls::TlsVersion
 pub phantom_profile::tls::TlsSettings::record_size_limit: core::option::Option<u16>
 pub phantom_profile::tls::TlsSettings::request_ocsp_staple: bool
 pub phantom_profile::tls::TlsSettings::request_signed_certificate_timestamps: bool
 pub phantom_profile::tls::TlsSettings::requested_trust_anchor_ids: core::option::Option<phantom_profile::tls::TrustAnchorIds>
 pub phantom_profile::tls::TlsSettings::session_ticket_extension_when_resuming: bool
 pub phantom_profile::tls::TlsSettings::session_ticket_order: phantom_profile::tls::SessionTicketOrder
-pub phantom_profile::tls::TlsSettings::session_tickets: bool
-pub phantom_profile::tls::TlsSettings::session_tickets_per_origin: u8
+pub phantom_profile::tls::TlsSettings::session_tickets: phantom_profile::tls::SessionTickets
 pub phantom_profile::tls::TlsSettings::signature_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
 pub phantom_profile::tls::TlsSettings::tcp_early_data: bool
 pub phantom_profile::tls::TlsSettings::tls12_extensions_in_tls13_client_hello: bool
+pub phantom_profile::tls::TlsSettings::versions: phantom_profile::tls::TlsVersionRange
 impl phantom_profile::tls::TlsSettings
 pub fn phantom_profile::tls::TlsSettings::draw_per_client<E>(&mut self, impl core::ops::function::FnOnce() -> core::result::Result<u64, E>) -> core::result::Result<(), E>
 pub fn phantom_profile::tls::TlsSettings::validate(&self) -> core::result::Result<(), phantom_profile::tls::InvalidTlsSettings>
+pub struct phantom_profile::tls::TlsVersionRange
+impl phantom_profile::tls::TlsVersionRange
+pub const phantom_profile::tls::TlsVersionRange::TLS12_TO_TLS13: Self
+pub const fn phantom_profile::tls::TlsVersionRange::max(self) -> phantom_profile::tls::TlsVersion
+pub const fn phantom_profile::tls::TlsVersionRange::min(self) -> phantom_profile::tls::TlsVersion
+pub fn phantom_profile::tls::TlsVersionRange::new(phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+pub const fn phantom_profile::tls::TlsVersionRange::only(phantom_profile::tls::TlsVersion) -> Self
+impl core::convert::From<phantom_profile::tls::TlsVersion> for phantom_profile::tls::TlsVersionRange
+pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVersion) -> Self
+impl core::convert::TryFrom<(phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)> for phantom_profile::tls::TlsVersionRange
+pub type phantom_profile::tls::TlsVersionRange::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::TlsVersionRange::try_from((phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)) -> core::result::Result<Self, Self::Error>
 pub mod phantom_profile::udp
 pub struct phantom_profile::udp::UdpSettings
 pub phantom_profile::udp::UdpSettings::port_randomization: bool
@@ -1071,6 +1098,8 @@ pub phantom_profile::TlsVersion::Tls13
 impl phantom_profile::tls::TlsVersion
 pub const fn phantom_profile::tls::TlsVersion::from_protocol_id(u16) -> core::option::Option<Self>
 pub const fn phantom_profile::tls::TlsVersion::protocol_id(self) -> u16
+impl core::convert::From<phantom_profile::tls::TlsVersion> for phantom_profile::tls::TlsVersionRange
+pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVersion) -> Self
 #[non_exhaustive] pub enum phantom_profile::TrustAnchorIds
 pub phantom_profile::TrustAnchorIds::Fixed(alloc::vec::Vec<alloc::boxed::Box<[u8]>>)
 pub phantom_profile::TrustAnchorIds::PerClient(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
@@ -1151,6 +1180,7 @@ pub fn phantom_profile::ClientProfile::http2(&self) -> core::option::Option<&pha
 pub fn phantom_profile::ClientProfile::http3(&self) -> core::option::Option<&phantom_profile::Http3ClientSettings>
 pub fn phantom_profile::ClientProfile::new(phantom_profile::tls::TlsSettings) -> Self
 pub fn phantom_profile::ClientProfile::proxy_connect(&self) -> core::option::Option<&phantom_profile::proxy_connect::ProxyConnectTemplate>
+pub fn phantom_profile::ClientProfile::request_template(&self) -> core::option::Option<&phantom_profile::request_template::RequestTemplate>
 pub fn phantom_profile::ClientProfile::tcp(&self) -> core::option::Option<&phantom_profile::tcp::TcpSettings>
 pub fn phantom_profile::ClientProfile::tls(&self) -> &phantom_profile::tls::TlsSettings
 pub fn phantom_profile::ClientProfile::udp(&self) -> core::option::Option<&phantom_profile::udp::UdpSettings>
@@ -1162,9 +1192,11 @@ pub fn phantom_profile::ClientProfile::with_http1(self, phantom_profile::http1::
 pub fn phantom_profile::ClientProfile::with_http2(self, phantom_profile::http2::Http2Settings) -> Self
 pub fn phantom_profile::ClientProfile::with_http3(self, phantom_profile::Http3ClientSettings) -> Self
 pub fn phantom_profile::ClientProfile::with_proxy_connect(self, phantom_profile::proxy_connect::ProxyConnectTemplate) -> Self
+pub fn phantom_profile::ClientProfile::with_request_template(self, phantom_profile::request_template::RequestTemplate) -> Self
 pub fn phantom_profile::ClientProfile::with_tcp(self, phantom_profile::tcp::TcpSettings) -> Self
 pub fn phantom_profile::ClientProfile::with_udp(self, phantom_profile::udp::UdpSettings) -> Self
 pub fn phantom_profile::ClientProfile::with_websocket(self, phantom_profile::websocket::WebSocketSettings) -> Self
+pub fn phantom_profile::ClientProfile::without_request_template(self) -> Self
 pub struct phantom_profile::CookiePlacement
 impl phantom_profile::cookie::CookiePlacement
 pub fn phantom_profile::cookie::CookiePlacement::before(&self) -> &[alloc::boxed::Box<str>]
@@ -1325,6 +1357,15 @@ pub phantom_profile::RequestTemplate::requested_client_hint_placement: bool
 pub phantom_profile::RequestTemplate::restarts_for_connection_accept_ch: bool
 impl phantom_profile::request_template::RequestTemplate
 pub fn phantom_profile::request_template::RequestTemplate::validate(&self) -> core::result::Result<(), phantom_profile::request_template::InvalidRequestTemplate>
+pub struct phantom_profile::SessionTickets
+impl phantom_profile::tls::SessionTickets
+pub const fn phantom_profile::tls::SessionTickets::disabled() -> Self
+pub fn phantom_profile::tls::SessionTickets::enabled(u8) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+pub const fn phantom_profile::tls::SessionTickets::is_enabled(self) -> bool
+pub const fn phantom_profile::tls::SessionTickets::tcp_per_origin_limit(self) -> core::option::Option<core::num::nonzero::NonZeroU8>
+impl core::convert::TryFrom<u8> for phantom_profile::tls::SessionTickets
+pub type phantom_profile::tls::SessionTickets::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::SessionTickets::try_from(u8) -> core::result::Result<Self, Self::Error>
 pub struct phantom_profile::TcpAddressRacing
 pub phantom_profile::TcpAddressRacing::fallback_delay: core::time::Duration
 pub struct phantom_profile::TcpBackupConnection
@@ -1366,22 +1407,32 @@ pub phantom_profile::TlsSettings::grease: bool
 pub phantom_profile::TlsSettings::grease_signature_algorithms: bool
 pub phantom_profile::TlsSettings::groups: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
 pub phantom_profile::TlsSettings::key_shares: alloc::vec::Vec<phantom_profile::tls::NamedGroup>
-pub phantom_profile::TlsSettings::max_version: phantom_profile::tls::TlsVersion
-pub phantom_profile::TlsSettings::min_version: phantom_profile::tls::TlsVersion
 pub phantom_profile::TlsSettings::record_size_limit: core::option::Option<u16>
 pub phantom_profile::TlsSettings::request_ocsp_staple: bool
 pub phantom_profile::TlsSettings::request_signed_certificate_timestamps: bool
 pub phantom_profile::TlsSettings::requested_trust_anchor_ids: core::option::Option<phantom_profile::tls::TrustAnchorIds>
 pub phantom_profile::TlsSettings::session_ticket_extension_when_resuming: bool
 pub phantom_profile::TlsSettings::session_ticket_order: phantom_profile::tls::SessionTicketOrder
-pub phantom_profile::TlsSettings::session_tickets: bool
-pub phantom_profile::TlsSettings::session_tickets_per_origin: u8
+pub phantom_profile::TlsSettings::session_tickets: phantom_profile::tls::SessionTickets
 pub phantom_profile::TlsSettings::signature_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
 pub phantom_profile::TlsSettings::tcp_early_data: bool
 pub phantom_profile::TlsSettings::tls12_extensions_in_tls13_client_hello: bool
+pub phantom_profile::TlsSettings::versions: phantom_profile::tls::TlsVersionRange
 impl phantom_profile::tls::TlsSettings
 pub fn phantom_profile::tls::TlsSettings::draw_per_client<E>(&mut self, impl core::ops::function::FnOnce() -> core::result::Result<u64, E>) -> core::result::Result<(), E>
 pub fn phantom_profile::tls::TlsSettings::validate(&self) -> core::result::Result<(), phantom_profile::tls::InvalidTlsSettings>
+pub struct phantom_profile::TlsVersionRange
+impl phantom_profile::tls::TlsVersionRange
+pub const phantom_profile::tls::TlsVersionRange::TLS12_TO_TLS13: Self
+pub const fn phantom_profile::tls::TlsVersionRange::max(self) -> phantom_profile::tls::TlsVersion
+pub const fn phantom_profile::tls::TlsVersionRange::min(self) -> phantom_profile::tls::TlsVersion
+pub fn phantom_profile::tls::TlsVersionRange::new(phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+pub const fn phantom_profile::tls::TlsVersionRange::only(phantom_profile::tls::TlsVersion) -> Self
+impl core::convert::From<phantom_profile::tls::TlsVersion> for phantom_profile::tls::TlsVersionRange
+pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVersion) -> Self
+impl core::convert::TryFrom<(phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)> for phantom_profile::tls::TlsVersionRange
+pub type phantom_profile::tls::TlsVersionRange::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::TlsVersionRange::try_from((phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)) -> core::result::Result<Self, Self::Error>
 pub struct phantom_profile::UdpSettings
 pub phantom_profile::UdpSettings::port_randomization: bool
 pub struct phantom_profile::WebSocketConnectionPolicy

@@ -5,6 +5,8 @@ pub use phantom::ClientCertificate
 pub use phantom::ClientCertificateError
 pub use phantom::ClientCertificateErrorKind
 pub use phantom::HttpConnectHeader
+pub use phantom::InvalidAuthorization
+pub use phantom::InvalidAuthorizationKind
 pub use phantom::Method
 pub use phantom::OrderedResponseHeaders
 pub use phantom::RequestHeader
@@ -108,6 +110,7 @@ pub use phantom::profile::QuicVersionInformation
 pub use phantom::profile::RequestField
 pub use phantom::profile::RequestTemplate
 pub use phantom::profile::SessionTicketOrder
+pub use phantom::profile::SessionTickets
 pub use phantom::profile::SignatureScheme
 pub use phantom::profile::TcpAddressAdvance
 pub use phantom::profile::TcpAddressRacing
@@ -120,6 +123,7 @@ pub use phantom::profile::TcpPortRandomization
 pub use phantom::profile::TcpSettings
 pub use phantom::profile::TlsSettings
 pub use phantom::profile::TlsVersion
+pub use phantom::profile::TlsVersionRange
 pub use phantom::profile::TrustAnchorIds
 pub use phantom::profile::UdpSettings
 pub use phantom::profile::WebSocketConnectionPolicy
@@ -130,107 +134,7 @@ pub use phantom::profile::WebSocketNewConnection
 pub use phantom::profile::WebSocketProxiedSession
 pub use phantom::profile::WebSocketRefusedStreamRetry
 pub use phantom::profile::WebSocketSettings
-pub mod phantom::profile::brave
-pub use phantom::profile::brave::v154_http3_tls
-pub use phantom::profile::brave::v154_tls
-pub use phantom::profile::brave::v154_windows_client_hints
-pub use phantom::profile::brave::v154_windows_fetch_no_store_template
-pub use phantom::profile::brave::v154_windows_navigation_template
-pub mod phantom::profile::brave_android
-pub use phantom::profile::brave_android::v153_android_client_hints
-pub use phantom::profile::brave_android::v153_android_fetch_no_store_template
-pub use phantom::profile::brave_android::v153_android_navigation_template
-pub use phantom::profile::brave_android::v153_http2
-pub use phantom::profile::brave_android::v153_http3
-pub use phantom::profile::brave_android::v153_http3_request
-pub use phantom::profile::brave_android::v153_http3_tls
-pub use phantom::profile::brave_android::v153_quic
-pub use phantom::profile::brave_android::v153_tls
-pub use phantom::profile::brave_android::v153_websocket
-pub mod phantom::profile::chrome_android
-pub use phantom::profile::chrome_android::v154_android_client_hints
-pub use phantom::profile::chrome_android::v154_android_client_hints_for_model
-pub use phantom::profile::chrome_android::v154_android_fetch_no_store_template
-pub use phantom::profile::chrome_android::v154_android_navigation_template
-pub use phantom::profile::chrome_android::v154_http2
-pub use phantom::profile::chrome_android::v154_http3
-pub use phantom::profile::chrome_android::v154_http3_request
-pub use phantom::profile::chrome_android::v154_http3_tls
-pub use phantom::profile::chrome_android::v154_quic
-pub use phantom::profile::chrome_android::v154_tls
-pub use phantom::profile::chrome_android::v154_websocket
-pub mod phantom::profile::chromium
-pub use phantom::profile::chromium::v154_cookie_placement
-pub use phantom::profile::chromium::v154_dns_cache
-pub use phantom::profile::chromium::v154_http1
-pub use phantom::profile::chromium::v154_http2
-pub use phantom::profile::chromium::v154_http3
-pub use phantom::profile::chromium::v154_http3_request
-pub use phantom::profile::chromium::v154_http3_tls
-pub use phantom::profile::chromium::v154_macos_client_hints
-pub use phantom::profile::chromium::v154_macos_fetch_no_store_template
-pub use phantom::profile::chromium::v154_macos_fetch_template
-pub use phantom::profile::chromium::v154_macos_navigation_template
-pub use phantom::profile::chromium::v154_proxy_connect
-pub use phantom::profile::chromium::v154_quic
-pub use phantom::profile::chromium::v154_tcp
-pub use phantom::profile::chromium::v154_tls
-pub use phantom::profile::chromium::v154_udp
-pub use phantom::profile::chromium::v154_websocket
-pub use phantom::profile::chromium::v154_windows_client_hints
-pub use phantom::profile::chromium::v154_windows_fetch_no_store_template
-pub use phantom::profile::chromium::v154_windows_fetch_template
-pub use phantom::profile::chromium::v154_windows_navigation_template
-pub mod phantom::profile::edge
-pub use phantom::profile::edge::v154_http3_tls
-pub use phantom::profile::edge::v154_macos_client_hints
-pub use phantom::profile::edge::v154_tls
-pub use phantom::profile::edge::v154_windows_client_hints
-pub use phantom::profile::edge::v154_windows_fetch_no_store_template
-pub use phantom::profile::edge::v154_windows_navigation_template
-pub mod phantom::profile::edge_android
-pub use phantom::profile::edge_android::v153_android_client_hints
-pub use phantom::profile::edge_android::v153_android_client_hints_for_model
-pub use phantom::profile::edge_android::v153_android_fetch_no_store_template
-pub use phantom::profile::edge_android::v153_android_navigation_template
-pub use phantom::profile::edge_android::v153_http2
-pub use phantom::profile::edge_android::v153_http3
-pub use phantom::profile::edge_android::v153_http3_request
-pub use phantom::profile::edge_android::v153_http3_tls
-pub use phantom::profile::edge_android::v153_quic
-pub use phantom::profile::edge_android::v153_tls
-pub mod phantom::profile::firefox
-pub use phantom::profile::firefox::v157_cookie_placement
-pub use phantom::profile::firefox::v157_dns_cache
-pub use phantom::profile::firefox::v157_http1
-pub use phantom::profile::firefox::v157_http2
-pub use phantom::profile::firefox::v157_http3
-pub use phantom::profile::firefox::v157_http3_request
-pub use phantom::profile::firefox::v157_http3_tls
-pub use phantom::profile::firefox::v157_macos_fetch_no_store_template
-pub use phantom::profile::firefox::v157_macos_fetch_template
-pub use phantom::profile::firefox::v157_macos_navigation_template
-pub use phantom::profile::firefox::v157_proxy_connect
-pub use phantom::profile::firefox::v157_quic
-pub use phantom::profile::firefox::v157_tcp
-pub use phantom::profile::firefox::v157_tls
-pub use phantom::profile::firefox::v157_websocket
-pub use phantom::profile::firefox::v157_windows_fetch_no_store_template
-pub use phantom::profile::firefox::v157_windows_fetch_template
-pub use phantom::profile::firefox::v157_windows_navigation_template
-pub mod phantom::profile::firefox_android
-pub use phantom::profile::firefox_android::v156_tls
-pub mod phantom::profile::opera
-pub use phantom::profile::opera::v136_http3_tls
-pub use phantom::profile::opera::v136_macos_client_hints
-pub use phantom::profile::opera::v136_tls
-pub use phantom::profile::opera::v136_windows_client_hints
-pub use phantom::profile::opera::v136_windows_fetch_no_store_template
-pub use phantom::profile::opera::v136_windows_navigation_template
-pub mod phantom::profile::opera_android
-pub use phantom::profile::opera_android::v102_android_client_hints
-pub use phantom::profile::opera_android::v102_android_client_hints_for_model
-pub use phantom::profile::opera_android::v102_tls
+pub use phantom::profile::browser
 #[non_exhaustive] pub enum phantom::AltSvcSnapshotErrorKind
 pub phantom::AltSvcSnapshotErrorKind::Disabled
 pub phantom::AltSvcSnapshotErrorKind::InvalidAlternative
@@ -318,6 +222,10 @@ pub phantom::RequestErrorKind::Timeout
 pub phantom::RequestErrorKind::Tls
 pub phantom::RequestErrorKind::UnsupportedRoute
 pub phantom::RequestErrorKind::UnsupportedScheme
+#[non_exhaustive] pub enum phantom::ResponseReadErrorKind
+pub phantom::ResponseReadErrorKind::Body
+pub phantom::ResponseReadErrorKind::Json
+pub phantom::ResponseReadErrorKind::Utf8
 #[non_exhaustive] pub enum phantom::Route
 pub phantom::Route::ConnectUdp(phantom::ConnectUdpProxy)
 pub phantom::Route::Direct
@@ -695,6 +603,7 @@ pub fn phantom::RequestBuilder::content_decoding(self, phantom::ContentDecoding)
 pub fn phantom::RequestBuilder::expect_continue(self, core::time::Duration) -> Self
 pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
 pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::query_pairs<I, K, V>(self, I) -> core::result::Result<Self, phantom::RequestError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
 pub fn phantom::RequestBuilder::retry_policy(self, phantom::RetryPolicy) -> Self
 pub fn phantom::RequestBuilder::route(self, phantom::Route) -> Self
 pub async fn phantom::RequestBuilder::send(self) -> core::result::Result<http::response::Response<phantom::ResponseBody>, phantom::RequestError>
@@ -703,6 +612,7 @@ pub fn phantom::RequestBuilder::streaming_body_with_trailers<B>(self, B, alloc::
 pub fn phantom::RequestBuilder::template(self, &phantom::PreparedRequestTemplate) -> Self
 pub fn phantom::RequestBuilder::timeouts(self, phantom::RequestTimeouts) -> Self
 pub fn phantom::RequestBuilder::trailers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::without_template(self) -> Self
 impl core::fmt::Debug for phantom::RequestBuilder
 pub fn phantom::RequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RequestError
@@ -747,6 +657,19 @@ pub const fn phantom::ResponseInfo::redirects_followed(&self) -> usize
 pub const fn phantom::ResponseInfo::retries_performed(&self) -> usize
 impl core::fmt::Debug for phantom::ResponseInfo
 pub fn phantom::ResponseInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::ResponseReadError
+impl phantom::ResponseReadError
+pub fn phantom::ResponseReadError::into_response(self) -> http::response::Response<()>
+pub const fn phantom::ResponseReadError::kind(&self) -> phantom::ResponseReadErrorKind
+pub const fn phantom::ResponseReadError::request_error(&self) -> core::option::Option<&phantom::RequestError>
+pub fn phantom::ResponseReadError::response(&self) -> &http::response::Response<()>
+pub fn phantom::ResponseReadError::response_mut(&mut self) -> &mut http::response::Response<()>
+impl core::error::Error for phantom::ResponseReadError
+pub fn phantom::ResponseReadError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::ResponseReadError
+pub fn phantom::ResponseReadError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::ResponseReadError
+pub fn phantom::ResponseReadError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::RetryPolicy
 impl phantom::RetryPolicy
 pub const fn phantom::RetryPolicy::connection_failures(core::num::nonzero::NonZeroUsize, core::time::Duration) -> Self
@@ -829,6 +752,17 @@ pub async fn phantom::SseStream::next_event(&mut self) -> core::result::Result<c
 pub const fn phantom::SseStream::retry_delay(&self) -> core::option::Option<core::time::Duration>
 impl core::fmt::Debug for phantom::SseStream
 pub fn phantom::SseStream::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::StatusError
+impl phantom::StatusError
+pub fn phantom::StatusError::into_response(self) -> http::response::Response<phantom::ResponseBody>
+pub fn phantom::StatusError::response(&self) -> &http::response::Response<phantom::ResponseBody>
+pub fn phantom::StatusError::response_mut(&mut self) -> &mut http::response::Response<phantom::ResponseBody>
+pub fn phantom::StatusError::status(&self) -> http::status::StatusCode
+impl core::error::Error for phantom::StatusError
+impl core::fmt::Debug for phantom::StatusError
+pub fn phantom::StatusError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::StatusError
+pub fn phantom::StatusError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::StatusRetry
 impl phantom::StatusRetry
 pub const fn phantom::StatusRetry::delay(self) -> core::time::Duration
@@ -909,3 +843,7 @@ pub const fn phantom::WebSocketRetryPolicy::connection_failures(core::num::nonze
 pub const fn phantom::WebSocketRetryPolicy::delay(self) -> core::time::Duration
 pub const fn phantom::WebSocketRetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
 pub const fn phantom::WebSocketRetryPolicy::none() -> Self
+pub fn phantom::error_for_status(http::response::Response<phantom::ResponseBody>) -> core::result::Result<http::response::Response<phantom::ResponseBody>, phantom::StatusError>
+pub async fn phantom::response_bytes(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<bytes::bytes::Bytes>, phantom::ResponseReadError>
+pub async fn phantom::response_json<T: serde_core::de::DeserializeOwned>(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<T>, phantom::ResponseReadError>
+pub async fn phantom::response_text(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<alloc::string::String>, phantom::ResponseReadError>
