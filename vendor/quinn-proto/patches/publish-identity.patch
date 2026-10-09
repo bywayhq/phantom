@@ -9,7 +9,7 @@ index 6b17692..0fa5229 100644
 -name = "quinn-proto"
 -version = "0.11.18"
 +name = "phantom-quinn-proto"
-+version = "0.11.18-phantom.2"
++version = "0.11.18-phantom.3"
  build = false
 +exclude = [
 +    ".cargo_vcs_info.json",

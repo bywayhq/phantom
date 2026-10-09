@@ -22,7 +22,7 @@ This directory is the complete crates.io source for `quinn-proto` version
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`quinn-proto` becomes `phantom-quinn-proto` at
-`0.11.18-phantom.2`), keeps the upstream library name so source, tests, and
+`0.11.18-phantom.3`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
@@ -36,6 +36,15 @@ root `[patch]` table is required. When refreshing, regenerate this patch after
 the source patches. Increase the `-phantom.N` suffix whenever the fork's
 content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
+
+## Provider startup errors
+
+`provider-startup-errors.patch` adds `ConnectError::CryptoProvider` for a
+cryptography provider that cannot start a session. Its static description
+names the operation or configuration failure without carrying native error
+stacks, credentials, ECH configuration bytes, or key material. Invalid server
+names and unsupported versions keep their existing categories. Initial packet
+key derivation still uses `InitialCrypto`.
 
 ## Why these patches exist
 

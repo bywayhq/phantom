@@ -28,7 +28,7 @@ patch renames the package and points its `proto` dependency at
 ## Publish identity
 
 `publish-identity.patch` renames the package to `phantom-quinn` at
-`0.11.12-phantom.2`, keeps the `quinn` library name, and points the repository
+`0.11.12-phantom.3`, keeps the `quinn` library name, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, records the upstream source
 under `[package.metadata.phantom]`. The standalone `Cargo.lock` is packaging

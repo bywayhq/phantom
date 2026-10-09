@@ -15,7 +15,7 @@ libfuzzer-sys = "=0.4.13"
 phantom = { package = "phantom-http", version = "=0.1.0", path = "../crates/phantom", features = ["cookies"] }
 phantom-net = { path = "../crates/phantom-net", features = ["https-records"] }
 phantom-testkit = { path = "../crates/phantom-testkit" }
-quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.2", path = "../vendor/quinn-proto", default-features = false }
+quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.3", path = "../vendor/quinn-proto", default-features = false }
 tokio = { version = "1.53.1", default-features = false, features = ["rt", "time"] }
 
 [[bin]]

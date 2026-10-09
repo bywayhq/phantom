@@ -20,9 +20,11 @@ use quinn_proto::{
 };
 use rustls_pki_types::DnsName;
 
-use super::callback_state::{EncryptionLevel, HandshakeChunk, SecretPair};
+use super::callback_state::{CallbackError, EncryptionLevel, HandshakeChunk, SecretPair};
 use super::client_session::{ClientSession, ClientSessionError};
-use super::quic_callbacks::{SessionDelivery, enable_session_delivery, session_delivery};
+use super::quic_callbacks::{
+    CallbackInstallError, SessionDelivery, enable_session_delivery, session_delivery,
+};
 use crate::ech::{EchOffer, EchOutcome};
 #[cfg(test)]
 use crate::key_schedule::TestDerivationFailure;
@@ -720,7 +722,7 @@ impl crypto::ClientConfig for QuicClientConfig {
         }
         state
             .collect_backend_state()
-            .map_err(|_| ConnectError::EndpointStopping)?;
+            .map_err(|error| error.into_connect(server_name))?;
         Ok(Box::new(QuicSession {
             state: Mutex::new(state),
         }))
@@ -1483,6 +1485,13 @@ pub(super) enum AdapterError {
 }
 
 impl AdapterError {
+    fn into_connect(self, server_name: &str) -> ConnectError {
+        match self {
+            Self::Backend(error) => map_start_error(server_name, error),
+            Self::Crypto => ConnectError::CryptoProvider("QUIC traffic key derivation"),
+        }
+    }
+
     fn into_transport(self, backend: &ClientSession) -> TransportError {
         match self {
             Self::Backend(error) => map_session_error(backend, error),
@@ -1614,12 +1623,78 @@ fn decode_peer_transport_parameters(
 }
 
 fn map_start_error(server_name: &str, error: ClientSessionError) -> ConnectError {
-    match error {
+    let reason = match error {
         ClientSessionError::InvalidServerName => {
-            ConnectError::InvalidServerName(server_name.into())
+            return ConnectError::InvalidServerName(server_name.into());
         }
-        _ => ConnectError::EndpointStopping,
-    }
+        ClientSessionError::MissingTransportParameters => {
+            return ConnectError::InvalidTransportParameters(
+                "missing QUIC transport parameters".into(),
+            );
+        }
+        ClientSessionError::TransportParametersTooLong { len } => {
+            return ConnectError::InvalidTransportParameters(format!(
+                "QUIC transport parameters exceed the TLS limit: {len} bytes"
+            ));
+        }
+        ClientSessionError::BackendFailure(operation)
+        | ClientSessionError::TlsFailure { operation, .. } => operation,
+        ClientSessionError::X509ContextRequired => "X.509 context required",
+        ClientSessionError::PeerVerificationDisabled => "peer verification disabled",
+        ClientSessionError::CallbackInstall(error) => match error {
+            CallbackInstallError::ExDataIndexAllocation => "QUIC callback index allocation",
+            CallbackInstallError::StateAllocation => "QUIC callback state allocation",
+            CallbackInstallError::AlreadyInstalled => "QUIC callbacks already installed",
+            CallbackInstallError::MethodInstallation => "QUIC callback method installation",
+            CallbackInstallError::StateInstallation => "QUIC callback state installation",
+        },
+        ClientSessionError::Callback(error) => match error {
+            CallbackError::NullCipher => "QUIC callback omitted cipher",
+            CallbackError::NullInput { .. } => "QUIC callback supplied null input",
+            CallbackError::UnsupportedEncryptionLevel { .. } => {
+                "QUIC callback supplied unsupported encryption level"
+            }
+            CallbackError::EarlyDataUnsupported => "QUIC early data unsupported",
+            CallbackError::DuplicateEarlySecret => "QUIC callback repeated early secret",
+            CallbackError::SecretAtInitialLevel => "QUIC callback supplied Initial secret",
+            CallbackError::UnsupportedCipherSuite { .. } => {
+                "QUIC callback supplied unsupported cipher suite"
+            }
+            CallbackError::InvalidSecretLength { .. } => {
+                "QUIC callback supplied invalid secret length"
+            }
+            CallbackError::DuplicateSecret { .. } => "QUIC callback repeated traffic secret",
+            CallbackError::MismatchedCipherSuite { .. } => {
+                "QUIC callback supplied mismatched ciphers"
+            }
+            CallbackError::InvalidFlightLimit { .. } => "QUIC callback flight limit invalid",
+            CallbackError::HandshakeDataTooLarge { .. } => {
+                "QUIC callback exceeded handshake data limit"
+            }
+            CallbackError::AllocationFailed => "QUIC callback allocation",
+            CallbackError::CallbackPanicked => "QUIC callback panicked",
+        },
+        ClientSessionError::UnexpectedProtocolVersion { .. } => {
+            "TLS negotiated unsupported version"
+        }
+        ClientSessionError::PeerVerificationFailed => "TLS peer verification failed",
+        ClientSessionError::AlpnNotNegotiated => "TLS did not negotiate h3",
+        ClientSessionError::PeerApplicationSettingsBeforeHandshake => {
+            "TLS application settings before handshake completion"
+        }
+        ClientSessionError::ResumptionAttempted => "TLS resumed without an offered session",
+        ClientSessionError::EarlyDataActive => "TLS early data active",
+        ClientSessionError::InvalidPeerTransportParameters => {
+            "TLS peer transport parameters invalid"
+        }
+        ClientSessionError::MissingPeerIdentity => "TLS peer identity missing",
+        ClientSessionError::PeerIdentityTooLarge => "TLS peer identity exceeds limit",
+        ClientSessionError::ExportBeforeHandshake => "TLS exporter before handshake completion",
+        ClientSessionError::AllocationFailed => "TLS provider allocation",
+        ClientSessionError::InvalidEchConfigList => "invalid ECH configuration list",
+        ClientSessionError::EchRejected { .. } => "TLS peer rejected ECH",
+    };
+    ConnectError::CryptoProvider(reason)
 }
 
 fn map_session_error(backend: &ClientSession, error: ClientSessionError) -> TransportError {
