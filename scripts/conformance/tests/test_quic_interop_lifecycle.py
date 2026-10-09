@@ -588,3 +588,86 @@ class QuicInteropLifecycleTests(unittest.TestCase):
         self.assertEqual(control.restores, [])
         self.assertIsNone(summary)
         self.assertFalse((control.root / "reports").exists())
+
+    def test_log_inspection_failure_retains_primary_and_finishes_other_cleanup(self):
+        control = self.fixture("timeout")
+        original_exists = Path.exists
+
+        def denied_log_inspection(path):
+            if path.name == "runner-output.log":
+                raise PermissionError("controlled log inspection failure")
+            return original_exists(path)
+
+        with mock.patch.object(Path, "exists", denied_log_inspection):
+            error, summary = control.invoke()
+
+        self.assertIsNotNone(summary)
+        self.assertEqual(summary["status"], "failed")
+        self.assertIn("timed out", json.dumps(summary))
+        self.assertIn("controlled log inspection failure", json.dumps(summary))
+        self.assertIs(error.__cause__, control.primary)
+        self.assertTrue(
+            any(isinstance(cause, PermissionError) for _, cause in error.failures)
+        )
+        self.assert_safe_finish(control)
+        for name, content in control.original.items():
+            self.assertEqual((control.runner / name).read_bytes(), content)
+
+        owner_scratch = control.scratch[0]
+        self.assertTrue(owner_scratch.exists())
+        self.assertIn(str(owner_scratch), summary["retained_paths"])
+        self.assertIn(owner_scratch, error.retained_paths)
+        for name, content in control.original.items():
+            self.assertEqual((owner_scratch / "originals" / name).read_bytes(), content)
+
+    def test_main_cleanup_failure_keeps_all_previously_retained_recovery_paths(self):
+        control = self.fixture("timeout")
+        control.cleanup_failure = True
+        original_remove = quic_interop.shutil.rmtree
+        original_report = quic_interop._report_failure
+        reported = []
+        checkout_cleanup_attempts = []
+
+        def denied_checkout_cleanup(path, *args, **kwargs):
+            if control.scratch and Path(path) == control.scratch[0]:
+                checkout_cleanup_attempts.append(Path(path))
+                raise PermissionError("controlled temporary checkout cleanup failure")
+            return original_remove(path, *args, **kwargs)
+
+        def observe_failure_report(*args, **kwargs):
+            failure = original_report(*args, **kwargs)
+            reported.append(failure)
+            return failure
+
+        with (
+            mock.patch.object(quic_interop.shutil, "rmtree", denied_checkout_cleanup),
+            mock.patch.object(quic_interop, "_report_failure", observe_failure_report),
+        ):
+            error, summary = control.invoke("checkout")
+
+        self.assertIsInstance(error, SystemExit)
+        self.assertEqual(error.code, 2)
+        self.assertEqual(control.launches, 1)
+        self.assertFalse(control.active_process)
+        self.assertEqual(len(control.scratch), 2)
+        checkout, owner_scratch = control.scratch
+        self.assertEqual(checkout_cleanup_attempts, [checkout])
+        self.assertEqual(len(reported), 2)
+        self.assertEqual(set(control.restores), set(control.original))
+        self.assertNotIn("unsafe_restore", control.events)
+
+        self.assertEqual(summary["status"], "failed")
+        self.assertIn("timed out", json.dumps(summary))
+        self.assertIn("controlled cleanup failure", json.dumps(summary))
+        self.assertIn(
+            "controlled temporary checkout cleanup failure", json.dumps(summary)
+        )
+        self.assertEqual(
+            set(summary["retained_paths"]), {str(checkout), str(owner_scratch)}
+        )
+        self.assertEqual(set(reported[-1].retained_paths), {checkout, owner_scratch})
+        self.assertIs(reported[-1].__cause__, control.primary)
+        self.assertTrue(all(path.exists() for path in control.scratch))
+        for name, content in control.original.items():
+            self.assertEqual((control.runner / name).read_bytes(), content)
+            self.assertEqual((owner_scratch / "originals" / name).read_bytes(), content)
