@@ -831,6 +831,7 @@ fn decode_capsule(input: &[u8]) -> Option<(u64, Vec<u8>, usize)> {
 }
 
 #[cfg(test)]
+#[path = "masque/h3_ownership_controls.rs"]
 mod h3_ownership_controls;
 
 #[cfg(test)]
