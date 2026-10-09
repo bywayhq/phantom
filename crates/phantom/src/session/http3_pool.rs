@@ -859,8 +859,9 @@ impl PoolEntry {
                 )));
             }
         };
-        connector
-            .connect(datagrams, endpoint.host())
+        // End the connector's nested I/O `Send` proof before pool setup adds
+        // its attempt-limit and ticket-retry futures; see `box_send`.
+        super::box_send(connector.connect(datagrams, endpoint.host()))
             .await
             .map_err(|error| {
                 if matches!(route, Route::ConnectUdp(_)) {
