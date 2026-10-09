@@ -65,6 +65,15 @@ const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 ///
 /// Start with [`Self::default`] and set the fields needed for this call.
 /// These choices do not change the supplied QUIC or HTTP/3 profile.
+///
+/// ```
+/// use bytes::Bytes;
+/// use phantom_net::http3::{Http3SendOptions, RequestHeader};
+///
+/// let mut options = Http3SendOptions::default();
+/// options.body = Some(Bytes::from_static(b"payload"));
+/// options.trailers.push(RequestHeader::new("x-checksum", "example"));
+/// ```
 #[derive(Default)]
 #[non_exhaustive]
 pub struct Http3SendOptions {

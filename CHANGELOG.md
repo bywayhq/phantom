@@ -36,6 +36,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and request authorities separate. Connection-based HTTP/2 and HTTP/3
   WebSocket operations remain available.
 
+- Remove the raw HTTP/1.1 and HTTP/2 one-shot free functions. Migrate:
+  replace `http1::send_get`, `send_request`, `send_request_body`,
+  `send_request_body_with_trailers`, `send_forward_request`,
+  `send_forward_request_body`, and `send_forward_request_body_with_trailers`,
+  and `http2::send_get`, `send_request`, `send_request_with_trailers`,
+  `send_request_body`, and `send_request_body_with_trailers` with protocol
+  connector operations. For supplied raw or already secured streams, use
+  `Http1Connection::connect` or `Http2Connection::connect`, then their request
+  methods. Validate input before opening when needed. Drop the connection
+  handle after dispatch to retain one-shot ownership.
 - Remove endpoint-only proxy setup helpers from `phantom-net`'s public API.
   Migrate: replace `connect_http_tunnel_direct[_with_basic_auth]` and
   `connect_socks5_tunnel_{direct,local}[_with_auth]` with protocol connector

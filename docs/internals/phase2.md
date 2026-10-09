@@ -31,13 +31,12 @@ validation and cancellation tests. Redundant public setup helpers are being
 removed; reusable raw-stream operations and the CONNECT parsing seam remain.
 No route item is complete until integration passes.
 
-Checkpoint `e5558486` passed workspace Clippy with all targets and features.
-The earlier `c8544893` checkpoint passed 341 focused tests covering HTTP/3,
-route legs, DNS ownership, source binding, WebSockets, and setup future size.
-Before the final protocol migrations, `0a513cdc` passed formatting, workspace
-Clippy, and 623 focused tests. These results cover their named checkpoints;
-the combined runtime checks, downstream checks, full gate, and CI remain
-required.
+Checkpoint `e5558486` passed workspace Clippy and 1,295 selected transport,
+proxy, and WebSocket tests. The later `199a0ae8` checkpoint passed workspace
+Clippy after the proxy and raw HTTP/3 cleanup. Independent review approved
+those changes and the subsequent raw HTTP/1.1 and HTTP/2 cleanup. These results
+cover their named checkpoints; combined runtime checks, downstream checks,
+the full gate, and CI remain required.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
