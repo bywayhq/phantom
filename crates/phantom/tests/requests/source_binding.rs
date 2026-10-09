@@ -8,14 +8,15 @@ use std::{
 };
 
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, HttpProxy, RequestError, RequestErrorKind, Route,
-    Socks5Proxy,
+    BuildErrorKind, Client, ConnectUdpProxy, HttpProtocol, HttpProxy, RequestError,
+    RequestErrorKind, Route, Socks5Proxy,
     profile::{ClientProfile, chromium},
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
 use crate::support::{
-    h3 as h3_support, socks5_udp::forward_one_socks5_udp_associate, tls as tls_support,
+    h3 as h3_support, masque::masque_client_settings, socks5_udp::forward_one_socks5_udp_associate,
+    tls as tls_support,
 };
 use tls_support::{TestIdentity, TestResult, read_head};
 
@@ -169,7 +170,7 @@ async fn proxy_connections_use_the_binding() -> TestResult<()> {
     let proxy = listener.local_addr()?;
     let routes = [
         Route::http_proxy(HttpProxy::new(&format!("http://{proxy}"))?),
-        Route::http_proxy(HttpProxy::new(&format!("http://{proxy}"))?),
+        Route::http_proxy(HttpProxy::new(&format!("https://{proxy}"))?),
         Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy}"))?),
     ];
     for route in routes {
@@ -193,6 +194,144 @@ async fn proxy_connections_use_the_binding() -> TestResult<()> {
     }
     assert!(
         timeout(NO_CONNECTION_WINDOW, listener.accept())
+            .await
+            .is_err()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn connect_udp_tcp_proxy_legs_leave_from_the_bound_address() -> TestResult<()> {
+    let source = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
+    if phantom_testkit::udp::bind((source, 0).into()).is_err() {
+        eprintln!("skipped: 127.0.0.2 is not a local address on this host");
+        return Ok(());
+    }
+    let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
+    let address = listener.local_addr()?;
+    let proxy = ConnectUdpProxy::new(&format!(
+        "https://{address}/udp/{{target_host}}/{{target_port}}/"
+    ))?;
+    for proxy in [
+        proxy.clone().with_http1_transport(),
+        proxy.with_http2_transport(),
+    ] {
+        let client = Client::builder(
+            profile()
+                .with_http2(chromium::v154_http2())
+                .with_http3(masque_client_settings()),
+        )
+        .local_address(source)
+        .route(Route::connect_udp(proxy))
+        .build()?;
+        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:443/")?;
+        let peer = timeout(TEST_TIMEOUT, async {
+            tokio::select! {
+                accepted = listener.accept() => {
+                    let (_stream, peer) = accepted?;
+                    Ok::<_, Box<dyn Error + Send + Sync>>(peer)
+                }
+                result = request.send() => {
+                    result?;
+                    Err("request finished before the proxy accepted its connection".into())
+                }
+            }
+        })
+        .await??;
+        assert_eq!(peer.ip(), source);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn connect_udp_http3_proxy_leg_leaves_from_the_bound_address() -> TestResult<()> {
+    let source = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
+    if phantom_testkit::udp::bind((source, 0).into()).is_err() {
+        eprintln!("skipped: 127.0.0.2 is not a local address on this host");
+        return Ok(());
+    }
+    let identity = TestIdentity::generate()?;
+    let (address, endpoint) = h3_support::server_endpoint(&identity)?;
+    let client = Client::builder(profile().with_http3(masque_client_settings()))
+        .add_proxy_root_certificate_der(identity.root_der.clone())
+        .local_address(source)
+        .route(Route::connect_udp(ConnectUdpProxy::new(&format!(
+            "https://{address}/udp/{{target_host}}/{{target_port}}/"
+        ))?))
+        .build()?;
+    let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:443/")?;
+    let peer = timeout(TEST_TIMEOUT, async {
+        tokio::select! {
+            incoming = endpoint.accept() => {
+                let incoming = incoming.ok_or("test endpoint closed")?;
+                let peer = incoming.remote_address();
+                incoming.refuse();
+                Ok::<_, Box<dyn Error + Send + Sync>>(peer)
+            }
+            result = request.send() => {
+                result?;
+                Err("request finished before the proxy received its Initial".into())
+            }
+        }
+    })
+    .await??;
+    assert_eq!(peer.ip(), source);
+    Ok(())
+}
+
+#[tokio::test]
+async fn connect_udp_proxy_legs_without_the_bound_family_fail_before_io() -> TestResult<()> {
+    let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
+    let tcp_address = listener.local_addr()?;
+    let identity = TestIdentity::generate()?;
+    let (quic_address, endpoint) = h3_support::server_endpoint(&identity)?;
+    let tcp_proxy = ConnectUdpProxy::new(&format!(
+        "https://{tcp_address}/udp/{{target_host}}/{{target_port}}/"
+    ))?;
+    let proxies = [
+        tcp_proxy.clone().with_http1_transport(),
+        tcp_proxy.with_http2_transport(),
+        ConnectUdpProxy::new(&format!(
+            "https://{quic_address}/udp/{{target_host}}/{{target_port}}/"
+        ))?,
+    ];
+    for proxy in proxies {
+        let client = Client::builder(
+            profile()
+                .with_http2(chromium::v154_http2())
+                .with_http3(masque_client_settings()),
+        )
+        .add_proxy_root_certificate_der(identity.root_der.clone())
+        .local_address(IPV6_LOOPBACK)
+        .route(Route::connect_udp(proxy))
+        .build()?;
+        // The origin matches the binding's family. Only the outer proxy
+        // needs an IPv4 connection.
+        let error = match timeout(
+            TEST_TIMEOUT,
+            client
+                .get(HttpProtocol::Http3, "https://[::1]:443/")?
+                .send(),
+        )
+        .await?
+        {
+            Ok(_) => return Err("an IPv6-bound client reached an IPv4 CONNECT-UDP proxy".into()),
+            Err(error) => error,
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Proxy, "{error}");
+        assert_eq!(
+            io_error_kind(&error),
+            Some(io::ErrorKind::AddrNotAvailable),
+            "{error}"
+        );
+    }
+    assert!(
+        timeout(NO_CONNECTION_WINDOW, listener.accept())
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(NO_CONNECTION_WINDOW, endpoint.accept())
             .await
             .is_err()
     );
