@@ -106,6 +106,7 @@ the original server.
 ## Limits
 
 - A CONNECT-UDP route retries only failures to reach the proxy.
+- Its target port must be between 1 and 65535.
 - Each connection to a server opens its own connection to a CONNECT-UDP
   proxy.
 

@@ -2450,6 +2450,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject CONNECT-UDP target port zero with `InvalidTarget` before connecting
+  to the proxy, on every proxy protocol. Ports 1 through 65535 remain valid.
+
 - Correct H3 vendor notes and the roadmap's server header-limit claim.
   Real peer-settings tests verify the existing response and trailer checks,
   including sections exactly at the limit.

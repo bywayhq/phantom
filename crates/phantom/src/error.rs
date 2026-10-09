@@ -839,6 +839,20 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn invalid_connect_udp_target(source: crate::route::ConnectUdpTargetError) -> Self {
+        match source {
+            crate::route::ConnectUdpTargetError::ZeroPort => Self::with_source(
+                RequestErrorKind::InvalidTarget,
+                None,
+                "connect-udp target port must be nonzero",
+                source,
+            ),
+            crate::route::ConnectUdpTargetError::InvalidOriginForm(source) => {
+                Self::invalid_target(source)
+            }
+        }
+    }
+
     pub(crate) fn invalid_absolute_target(
         source: phantom_net::request::InvalidAbsoluteForm,
     ) -> Self {
@@ -1546,6 +1560,38 @@ mod tests {
 
     fn io_error() -> std::io::Error {
         std::io::Error::other("test connection failure")
+    }
+
+    #[test]
+    fn zero_connect_udp_port_keeps_its_typed_cause() {
+        let error =
+            RequestError::invalid_connect_udp_target(crate::route::ConnectUdpTargetError::ZeroPort);
+
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTarget);
+        assert_eq!(error.to_string(), "connect-udp target port must be nonzero");
+        let cause = std::error::Error::source(&error)
+            .and_then(|cause| cause.downcast_ref::<crate::route::ConnectUdpTargetError>());
+        assert!(matches!(
+            cause,
+            Some(crate::route::ConnectUdpTargetError::ZeroPort)
+        ));
+    }
+
+    #[test]
+    fn invalid_connect_udp_origin_form_preserves_the_existing_cause() {
+        let error = RequestError::invalid_connect_udp_target(
+            crate::route::ConnectUdpTargetError::InvalidOriginForm(
+                phantom_net::request::InvalidOriginForm,
+            ),
+        );
+
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTarget);
+        assert_eq!(error.to_string(), "invalid request target");
+        assert!(
+            std::error::Error::source(&error)
+                .and_then(|cause| cause.downcast_ref::<phantom_net::request::InvalidOriginForm>())
+                .is_some()
+        );
     }
 
     #[test]
