@@ -39,10 +39,9 @@ pub enum BuildErrorKind {
 
 /// Error returned while constructing a [`crate::Client`].
 ///
-/// [`Self::kind`] gives the stable category. The `Display` text and the
-/// [`source`](std::error::Error::source) chain describe the exact cause and may change
-/// between releases.
-#[derive(Debug)]
+/// [`Self::kind`] gives the stable category. Formatting omits the underlying
+/// cause. Inspect [`source`](std::error::Error::source) for its typed details;
+/// a cause may contain sensitive input.
 pub struct BuildError {
     kind: BuildErrorKind,
     message: &'static str,
@@ -244,11 +243,18 @@ impl BuildError {
 
 impl fmt::Display for BuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.message)?;
-        if let Some(source) = &self.source {
-            write!(formatter, ": {source}")?;
-        }
-        Ok(())
+        formatter.write_str(self.message)
+    }
+}
+
+impl fmt::Debug for BuildError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("BuildError")
+            .field("kind", &self.kind)
+            .field("message", &self.message)
+            .field("has_source", &self.source.is_some())
+            .finish()
     }
 }
 
@@ -1475,6 +1481,22 @@ mod tests {
 
     fn io_error() -> std::io::Error {
         std::io::Error::other("test connection failure")
+    }
+
+    #[test]
+    fn build_formatting_keeps_typed_sources_out_of_automatic_output() {
+        let sentinel = "private-build-source-path-query";
+        let error = super::BuildError::with_source(
+            super::BuildErrorKind::TrustStore,
+            "trust store failed",
+            std::io::Error::other(sentinel),
+        );
+        assert_eq!(error.to_string(), "trust store failed");
+        assert!(!format!("{error:?}").contains(sentinel));
+        let cause = std::error::Error::source(&error)
+            .and_then(|cause| cause.downcast_ref::<std::io::Error>());
+        assert_eq!(cause.map(ToString::to_string).as_deref(), Some(sentinel));
+        assert_eq!(error.kind(), super::BuildErrorKind::TrustStore);
     }
 
     #[test]

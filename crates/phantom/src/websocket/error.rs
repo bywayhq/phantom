@@ -65,6 +65,9 @@ pub enum WebSocketErrorKind {
 }
 
 /// Error returned by WebSocket connection and message operations.
+///
+/// Formatting omits underlying causes. Inspect [`StdError::source`] for typed
+/// details; a cause or rejecting response may contain sensitive input.
 pub struct WebSocketError {
     kind: WebSocketErrorKind,
     message: &'static str,
@@ -311,9 +314,6 @@ impl fmt::Debug for WebSocketError {
 impl fmt::Display for WebSocketError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.message)?;
-        if let Some(source) = &self.source {
-            write!(formatter, ": {source}")?;
-        }
         if let Some(response) = &self.response {
             write!(formatter, ": HTTP {}", response.status())?;
         }
@@ -348,4 +348,51 @@ pub(super) fn refused_extended_connect_stream(error: &Http2TlsError) -> bool {
                 && protocol.kind() == Http2ProtocolErrorKind::StreamReset
                 && protocol.reason_code() == Some(REFUSED_STREAM)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{StdError, WebSocketError, WebSocketErrorKind};
+    use crate::{RequestError, TimeoutPhase};
+
+    #[test]
+    fn formatting_omits_sources_and_keeps_their_original_type() {
+        let sentinel = "private-websocket-source-query-body";
+        let error = WebSocketError::with_source(
+            WebSocketErrorKind::Io,
+            "WebSocket operation failed",
+            std::io::Error::other(sentinel),
+        );
+        assert_eq!(error.to_string(), "WebSocket operation failed");
+        assert!(!format!("{error:?}").contains(sentinel));
+        let cause = error
+            .source()
+            .and_then(|cause| cause.downcast_ref::<std::io::Error>());
+        assert_eq!(cause.map(ToString::to_string).as_deref(), Some(sentinel));
+        assert!(!error.is_retryable_connection_setup());
+    }
+
+    #[test]
+    fn safe_formatting_preserves_timeout_and_setup_retry_observations() {
+        let setup = RequestError::http1_connection_setup(
+            phantom_net::http1::Http1TlsError::Connect(std::io::Error::other("private-peer")),
+        );
+        let error = WebSocketError::request(setup);
+        assert!(error.is_retryable_connection_setup());
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<RequestError>())
+        );
+        assert!(!error.to_string().contains("private-peer"));
+        let timed_out = WebSocketError::request(RequestError::timeout(
+            TimeoutPhase::WebSocketHandshake,
+            Some(crate::HttpProtocol::Http1),
+        ));
+        assert_eq!(
+            timed_out.timeout_phase(),
+            Some(TimeoutPhase::WebSocketHandshake)
+        );
+        assert!(!timed_out.is_retryable_connection_setup());
+    }
 }
