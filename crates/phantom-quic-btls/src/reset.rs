@@ -13,6 +13,17 @@ use crate::{CryptoError, Result};
 ///
 /// The fixed 256-bit key supplies the full security strength of HMAC-SHA-256.
 /// Key material is redacted from formatting and zeroized when the key drops.
+///
+/// ```
+/// # fn main() -> Result<(), phantom_quic_btls::CryptoError> {
+/// use phantom_quic_btls::StatelessResetKey;
+/// let key = StatelessResetKey::generate()?;
+/// let mut signature = [0; StatelessResetKey::SIGNATURE_LEN];
+/// key.sign(b"connection-id", &mut signature)?;
+/// key.verify(b"connection-id", &signature)?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct StatelessResetKey {
     key: Secret<SHA256_LEN>,
 }
@@ -25,6 +36,11 @@ impl StatelessResetKey {
     pub const SIGNATURE_LEN: usize = SHA256_LEN;
 
     /// Constructs a reset key from exactly 256 bits of caller-supplied key material.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CryptoError::InvalidKeyLength`] unless `key` has exactly
+    /// [`Self::KEY_LEN`] bytes. See [`StatelessResetKey`] for a signing example.
     pub fn from_bytes(key: &[u8]) -> Result<Self> {
         Ok(Self {
             key: Secret::copy_from_slice(key)?,
@@ -32,6 +48,10 @@ impl StatelessResetKey {
     }
 
     /// Generates a reset key with BoringSSL's operating-system-seeded CSPRNG.
+    ///
+    /// # Errors
+    ///
+    /// Returns the backend randomness error when key generation fails.
     pub fn generate() -> Result<Self> {
         let mut key = Secret::zeroed();
         backend::random_bytes(key.as_mut_slice())?;
@@ -39,6 +59,12 @@ impl StatelessResetKey {
     }
 
     /// Signs `data` into an exactly sized HMAC-SHA-256 output buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CryptoError::InvalidSignatureLength`] and zeroes the output
+    /// when its length differs from [`Self::SIGNATURE_LEN`]. Otherwise returns
+    /// a backend HMAC error. See [`StatelessResetKey`] for an example.
     pub fn sign(&self, data: &[u8], signature_out: &mut [u8]) -> Result<()> {
         if signature_out.len() != Self::SIGNATURE_LEN {
             signature_out.fill(0);
@@ -59,6 +85,12 @@ impl StatelessResetKey {
     }
 
     /// Verifies a complete HMAC-SHA-256 signature in constant time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CryptoError::InvalidSignatureLength`] for a wrong-sized
+    /// signature, [`CryptoError::SignatureMismatch`] when it does not match,
+    /// or a backend HMAC error. See [`StatelessResetKey`] for an example.
     pub fn verify(&self, data: &[u8], signature: &[u8]) -> Result<()> {
         if signature.len() != Self::SIGNATURE_LEN {
             return Err(CryptoError::InvalidSignatureLength {

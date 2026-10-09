@@ -56,6 +56,10 @@ impl NssKeyLogLine {
     ///
     /// This is the only operation that exposes the line contents. Call it only
     /// with a destination whose confidentiality matches that of live TLS keys.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's I/O error. A failed write may leave a partial line.
     pub fn write_nss(&self, writer: &mut impl Write) -> io::Result<()> {
         writer.write_all(&self.bytes[..self.len])?;
         writer.write_all(b"\n")
@@ -85,6 +89,19 @@ impl Drop for NssKeyLogLine {
 ///
 /// BoringSSL's callback never waits for this receiver. A line that cannot be
 /// queued immediately is discarded and included in [`Self::dropped_line_count`].
+///
+/// ```
+/// # fn main() -> Result<(), std::io::Error> {
+/// use std::num::NonZeroUsize;
+/// use phantom_quic_btls::nss_key_log_channel;
+/// let (sender, receiver) = nss_key_log_channel(NonZeroUsize::MIN);
+/// let mut destination = Vec::new();
+/// assert_eq!(receiver.write_pending_nss(&mut destination)?, 0);
+/// drop(sender);
+/// assert!(receiver.try_recv().is_err());
+/// # Ok(())
+/// # }
+/// ```
 pub struct NssKeyLogReceiver {
     receiver: Receiver<NssKeyLogLine>,
     dropped_lines: Arc<AtomicUsize>,
@@ -92,6 +109,11 @@ pub struct NssKeyLogReceiver {
 
 impl NssKeyLogReceiver {
     /// Attempts to receive one key-log line without waiting.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TryRecvError::Empty`] when the queue is empty and has a sender,
+    /// or [`TryRecvError::Disconnected`] when it is empty and all senders dropped.
     pub fn try_recv(&self) -> Result<NssKeyLogLine, TryRecvError> {
         self.receiver.try_recv()
     }
@@ -106,6 +128,11 @@ impl NssKeyLogReceiver {
     ///
     /// The supplied writer may itself block. It is used only by this explicit
     /// consumer-side operation and is never called from BoringSSL's callback.
+    ///
+    /// # Errors
+    ///
+    /// Returns the writer's I/O error. Already dequeued lines remain consumed,
+    /// including a partially written failing line; they are not queued again.
     pub fn write_pending_nss(&self, writer: &mut impl Write) -> io::Result<usize> {
         let mut written = 0usize;
         loop {

@@ -48,6 +48,39 @@ const H3_PROTOCOL: &[u8] = b"h3";
 /// `session_tickets` and it was produced by
 /// [`Self::with_isolated_session_cache`]; see that method for the isolation
 /// contract.
+///
+/// Configure trust and context controls before wrapping the context. This
+/// example applies the supported per-session and transport settings; context
+/// cipher suites and extension settings remain your responsibility.
+///
+/// ```no_run
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use std::sync::Arc;
+/// use btls::ssl::{SslContextBuilder, SslMethod, SslVerifyMode, SslVersion};
+/// use phantom_profile::browser::chrome;
+/// use phantom_quic_btls::QuicClientConfig;
+/// use quinn_proto::{ClientConfig, EndpointConfig, TransportConfig};
+///
+/// let mut context = SslContextBuilder::new(SslMethod::tls_client())?;
+/// context.set_verify(SslVerifyMode::PEER);
+/// context.set_default_verify_paths()?;
+/// context.set_min_proto_version(Some(SslVersion::TLS1_3))?;
+/// context.set_max_proto_version(Some(SslVersion::TLS1_3))?;
+/// context.set_alpn_protos(b"\x02h3")?;
+/// QuicClientConfig::enable_session_resumption(&mut context)?;
+/// let crypto = QuicClientConfig::with_transport_profile(
+///     context.build(), chrome::v154_quic(),
+/// )?.with_tls_profile(&chrome::v154_quic_tls())?
+///     .with_isolated_session_cache();
+/// let mut endpoint = EndpointConfig::default();
+/// let mut transport = TransportConfig::default();
+/// crypto.configure_transport(&mut endpoint, &mut transport)?;
+/// crypto.configure_path(&mut transport, "127.0.0.1".parse()?)?;
+/// let mut client = ClientConfig::new(Arc::new(crypto));
+/// client.transport_config(Arc::new(transport));
+/// # Ok(())
+/// # }
+/// ```
 pub struct QuicClientConfig {
     context: SslContext,
     transport_profile: Option<TransportParameterProfile>,
@@ -92,6 +125,11 @@ impl QuicClientConfig {
     ///
     /// The configuration offers early data on resumption when the profile
     /// sets `early_data`, as if [`Self::with_early_data`] had been called.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuicTransportProfileError`] for invalid settings or controls
+    /// that Quinn cannot represent. The context is not used for a handshake.
     pub fn with_transport_profile(
         context: SslContext,
         settings: QuicTransportSettings,
@@ -118,8 +156,11 @@ impl QuicClientConfig {
     /// sets `session_tickets`. It changes nothing in a ClientHello that
     /// offers no ticket.
     ///
-    /// A context has a single new-session callback. When the builder already
-    /// has one that this crate did not install, for example from
+    /// A context has a single new-session callback.
+    ///
+    /// # Errors
+    ///
+    /// If the context has a foreign callback installed through
     /// `SslContextBuilder::set_new_session_callback`, this returns an error
     /// of kind [`QuicTlsProfileErrorKind::ContextConflict`] and leaves the
     /// builder unchanged. Calling it again on a prepared builder succeeds.
@@ -147,6 +188,13 @@ impl QuicClientConfig {
     /// order, drawn uniformly from its orders, in every session's
     /// ClientHello. A fixed or per-client list is a context setting, which
     /// this method leaves to the context.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuicTlsProfileError`] for invalid or unsupported TLS controls,
+    /// including versions other than TLS 1.3, ALPN other than `h3`, or nonempty
+    /// local ALPS. Ticket-enabled settings require a context prepared by
+    /// [`Self::enable_session_resumption`] with its callback still installed.
     pub fn with_tls_profile(mut self, settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         let profile = ClientTlsProfile::new(settings)?;
         if profile.session_tickets {
@@ -364,11 +412,21 @@ impl QuicClientConfig {
     }
 
     /// Validates TLS controls without constructing a QUIC session.
+    ///
+    /// # Errors
+    ///
+    /// Returns the invalid-profile or unsupported-setting category described
+    /// by [`Self::with_tls_profile`]. It does not check a context's callbacks.
     pub fn validate_tls_profile(settings: &TlsSettings) -> Result<(), QuicTlsProfileError> {
         ClientTlsProfile::new(settings).map(|_| ())
     }
 
     /// Validates a DNS name or IP literal before endpoint construction.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidServerName`] for an invalid DNS name, including an
+    /// underscore or trailing dot. IPv4 and IPv6 literals are accepted.
     pub fn validate_server_name(server_name: &str) -> Result<(), InvalidServerName> {
         validate_server_name_inner(server_name)
     }
@@ -382,6 +440,11 @@ impl QuicClientConfig {
     /// Applies this profile's semantic settings to Quinn.
     ///
     /// The stock configuration created by [`Self::new`] leaves both values unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuicTransportProfileError`] when a retained setting cannot
+    /// be represented by Quinn. Earlier applied fields may remain changed.
     pub fn configure_transport(
         &self,
         endpoint: &mut EndpointConfig,
@@ -398,6 +461,11 @@ impl QuicClientConfig {
     ///
     /// Call it after [`Self::configure_transport`] on the transport of an
     /// endpoint that connects to `remote`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuicTransportProfileError`] when the initial MTU cannot hold
+    /// the peer address family's headers, or its payload does not fit Quinn.
     pub fn configure_path(
         &self,
         transport: &mut TransportConfig,

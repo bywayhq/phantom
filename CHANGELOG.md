@@ -16,15 +16,27 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Allow transport enums to grow and retire unused validator wrappers.
   Migrate: keep a fallback arm when matching public `phantom-net` enums.
-  Validate bodies with the retained source-body validators or protocol
-  operations. Inspect `kind()` on HTTP/1.1 and HTTP/2 errors and TLS errors
-  for a stable category; their typed source chains remain available.
+  Replace `http1::validate_request_body` and `_with_trailers` with
+  `http1::validate_request_body_source_with_trailers`. Replace
+  `http1::validate_forward_request`, `_body`, and `_body_with_trailers` with
+  `http1::validate_forward_request_body_source_with_trailers`. Replace
+  `http2::validate_request_body` and `_with_trailers` with
+  `http2::validate_request_body_source_with_trailers`; validate extended
+  CONNECT through connector operations instead of
+  `http2::validate_extended_connect` and `_settings`. Inspect `kind()` on
+  HTTP/1.1 and HTTP/2 errors and TLS errors for a stable category; their
+  typed source chains remain available.
 
 - Replace boolean URL trust selectors with `UrlTrust`. Migrate: pass
   `UrlTrust::PotentiallyTrustworthy` or `UrlTrust::Untrustworthy` to
   `RequestField::default_value` and `WebSocketField::default_value`.
   Profile validation errors now expose `ValidationErrorKind` through
   `kind()`. Field names and reasons remain diagnostic details.
+
+- Keep transport wrapper causes out of `Display`. Migrate: use
+  `std::error::Error::source` to inspect or report the original causes of
+  HTTP connection, TLS, proxy, and protocol errors. Their categories and
+  source chains are unchanged.
 
 - Check required request-template slots only on reachable protocols. Migrate:
   supply fields required by the selected protocol, negotiated protocols, and

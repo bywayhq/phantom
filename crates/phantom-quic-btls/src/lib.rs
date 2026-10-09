@@ -72,7 +72,7 @@ pub use resumption::ApplicationState;
 #[cfg(any(test, feature = "server"))]
 pub(crate) use retry::retry_integrity_tag;
 pub(crate) use retry::verify_retry_integrity;
-pub use transport_parameters::QuicTransportProfileError;
+pub use transport_parameters::{QuicTransportProfileError, QuicTransportProfileErrorKind};
 
 /// The QUIC protocol version understood by this packet-crypto slice.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

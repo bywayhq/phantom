@@ -189,6 +189,28 @@ fn constructor_rejects_a_min_ack_delay_the_runtime_cannot_honor() {
     };
 
     assert_eq!(error.field(), "min_ack_delay_us");
+    assert_eq!(
+        error.kind(),
+        crate::QuicTransportProfileErrorKind::InvalidProfile
+    );
+}
+
+#[test]
+fn exhausted_entropy_has_a_typed_category_without_field_matching() -> Result<(), Box<dyn Error>> {
+    let mut entropy = WireEntropy::from_bytes([0; ENTROPY_LEN]);
+    entropy.take(ENTROPY_LEN)?;
+    let error = entropy
+        .take(1)
+        .err()
+        .ok_or("exhausted entropy was accepted")?;
+    assert_eq!(
+        error.kind(),
+        crate::QuicTransportProfileErrorKind::EntropyFailure
+    );
+    assert!(error.is_entropy_failure());
+    assert_eq!(error.field(), "entropy");
+    assert!(error.source().is_none());
+    Ok(())
 }
 
 #[test]

@@ -799,19 +799,45 @@ fn field_for_identifier(identifier: u64) -> &'static str {
 
 fn profile_error(field: &'static str, message: impl Into<Box<str>>) -> QuicTransportProfileError {
     QuicTransportProfileError {
+        kind: QuicTransportProfileErrorKind::InvalidProfile,
         field,
         message: message.into(),
     }
 }
 
+fn entropy_error(message: impl Into<Box<str>>) -> QuicTransportProfileError {
+    QuicTransportProfileError {
+        kind: QuicTransportProfileErrorKind::EntropyFailure,
+        field: "entropy",
+        message: message.into(),
+    }
+}
+
+/// Category of a QUIC transport profile failure.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum QuicTransportProfileErrorKind {
+    /// A setting is invalid or cannot be represented by the transport.
+    InvalidProfile,
+    /// Required randomness could not be generated or consumed.
+    EntropyFailure,
+}
+
 /// Failure while applying or encoding a QUIC transport profile.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QuicTransportProfileError {
+    kind: QuicTransportProfileErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl QuicTransportProfileError {
+    /// Returns the broad failure category without matching a field name.
+    #[must_use]
+    pub const fn kind(&self) -> QuicTransportProfileErrorKind {
+        self.kind
+    }
+
     /// Returns the profile field responsible for the failure.
     #[must_use]
     pub const fn field(&self) -> &'static str {
@@ -819,7 +845,7 @@ impl QuicTransportProfileError {
     }
 
     pub(crate) fn is_entropy_failure(&self) -> bool {
-        self.field == "entropy"
+        self.kind == QuicTransportProfileErrorKind::EntropyFailure
     }
 }
 

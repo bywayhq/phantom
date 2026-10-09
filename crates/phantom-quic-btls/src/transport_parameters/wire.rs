@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use phantom_profile::quic::QuicVarIntWidth;
 use quinn_proto::transport_parameters::TransportParameters;
 
-use super::{QuicTransportProfileError, field_for_identifier, profile_error};
+use super::{QuicTransportProfileError, entropy_error, field_for_identifier, profile_error};
 
 pub(super) const ENTROPY_LEN: usize = 1_024;
 pub(super) const MAX_VARINT: u64 = (1 << 62) - 1;
@@ -80,10 +80,7 @@ impl WireEntropy {
     pub(super) fn random() -> Result<Self, QuicTransportProfileError> {
         let mut bytes = [0; ENTROPY_LEN];
         btls::rand::rand_bytes(&mut bytes).map_err(|_| {
-            profile_error(
-                "entropy",
-                "BoringSSL could not generate transport-parameter entropy",
-            )
+            entropy_error("BoringSSL could not generate transport-parameter entropy")
         })?;
         Ok(Self { bytes, offset: 0 })
     }
@@ -103,8 +100,7 @@ impl WireEntropy {
 
     fn uniform(&mut self, upper_exclusive: usize) -> Result<usize, QuicTransportProfileError> {
         if upper_exclusive == 0 || upper_exclusive > 256 {
-            return Err(profile_error(
-                "entropy",
+            return Err(entropy_error(
                 "uniform range is outside the supported bound",
             ));
         }
@@ -124,10 +120,10 @@ impl WireEntropy {
     ) -> Result<u8, QuicTransportProfileError> {
         let width = usize::from(maximum - minimum) + 1;
         let offset = u8::try_from(self.uniform(width)?)
-            .map_err(|_| profile_error("entropy", "uniform result cannot be represented"))?;
+            .map_err(|_| entropy_error("uniform result cannot be represented"))?;
         minimum
             .checked_add(offset)
-            .ok_or_else(|| profile_error("entropy", "uniform result overflowed"))
+            .ok_or_else(|| entropy_error("uniform result overflowed"))
     }
 
     pub(super) fn reserved_transport_parameter_id(
@@ -146,11 +142,11 @@ impl WireEntropy {
         let end = self
             .offset
             .checked_add(count)
-            .ok_or_else(|| profile_error("entropy", "entropy cursor overflowed"))?;
+            .ok_or_else(|| entropy_error("entropy cursor overflowed"))?;
         let bytes = self
             .bytes
             .get(self.offset..end)
-            .ok_or_else(|| profile_error("entropy", "transport-parameter entropy was exhausted"))?;
+            .ok_or_else(|| entropy_error("transport-parameter entropy was exhausted"))?;
         self.offset = end;
         Ok(bytes)
     }
@@ -160,7 +156,7 @@ impl WireEntropy {
     ) -> Result<[u8; N], QuicTransportProfileError> {
         self.take(N)?
             .try_into()
-            .map_err(|_| profile_error("entropy", "entropy slice has the wrong length"))
+            .map_err(|_| entropy_error("entropy slice has the wrong length"))
     }
 }
 
