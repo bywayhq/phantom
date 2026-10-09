@@ -131,7 +131,9 @@ pub enum SseErrorKind {
 }
 
 /// Error returned while validating or decoding an SSE response.
-#[derive(Debug)]
+///
+/// Formatting reports the category and static message. Inspect
+/// [`StdError::source`] for the original request failure and its typed causes.
 pub struct SseError {
     kind: SseErrorKind,
     message: &'static str,
@@ -219,11 +221,18 @@ impl SseError {
 
 impl fmt::Display for SseError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.message)?;
-        if let Some(source) = &self.source {
-            write!(formatter, ": {source}")?;
-        }
-        Ok(())
+        formatter.write_str(self.message)
+    }
+}
+
+impl fmt::Debug for SseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SseError")
+            .field("kind", &self.kind)
+            .field("message", &self.message)
+            .field("has_source", &self.source.is_some())
+            .finish()
     }
 }
 

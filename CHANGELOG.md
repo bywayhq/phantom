@@ -14,6 +14,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Keep `BuildError`, `WebSocketError`, and `SseError` causes out of automatic
+  formatting. Migrate: inspect `std::error::Error::source` for typed details
+  instead of parsing `Display` or `Debug`. Sources, rejecting WebSocket
+  responses, timeout phases, and retry observations remain available.
+
 - Check trust-anchor ID orders before configuring a profile. Migrate:
   construct `TrustAnchorOrder::new(ids)?` for `TrustAnchorIds::Fixed`.
   Construct `TrustAnchorOrders::new(orders)?` for `PerClient` and

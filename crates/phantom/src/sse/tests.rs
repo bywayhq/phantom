@@ -5,6 +5,27 @@ use bytes::Bytes;
 use super::{SseErrorKind, SseEvent, SseLimits, decoder::Decoder};
 
 #[test]
+fn error_formatting_preserves_the_original_request_and_io_sources() {
+    let sentinel = "private-sse-request-peer-path";
+    let request = crate::RequestError::http1_connection_setup(
+        phantom_net::http1::Http1TlsError::Connect(std::io::Error::other(sentinel)),
+    );
+    let error = super::SseError::request(request);
+    assert_eq!(error.to_string(), "SSE request failed");
+    assert!(!format!("{error:?}").contains(sentinel));
+    let source = error
+        .source()
+        .and_then(|source| source.downcast_ref::<crate::RequestError>());
+    assert!(source.is_some_and(crate::RequestError::is_retryable_connection_setup));
+    let detail = source
+        .and_then(Error::source)
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<std::io::Error>());
+    assert_eq!(detail.map(ToString::to_string).as_deref(), Some(sentinel));
+    assert_eq!(error.kind(), SseErrorKind::Request);
+}
+
+#[test]
 fn fragmented_input_follows_event_stream_field_semantics() -> TestResult<()> {
     let input = concat!(
         "\u{feff}: heartbeat\r",

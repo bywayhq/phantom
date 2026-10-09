@@ -42,11 +42,11 @@
 //! | --- | --- |
 //! | `cookies` | `CookieJar` and client-owned cookie handling |
 //! | `https-records` | HTTPS DNS lookups, HTTP/3 discovery, Encrypted Client Hello, and DNS queries with record TTLs |
-//! | `sse` | Server-sent event decoding and bounded reconnects |
+//! | `sse` | Server-sent event streams and bounded reconnects |
 //! | `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT |
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
 //! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
-//! | `json` | Bounded typed-JSON response reading |
+//! | `json` | Bounded typed-JSON requests and response reading |
 //! | `full` | `cookies`, `https-records`, `json`, `serde`, `sse`, and `websocket-deflate` |
 //! | `diagnostics` | TLS key logging and QUIC qlog files for debugging your own connections |
 //! | `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing |
@@ -176,6 +176,7 @@ mod error;
 mod link;
 mod redirect;
 mod request;
+mod request_body;
 mod response;
 mod retry;
 mod route;
@@ -196,9 +197,15 @@ pub use environment_proxy::{EnvironmentProxies, EnvironmentProxyError, Environme
 pub use error::{
     BuildError, BuildErrorKind, RequestError, RequestErrorKind, RequestReplayObservation,
 };
+/// The stream trait implemented by SSE streams and event sources.
+#[cfg(feature = "sse")]
+pub use futures_core::Stream;
 pub use link::{Link, LinkParameter, LinkParseError, LinkParseErrorKind, parse_link_headers};
 pub use redirect::RedirectPolicy;
 pub use request::{PreparedRequestTemplate, RequestBuilder};
+pub use request_body::{
+    MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody,
+};
 #[cfg(feature = "json")]
 pub use response::response_json;
 pub use response::{

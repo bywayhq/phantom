@@ -25,7 +25,7 @@ full = ["cookies", "https-records", "json", "serde", "sse", "websocket-deflate"]
 https-records = ["phantom-net/https-records"]
 json = ["dep:serde", "dep:serde_json"]
 serde = ["dep:serde"]
-sse = ["tokio/time"]
+sse = ["dep:futures-core", "tokio/time"]
 websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
 websocket-deflate = ["websocket", "dep:tungstenite", "tungstenite/deflate"]
 
@@ -38,6 +38,7 @@ cookie_store = { version = "=0.22.1", optional = true, default-features = false 
 flate2.workspace = true
 http = "1.4.0"
 http-body = "1.0.1"
+futures-core = { version = "=0.3.34", optional = true, default-features = false }
 futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["sink", "std"] }
 parking_lot = { version = "=0.12.5", optional = true }
 phantom-net = { version = "=0.1.0", path = "../phantom-net" }
