@@ -2472,6 +2472,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Build the fuzz workspace against the current vendored Quinn, TLS and
+  HTTP/2 forks. Its exact dependency pin and local lock entries now agree
+  with the workspace packages.
+
 - Bound WebSocket compression-offer collection before validation. Oversized
   iterators stop after five values; oversized profiles fail before copying.
 
