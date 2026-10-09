@@ -754,7 +754,14 @@ class CleanupFailureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             items = expand_manifest(
-                manifest(fake_capture(scenarios=["fail", "slow"])),
+                manifest(
+                    fake_capture(
+                        args=["--fixture-prefix", "foo"], output_dir="out/short"
+                    ),
+                    fake_capture(
+                        args=["--fixture-prefix", "foo.1"], output_dir="out/long"
+                    ),
+                ),
                 base=root,
                 tools=FAKE_TOOLS,
             )
@@ -774,8 +781,8 @@ class CleanupFailureTests(unittest.TestCase):
                 return Attempt(False, 0.2, "stopped")
 
             def sweep(directory):
-                if directory == root / slug(items[0].id):
-                    raise OSError("first owner's discovery failed")
+                if directory == root / slug(items[1].id):
+                    raise OSError("long owner's discovery failed")
 
             def interrupt_join(thread, *args, **kwargs):
                 nonlocal interrupted
@@ -811,12 +818,12 @@ class CleanupFailureTests(unittest.TestCase):
                     join(thread, 10)
 
             self.assertEqual(
-                [result.status for result in results], ["failed", "stopped"]
+                [result.status for result in results], ["stopped", "failed"]
             )
             self.assertIn(
-                "first owner's discovery failed", results[0].attempts[0].detail
+                "long owner's discovery failed", results[1].attempts[0].detail
             )
-            self.assertEqual(results[1].attempts[0].detail, "stopped")
+            self.assertEqual(results[0].attempts[0].detail, "stopped")
             self.assertEqual([len(result.attempts) for result in results], [1, 1])
 
     def test_second_interrupt_during_cleanup_still_ends_every_owner(self) -> None:
