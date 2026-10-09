@@ -148,6 +148,43 @@ class ProcessContainerTests(unittest.TestCase):
                 container.close()
 
     @unittest.skipUnless(sys.platform == "win32", "Windows job boundary")
+    def test_bootstrap_interpreter_is_assigned_after_it_reaches_the_gate(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            contextlib.ExitStack() as cleanup,
+        ):
+            marker = Path(directory) / "bootstrap.pid"
+            # Force the isolated interpreter to exist before assignment. A
+            # venv redirector must not be mistaken for that interpreter.
+            checkpoint = (
+                "import os\n"
+                f"with open({str(marker) + '.partial'!r}, 'w') as file: file.write(str(os.getpid()))\n"
+                f"os.replace({str(marker) + '.partial'!r}, {str(marker)!r})\n"
+            )
+            assign = process_container._windows_job
+
+            def after_checkpoint(pid: int):
+                wait_for_file(marker)
+                return assign(pid)
+
+            with (
+                mock.patch.object(
+                    process_container,
+                    "_BOOTSTRAP",
+                    checkpoint + process_container._BOOTSTRAP,
+                ),
+                mock.patch.object(process_container, "_windows_job", after_checkpoint),
+            ):
+                container = ProcessContainer([sys.executable, "-c", "pass"])
+            cleanup.callback(container.close)
+            bootstrap = OwnedWindowsProcess(int(marker.read_text()))
+            cleanup.callback(bootstrap.close)
+            self.assertTrue(bootstrap.in_job(container.job))
+            self.assertEqual(int(marker.read_text()), container.process.pid)
+            container.start()
+            self.assertEqual(container.process.wait(timeout=30), 0)
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows job boundary")
     def test_site_code_and_tool_wait_until_assignment_and_release(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
