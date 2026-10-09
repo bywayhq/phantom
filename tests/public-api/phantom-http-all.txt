@@ -15,6 +15,7 @@ pub use phantom::Response
 pub use phantom::ResponseHeader
 pub use phantom::ServerAuthentication
 pub use phantom::StatusCode
+pub use phantom::Stream
 pub use phantom::Uri
 pub mod phantom::dns
 pub use phantom::dns::AliasRecord
@@ -49,6 +50,8 @@ pub use phantom::profile::CookiePlacement
 pub use phantom::profile::DnsCacheSettings
 pub use phantom::profile::EchGreaseAead
 pub use phantom::profile::EchGreasePayloadLength
+pub use phantom::profile::EchGreaseSettings
+pub use phantom::profile::EchSettings
 pub use phantom::profile::GoogleConnectionOption
 pub use phantom::profile::Http1IdleTimeout
 pub use phantom::profile::Http1Settings
@@ -125,7 +128,12 @@ pub use phantom::profile::TlsSettings
 pub use phantom::profile::TlsVersion
 pub use phantom::profile::TlsVersionRange
 pub use phantom::profile::TrustAnchorIds
+pub use phantom::profile::TrustAnchorOrder
+pub use phantom::profile::TrustAnchorOrders
 pub use phantom::profile::UdpSettings
+pub use phantom::profile::UnknownCipherSuite
+pub use phantom::profile::UrlTrust
+pub use phantom::profile::ValidationErrorKind
 pub use phantom::profile::WebSocketConnectionPolicy
 pub use phantom::profile::WebSocketDeflateParameter
 pub use phantom::profile::WebSocketEmptyMessageCompression
@@ -182,15 +190,39 @@ pub phantom::CookieSnapshotErrorKind::UnsupportedPolicy
 pub enum phantom::CookieSourceScheme
 pub phantom::CookieSourceScheme::Http
 pub phantom::CookieSourceScheme::Https
+#[non_exhaustive] pub enum phantom::EnvironmentProxyErrorKind
+pub phantom::EnvironmentProxyErrorKind::InvalidBypassRule
+pub phantom::EnvironmentProxyErrorKind::InvalidCredentials
+pub phantom::EnvironmentProxyErrorKind::InvalidProxy
+pub phantom::EnvironmentProxyErrorKind::NonUnicodeValue
+pub phantom::EnvironmentProxyErrorKind::TooLarge
+pub phantom::EnvironmentProxyErrorKind::UnsupportedProxyScheme
 #[non_exhaustive] pub enum phantom::HttpProtocol
 pub phantom::HttpProtocol::Http1
 pub phantom::HttpProtocol::Http2
 pub phantom::HttpProtocol::Http3
+#[non_exhaustive] pub enum phantom::LinkParseErrorKind
+pub phantom::LinkParseErrorKind::InputTooLarge
+pub phantom::LinkParseErrorKind::InvalidAnchor
+pub phantom::LinkParseErrorKind::InvalidParameter
+pub phantom::LinkParseErrorKind::InvalidRelation
+pub phantom::LinkParseErrorKind::InvalidSyntax
+pub phantom::LinkParseErrorKind::InvalidTarget
 pub enum phantom::PerMessageDeflateOfferParameter
 pub phantom::PerMessageDeflateOfferParameter::ClientMaxWindowBits(core::option::Option<u8>)
 pub phantom::PerMessageDeflateOfferParameter::ClientNoContextTakeover
 pub phantom::PerMessageDeflateOfferParameter::ServerMaxWindowBits(u8)
 pub phantom::PerMessageDeflateOfferParameter::ServerNoContextTakeover
+#[non_exhaustive] pub enum phantom::PreparedBodyErrorKind
+pub phantom::PreparedBodyErrorKind::Allocation
+pub phantom::PreparedBodyErrorKind::BoundaryCollision
+pub phantom::PreparedBodyErrorKind::InvalidBoundary
+pub phantom::PreparedBodyErrorKind::InvalidContentType
+pub phantom::PreparedBodyErrorKind::InvalidFilename
+pub phantom::PreparedBodyErrorKind::InvalidName
+pub phantom::PreparedBodyErrorKind::Json
+pub phantom::PreparedBodyErrorKind::TooLarge
+pub phantom::PreparedBodyErrorKind::TooManyParts
 #[non_exhaustive] pub enum phantom::ProxyConfigErrorKind
 pub phantom::ProxyConfigErrorKind::InvalidAuthority
 pub phantom::ProxyConfigErrorKind::InvalidCredentials
@@ -222,6 +254,16 @@ pub phantom::RequestErrorKind::Timeout
 pub phantom::RequestErrorKind::Tls
 pub phantom::RequestErrorKind::UnsupportedRoute
 pub phantom::RequestErrorKind::UnsupportedScheme
+#[non_exhaustive] pub enum phantom::RequestReplayObservation
+pub phantom::RequestReplayObservation::ConnectionSetupFailure
+pub phantom::RequestReplayObservation::Http2PingFailed
+pub phantom::RequestReplayObservation::RequestUnprocessed
+pub phantom::RequestReplayObservation::ReusedConnectionClosed
+pub phantom::RequestReplayObservation::Unknown
+#[non_exhaustive] pub enum phantom::RequestSlotErrorKind
+pub phantom::RequestSlotErrorKind::AlreadyFilled
+pub phantom::RequestSlotErrorKind::InvalidValue
+pub phantom::RequestSlotErrorKind::Undeclared
 #[non_exhaustive] pub enum phantom::ResponseReadErrorKind
 pub phantom::ResponseReadErrorKind::Body
 pub phantom::ResponseReadErrorKind::Json
@@ -267,6 +309,10 @@ pub fn phantom::SseHeader::field(phantom_net::request::RequestHeader) -> Self
 pub fn phantom::SseHeader::last_event_id(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 impl core::fmt::Debug for phantom::SseHeader
 pub fn phantom::SseHeader::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom::TimeoutOverride
+pub phantom::TimeoutOverride::Disabled
+pub phantom::TimeoutOverride::Inherit
+pub phantom::TimeoutOverride::Limit(core::time::Duration)
 #[non_exhaustive] pub enum phantom::TimeoutPhase
 pub phantom::TimeoutPhase::Connect
 pub phantom::TimeoutPhase::PoolAdmission
@@ -385,6 +431,8 @@ impl phantom::BuildError
 pub fn phantom::BuildError::kind(&self) -> phantom::BuildErrorKind
 impl core::error::Error for phantom::BuildError
 pub fn phantom::BuildError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::BuildError
+pub fn phantom::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for phantom::BuildError
 pub fn phantom::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::Client
@@ -425,6 +473,7 @@ pub fn phantom::ClientBuilder::cookie_jar(self, phantom::CookieJar) -> Self
 pub fn phantom::ClientBuilder::cookies(self) -> Self
 pub fn phantom::ClientBuilder::dns_cache(self, phantom_profile::dns_cache::DnsCacheSettings) -> Self
 pub fn phantom::ClientBuilder::dns_resolver(self, phantom_net::host_resolver::AddressResolver) -> Self
+pub fn phantom::ClientBuilder::environment_proxies(self, phantom::EnvironmentProxies) -> Self
 pub fn phantom::ClientBuilder::http3_early_data(self, bool) -> Self
 pub fn phantom::ClientBuilder::https_record_discovery(self, phantom_net::dns::HttpsRecordResolver) -> Self
 pub fn phantom::ClientBuilder::interface(self, &str) -> Self
@@ -538,6 +587,22 @@ pub const fn phantom::CookieSnapshotError::kind(&self) -> phantom::CookieSnapsho
 impl core::error::Error for phantom::CookieSnapshotError
 impl core::fmt::Display for phantom::CookieSnapshotError
 pub fn phantom::CookieSnapshotError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::EnvironmentProxies
+impl phantom::EnvironmentProxies
+pub fn phantom::EnvironmentProxies::from_env() -> core::result::Result<Self, phantom::EnvironmentProxyError>
+pub fn phantom::EnvironmentProxies::from_values<I, K, V>(I) -> core::result::Result<Self, phantom::EnvironmentProxyError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<std::ffi::os_str::OsStr>, V: core::convert::AsRef<std::ffi::os_str::OsStr>
+impl core::fmt::Debug for phantom::EnvironmentProxies
+pub fn phantom::EnvironmentProxies::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::EnvironmentProxyError
+impl phantom::EnvironmentProxyError
+pub const fn phantom::EnvironmentProxyError::kind(&self) -> phantom::EnvironmentProxyErrorKind
+pub const fn phantom::EnvironmentProxyError::variable(&self) -> &'static str
+impl core::error::Error for phantom::EnvironmentProxyError
+pub fn phantom::EnvironmentProxyError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::EnvironmentProxyError
+pub fn phantom::EnvironmentProxyError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::EnvironmentProxyError
+pub fn phantom::EnvironmentProxyError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::HttpProxy
 impl phantom::HttpProxy
 pub fn phantom::HttpProxy::connect_headers(self, alloc::vec::Vec<phantom_net::proxy::http_connect::HttpConnectHeader>) -> Self
@@ -557,6 +622,39 @@ pub fn phantom::KeyLog::dropped_line_count(&self) -> usize
 pub fn phantom::KeyLog::write_pending(&self, &mut impl core::io::write::Write) -> core::io::error::Result<usize>
 impl core::fmt::Debug for phantom::KeyLog
 pub fn phantom::KeyLog::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::Link
+impl phantom::Link
+pub fn phantom::Link::anchor(&self) -> core::option::Option<&str>
+pub fn phantom::Link::first_parameter(&self, &str) -> core::option::Option<&phantom::LinkParameter>
+pub fn phantom::Link::has_relation(&self, &str) -> bool
+pub fn phantom::Link::parameters(&self) -> &[phantom::LinkParameter]
+pub fn phantom::Link::relations(&self) -> &[alloc::string::String]
+pub fn phantom::Link::target(&self) -> &str
+impl core::fmt::Debug for phantom::Link
+pub fn phantom::Link::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::LinkParameter
+impl phantom::LinkParameter
+pub fn phantom::LinkParameter::is_extended(&self) -> bool
+pub fn phantom::LinkParameter::name(&self) -> &str
+pub fn phantom::LinkParameter::value(&self) -> core::option::Option<&[u8]>
+impl core::fmt::Debug for phantom::LinkParameter
+pub fn phantom::LinkParameter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::LinkParseError
+impl phantom::LinkParseError
+pub const fn phantom::LinkParseError::byte_offset(&self) -> usize
+pub const fn phantom::LinkParseError::kind(&self) -> phantom::LinkParseErrorKind
+pub const fn phantom::LinkParseError::value_index(&self) -> usize
+impl core::error::Error for phantom::LinkParseError
+impl core::fmt::Display for phantom::LinkParseError
+pub fn phantom::LinkParseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::MultipartPart<'a>
+impl<'a> phantom::MultipartPart<'a>
+pub fn phantom::MultipartPart<'a>::bytes(&'a str, &'a [u8]) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::MultipartPart<'a>::text(&'a str, &'a str) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::MultipartPart<'a>::with_content_type(self, &'a str) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::MultipartPart<'a>::with_filename(self, &'a str) -> core::result::Result<Self, phantom::PreparedBodyError>
+impl core::fmt::Debug for phantom::MultipartPart<'_>
+pub fn phantom::MultipartPart<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::NegotiatedPerMessageDeflate
 impl phantom::NegotiatedPerMessageDeflate
 pub const fn phantom::NegotiatedPerMessageDeflate::client_max_window_bits(self) -> u8
@@ -578,6 +676,25 @@ pub fn phantom::PerMessageDeflate::server_max_window_bits(self, u8) -> core::res
 pub fn phantom::PerMessageDeflate::server_no_context_takeover(self, bool) -> Self
 impl core::default::Default for phantom::PerMessageDeflate
 pub fn phantom::PerMessageDeflate::default() -> Self
+pub struct phantom::PreparedBodyError
+impl phantom::PreparedBodyError
+pub const fn phantom::PreparedBodyError::kind(&self) -> phantom::PreparedBodyErrorKind
+impl core::error::Error for phantom::PreparedBodyError
+pub fn phantom::PreparedBodyError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::PreparedBodyError
+pub fn phantom::PreparedBodyError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::PreparedBodyError
+pub fn phantom::PreparedBodyError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::PreparedRequestBody
+impl phantom::PreparedRequestBody
+pub const fn phantom::PreparedRequestBody::bytes(&self) -> &bytes::bytes::Bytes
+pub fn phantom::PreparedRequestBody::content_type(&self) -> &str
+pub fn phantom::PreparedRequestBody::form<I, K, V>(I, usize) -> core::result::Result<Self, phantom::PreparedBodyError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
+pub fn phantom::PreparedRequestBody::into_parts(self) -> (bytes::bytes::Bytes, alloc::boxed::Box<str>)
+pub fn phantom::PreparedRequestBody::json<T: serde_core::ser::Serialize + ?core::marker::Sized>(&T, usize) -> core::result::Result<Self, phantom::PreparedBodyError>
+pub fn phantom::PreparedRequestBody::multipart<'a, I>(&str, I, usize) -> core::result::Result<Self, phantom::PreparedBodyError> where I: core::iter::traits::collect::IntoIterator<Item = phantom::MultipartPart<'a>>
+impl core::fmt::Debug for phantom::PreparedRequestBody
+pub fn phantom::PreparedRequestBody::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::PreparedRequestTemplate(_)
 impl phantom::PreparedRequestTemplate
 pub fn phantom::PreparedRequestTemplate::new(phantom_profile::request_template::RequestTemplate) -> core::result::Result<Self, phantom_profile::request_template::InvalidRequestTemplate>
@@ -601,8 +718,10 @@ pub fn phantom::RequestBuilder::buffered_streaming_body<B>(self, B, usize) -> Se
 pub fn phantom::RequestBuilder::buffered_streaming_body_with_trailers<B>(self, B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>, usize) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::content_decoding(self, phantom::ContentDecoding) -> Self
 pub fn phantom::RequestBuilder::expect_continue(self, core::time::Duration) -> Self
+pub fn phantom::RequestBuilder::fill_slots<F>(self, F) -> core::result::Result<Self, phantom::RequestSlotError> where F: core::ops::function::FnOnce(&mut phantom::RequestSlots<'_>) -> core::result::Result<(), phantom::RequestSlotError>
 pub fn phantom::RequestBuilder::header(self, phantom_net::request::RequestHeader) -> Self
 pub fn phantom::RequestBuilder::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
+pub fn phantom::RequestBuilder::prepared_body(self, phantom::PreparedRequestBody) -> Self
 pub fn phantom::RequestBuilder::query_pairs<I, K, V>(self, I) -> core::result::Result<Self, phantom::RequestError> where I: core::iter::traits::collect::IntoIterator<Item = (K, V)>, K: core::convert::AsRef<str>, V: core::convert::AsRef<str>
 pub fn phantom::RequestBuilder::retry_policy(self, phantom::RetryPolicy) -> Self
 pub fn phantom::RequestBuilder::route(self, phantom::Route) -> Self
@@ -610,7 +729,7 @@ pub async fn phantom::RequestBuilder::send(self) -> core::result::Result<http::r
 pub fn phantom::RequestBuilder::streaming_body<B>(self, B) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::streaming_body_with_trailers<B>(self, B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom::RequestBuilder::template(self, &phantom::PreparedRequestTemplate) -> Self
-pub fn phantom::RequestBuilder::timeouts(self, phantom::RequestTimeouts) -> Self
+pub fn phantom::RequestBuilder::timeouts(self, phantom::RequestTimeoutOverrides) -> Self
 pub fn phantom::RequestBuilder::trailers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
 pub fn phantom::RequestBuilder::without_template(self) -> Self
 impl core::fmt::Debug for phantom::RequestBuilder
@@ -618,12 +737,51 @@ pub fn phantom::RequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> cor
 pub struct phantom::RequestError
 impl phantom::RequestError
 pub fn phantom::RequestError::kind(&self) -> phantom::RequestErrorKind
+pub fn phantom::RequestError::origin(&self) -> core::option::Option<&phantom::RequestOrigin>
 pub fn phantom::RequestError::protocol(&self) -> core::option::Option<phantom::HttpProtocol>
+pub fn phantom::RequestError::replay_observation(&self) -> phantom::RequestReplayObservation
 pub fn phantom::RequestError::timeout_phase(&self) -> core::option::Option<phantom::TimeoutPhase>
 impl core::error::Error for phantom::RequestError
 pub fn phantom::RequestError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::RequestError
+pub fn phantom::RequestError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for phantom::RequestError
 pub fn phantom::RequestError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestOrigin
+impl phantom::RequestOrigin
+pub fn phantom::RequestOrigin::host(&self) -> &str
+pub const fn phantom::RequestOrigin::port(&self) -> u16
+pub const fn phantom::RequestOrigin::scheme(&self) -> &'static str
+pub struct phantom::RequestSlotError
+impl phantom::RequestSlotError
+pub const fn phantom::RequestSlotError::kind(&self) -> phantom::RequestSlotErrorKind
+impl core::error::Error for phantom::RequestSlotError
+impl core::fmt::Debug for phantom::RequestSlotError
+pub fn phantom::RequestSlotError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::RequestSlotError
+pub fn phantom::RequestSlotError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestSlots<'a>
+impl<'a> phantom::RequestSlots<'a>
+pub fn phantom::RequestSlots<'a>::declares(&self, &str) -> bool
+pub fn phantom::RequestSlots<'a>::fill(&mut self, phantom_net::request::RequestHeader) -> core::result::Result<(), phantom::RequestSlotError>
+pub fn phantom::RequestSlots<'a>::is_filled(&self, &str) -> bool
+impl core::fmt::Debug for phantom::RequestSlots<'_>
+pub fn phantom::RequestSlots<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::RequestTimeoutOverrides
+impl phantom::RequestTimeoutOverrides
+pub const fn phantom::RequestTimeoutOverrides::connect(self, phantom::TimeoutOverride) -> Self
+pub const fn phantom::RequestTimeoutOverrides::connect_override(self) -> phantom::TimeoutOverride
+pub const fn phantom::RequestTimeoutOverrides::disabled() -> Self
+pub const fn phantom::RequestTimeoutOverrides::new() -> Self
+pub const fn phantom::RequestTimeoutOverrides::pool_admission(self, phantom::TimeoutOverride) -> Self
+pub const fn phantom::RequestTimeoutOverrides::pool_admission_override(self) -> phantom::TimeoutOverride
+pub const fn phantom::RequestTimeoutOverrides::read_idle(self, phantom::TimeoutOverride) -> Self
+pub const fn phantom::RequestTimeoutOverrides::read_idle_override(self) -> phantom::TimeoutOverride
+pub const fn phantom::RequestTimeoutOverrides::resolve(self, phantom::RequestTimeouts) -> phantom::RequestTimeouts
+pub const fn phantom::RequestTimeoutOverrides::response_head(self, phantom::TimeoutOverride) -> Self
+pub const fn phantom::RequestTimeoutOverrides::response_head_override(self) -> phantom::TimeoutOverride
+pub const fn phantom::RequestTimeoutOverrides::total(self, phantom::TimeoutOverride) -> Self
+pub const fn phantom::RequestTimeoutOverrides::total_override(self) -> phantom::TimeoutOverride
 pub struct phantom::RequestTimeouts
 impl phantom::RequestTimeouts
 pub const fn phantom::RequestTimeouts::connect(self, core::time::Duration) -> Self
@@ -676,11 +834,13 @@ pub const fn phantom::RetryPolicy::connection_failures(core::num::nonzero::NonZe
 pub const fn phantom::RetryPolicy::delay(self) -> core::time::Duration
 pub const fn phantom::RetryPolicy::http2_fallback(self) -> bool
 pub const fn phantom::RetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
+pub const fn phantom::RetryPolicy::max_retries(self) -> core::option::Option<usize>
 pub const fn phantom::RetryPolicy::none() -> Self
 pub const fn phantom::RetryPolicy::reused_connection_replay(self) -> bool
 pub const fn phantom::RetryPolicy::status_retry(self) -> core::option::Option<phantom::StatusRetry>
 pub const fn phantom::RetryPolicy::unprocessed_replay(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
 pub const fn phantom::RetryPolicy::with_http2_fallback(self, bool) -> Self
+pub const fn phantom::RetryPolicy::with_max_retries(self, core::option::Option<usize>) -> Self
 pub const fn phantom::RetryPolicy::with_reused_connection_replay(self, bool) -> Self
 pub const fn phantom::RetryPolicy::with_status_retry(self, phantom::StatusRetry) -> Self
 pub const fn phantom::RetryPolicy::with_unprocessed_replay(self, core::option::Option<core::num::nonzero::NonZeroUsize>) -> Self
@@ -703,6 +863,8 @@ impl phantom::SseError
 pub const fn phantom::SseError::kind(&self) -> phantom::SseErrorKind
 impl core::error::Error for phantom::SseError
 pub fn phantom::SseError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::SseError
+pub fn phantom::SseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for phantom::SseError
 pub fn phantom::SseError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::SseEvent
@@ -721,6 +883,9 @@ pub const fn phantom::SseEventSource::reconnects(&self) -> usize
 pub fn phantom::SseEventSource::retry_delay(&self) -> core::time::Duration
 impl core::fmt::Debug for phantom::SseEventSource
 pub fn phantom::SseEventSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl futures_core::stream::Stream for phantom::SseEventSource
+pub type phantom::SseEventSource::Item = core::result::Result<phantom::SseEvent, phantom::SseError>
+pub fn phantom::SseEventSource::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
 pub struct phantom::SseLimits
 impl phantom::SseLimits
 pub const fn phantom::SseLimits::max_event_bytes(self) -> usize
@@ -738,7 +903,7 @@ pub fn phantom::SseRequestBuilder::initial_retry(self, core::time::Duration) -> 
 pub fn phantom::SseRequestBuilder::limits(self, phantom::SseLimits) -> Self
 pub fn phantom::SseRequestBuilder::max_reconnects(self, usize) -> Self
 pub fn phantom::SseRequestBuilder::min_retry(self, core::time::Duration) -> Self
-pub fn phantom::SseRequestBuilder::request_timeouts(self, phantom::RequestTimeouts) -> Self
+pub fn phantom::SseRequestBuilder::request_timeouts(self, phantom::RequestTimeoutOverrides) -> Self
 pub fn phantom::SseRequestBuilder::route(self, phantom::Route) -> Self
 impl core::fmt::Debug for phantom::SseRequestBuilder
 pub fn phantom::SseRequestBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -752,6 +917,9 @@ pub async fn phantom::SseStream::next_event(&mut self) -> core::result::Result<c
 pub const fn phantom::SseStream::retry_delay(&self) -> core::option::Option<core::time::Duration>
 impl core::fmt::Debug for phantom::SseStream
 pub fn phantom::SseStream::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl futures_core::stream::Stream for phantom::SseStream
+pub type phantom::SseStream::Item = core::result::Result<phantom::SseEvent, phantom::SseError>
+pub fn phantom::SseStream::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
 pub struct phantom::StatusError
 impl phantom::StatusError
 pub fn phantom::StatusError::into_response(self) -> http::response::Response<phantom::ResponseBody>
@@ -844,6 +1012,7 @@ pub const fn phantom::WebSocketRetryPolicy::delay(self) -> core::time::Duration
 pub const fn phantom::WebSocketRetryPolicy::max_connection_failures(self) -> core::option::Option<core::num::nonzero::NonZeroUsize>
 pub const fn phantom::WebSocketRetryPolicy::none() -> Self
 pub fn phantom::error_for_status(http::response::Response<phantom::ResponseBody>) -> core::result::Result<http::response::Response<phantom::ResponseBody>, phantom::StatusError>
+pub fn phantom::parse_link_headers<'a>(impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, usize) -> core::result::Result<alloc::vec::Vec<phantom::Link>, phantom::LinkParseError>
 pub async fn phantom::response_bytes(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<bytes::bytes::Bytes>, phantom::ResponseReadError>
 pub async fn phantom::response_json<T: serde_core::de::DeserializeOwned>(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<T>, phantom::ResponseReadError>
 pub async fn phantom::response_text(http::response::Response<phantom::ResponseBody>, usize) -> core::result::Result<http::response::Response<alloc::string::String>, phantom::ResponseReadError>

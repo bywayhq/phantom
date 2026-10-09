@@ -81,6 +81,111 @@ pub fn Function::return_size(&self) -> usize
 pub fn phantom_testkit::future_size::assert_within(usize, &[(&str, usize)])
 pub fn phantom_testkit::future_size::assert_within_budget(&[(&str, usize)])
 pub fn phantom_testkit::future_size::future_size<Arguments>(&impl phantom_testkit::future_size::ReturnSize<Arguments>) -> usize
+pub mod phantom_testkit::http1
+pub mod phantom_testkit::http1::expectation
+pub enum phantom_testkit::http1::expectation::AdjustableHeader
+pub phantom_testkit::http1::expectation::AdjustableHeader::Host
+pub phantom_testkit::http1::expectation::AdjustableHeader::UserAgent
+#[non_exhaustive] pub enum phantom_testkit::http1::expectation::ExpectationError
+pub phantom_testkit::http1::expectation::ExpectationError::EmptyFixture
+pub phantom_testkit::http1::expectation::ExpectationError::FixtureLimitExceeded
+pub phantom_testkit::http1::expectation::ExpectationError::Head(phantom_testkit::http1::CaptureError)
+pub phantom_testkit::http1::expectation::ExpectationError::IncompleteRun
+pub phantom_testkit::http1::expectation::ExpectationError::InvalidAdjustment
+pub phantom_testkit::http1::expectation::ExpectationError::InvalidField
+pub phantom_testkit::http1::expectation::ExpectationError::InvalidHex
+pub phantom_testkit::http1::expectation::ExpectationError::InvalidRecord
+pub phantom_testkit::http1::expectation::ExpectationError::InvalidRecord::line: usize
+pub phantom_testkit::http1::expectation::ExpectationError::MissingField
+pub phantom_testkit::http1::expectation::ExpectationError::RequestOutOfRange
+pub phantom_testkit::http1::expectation::ExpectationError::RunOutOfRange
+pub phantom_testkit::http1::expectation::ExpectationError::UnsupportedFormat
+impl core::error::Error for phantom_testkit::http1::expectation::ExpectationError
+pub fn phantom_testkit::http1::expectation::ExpectationError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_testkit::http1::expectation::ExpectationError
+pub fn phantom_testkit::http1::expectation::ExpectationError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_testkit::http1::expectation::MismatchLocation
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderCount
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderCount::actual: usize
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderCount::expected: usize
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderName
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderName::byte: usize
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderName::index: usize
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderValue
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderValue::byte: usize
+pub phantom_testkit::http1::expectation::MismatchLocation::HeaderValue::index: usize
+pub phantom_testkit::http1::expectation::MismatchLocation::RequestLine
+pub phantom_testkit::http1::expectation::MismatchLocation::RequestLine::byte: usize
+pub struct phantom_testkit::http1::expectation::RequestExpectation
+impl phantom_testkit::http1::expectation::RequestExpectation
+pub fn phantom_testkit::http1::expectation::RequestExpectation::compare(&self, &phantom_testkit::http1::RequestHeadCapture) -> core::result::Result<(), phantom_testkit::http1::expectation::RequestMismatch>
+pub fn phantom_testkit::http1::expectation::RequestExpectation::from_retained(&str, usize, usize, usize, phantom_testkit::http1::CaptureLimits) -> core::result::Result<Self, phantom_testkit::http1::expectation::ExpectationError>
+pub const fn phantom_testkit::http1::expectation::RequestExpectation::head(&self) -> &phantom_testkit::http1::RequestHeadCapture
+pub const fn phantom_testkit::http1::expectation::RequestExpectation::metadata(&self) -> &phantom_testkit::http1::expectation::RequestMetadata
+pub fn phantom_testkit::http1::expectation::RequestExpectation::replace_header_value(&mut self, usize, phantom_testkit::http1::expectation::AdjustableHeader, &[u8]) -> core::result::Result<(), phantom_testkit::http1::expectation::ExpectationError>
+pub fn phantom_testkit::http1::expectation::RequestExpectation::replace_target(&mut self, &[u8]) -> core::result::Result<(), phantom_testkit::http1::expectation::ExpectationError>
+impl core::fmt::Debug for phantom_testkit::http1::expectation::RequestExpectation
+pub fn phantom_testkit::http1::expectation::RequestExpectation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_testkit::http1::expectation::RequestMetadata
+impl phantom_testkit::http1::expectation::RequestMetadata
+pub fn phantom_testkit::http1::expectation::RequestMetadata::browser(&self) -> &str
+pub fn phantom_testkit::http1::expectation::RequestMetadata::build(&self) -> &str
+pub const fn phantom_testkit::http1::expectation::RequestMetadata::captured_at_unix(&self) -> u64
+pub fn phantom_testkit::http1::expectation::RequestMetadata::launch_mode(&self) -> &str
+pub fn phantom_testkit::http1::expectation::RequestMetadata::platform(&self) -> &str
+pub const fn phantom_testkit::http1::expectation::RequestMetadata::request(&self) -> usize
+pub fn phantom_testkit::http1::expectation::RequestMetadata::request_kind(&self) -> &str
+pub const fn phantom_testkit::http1::expectation::RequestMetadata::run(&self) -> usize
+pub fn phantom_testkit::http1::expectation::RequestMetadata::scenario(&self) -> &str
+impl core::fmt::Debug for phantom_testkit::http1::expectation::RequestMetadata
+pub fn phantom_testkit::http1::expectation::RequestMetadata::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_testkit::http1::expectation::RequestMismatch
+impl phantom_testkit::http1::expectation::RequestMismatch
+pub const fn phantom_testkit::http1::expectation::RequestMismatch::location(&self) -> phantom_testkit::http1::expectation::MismatchLocation
+impl core::error::Error for phantom_testkit::http1::expectation::RequestMismatch
+impl core::fmt::Display for phantom_testkit::http1::expectation::RequestMismatch
+pub fn phantom_testkit::http1::expectation::RequestMismatch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_testkit::http1::CaptureError
+pub phantom_testkit::http1::CaptureError::DeadlineExceeded
+pub phantom_testkit::http1::CaptureError::EmptyInput
+pub phantom_testkit::http1::CaptureError::HeadLimitExceeded
+pub phantom_testkit::http1::CaptureError::HeaderLimitExceeded
+pub phantom_testkit::http1::CaptureError::InvalidLine
+pub phantom_testkit::http1::CaptureError::InvalidLine::line: usize
+pub phantom_testkit::http1::CaptureError::InvalidRequestLine
+pub phantom_testkit::http1::CaptureError::Io(core::io::error::Error)
+pub phantom_testkit::http1::CaptureError::LineLimitExceeded
+pub phantom_testkit::http1::CaptureError::LineLimitExceeded::line: usize
+pub phantom_testkit::http1::CaptureError::TrailingBytes
+pub phantom_testkit::http1::CaptureError::TruncatedHead
+impl core::error::Error for phantom_testkit::http1::CaptureError
+pub fn phantom_testkit::http1::CaptureError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom_testkit::http1::CaptureError
+pub fn phantom_testkit::http1::CaptureError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom_testkit::http1::CaptureError
+pub fn phantom_testkit::http1::CaptureError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_testkit::http1::CaptureLimits
+impl phantom_testkit::http1::CaptureLimits
+pub const fn phantom_testkit::http1::CaptureLimits::new(usize, usize, usize) -> Self
+pub struct phantom_testkit::http1::CapturedHeader
+impl phantom_testkit::http1::CapturedHeader
+pub fn phantom_testkit::http1::CapturedHeader::bytes(&self) -> &[u8]
+pub fn phantom_testkit::http1::CapturedHeader::name(&self) -> &[u8]
+pub fn phantom_testkit::http1::CapturedHeader::value_bytes(&self) -> &[u8]
+impl core::fmt::Debug for phantom_testkit::http1::CapturedHeader
+pub fn phantom_testkit::http1::CapturedHeader::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_testkit::http1::RequestHeadCapture
+impl phantom_testkit::http1::RequestHeadCapture
+pub fn phantom_testkit::http1::RequestHeadCapture::bytes(&self) -> &[u8]
+pub fn phantom_testkit::http1::RequestHeadCapture::headers(&self) -> &[phantom_testkit::http1::CapturedHeader]
+pub fn phantom_testkit::http1::RequestHeadCapture::method(&self) -> &[u8]
+pub fn phantom_testkit::http1::RequestHeadCapture::parse(&[u8], phantom_testkit::http1::CaptureLimits) -> core::result::Result<Self, phantom_testkit::http1::CaptureError>
+pub fn phantom_testkit::http1::RequestHeadCapture::request_line(&self) -> &[u8]
+pub fn phantom_testkit::http1::RequestHeadCapture::target(&self) -> &[u8]
+pub fn phantom_testkit::http1::RequestHeadCapture::version(&self) -> &[u8]
+impl core::fmt::Debug for phantom_testkit::http1::RequestHeadCapture
+pub fn phantom_testkit::http1::RequestHeadCapture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub async fn phantom_testkit::http1::capture_request_head<R>(&mut R, tokio::time::instant::Instant, phantom_testkit::http1::CaptureLimits) -> core::result::Result<phantom_testkit::http1::RequestHeadCapture, phantom_testkit::http1::CaptureError> where R: tokio::io::async_read::AsyncRead + core::marker::Unpin
 pub mod phantom_testkit::http2
 #[non_exhaustive] pub enum phantom_testkit::http2::CaptureCompletion
 pub phantom_testkit::http2::CaptureCompletion::InitialSettings

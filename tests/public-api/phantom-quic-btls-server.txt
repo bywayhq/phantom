@@ -52,6 +52,9 @@ pub fn phantom_quic_btls::EchOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) 
 pub phantom_quic_btls::QuicTlsProfileErrorKind::ContextConflict
 pub phantom_quic_btls::QuicTlsProfileErrorKind::InvalidProfile
 pub phantom_quic_btls::QuicTlsProfileErrorKind::UnsupportedSetting
+#[non_exhaustive] pub enum phantom_quic_btls::QuicTransportProfileErrorKind
+pub phantom_quic_btls::QuicTransportProfileErrorKind::EntropyFailure
+pub phantom_quic_btls::QuicTransportProfileErrorKind::InvalidProfile
 pub struct phantom_quic_btls::ApplicationState
 impl phantom_quic_btls::ApplicationState
 pub fn phantom_quic_btls::ApplicationState::new() -> Self
@@ -135,6 +138,7 @@ pub fn phantom_quic_btls::QuicTlsProfileError::fmt(&self, &mut core::fmt::Format
 pub struct phantom_quic_btls::QuicTransportProfileError
 impl phantom_quic_btls::QuicTransportProfileError
 pub const fn phantom_quic_btls::QuicTransportProfileError::field(&self) -> &'static str
+pub const fn phantom_quic_btls::QuicTransportProfileError::kind(&self) -> phantom_quic_btls::QuicTransportProfileErrorKind
 impl core::error::Error for phantom_quic_btls::QuicTransportProfileError
 impl core::fmt::Display for phantom_quic_btls::QuicTransportProfileError
 pub fn phantom_quic_btls::QuicTransportProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

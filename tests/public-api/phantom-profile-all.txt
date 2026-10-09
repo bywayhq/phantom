@@ -52,6 +52,7 @@ pub fn phantom_profile::browser::chrome::v154_windows() -> phantom_profile::Clie
 pub fn phantom_profile::browser::chrome::v154_windows_client_hints() -> phantom_profile::client_hints::ClientHintSettings
 pub fn phantom_profile::browser::chrome::v154_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_windows_fetch_upload_template() -> phantom_profile::request_template::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
 pub mod phantom_profile::browser::edge
 pub fn phantom_profile::browser::edge::v153_android() -> phantom_profile::ClientProfile
@@ -93,6 +94,7 @@ pub fn phantom_profile::browser::firefox::v157_websocket() -> phantom_profile::w
 pub fn phantom_profile::browser::firefox::v157_windows() -> phantom_profile::ClientProfile
 pub fn phantom_profile::browser::firefox::v157_windows_fetch_no_store_template() -> phantom_profile::request_template::RequestTemplate
 pub fn phantom_profile::browser::firefox::v157_windows_fetch_template() -> phantom_profile::request_template::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_windows_fetch_upload_template() -> phantom_profile::request_template::RequestTemplate
 pub fn phantom_profile::browser::firefox::v157_windows_navigation_template() -> phantom_profile::request_template::RequestTemplate
 pub mod phantom_profile::browser::opera
 pub fn phantom_profile::browser::opera::v102_android() -> phantom_profile::ClientProfile
@@ -126,6 +128,7 @@ pub fn phantom_profile::client_hints::ClientHintSettings::validate(&self) -> cor
 pub struct phantom_profile::client_hints::InvalidClientHintSettings
 impl phantom_profile::client_hints::InvalidClientHintSettings
 pub const fn phantom_profile::client_hints::InvalidClientHintSettings::field(&self) -> &'static str
+pub const fn phantom_profile::client_hints::InvalidClientHintSettings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub const fn phantom_profile::client_hints::InvalidClientHintSettings::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::client_hints::InvalidClientHintSettings
 impl core::fmt::Display for phantom_profile::client_hints::InvalidClientHintSettings
@@ -159,6 +162,8 @@ pub fn phantom_profile::http1::Http1Settings::validate(&self) -> core::result::R
 pub struct phantom_profile::http1::InvalidHttp1Settings
 impl phantom_profile::http1::InvalidHttp1Settings
 pub fn phantom_profile::http1::InvalidHttp1Settings::field(&self) -> &'static str
+pub const fn phantom_profile::http1::InvalidHttp1Settings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub const fn phantom_profile::http1::InvalidHttp1Settings::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::http1::InvalidHttp1Settings
 impl core::fmt::Display for phantom_profile::http1::InvalidHttp1Settings
 pub fn phantom_profile::http1::InvalidHttp1Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -257,6 +262,8 @@ pub fn phantom_profile::http2::Http2StreamSettings::default() -> Self
 pub struct phantom_profile::http2::InvalidHttp2Settings
 impl phantom_profile::http2::InvalidHttp2Settings
 pub fn phantom_profile::http2::InvalidHttp2Settings::field(&self) -> &'static str
+pub const fn phantom_profile::http2::InvalidHttp2Settings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub fn phantom_profile::http2::InvalidHttp2Settings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http2::InvalidHttp2Settings
 impl core::fmt::Display for phantom_profile::http2::InvalidHttp2Settings
 pub fn phantom_profile::http2::InvalidHttp2Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -319,6 +326,7 @@ pub fn phantom_profile::http3::Http3Settings::validate(&self) -> core::result::R
 pub struct phantom_profile::http3::InvalidHttp3RequestSettings
 impl phantom_profile::http3::InvalidHttp3RequestSettings
 pub fn phantom_profile::http3::InvalidHttp3RequestSettings::field(&self) -> &'static str
+pub const fn phantom_profile::http3::InvalidHttp3RequestSettings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub fn phantom_profile::http3::InvalidHttp3RequestSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http3::InvalidHttp3RequestSettings
 impl core::fmt::Display for phantom_profile::http3::InvalidHttp3RequestSettings
@@ -326,6 +334,7 @@ pub fn phantom_profile::http3::InvalidHttp3RequestSettings::fmt(&self, &mut core
 pub struct phantom_profile::http3::InvalidHttp3Settings
 impl phantom_profile::http3::InvalidHttp3Settings
 pub fn phantom_profile::http3::InvalidHttp3Settings::field(&self) -> &'static str
+pub const fn phantom_profile::http3::InvalidHttp3Settings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub fn phantom_profile::http3::InvalidHttp3Settings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http3::InvalidHttp3Settings
 impl core::fmt::Display for phantom_profile::http3::InvalidHttp3Settings
@@ -356,6 +365,7 @@ pub fn phantom_profile::proxy_connect::ProxyConnectField::proxy_authorization(im
 pub struct phantom_profile::proxy_connect::InvalidProxyConnectTemplate
 impl phantom_profile::proxy_connect::InvalidProxyConnectTemplate
 pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::kind(&self) -> phantom_profile::ValidationErrorKind
 pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
 impl core::fmt::Display for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
@@ -430,6 +440,7 @@ pub phantom_profile::quic::QuicVersionGrease::Permuted
 pub struct phantom_profile::quic::InvalidQuicTransportSettings
 impl phantom_profile::quic::InvalidQuicTransportSettings
 pub fn phantom_profile::quic::InvalidQuicTransportSettings::field(&self) -> &'static str
+pub const fn phantom_profile::quic::InvalidQuicTransportSettings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub fn phantom_profile::quic::InvalidQuicTransportSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::quic::InvalidQuicTransportSettings
 impl core::fmt::Display for phantom_profile::quic::InvalidQuicTransportSettings
@@ -498,7 +509,7 @@ impl phantom_profile::request_template::RequestField
 pub fn phantom_profile::request_template::RequestField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::request_template::RequestField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::request_template::RequestField::client_hint(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
-pub fn phantom_profile::request_template::RequestField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::request_template::RequestField::default_value(&self, phantom_profile::UrlTrust) -> core::option::Option<&str>
 pub fn phantom_profile::request_template::RequestField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::request_template::RequestField::name(&self) -> core::option::Option<&str>
 pub fn phantom_profile::request_template::RequestField::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>, phantom_profile::request_template::ProxyAuthorizationAttempt) -> Self
@@ -509,6 +520,7 @@ pub fn phantom_profile::request_template::RequestField::when_forwarded(impl core
 pub struct phantom_profile::request_template::InvalidRequestTemplate
 impl phantom_profile::request_template::InvalidRequestTemplate
 pub const fn phantom_profile::request_template::InvalidRequestTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::request_template::InvalidRequestTemplate::kind(&self) -> phantom_profile::ValidationErrorKind
 pub const fn phantom_profile::request_template::InvalidRequestTemplate::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::request_template::InvalidRequestTemplate
 impl core::fmt::Display for phantom_profile::request_template::InvalidRequestTemplate
@@ -523,22 +535,24 @@ pub phantom_profile::request_template::RequestTemplate::restarts_for_connection_
 impl phantom_profile::request_template::RequestTemplate
 pub fn phantom_profile::request_template::RequestTemplate::validate(&self) -> core::result::Result<(), phantom_profile::request_template::InvalidRequestTemplate>
 pub mod phantom_profile::tcp
-pub enum phantom_profile::tcp::TcpAddressAdvance
+#[non_exhaustive] pub enum phantom_profile::tcp::TcpAddressAdvance
 pub phantom_profile::tcp::TcpAddressAdvance::AfterAnyFailure
 pub phantom_profile::tcp::TcpAddressAdvance::AfterRefusalOrTimeout
-pub enum phantom_profile::tcp::TcpAddressSelection
+#[non_exhaustive] pub enum phantom_profile::tcp::TcpAddressSelection
 pub phantom_profile::tcp::TcpAddressSelection::Backup(phantom_profile::tcp::TcpBackupConnection)
 pub phantom_profile::tcp::TcpAddressSelection::Racing(phantom_profile::tcp::TcpAddressRacing)
 pub phantom_profile::tcp::TcpAddressSelection::Sequential(phantom_profile::tcp::TcpAddressAdvance)
 impl core::default::Default for phantom_profile::tcp::TcpAddressSelection
 pub fn phantom_profile::tcp::TcpAddressSelection::default() -> Self
-pub enum phantom_profile::tcp::TcpKeepalivePolicy
+#[non_exhaustive] pub enum phantom_profile::tcp::TcpKeepalivePolicy
 pub phantom_profile::tcp::TcpKeepalivePolicy::Fixed(phantom_profile::tcp::TcpKeepalive)
 pub phantom_profile::tcp::TcpKeepalivePolicy::Schedule(phantom_profile::tcp::TcpKeepaliveSchedule)
 pub phantom_profile::tcp::TcpKeepalivePolicy::Unchanged
 pub struct phantom_profile::tcp::InvalidTcpSettings
 impl phantom_profile::tcp::InvalidTcpSettings
 pub fn phantom_profile::tcp::InvalidTcpSettings::field(&self) -> &'static str
+pub const fn phantom_profile::tcp::InvalidTcpSettings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub fn phantom_profile::tcp::InvalidTcpSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::tcp::InvalidTcpSettings
 impl core::fmt::Display for phantom_profile::tcp::InvalidTcpSettings
 pub fn phantom_profile::tcp::InvalidTcpSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -600,6 +614,11 @@ pub phantom_profile::tls::CipherSuite::RsaAes256GcmSha384
 impl phantom_profile::tls::CipherSuite
 pub const fn phantom_profile::tls::CipherSuite::from_iana_id(u16) -> core::option::Option<Self>
 pub const fn phantom_profile::tls::CipherSuite::iana_id(self) -> u16
+impl core::convert::From<phantom_profile::tls::CipherSuite> for u16
+pub fn u16::from(phantom_profile::tls::CipherSuite) -> Self
+impl core::convert::TryFrom<u16> for phantom_profile::tls::CipherSuite
+pub type phantom_profile::tls::CipherSuite::Error = phantom_profile::tls::UnknownCipherSuite
+pub fn phantom_profile::tls::CipherSuite::try_from(u16) -> core::result::Result<Self, Self::Error>
 #[non_exhaustive] pub enum phantom_profile::tls::ClientHelloExtension
 pub phantom_profile::tls::ClientHelloExtension::Alpn
 pub phantom_profile::tls::ClientHelloExtension::ApplicationSettings
@@ -641,6 +660,13 @@ pub phantom_profile::tls::EchGreasePayloadLength::FromClientHello
 pub phantom_profile::tls::EchGreasePayloadLength::FromClientHello::maximum_name_length: u8
 impl phantom_profile::tls::EchGreasePayloadLength
 pub fn phantom_profile::tls::EchGreasePayloadLength::ip_literal_host(&str) -> core::option::Option<&str>
+#[non_exhaustive] pub enum phantom_profile::tls::EchSettings
+pub phantom_profile::tls::EchSettings::Disabled
+pub phantom_profile::tls::EchSettings::Grease(phantom_profile::tls::EchGreaseSettings)
+pub phantom_profile::tls::EchSettings::HttpsRecords(phantom_profile::tls::EchGreaseSettings)
+impl phantom_profile::tls::EchSettings
+pub const fn phantom_profile::tls::EchSettings::grease(&self) -> core::option::Option<&phantom_profile::tls::EchGreaseSettings>
+pub const fn phantom_profile::tls::EchSettings::uses_https_records(&self) -> bool
 #[non_exhaustive] pub enum phantom_profile::tls::NamedGroup
 pub phantom_profile::tls::NamedGroup::Ffdhe2048
 pub phantom_profile::tls::NamedGroup::Ffdhe3072
@@ -679,19 +705,27 @@ pub const fn phantom_profile::tls::TlsVersion::protocol_id(self) -> u16
 impl core::convert::From<phantom_profile::tls::TlsVersion> for phantom_profile::tls::TlsVersionRange
 pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVersion) -> Self
 #[non_exhaustive] pub enum phantom_profile::tls::TrustAnchorIds
-pub phantom_profile::tls::TrustAnchorIds::Fixed(alloc::vec::Vec<alloc::boxed::Box<[u8]>>)
-pub phantom_profile::tls::TrustAnchorIds::PerClient(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
-pub phantom_profile::tls::TrustAnchorIds::PerConnection(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
+pub phantom_profile::tls::TrustAnchorIds::Fixed(phantom_profile::tls::TrustAnchorOrder)
+pub phantom_profile::tls::TrustAnchorIds::PerClient(phantom_profile::tls::TrustAnchorOrders)
+pub phantom_profile::tls::TrustAnchorIds::PerConnection(phantom_profile::tls::TrustAnchorOrders)
 impl phantom_profile::tls::TrustAnchorIds
-pub fn phantom_profile::tls::TrustAnchorIds::orders(&self) -> &[alloc::vec::Vec<alloc::boxed::Box<[u8]>>]
-pub fn phantom_profile::tls::TrustAnchorIds::select(&self, u64) -> core::option::Option<&[alloc::boxed::Box<[u8]>]>
+pub fn phantom_profile::tls::TrustAnchorIds::orders(&self) -> &[phantom_profile::tls::TrustAnchorOrder]
+pub fn phantom_profile::tls::TrustAnchorIds::select(&self, u64) -> core::option::Option<&phantom_profile::tls::TrustAnchorOrder>
 pub struct phantom_profile::tls::AlpsSettings
 pub phantom_profile::tls::AlpsSettings::protocol: alloc::boxed::Box<[u8]>
 pub phantom_profile::tls::AlpsSettings::settings: alloc::boxed::Box<[u8]>
 pub phantom_profile::tls::AlpsSettings::use_new_codepoint: bool
+pub struct phantom_profile::tls::EchGreaseSettings
+impl phantom_profile::tls::EchGreaseSettings
+pub fn phantom_profile::tls::EchGreaseSettings::aeads(&self) -> &[phantom_profile::tls::EchGreaseAead]
+pub const fn phantom_profile::tls::EchGreaseSettings::backend_default() -> Self
+pub fn phantom_profile::tls::EchGreaseSettings::new(phantom_profile::tls::EchGreasePayloadLength, alloc::vec::Vec<phantom_profile::tls::EchGreaseAead>) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+pub const fn phantom_profile::tls::EchGreaseSettings::payload_length(&self) -> phantom_profile::tls::EchGreasePayloadLength
 pub struct phantom_profile::tls::InvalidTlsSettings
 impl phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::InvalidTlsSettings::field(&self) -> &'static str
+pub const fn phantom_profile::tls::InvalidTlsSettings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub fn phantom_profile::tls::InvalidTlsSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::tls::InvalidTlsSettings
 impl core::fmt::Display for phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::InvalidTlsSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -712,10 +746,7 @@ pub phantom_profile::tls::TlsSettings::certificate_compression: alloc::vec::Vec<
 pub phantom_profile::tls::TlsSettings::cipher_suites: alloc::vec::Vec<phantom_profile::tls::CipherSuite>
 pub phantom_profile::tls::TlsSettings::close_notify: bool
 pub phantom_profile::tls::TlsSettings::delegated_credential_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
-pub phantom_profile::tls::TlsSettings::ech_from_https_records: bool
-pub phantom_profile::tls::TlsSettings::ech_grease: bool
-pub phantom_profile::tls::TlsSettings::ech_grease_aeads: alloc::vec::Vec<phantom_profile::tls::EchGreaseAead>
-pub phantom_profile::tls::TlsSettings::ech_grease_payload_length: phantom_profile::tls::EchGreasePayloadLength
+pub phantom_profile::tls::TlsSettings::ech: phantom_profile::tls::EchSettings
 pub phantom_profile::tls::TlsSettings::extension_order: phantom_profile::tls::ClientHelloExtensionOrder
 pub phantom_profile::tls::TlsSettings::grease: bool
 pub phantom_profile::tls::TlsSettings::grease_signature_algorithms: bool
@@ -747,6 +778,31 @@ pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVers
 impl core::convert::TryFrom<(phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)> for phantom_profile::tls::TlsVersionRange
 pub type phantom_profile::tls::TlsVersionRange::Error = phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::TlsVersionRange::try_from((phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)) -> core::result::Result<Self, Self::Error>
+pub struct phantom_profile::tls::TrustAnchorOrder
+impl phantom_profile::tls::TrustAnchorOrder
+pub fn phantom_profile::tls::TrustAnchorOrder::as_slice(&self) -> &[alloc::boxed::Box<[u8]>]
+pub const fn phantom_profile::tls::TrustAnchorOrder::empty() -> Self
+pub fn phantom_profile::tls::TrustAnchorOrder::new(alloc::vec::Vec<alloc::boxed::Box<[u8]>>) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+impl core::convert::AsRef<[alloc::boxed::Box<[u8]>]> for phantom_profile::tls::TrustAnchorOrder
+pub fn phantom_profile::tls::TrustAnchorOrder::as_ref(&self) -> &[alloc::boxed::Box<[u8]>]
+impl core::convert::TryFrom<alloc::vec::Vec<alloc::boxed::Box<[u8]>>> for phantom_profile::tls::TrustAnchorOrder
+pub type phantom_profile::tls::TrustAnchorOrder::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::TrustAnchorOrder::try_from(alloc::vec::Vec<alloc::boxed::Box<[u8]>>) -> core::result::Result<Self, Self::Error>
+pub struct phantom_profile::tls::TrustAnchorOrders
+impl phantom_profile::tls::TrustAnchorOrders
+pub fn phantom_profile::tls::TrustAnchorOrders::as_slice(&self) -> &[phantom_profile::tls::TrustAnchorOrder]
+pub fn phantom_profile::tls::TrustAnchorOrders::new(alloc::vec::Vec<phantom_profile::tls::TrustAnchorOrder>) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+impl core::convert::AsRef<[phantom_profile::tls::TrustAnchorOrder]> for phantom_profile::tls::TrustAnchorOrders
+pub fn phantom_profile::tls::TrustAnchorOrders::as_ref(&self) -> &[phantom_profile::tls::TrustAnchorOrder]
+impl core::convert::TryFrom<alloc::vec::Vec<phantom_profile::tls::TrustAnchorOrder>> for phantom_profile::tls::TrustAnchorOrders
+pub type phantom_profile::tls::TrustAnchorOrders::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::TrustAnchorOrders::try_from(alloc::vec::Vec<phantom_profile::tls::TrustAnchorOrder>) -> core::result::Result<Self, Self::Error>
+pub struct phantom_profile::tls::UnknownCipherSuite
+impl phantom_profile::tls::UnknownCipherSuite
+pub const fn phantom_profile::tls::UnknownCipherSuite::iana_id(self) -> u16
+impl core::error::Error for phantom_profile::tls::UnknownCipherSuite
+impl core::fmt::Display for phantom_profile::tls::UnknownCipherSuite
+pub fn phantom_profile::tls::UnknownCipherSuite::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub mod phantom_profile::udp
 pub struct phantom_profile::udp::UdpSettings
 pub phantom_profile::udp::UdpSettings::port_randomization: bool
@@ -782,7 +838,7 @@ pub fn phantom_profile::websocket::WebSocketField::authority(impl core::convert:
 pub fn phantom_profile::websocket::WebSocketField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::client_cookies(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
-pub fn phantom_profile::websocket::WebSocketField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::websocket::WebSocketField::default_value(&self, phantom_profile::UrlTrust) -> core::option::Option<&str>
 pub fn phantom_profile::websocket::WebSocketField::key(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::permessage_deflate(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
@@ -799,6 +855,8 @@ pub phantom_profile::websocket::WebSocketRefusedStreamRetry::SameSessionOnce
 pub struct phantom_profile::websocket::InvalidWebSocketSettings
 impl phantom_profile::websocket::InvalidWebSocketSettings
 pub fn phantom_profile::websocket::InvalidWebSocketSettings::field(&self) -> &'static str
+pub const fn phantom_profile::websocket::InvalidWebSocketSettings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub const fn phantom_profile::websocket::InvalidWebSocketSettings::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::websocket::InvalidWebSocketSettings
 impl core::fmt::Display for phantom_profile::websocket::InvalidWebSocketSettings
 pub fn phantom_profile::websocket::InvalidWebSocketSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -847,6 +905,11 @@ pub phantom_profile::CipherSuite::RsaAes256GcmSha384
 impl phantom_profile::tls::CipherSuite
 pub const fn phantom_profile::tls::CipherSuite::from_iana_id(u16) -> core::option::Option<Self>
 pub const fn phantom_profile::tls::CipherSuite::iana_id(self) -> u16
+impl core::convert::From<phantom_profile::tls::CipherSuite> for u16
+pub fn u16::from(phantom_profile::tls::CipherSuite) -> Self
+impl core::convert::TryFrom<u16> for phantom_profile::tls::CipherSuite
+pub type phantom_profile::tls::CipherSuite::Error = phantom_profile::tls::UnknownCipherSuite
+pub fn phantom_profile::tls::CipherSuite::try_from(u16) -> core::result::Result<Self, Self::Error>
 #[non_exhaustive] pub enum phantom_profile::ClientHelloExtension
 pub phantom_profile::ClientHelloExtension::Alpn
 pub phantom_profile::ClientHelloExtension::ApplicationSettings
@@ -891,6 +954,13 @@ pub phantom_profile::EchGreasePayloadLength::FromClientHello
 pub phantom_profile::EchGreasePayloadLength::FromClientHello::maximum_name_length: u8
 impl phantom_profile::tls::EchGreasePayloadLength
 pub fn phantom_profile::tls::EchGreasePayloadLength::ip_literal_host(&str) -> core::option::Option<&str>
+#[non_exhaustive] pub enum phantom_profile::EchSettings
+pub phantom_profile::EchSettings::Disabled
+pub phantom_profile::EchSettings::Grease(phantom_profile::tls::EchGreaseSettings)
+pub phantom_profile::EchSettings::HttpsRecords(phantom_profile::tls::EchGreaseSettings)
+impl phantom_profile::tls::EchSettings
+pub const fn phantom_profile::tls::EchSettings::grease(&self) -> core::option::Option<&phantom_profile::tls::EchGreaseSettings>
+pub const fn phantom_profile::tls::EchSettings::uses_https_records(&self) -> bool
 #[non_exhaustive] pub enum phantom_profile::Http1IdleTimeout
 pub phantom_profile::Http1IdleTimeout::CheckedOnRequest(core::time::Duration)
 pub phantom_profile::Http1IdleTimeout::ClosedOnTimer(core::time::Duration)
@@ -1050,7 +1120,7 @@ impl phantom_profile::request_template::RequestField
 pub fn phantom_profile::request_template::RequestField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::request_template::RequestField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::request_template::RequestField::client_hint(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
-pub fn phantom_profile::request_template::RequestField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::request_template::RequestField::default_value(&self, phantom_profile::UrlTrust) -> core::option::Option<&str>
 pub fn phantom_profile::request_template::RequestField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::request_template::RequestField::name(&self) -> core::option::Option<&str>
 pub fn phantom_profile::request_template::RequestField::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>, phantom_profile::request_template::ProxyAuthorizationAttempt) -> Self
@@ -1077,16 +1147,16 @@ pub phantom_profile::SignatureScheme::RsaPkcs1Sha512
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha256
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha384
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha512
-pub enum phantom_profile::TcpAddressAdvance
+#[non_exhaustive] pub enum phantom_profile::TcpAddressAdvance
 pub phantom_profile::TcpAddressAdvance::AfterAnyFailure
 pub phantom_profile::TcpAddressAdvance::AfterRefusalOrTimeout
-pub enum phantom_profile::TcpAddressSelection
+#[non_exhaustive] pub enum phantom_profile::TcpAddressSelection
 pub phantom_profile::TcpAddressSelection::Backup(phantom_profile::tcp::TcpBackupConnection)
 pub phantom_profile::TcpAddressSelection::Racing(phantom_profile::tcp::TcpAddressRacing)
 pub phantom_profile::TcpAddressSelection::Sequential(phantom_profile::tcp::TcpAddressAdvance)
 impl core::default::Default for phantom_profile::tcp::TcpAddressSelection
 pub fn phantom_profile::tcp::TcpAddressSelection::default() -> Self
-pub enum phantom_profile::TcpKeepalivePolicy
+#[non_exhaustive] pub enum phantom_profile::TcpKeepalivePolicy
 pub phantom_profile::TcpKeepalivePolicy::Fixed(phantom_profile::tcp::TcpKeepalive)
 pub phantom_profile::TcpKeepalivePolicy::Schedule(phantom_profile::tcp::TcpKeepaliveSchedule)
 pub phantom_profile::TcpKeepalivePolicy::Unchanged
@@ -1101,12 +1171,23 @@ pub const fn phantom_profile::tls::TlsVersion::protocol_id(self) -> u16
 impl core::convert::From<phantom_profile::tls::TlsVersion> for phantom_profile::tls::TlsVersionRange
 pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVersion) -> Self
 #[non_exhaustive] pub enum phantom_profile::TrustAnchorIds
-pub phantom_profile::TrustAnchorIds::Fixed(alloc::vec::Vec<alloc::boxed::Box<[u8]>>)
-pub phantom_profile::TrustAnchorIds::PerClient(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
-pub phantom_profile::TrustAnchorIds::PerConnection(alloc::vec::Vec<alloc::vec::Vec<alloc::boxed::Box<[u8]>>>)
+pub phantom_profile::TrustAnchorIds::Fixed(phantom_profile::tls::TrustAnchorOrder)
+pub phantom_profile::TrustAnchorIds::PerClient(phantom_profile::tls::TrustAnchorOrders)
+pub phantom_profile::TrustAnchorIds::PerConnection(phantom_profile::tls::TrustAnchorOrders)
 impl phantom_profile::tls::TrustAnchorIds
-pub fn phantom_profile::tls::TrustAnchorIds::orders(&self) -> &[alloc::vec::Vec<alloc::boxed::Box<[u8]>>]
-pub fn phantom_profile::tls::TrustAnchorIds::select(&self, u64) -> core::option::Option<&[alloc::boxed::Box<[u8]>]>
+pub fn phantom_profile::tls::TrustAnchorIds::orders(&self) -> &[phantom_profile::tls::TrustAnchorOrder]
+pub fn phantom_profile::tls::TrustAnchorIds::select(&self, u64) -> core::option::Option<&phantom_profile::tls::TrustAnchorOrder>
+#[non_exhaustive] pub enum phantom_profile::UrlTrust
+pub phantom_profile::UrlTrust::PotentiallyTrustworthy
+pub phantom_profile::UrlTrust::Untrustworthy
+#[non_exhaustive] pub enum phantom_profile::ValidationErrorKind
+pub phantom_profile::ValidationErrorKind::Duplicate
+pub phantom_profile::ValidationErrorKind::Inconsistent
+pub phantom_profile::ValidationErrorKind::InvalidValue
+pub phantom_profile::ValidationErrorKind::Missing
+pub phantom_profile::ValidationErrorKind::OutOfRange
+pub phantom_profile::ValidationErrorKind::TooLarge
+pub phantom_profile::ValidationErrorKind::Unsupported
 #[non_exhaustive] pub enum phantom_profile::WebSocketDeflateParameter
 pub phantom_profile::WebSocketDeflateParameter::ClientMaxWindowBits(core::option::Option<u8>)
 pub phantom_profile::WebSocketDeflateParameter::ClientNoContextTakeover
@@ -1138,7 +1219,7 @@ pub fn phantom_profile::websocket::WebSocketField::authority(impl core::convert:
 pub fn phantom_profile::websocket::WebSocketField::by_trust(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::caller(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::client_cookies(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
-pub fn phantom_profile::websocket::WebSocketField::default_value(&self, bool) -> core::option::Option<&str>
+pub fn phantom_profile::websocket::WebSocketField::default_value(&self, phantom_profile::UrlTrust) -> core::option::Option<&str>
 pub fn phantom_profile::websocket::WebSocketField::key(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::literal(impl core::convert::Into<alloc::boxed::Box<str>>, impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 pub fn phantom_profile::websocket::WebSocketField::permessage_deflate(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
@@ -1208,6 +1289,12 @@ pub phantom_profile::DnsCacheSettings::max_entries: core::num::nonzero::NonZeroU
 pub phantom_profile::DnsCacheSettings::min_record_ttl: core::time::Duration
 pub phantom_profile::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>
 pub phantom_profile::DnsCacheSettings::ttl: core::time::Duration
+pub struct phantom_profile::EchGreaseSettings
+impl phantom_profile::tls::EchGreaseSettings
+pub fn phantom_profile::tls::EchGreaseSettings::aeads(&self) -> &[phantom_profile::tls::EchGreaseAead]
+pub const fn phantom_profile::tls::EchGreaseSettings::backend_default() -> Self
+pub fn phantom_profile::tls::EchGreaseSettings::new(phantom_profile::tls::EchGreasePayloadLength, alloc::vec::Vec<phantom_profile::tls::EchGreaseAead>) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+pub const fn phantom_profile::tls::EchGreaseSettings::payload_length(&self) -> phantom_profile::tls::EchGreasePayloadLength
 pub struct phantom_profile::Http1Settings
 pub phantom_profile::Http1Settings::idle_timeout: phantom_profile::http1::Http1IdleTimeout
 pub phantom_profile::Http1Settings::max_connections_per_origin: core::num::nonzero::NonZeroUsize
@@ -1279,6 +1366,7 @@ pub fn phantom_profile::http3::Http3Settings::validate(&self) -> core::result::R
 pub struct phantom_profile::InvalidClientHintSettings
 impl phantom_profile::client_hints::InvalidClientHintSettings
 pub const fn phantom_profile::client_hints::InvalidClientHintSettings::field(&self) -> &'static str
+pub const fn phantom_profile::client_hints::InvalidClientHintSettings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub const fn phantom_profile::client_hints::InvalidClientHintSettings::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::client_hints::InvalidClientHintSettings
 impl core::fmt::Display for phantom_profile::client_hints::InvalidClientHintSettings
@@ -1286,18 +1374,23 @@ pub fn phantom_profile::client_hints::InvalidClientHintSettings::fmt(&self, &mut
 pub struct phantom_profile::InvalidHttp1Settings
 impl phantom_profile::http1::InvalidHttp1Settings
 pub fn phantom_profile::http1::InvalidHttp1Settings::field(&self) -> &'static str
+pub const fn phantom_profile::http1::InvalidHttp1Settings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub const fn phantom_profile::http1::InvalidHttp1Settings::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::http1::InvalidHttp1Settings
 impl core::fmt::Display for phantom_profile::http1::InvalidHttp1Settings
 pub fn phantom_profile::http1::InvalidHttp1Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_profile::InvalidHttp2Settings
 impl phantom_profile::http2::InvalidHttp2Settings
 pub fn phantom_profile::http2::InvalidHttp2Settings::field(&self) -> &'static str
+pub const fn phantom_profile::http2::InvalidHttp2Settings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub fn phantom_profile::http2::InvalidHttp2Settings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http2::InvalidHttp2Settings
 impl core::fmt::Display for phantom_profile::http2::InvalidHttp2Settings
 pub fn phantom_profile::http2::InvalidHttp2Settings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_profile::InvalidHttp3RequestSettings
 impl phantom_profile::http3::InvalidHttp3RequestSettings
 pub fn phantom_profile::http3::InvalidHttp3RequestSettings::field(&self) -> &'static str
+pub const fn phantom_profile::http3::InvalidHttp3RequestSettings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub fn phantom_profile::http3::InvalidHttp3RequestSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http3::InvalidHttp3RequestSettings
 impl core::fmt::Display for phantom_profile::http3::InvalidHttp3RequestSettings
@@ -1305,6 +1398,7 @@ pub fn phantom_profile::http3::InvalidHttp3RequestSettings::fmt(&self, &mut core
 pub struct phantom_profile::InvalidHttp3Settings
 impl phantom_profile::http3::InvalidHttp3Settings
 pub fn phantom_profile::http3::InvalidHttp3Settings::field(&self) -> &'static str
+pub const fn phantom_profile::http3::InvalidHttp3Settings::kind(&self) -> phantom_profile::ValidationErrorKind
 pub fn phantom_profile::http3::InvalidHttp3Settings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::http3::InvalidHttp3Settings
 impl core::fmt::Display for phantom_profile::http3::InvalidHttp3Settings
@@ -1312,6 +1406,7 @@ pub fn phantom_profile::http3::InvalidHttp3Settings::fmt(&self, &mut core::fmt::
 pub struct phantom_profile::InvalidProxyConnectTemplate
 impl phantom_profile::proxy_connect::InvalidProxyConnectTemplate
 pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::kind(&self) -> phantom_profile::ValidationErrorKind
 pub const fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
 impl core::fmt::Display for phantom_profile::proxy_connect::InvalidProxyConnectTemplate
@@ -1319,6 +1414,7 @@ pub fn phantom_profile::proxy_connect::InvalidProxyConnectTemplate::fmt(&self, &
 pub struct phantom_profile::InvalidRequestTemplate
 impl phantom_profile::request_template::InvalidRequestTemplate
 pub const fn phantom_profile::request_template::InvalidRequestTemplate::field(&self) -> &'static str
+pub const fn phantom_profile::request_template::InvalidRequestTemplate::kind(&self) -> phantom_profile::ValidationErrorKind
 pub const fn phantom_profile::request_template::InvalidRequestTemplate::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::request_template::InvalidRequestTemplate
 impl core::fmt::Display for phantom_profile::request_template::InvalidRequestTemplate
@@ -1326,18 +1422,24 @@ pub fn phantom_profile::request_template::InvalidRequestTemplate::fmt(&self, &mu
 pub struct phantom_profile::InvalidTcpSettings
 impl phantom_profile::tcp::InvalidTcpSettings
 pub fn phantom_profile::tcp::InvalidTcpSettings::field(&self) -> &'static str
+pub const fn phantom_profile::tcp::InvalidTcpSettings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub fn phantom_profile::tcp::InvalidTcpSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::tcp::InvalidTcpSettings
 impl core::fmt::Display for phantom_profile::tcp::InvalidTcpSettings
 pub fn phantom_profile::tcp::InvalidTcpSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_profile::InvalidTlsSettings
 impl phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::InvalidTlsSettings::field(&self) -> &'static str
+pub const fn phantom_profile::tls::InvalidTlsSettings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub fn phantom_profile::tls::InvalidTlsSettings::reason(&self) -> &str
 impl core::error::Error for phantom_profile::tls::InvalidTlsSettings
 impl core::fmt::Display for phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::InvalidTlsSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_profile::InvalidWebSocketSettings
 impl phantom_profile::websocket::InvalidWebSocketSettings
 pub fn phantom_profile::websocket::InvalidWebSocketSettings::field(&self) -> &'static str
+pub const fn phantom_profile::websocket::InvalidWebSocketSettings::kind(&self) -> phantom_profile::ValidationErrorKind
+pub const fn phantom_profile::websocket::InvalidWebSocketSettings::reason(&self) -> &'static str
 impl core::error::Error for phantom_profile::websocket::InvalidWebSocketSettings
 impl core::fmt::Display for phantom_profile::websocket::InvalidWebSocketSettings
 pub fn phantom_profile::websocket::InvalidWebSocketSettings::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -1398,10 +1500,7 @@ pub phantom_profile::TlsSettings::certificate_compression: alloc::vec::Vec<phant
 pub phantom_profile::TlsSettings::cipher_suites: alloc::vec::Vec<phantom_profile::tls::CipherSuite>
 pub phantom_profile::TlsSettings::close_notify: bool
 pub phantom_profile::TlsSettings::delegated_credential_schemes: alloc::vec::Vec<phantom_profile::tls::SignatureScheme>
-pub phantom_profile::TlsSettings::ech_from_https_records: bool
-pub phantom_profile::TlsSettings::ech_grease: bool
-pub phantom_profile::TlsSettings::ech_grease_aeads: alloc::vec::Vec<phantom_profile::tls::EchGreaseAead>
-pub phantom_profile::TlsSettings::ech_grease_payload_length: phantom_profile::tls::EchGreasePayloadLength
+pub phantom_profile::TlsSettings::ech: phantom_profile::tls::EchSettings
 pub phantom_profile::TlsSettings::extension_order: phantom_profile::tls::ClientHelloExtensionOrder
 pub phantom_profile::TlsSettings::grease: bool
 pub phantom_profile::TlsSettings::grease_signature_algorithms: bool
@@ -1433,8 +1532,33 @@ pub fn phantom_profile::tls::TlsVersionRange::from(phantom_profile::tls::TlsVers
 impl core::convert::TryFrom<(phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)> for phantom_profile::tls::TlsVersionRange
 pub type phantom_profile::tls::TlsVersionRange::Error = phantom_profile::tls::InvalidTlsSettings
 pub fn phantom_profile::tls::TlsVersionRange::try_from((phantom_profile::tls::TlsVersion, phantom_profile::tls::TlsVersion)) -> core::result::Result<Self, Self::Error>
+pub struct phantom_profile::TrustAnchorOrder
+impl phantom_profile::tls::TrustAnchorOrder
+pub fn phantom_profile::tls::TrustAnchorOrder::as_slice(&self) -> &[alloc::boxed::Box<[u8]>]
+pub const fn phantom_profile::tls::TrustAnchorOrder::empty() -> Self
+pub fn phantom_profile::tls::TrustAnchorOrder::new(alloc::vec::Vec<alloc::boxed::Box<[u8]>>) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+impl core::convert::AsRef<[alloc::boxed::Box<[u8]>]> for phantom_profile::tls::TrustAnchorOrder
+pub fn phantom_profile::tls::TrustAnchorOrder::as_ref(&self) -> &[alloc::boxed::Box<[u8]>]
+impl core::convert::TryFrom<alloc::vec::Vec<alloc::boxed::Box<[u8]>>> for phantom_profile::tls::TrustAnchorOrder
+pub type phantom_profile::tls::TrustAnchorOrder::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::TrustAnchorOrder::try_from(alloc::vec::Vec<alloc::boxed::Box<[u8]>>) -> core::result::Result<Self, Self::Error>
+pub struct phantom_profile::TrustAnchorOrders
+impl phantom_profile::tls::TrustAnchorOrders
+pub fn phantom_profile::tls::TrustAnchorOrders::as_slice(&self) -> &[phantom_profile::tls::TrustAnchorOrder]
+pub fn phantom_profile::tls::TrustAnchorOrders::new(alloc::vec::Vec<phantom_profile::tls::TrustAnchorOrder>) -> core::result::Result<Self, phantom_profile::tls::InvalidTlsSettings>
+impl core::convert::AsRef<[phantom_profile::tls::TrustAnchorOrder]> for phantom_profile::tls::TrustAnchorOrders
+pub fn phantom_profile::tls::TrustAnchorOrders::as_ref(&self) -> &[phantom_profile::tls::TrustAnchorOrder]
+impl core::convert::TryFrom<alloc::vec::Vec<phantom_profile::tls::TrustAnchorOrder>> for phantom_profile::tls::TrustAnchorOrders
+pub type phantom_profile::tls::TrustAnchorOrders::Error = phantom_profile::tls::InvalidTlsSettings
+pub fn phantom_profile::tls::TrustAnchorOrders::try_from(alloc::vec::Vec<phantom_profile::tls::TrustAnchorOrder>) -> core::result::Result<Self, Self::Error>
 pub struct phantom_profile::UdpSettings
 pub phantom_profile::UdpSettings::port_randomization: bool
+pub struct phantom_profile::UnknownCipherSuite
+impl phantom_profile::tls::UnknownCipherSuite
+pub const fn phantom_profile::tls::UnknownCipherSuite::iana_id(self) -> u16
+impl core::error::Error for phantom_profile::tls::UnknownCipherSuite
+impl core::fmt::Display for phantom_profile::tls::UnknownCipherSuite
+pub fn phantom_profile::tls::UnknownCipherSuite::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_profile::WebSocketConnectionPolicy
 pub phantom_profile::WebSocketConnectionPolicy::http1_alpn_protocols: alloc::vec::Vec<alloc::boxed::Box<[u8]>>
 pub phantom_profile::WebSocketConnectionPolicy::proxied_http2_session: phantom_profile::websocket::WebSocketProxiedSession

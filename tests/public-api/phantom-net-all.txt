@@ -22,7 +22,7 @@ pub phantom_net::dns::HttpsLookupErrorKind::Configuration
 pub phantom_net::dns::HttpsLookupErrorKind::InvalidName
 pub phantom_net::dns::HttpsLookupErrorKind::MalformedRecord
 pub phantom_net::dns::HttpsLookupErrorKind::Resolve
-pub enum phantom_net::dns::HttpsRecord
+#[non_exhaustive] pub enum phantom_net::dns::HttpsRecord
 pub phantom_net::dns::HttpsRecord::Alias(phantom_net::dns::AliasRecord)
 pub phantom_net::dns::HttpsRecord::Service(phantom_net::dns::ServiceRecord)
 impl phantom_net::dns::HttpsRecord
@@ -36,7 +36,7 @@ pub phantom_net::dns::HttpsRecordErrorKind::MissingMandatoryKey
 pub phantom_net::dns::HttpsRecordErrorKind::ReservedKey
 pub phantom_net::dns::HttpsRecordErrorKind::TargetName
 pub phantom_net::dns::HttpsRecordErrorKind::Truncated
-pub enum phantom_net::dns::TargetName
+#[non_exhaustive] pub enum phantom_net::dns::TargetName
 pub phantom_net::dns::TargetName::Name(alloc::boxed::Box<str>)
 pub phantom_net::dns::TargetName::Owner
 pub struct phantom_net::dns::AliasRecord
@@ -148,7 +148,7 @@ pub mod phantom_net::http1
 #[non_exhaustive] pub enum phantom_net::http1::EchFailure
 pub phantom_net::http1::EchFailure::InvalidConfigList
 pub phantom_net::http1::EchFailure::Rejected
-pub enum phantom_net::http1::Http1Error
+#[non_exhaustive] pub enum phantom_net::http1::Http1Error
 pub phantom_net::http1::Http1Error::AmbiguousResponseFraming
 pub phantom_net::http1::Http1Error::BodyTrailerPlanRequired
 pub phantom_net::http1::Http1Error::ChunkSizeLineTooLarge
@@ -208,6 +208,8 @@ pub phantom_net::http1::Http1Error::TrailersTooLarge
 pub phantom_net::http1::Http1Error::TrailersTooLarge::bytes: usize
 pub phantom_net::http1::Http1Error::TrailersTooLarge::maximum: usize
 pub phantom_net::http1::Http1Error::UnexpectedUpgrade
+impl phantom_net::http1::Http1Error
+pub const fn phantom_net::http1::Http1Error::kind(&self) -> phantom_net::http1::Http1ErrorKind
 impl core::convert::From<phantom_net::http1::Http1Error> for phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::from(phantom_net::http1::Http1Error) -> Self
 impl core::convert::From<phantom_net::http1::Http1Error> for phantom_net::http1_or_2::Http1Or2TlsError
@@ -216,7 +218,14 @@ impl core::error::Error for phantom_net::http1::Http1Error
 pub fn phantom_net::http1::Http1Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http1::Http1Error
 pub fn phantom_net::http1::Http1Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http1::Http1TlsError
+#[non_exhaustive] pub enum phantom_net::http1::Http1ErrorKind
+pub phantom_net::http1::Http1ErrorKind::ConnectionClosed
+pub phantom_net::http1::Http1ErrorKind::Protocol
+pub phantom_net::http1::Http1ErrorKind::Request
+pub phantom_net::http1::Http1ErrorKind::Response
+pub phantom_net::http1::Http1ErrorKind::ReusedConnectionClosed
+pub phantom_net::http1::Http1ErrorKind::RuntimeUnavailable
+#[non_exhaustive] pub enum phantom_net::http1::Http1TlsError
 pub phantom_net::http1::Http1TlsError::Connect(core::io::error::Error)
 pub phantom_net::http1::Http1TlsError::ForwardProxyConnect(core::io::error::Error)
 pub phantom_net::http1::Http1TlsError::Http1(phantom_net::http1::Http1Error)
@@ -229,6 +238,7 @@ pub phantom_net::http1::Http1TlsError::UnsupportedAlpn
 pub phantom_net::http1::Http1TlsError::UnsupportedAlpn::selected: alloc::boxed::Box<[u8]>
 impl phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::ech_failure(&self) -> core::option::Option<phantom_net::http1::EchFailure>
+pub const fn phantom_net::http1::Http1TlsError::kind(&self) -> phantom_net::http1::Http1TlsErrorKind
 impl core::convert::From<phantom_net::http1::Http1Error> for phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::from(phantom_net::http1::Http1Error) -> Self
 impl core::convert::From<phantom_net::http1::TlsError> for phantom_net::http1::Http1TlsError
@@ -241,12 +251,21 @@ impl core::error::Error for phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http1::Http1UpgradeOutcome
+#[non_exhaustive] pub enum phantom_net::http1::Http1TlsErrorKind
+pub phantom_net::http1::Http1TlsErrorKind::Connect
+pub phantom_net::http1::Http1TlsErrorKind::Http1
+pub phantom_net::http1::Http1TlsErrorKind::HttpProxy
+pub phantom_net::http1::Http1TlsErrorKind::InvalidConfiguration
+pub phantom_net::http1::Http1TlsErrorKind::RuntimeUnavailable
+pub phantom_net::http1::Http1TlsErrorKind::Socks5Proxy
+pub phantom_net::http1::Http1TlsErrorKind::Tls
+pub phantom_net::http1::Http1TlsErrorKind::UnsupportedAlpn
+#[non_exhaustive] pub enum phantom_net::http1::Http1UpgradeOutcome
 pub phantom_net::http1::Http1UpgradeOutcome::Rejected(http::response::Response<phantom_net::http1::Http1Body>)
 pub phantom_net::http1::Http1UpgradeOutcome::Upgraded(http::response::Response<phantom_net::http1::Http1Upgrade>)
 impl core::fmt::Debug for phantom_net::http1::Http1UpgradeOutcome
 pub fn phantom_net::http1::Http1UpgradeOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http1::TlsErrorKind
+#[non_exhaustive] pub enum phantom_net::http1::TlsErrorKind
 pub phantom_net::http1::TlsErrorKind::BackendConfiguration
 pub phantom_net::http1::TlsErrorKind::Handshake
 pub phantom_net::http1::TlsErrorKind::InvalidConfiguration
@@ -355,23 +374,18 @@ impl core::error::Error for phantom_net::http1::TlsError
 pub fn phantom_net::http1::TlsError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http1::TlsError
 pub fn phantom_net::http1::TlsError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn phantom_net::http1::validate_forward_request(&http::method::Method, &phantom_net::request::AbsoluteForm, &[phantom_net::request::RequestHeader], core::option::Option<&bytes::bytes::Bytes>) -> core::result::Result<(), phantom_net::http1::Http1Error>
-pub fn phantom_net::http1::validate_forward_request_body(&http::method::Method, &phantom_net::request::AbsoluteForm, &[phantom_net::request::RequestHeader], core::option::Option<phantom_net::request::RequestBodyMetadata>) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub fn phantom_net::http1::validate_forward_request_body_source_with_trailers(&http::method::Method, &phantom_net::request::AbsoluteForm, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::request::RequestBody>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
-pub fn phantom_net::http1::validate_forward_request_body_with_trailers(&http::method::Method, &phantom_net::request::AbsoluteForm, &[phantom_net::request::RequestHeader], core::option::Option<phantom_net::request::RequestBodyMetadata>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub fn phantom_net::http1::validate_get(&phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub fn phantom_net::http1::validate_request(&http::method::Method, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<&bytes::bytes::Bytes>) -> core::result::Result<(), phantom_net::http1::Http1Error>
-pub fn phantom_net::http1::validate_request_body(&http::method::Method, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<phantom_net::request::RequestBodyMetadata>) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub fn phantom_net::http1::validate_request_body_source_with_trailers(&http::method::Method, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::request::RequestBody>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
-pub fn phantom_net::http1::validate_request_body_with_trailers(&http::method::Method, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<phantom_net::request::RequestBodyMetadata>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub mod phantom_net::http1_or_2
 #[non_exhaustive] pub enum phantom_net::http1_or_2::EchFailure
 pub phantom_net::http1_or_2::EchFailure::InvalidConfigList
 pub phantom_net::http1_or_2::EchFailure::Rejected
-pub enum phantom_net::http1_or_2::Http1Or2Connection
+#[non_exhaustive] pub enum phantom_net::http1_or_2::Http1Or2Connection
 pub phantom_net::http1_or_2::Http1Or2Connection::Http1(phantom_net::http1::Http1Connection)
 pub phantom_net::http1_or_2::Http1Or2Connection::Http2(phantom_net::http2::Http2Connection)
-pub enum phantom_net::http1_or_2::Http1Or2TlsError
+#[non_exhaustive] pub enum phantom_net::http1_or_2::Http1Or2TlsError
 pub phantom_net::http1_or_2::Http1Or2TlsError::Connect(core::io::error::Error)
 pub phantom_net::http1_or_2::Http1Or2TlsError::Http1(phantom_net::http1::Http1Error)
 pub phantom_net::http1_or_2::Http1Or2TlsError::Http2(phantom_net::http2::Http2TlsError)
@@ -400,7 +414,7 @@ impl core::error::Error for phantom_net::http1_or_2::Http1Or2TlsError
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http1_or_2::Http1Or2TlsError
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http1_or_2::Http1Or2TlsErrorKind
+#[non_exhaustive] pub enum phantom_net::http1_or_2::Http1Or2TlsErrorKind
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Connect
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Http1
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Http2
@@ -433,13 +447,13 @@ pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::with_source_binding(self, 
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::with_tcp_settings(self, &phantom_profile::tcp::TcpSettings) -> Self
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::without_early_data(&self) -> Self
 pub mod phantom_net::http2
-pub enum phantom_net::http2::AltSvcFrameScope
+#[non_exhaustive] pub enum phantom_net::http2::AltSvcFrameScope
 pub phantom_net::http2::AltSvcFrameScope::Connection(bytes::bytes::Bytes)
 pub phantom_net::http2::AltSvcFrameScope::Stream
 #[non_exhaustive] pub enum phantom_net::http2::EchFailure
 pub phantom_net::http2::EchFailure::InvalidConfigList
 pub phantom_net::http2::EchFailure::Rejected
-pub enum phantom_net::http2::Http2Error
+#[non_exhaustive] pub enum phantom_net::http2::Http2Error
 pub phantom_net::http2::Http2Error::AuthorityContainsUserinfo
 pub phantom_net::http2::Http2Error::BodyTrailerPlanRequired
 pub phantom_net::http2::Http2Error::ConflictingRequestTrailers
@@ -501,26 +515,39 @@ pub phantom_net::http2::Http2Error::TrailersTooLarge::bytes: usize
 pub phantom_net::http2::Http2Error::TrailersTooLarge::maximum: usize
 pub phantom_net::http2::Http2Error::UnsupportedRequestBodyFrame
 pub phantom_net::http2::Http2Error::UnsupportedSetting
+impl phantom_net::http2::Http2Error
+pub const fn phantom_net::http2::Http2Error::kind(&self) -> phantom_net::http2::Http2ErrorKind
 impl core::convert::From<phantom_net::http2::Http2Error> for phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::from(phantom_net::http2::Http2Error) -> Self
 impl core::error::Error for phantom_net::http2::Http2Error
 pub fn phantom_net::http2::Http2Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http2::Http2Error
 pub fn phantom_net::http2::Http2Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http2::Http2ExtendedConnectOutcome
+#[non_exhaustive] pub enum phantom_net::http2::Http2ErrorKind
+pub phantom_net::http2::Http2ErrorKind::Configuration
+pub phantom_net::http2::Http2ErrorKind::ConnectionClosed
+pub phantom_net::http2::Http2ErrorKind::ExtendedConnectUnavailable
+pub phantom_net::http2::Http2ErrorKind::PingTimeout
+pub phantom_net::http2::Http2ErrorKind::Protocol
+pub phantom_net::http2::Http2ErrorKind::Request
+pub phantom_net::http2::Http2ErrorKind::RequestBody
+pub phantom_net::http2::Http2ErrorKind::Response
+pub phantom_net::http2::Http2ErrorKind::ReusedConnectionClosed
+pub phantom_net::http2::Http2ErrorKind::RuntimeUnavailable
+#[non_exhaustive] pub enum phantom_net::http2::Http2ExtendedConnectOutcome
 pub phantom_net::http2::Http2ExtendedConnectOutcome::Accepted
 pub phantom_net::http2::Http2ExtendedConnectOutcome::Accepted::response: http::response::Response<()>
 pub phantom_net::http2::Http2ExtendedConnectOutcome::Accepted::stream: phantom_net::http2::Http2ExtendedConnectStream
 pub phantom_net::http2::Http2ExtendedConnectOutcome::Rejected(http::response::Response<phantom_net::http2::Http2Body>)
 impl core::fmt::Debug for phantom_net::http2::Http2ExtendedConnectOutcome
 pub fn phantom_net::http2::Http2ExtendedConnectOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http2::Http2ProtocolErrorKind
+#[non_exhaustive] pub enum phantom_net::http2::Http2ProtocolErrorKind
 pub phantom_net::http2::Http2ProtocolErrorKind::ConnectionError
 pub phantom_net::http2::Http2ProtocolErrorKind::Local
 pub phantom_net::http2::Http2ProtocolErrorKind::Protocol
 pub phantom_net::http2::Http2ProtocolErrorKind::StreamReset
 pub phantom_net::http2::Http2ProtocolErrorKind::Transport
-pub enum phantom_net::http2::Http2TlsError
+#[non_exhaustive] pub enum phantom_net::http2::Http2TlsError
 pub phantom_net::http2::Http2TlsError::Connect(core::io::error::Error)
 pub phantom_net::http2::Http2TlsError::Http2(phantom_net::http2::Http2Error)
 pub phantom_net::http2::Http2TlsError::InvalidPeerApplicationSettings
@@ -537,6 +564,7 @@ pub phantom_net::http2::Http2TlsError::UnsupportedAlpn
 pub phantom_net::http2::Http2TlsError::UnsupportedAlpn::selected: alloc::boxed::Box<[u8]>
 impl phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::ech_failure(&self) -> core::option::Option<phantom_net::http1::EchFailure>
+pub const fn phantom_net::http2::Http2TlsError::kind(&self) -> phantom_net::http2::Http2TlsErrorKind
 impl core::convert::From<phantom_net::http1::TlsError> for phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::from(phantom_net::http1::TlsError) -> Self
 impl core::convert::From<phantom_net::http2::Http2Error> for phantom_net::http2::Http2TlsError
@@ -551,7 +579,17 @@ impl core::error::Error for phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::http2::TlsErrorKind
+#[non_exhaustive] pub enum phantom_net::http2::Http2TlsErrorKind
+pub phantom_net::http2::Http2TlsErrorKind::Connect
+pub phantom_net::http2::Http2TlsErrorKind::Http2
+pub phantom_net::http2::Http2TlsErrorKind::HttpProxy
+pub phantom_net::http2::Http2TlsErrorKind::InvalidConfiguration
+pub phantom_net::http2::Http2TlsErrorKind::PeerApplicationSettings
+pub phantom_net::http2::Http2TlsErrorKind::RuntimeUnavailable
+pub phantom_net::http2::Http2TlsErrorKind::Socks5Proxy
+pub phantom_net::http2::Http2TlsErrorKind::Tls
+pub phantom_net::http2::Http2TlsErrorKind::UnsupportedAlpn
+#[non_exhaustive] pub enum phantom_net::http2::TlsErrorKind
 pub phantom_net::http2::TlsErrorKind::BackendConfiguration
 pub phantom_net::http2::TlsErrorKind::Handshake
 pub phantom_net::http2::TlsErrorKind::InvalidConfiguration
@@ -651,6 +689,8 @@ pub fn phantom_net::request::RequestBody::from_bytes(bytes::bytes::Bytes) -> Sel
 pub fn phantom_net::request::RequestBody::metadata(&self) -> phantom_net::request::RequestBodyMetadata
 pub fn phantom_net::request::RequestBody::streaming<B>(B) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom_net::request::RequestBody::streaming_with_trailers<B>(B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+impl core::convert::From<bytes::bytes::Bytes> for phantom_net::request::RequestBody
+pub fn phantom_net::request::RequestBody::from(bytes::bytes::Bytes) -> Self
 impl core::fmt::Debug for phantom_net::request::RequestBody
 pub fn phantom_net::request::RequestBody::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl http_body::Body for phantom_net::request::RequestBody
@@ -689,15 +729,11 @@ impl core::error::Error for phantom_net::http1::TlsError
 pub fn phantom_net::http1::TlsError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::http1::TlsError
 pub fn phantom_net::http1::TlsError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn phantom_net::http2::validate_extended_connect(&str, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http2::Http2Error>
-pub fn phantom_net::http2::validate_extended_connect_settings(&phantom_profile::http2::Http2Settings) -> core::result::Result<(), phantom_net::http2::Http2Error>
 pub fn phantom_net::http2::validate_get(&str, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http2::Http2Error>
 pub fn phantom_net::http2::validate_request(&http::method::Method, &str, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<&bytes::bytes::Bytes>) -> core::result::Result<(), phantom_net::http2::Http2Error>
-pub fn phantom_net::http2::validate_request_body(&http::method::Method, &str, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<phantom_net::request::RequestBodyMetadata>) -> core::result::Result<(), phantom_net::http2::Http2Error>
 pub fn phantom_net::http2::validate_request_body_source_with_trailers(&http::method::Method, &str, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::request::RequestBody>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http2::Http2Error>
-pub fn phantom_net::http2::validate_request_body_with_trailers(&http::method::Method, &str, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<phantom_net::request::RequestBodyMetadata>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http2::Http2Error>
 pub mod phantom_net::http3
-pub enum phantom_net::http3::ConnectUdpErrorKind
+#[non_exhaustive] pub enum phantom_net::http3::ConnectUdpErrorKind
 pub phantom_net::http3::ConnectUdpErrorKind::Authentication
 pub phantom_net::http3::ConnectUdpErrorKind::Configuration
 pub phantom_net::http3::ConnectUdpErrorKind::Connect
@@ -711,7 +747,7 @@ pub phantom_net::http3::ConnectUdpErrorKind::Rejected
 pub phantom_net::http3::ConnectUdpErrorKind::Resolve
 pub phantom_net::http3::ConnectUdpErrorKind::RuntimeUnavailable
 pub phantom_net::http3::ConnectUdpErrorKind::UnsupportedProtocol
-pub enum phantom_net::http3::Http3ConnectorErrorKind
+#[non_exhaustive] pub enum phantom_net::http3::Http3ConnectorErrorKind
 pub phantom_net::http3::Http3ConnectorErrorKind::Connect
 pub phantom_net::http3::Http3ConnectorErrorKind::Connection
 pub phantom_net::http3::Http3ConnectorErrorKind::Endpoint
@@ -726,7 +762,7 @@ pub phantom_net::http3::Http3ConnectorErrorKind::Request
 pub phantom_net::http3::Http3ConnectorErrorKind::Resolve
 pub phantom_net::http3::Http3ConnectorErrorKind::RuntimeUnavailable
 pub phantom_net::http3::Http3ConnectorErrorKind::TrustStore
-pub enum phantom_net::http3::Http3ErrorKind
+#[non_exhaustive] pub enum phantom_net::http3::Http3ErrorKind
 pub phantom_net::http3::Http3ErrorKind::Configuration
 pub phantom_net::http3::Http3ErrorKind::Connect
 pub phantom_net::http3::Http3ErrorKind::Connection
@@ -737,7 +773,7 @@ pub phantom_net::http3::Http3ErrorKind::Local
 pub phantom_net::http3::Http3ErrorKind::Protocol
 pub phantom_net::http3::Http3ErrorKind::Request
 pub phantom_net::http3::Http3ErrorKind::RuntimeUnavailable
-pub enum phantom_net::http3::Http3ExtendedConnectOutcome
+#[non_exhaustive] pub enum phantom_net::http3::Http3ExtendedConnectOutcome
 pub phantom_net::http3::Http3ExtendedConnectOutcome::Accepted
 pub phantom_net::http3::Http3ExtendedConnectOutcome::Accepted::response: http::response::Response<()>
 pub phantom_net::http3::Http3ExtendedConnectOutcome::Accepted::stream: phantom_net::http3::Http3ExtendedConnectStream
@@ -746,7 +782,7 @@ impl core::fmt::Debug for phantom_net::http3::Http3ExtendedConnectOutcome
 pub fn phantom_net::http3::Http3ExtendedConnectOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum phantom_net::http3::Http3ExtendedProtocol
 pub phantom_net::http3::Http3ExtendedProtocol::WebSocket
-pub enum phantom_net::http3::Http3Unprocessed
+#[non_exhaustive] pub enum phantom_net::http3::Http3Unprocessed
 pub phantom_net::http3::Http3Unprocessed::EarlyDataRejected
 pub phantom_net::http3::Http3Unprocessed::GoAway
 pub phantom_net::http3::Http3Unprocessed::RequestRejected
@@ -891,7 +927,7 @@ impl core::fmt::Debug for phantom_net::request::RequestHeader
 pub fn phantom_net::request::RequestHeader::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub async fn phantom_net::http3::send_with_config(core::net::socket_addr::SocketAddr, &str, alloc::sync::Arc<phantom_quic_btls::backend::client::QuicClientConfig>, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, phantom_net::http3::Http3SendOptions) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3Error>
 pub mod phantom_net::proxy
-pub enum phantom_net::proxy::HttpConnectError
+#[non_exhaustive] pub enum phantom_net::proxy::HttpConnectError
 pub phantom_net::proxy::HttpConnectError::AuthenticationRejected
 pub phantom_net::proxy::HttpConnectError::AuthorityHeader
 pub phantom_net::proxy::HttpConnectError::BasicCredentialsTooLarge
@@ -956,7 +992,7 @@ impl core::error::Error for phantom_net::proxy::HttpConnectError
 pub fn phantom_net::proxy::HttpConnectError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_net::proxy::HttpConnectError
 pub fn phantom_net::proxy::HttpConnectError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::proxy::HttpConnectErrorKind
+#[non_exhaustive] pub enum phantom_net::proxy::HttpConnectErrorKind
 pub phantom_net::proxy::HttpConnectErrorKind::Authentication
 pub phantom_net::proxy::HttpConnectErrorKind::Connect
 pub phantom_net::proxy::HttpConnectErrorKind::Http2
@@ -984,7 +1020,7 @@ pub fn phantom_net::proxy::HttpConnectHeader::fmt(&self, &mut core::fmt::Formatt
 #[non_exhaustive] pub enum phantom_net::proxy::HttpsProxyProtocol
 pub phantom_net::proxy::HttpsProxyProtocol::Http1
 pub phantom_net::proxy::HttpsProxyProtocol::Http2
-pub enum phantom_net::proxy::ProxyScheme
+#[non_exhaustive] pub enum phantom_net::proxy::ProxyScheme
 pub phantom_net::proxy::ProxyScheme::Http
 pub phantom_net::proxy::ProxyScheme::Https
 #[non_exhaustive] pub enum phantom_net::proxy::Socks5Auth<'a>
@@ -994,7 +1030,7 @@ pub phantom_net::proxy::Socks5Auth::UsernamePassword::password: &'a str
 pub phantom_net::proxy::Socks5Auth::UsernamePassword::username: &'a str
 impl core::fmt::Debug for phantom_net::proxy::Socks5Auth<'_>
 pub fn phantom_net::proxy::Socks5Auth<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub enum phantom_net::proxy::Socks5ErrorKind
+#[non_exhaustive] pub enum phantom_net::proxy::Socks5ErrorKind
 pub phantom_net::proxy::Socks5ErrorKind::Authentication
 pub phantom_net::proxy::Socks5ErrorKind::Connect
 pub phantom_net::proxy::Socks5ErrorKind::InvalidAuthentication
@@ -1076,7 +1112,7 @@ pub const phantom_net::proxy::MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION: usize
 pub async fn phantom_net::proxy::connect_http_tunnel<S>(S, &str, &[phantom_net::proxy::HttpConnectHeader]) -> core::result::Result<phantom_net::proxy::TunnelStream<S>, phantom_net::proxy::HttpConnectError> where S: tokio::io::async_read::AsyncRead + tokio::io::async_write::AsyncWrite + core::marker::Unpin
 pub fn phantom_net::proxy::validate_basic_proxy_challenge(&http::header::map::HeaderMap) -> core::result::Result<(), phantom_net::proxy::HttpConnectError>
 pub mod phantom_net::request
-pub enum phantom_net::request::RequestBodyErrorKind
+#[non_exhaustive] pub enum phantom_net::request::RequestBodyErrorKind
 pub phantom_net::request::RequestBodyErrorKind::LengthMismatch
 pub phantom_net::request::RequestBodyErrorKind::Source
 pub phantom_net::request::RequestBodyErrorKind::TrailersMismatch
@@ -1105,6 +1141,8 @@ pub fn phantom_net::request::RequestBody::from_bytes(bytes::bytes::Bytes) -> Sel
 pub fn phantom_net::request::RequestBody::metadata(&self) -> phantom_net::request::RequestBodyMetadata
 pub fn phantom_net::request::RequestBody::streaming<B>(B) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
 pub fn phantom_net::request::RequestBody::streaming_with_trailers<B>(B, alloc::vec::Vec<phantom_net::request::RequestTrailerName>) -> Self where B: http_body::Body<Data = bytes::bytes::Bytes> + core::marker::Send + 'static, <B as http_body::Body>::Error: core::error::Error + core::marker::Send + core::marker::Sync + 'static
+impl core::convert::From<bytes::bytes::Bytes> for phantom_net::request::RequestBody
+pub fn phantom_net::request::RequestBody::from(bytes::bytes::Bytes) -> Self
 impl core::fmt::Debug for phantom_net::request::RequestBody
 pub fn phantom_net::request::RequestBody::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl http_body::Body for phantom_net::request::RequestBody
