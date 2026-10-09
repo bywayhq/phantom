@@ -418,7 +418,7 @@ async fn connect(connector: &Http1Or2TlsConnector, port: u16) -> TestResult<Http
         connector.connect_via(
             crate::route::TcpRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
-                port: port,
+                port,
             }),
             TEST_SERVER_NAME,
         ),

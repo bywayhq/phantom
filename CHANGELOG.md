@@ -18,8 +18,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `connect_via(route, server_name)` instead of ordinary direct, HTTP CONNECT,
   HTTPS CONNECT, and SOCKS5 connection methods. Migrate: construct a
   `phantom_net::route::TcpRoute` for the connection path and pass the origin
-  TLS name separately. The route holds ordered CONNECT headers, optional
-  proxy credentials, and local or remote SOCKS5 DNS selection.
+  TLS name separately. Replace `connect_direct` with `TcpRoute::Direct`;
+  `connect_http_connect[_with_basic_auth]` and
+  `connect_https_connect[_with_basic_auth]` with `TcpRoute::HttpConnect`;
+  and `connect_socks5_{local,remote}[_with_auth]` with `TcpRoute::Socks5`.
+  The route holds ordered CONNECT headers, optional proxy credentials,
+  and local or remote SOCKS5 DNS selection.
 
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.

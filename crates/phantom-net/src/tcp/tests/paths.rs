@@ -326,20 +326,7 @@ async fn socks5_udp_control_connection_applies_tcp_settings() -> TestResult {
     observed::take();
 
     let _ = connector
-        .connect_via(
-            crate::route::TcpRoute::Socks5 {
-                proxy: crate::route::Endpoint {
-                    host: "127.0.0.1",
-                    port: peer.port,
-                },
-                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
-                    host: SERVER_NAME,
-                    port: 443,
-                }),
-                auth: crate::proxy::Socks5Auth::None,
-            },
-            SERVER_NAME,
-        )
+        .connect_socks5_remote("127.0.0.1", peer.port, SERVER_NAME, 443, SERVER_NAME)
         .await;
     assert_profiled("SOCKS5 UDP control", &observed::take());
     Ok(())
