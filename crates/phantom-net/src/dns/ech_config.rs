@@ -100,8 +100,9 @@ impl EchConfig {
             .map_or(&[], |contents| &contents.extensions)
     }
 
-    /// Returns whether the TLS client can encrypt a ClientHello with this
-    /// configuration.
+    /// Returns whether this configuration uses parameters the TLS client supports.
+    ///
+    /// This does not validate the HPKE public key or guarantee a handshake.
     ///
     /// As in BoringSSL's `ssl_select_ech_config`, that needs version
     /// `0xfe0d`, the X25519 HKDF-SHA256 KEM, a cipher suite pairing
