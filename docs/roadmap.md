@@ -1,7 +1,8 @@
 # Roadmap
 
-What Phantom does today, what Phase 1 still has to deliver, and the phases
-after it. It states intent, not commitments or dates; for exact current
+Phases 1 and 2 are complete within their agreed scope. Release preparation
+comes next, followed by hardening, profiling, and an architecture audit.
+This page states intent, not commitments or dates; for exact current
 support, see [Coverage](reference/coverage.md).
 
 > For builders planning around Phantom and contributors choosing work.
@@ -12,7 +13,11 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 Counts in the later phases come from a read-only review of `main` at
 438f8de6 (2026-10-02) and change as work lands.
 
-## Phase 1: Functionality (current)
+## Phase 1: Functionality
+
+The agreed Phase 1 exit work is complete. Additional browser coverage and
+fidelity gaps remain below as deferred follow-ups; they are not completed
+features or blockers for the Phase 2 API work.
 
 ### Complete
 
@@ -261,8 +266,9 @@ Counts in the later phases come from a read-only review of `main` at
 
 ### Remaining
 
-Each entry names what exists as evidence and what blocks the work, if
-anything does.
+These deferred follow-ups remain open after the Phase 1 exit audit. Each
+entry names the evidence and any blocker. They are separate from the
+completed phase scope.
 
 #### Browser recipes
 

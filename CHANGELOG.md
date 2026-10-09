@@ -1875,6 +1875,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Clarify that Phases 1 and 2 are complete within their agreed scope, while
+  deferred browser coverage and fidelity work remain open.
 - Document Phase 2 API milestones, completion criteria, and browser/TLS
   behavior that each change must preserve.
 - Add crate READMEs, keywords, categories, and plain package descriptions
