@@ -73,12 +73,12 @@ async fn plaintext_requests_keep_one_short_lived_schedule() -> TestResult<()> {
     let connector =
         Http1TlsConnector::new(&firefox::v157_tls())?.with_tcp_settings(&firefox::v157_tcp());
 
-    let connection = connector
+    let (connection, _) = connector
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Plaintext {
                 tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
                     host: "127.0.0.1",
-                    port: port,
+                    port,
                 }),
                 family: None,
             },
@@ -121,7 +121,17 @@ async fn a_switch_of_protocols_makes_keepalive_long_lived() -> TestResult<()> {
     headers.push(RequestHeader::new("Connection", "Upgrade"));
     headers.push(RequestHeader::new("Upgrade", "websocket"));
     let outcome = connector
-        .upgrade_get_plaintext_direct("127.0.0.1", port, target, headers)
+        .upgrade(
+            crate::route::Http1Route::Origin(crate::route::OriginRoute::Plaintext {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port,
+                }),
+                family: None,
+            }),
+            crate::route::Http1Target::Origin(target),
+            headers,
+        )
         .await?;
     let Http1UpgradeOutcome::Upgraded(response) = outcome else {
         return Err("the origin's 101 was not an upgrade".into());
@@ -203,12 +213,12 @@ async fn a_chromium_profile_opens_no_schedule() -> TestResult<()> {
     let connector =
         Http1TlsConnector::new(&chromium::v154_tls())?.with_tcp_settings(&chromium::v154_tcp());
 
-    let connection = connector
+    let (connection, _) = connector
         .connect(crate::route::Http1Route::Origin(
             crate::route::OriginRoute::Plaintext {
                 tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
                     host: "127.0.0.1",
-                    port: port,
+                    port,
                 }),
                 family: None,
             },

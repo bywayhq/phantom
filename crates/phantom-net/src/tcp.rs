@@ -154,56 +154,6 @@ impl TcpKeepaliveSource for ProfileTcpStream {
     }
 }
 
-/// A byte stream a caller supplied, which carries no profile keepalive
-/// schedule.
-pub(crate) struct ForeignStream<S>(pub(crate) S);
-
-impl<S> TcpKeepaliveSource for ForeignStream<S> {
-    fn tcp_keepalive(&self) -> Option<TcpKeepaliveControl> {
-        None
-    }
-}
-
-impl<S: AsyncRead + Unpin> AsyncRead for ForeignStream<S> {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_read(context, buffer)
-    }
-}
-
-impl<S: AsyncWrite + Unpin> AsyncWrite for ForeignStream<S> {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.get_mut().0).poll_write(context, buffer)
-    }
-
-    fn poll_write_vectored(
-        self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffers: &[io::IoSlice<'_>],
-    ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.get_mut().0).poll_write_vectored(context, buffers)
-    }
-
-    fn is_write_vectored(&self) -> bool {
-        self.0.is_write_vectored()
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_flush(context)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().0).poll_shutdown(context)
-    }
-}
-
 #[cfg(windows)]
 impl std::os::windows::io::AsSocket for ProfileTcpStream {
     fn as_socket(&self) -> std::os::windows::io::BorrowedSocket<'_> {
