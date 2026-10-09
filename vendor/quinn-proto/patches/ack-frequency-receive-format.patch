@@ -1,0 +1,77 @@
+diff --git a/src/tests/transport_limits.rs b/src/tests/transport_limits.rs
+--- a/src/tests/transport_limits.rs
++++ b/src/tests/transport_limits.rs
+@@ -286,3 +286,73 @@
+         .expect("client sent an Initial");
+     assert_eq!(transmit.size, usize::from(INITIAL_MTU));
+ }
++
++#[test]
++fn draft02_rejects_invalid_ignore_order_bytes() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let mut transport = TransportConfig::default();
++    transport.ack_frequency_draft(AckFrequencyDraft::Draft02);
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let (client_ch, _) = pair.connect_with(config);
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for flag in 2..=u8::MAX {
++        // Sequence 0, tolerance 2, delay 1000 us, followed by padding and PING.
++        // Enough padding follows to expose an accidental 2-, 4-, or 8-byte read.
++        let mut frames = vec![0x40, 0xaf, 0, 2, 0x43, 0xe8, flag];
++        frames.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 1]);
++        let error = conn
++            .process_frames_for_test(now, &frames)
++            .expect_err("invalid one-byte Ignore Order was accepted");
++        assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++    }
++}
++
++#[test]
++fn draft02_canonical_ignore_order_keeps_following_ping() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let mut transport = TransportConfig::default();
++    transport.ack_frequency_draft(AckFrequencyDraft::Draft02);
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let (client_ch, _) = pair.connect_with(config);
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for flag in [0, 1] {
++        let before = conn.stats().frame_rx;
++        let frames = [0x40, 0xaf, flag, 2, 0x43, 0xe8, flag, 0, 1];
++        conn.process_frames_for_test(now, &frames).unwrap();
++        assert_eq!(conn.stats().frame_rx.ping, before.ping + 1);
++        assert_eq!(
++            conn.stats().frame_rx.ack_frequency,
++            before.ack_frequency + 1
++        );
++    }
++}
++
++#[test]
++fn draft07_accepts_each_reordering_varint_width_and_following_ping() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let (client_ch, _) = pair.connect();
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for (tag, width) in [(0, 1), (0x40, 2), (0x80, 4), (0xc0, 8)] {
++        let before = conn.stats().frame_rx;
++        let mut frames = vec![0x40, 0xaf, 0, 1, 0x43, 0xe8];
++        let mut reordering = vec![0; width];
++        reordering[0] = tag;
++        reordering[width - 1] |= 1;
++        frames.extend_from_slice(&reordering);
++        frames.extend_from_slice(&[0, 1]);
++        conn.process_frames_for_test(now, &frames).unwrap();
++        assert_eq!(conn.stats().frame_rx.ping, before.ping + 1);
++        assert_eq!(
++            conn.stats().frame_rx.ack_frequency,
++            before.ack_frequency + 1
++        );
++    }
++}
