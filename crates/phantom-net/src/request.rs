@@ -214,6 +214,16 @@ impl fmt::Debug for RequestTrailerName {
 /// size hints are enforced while frames are pulled. A body constructed with an
 /// ordered trailer-name plan accepts exactly one terminal trailer frame and
 /// reconstructs its values in the declared cross-name order.
+///
+/// # Examples
+///
+/// ```
+/// use bytes::Bytes;
+/// use phantom_net::request::RequestBody;
+///
+/// let body: RequestBody = Bytes::from_static(b"upload").into();
+/// assert_eq!(body.metadata().exact_length(), Some(6));
+/// ```
 pub struct RequestBody {
     inner: UnsyncBoxBody<Bytes, RequestBodyError>,
     exact_length: Option<u64>,
@@ -492,6 +502,11 @@ pub struct AbsoluteForm {
 
 impl AbsoluteForm {
     /// Parses an HTTP or HTTPS absolute-form request target.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidAbsoluteForm`] for invalid URI syntax, a non-HTTP scheme,
+    /// missing authority or path, user information, or a fragment.
     pub fn parse(value: &str) -> Result<Self, InvalidAbsoluteForm> {
         if value.contains('#') {
             return Err(InvalidAbsoluteForm);
@@ -503,6 +518,11 @@ impl AbsoluteForm {
     }
 
     /// Validates an already-parsed HTTP URI as absolute-form.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidAbsoluteForm`] for a non-HTTP scheme, missing authority
+    /// or path, user information, or a fragment in the path.
     pub fn from_uri(uri: Uri) -> Result<Self, InvalidAbsoluteForm> {
         if !matches!(uri.scheme_str(), Some("http" | "https"))
             || uri
@@ -547,6 +567,11 @@ pub struct OriginForm(PathAndQuery);
 
 impl OriginForm {
     /// Parses an origin-form request target.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidOriginForm`] unless the value is a valid path and optional
+    /// query beginning with `/`, without a scheme, authority, or fragment.
     pub fn parse(value: &str) -> Result<Self, InvalidOriginForm> {
         let uri = value.parse::<Uri>().map_err(|_| InvalidOriginForm)?;
         let is_origin_form = value.starts_with('/')

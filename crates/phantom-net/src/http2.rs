@@ -148,6 +148,11 @@ fn validate_request_body_with_trailers(
 }
 
 /// Validates an HTTP/2 request, body-produced trailer plan, and static trailers.
+///
+/// # Errors
+///
+/// Returns [`Http2Error`] for invalid authority, fields, body framing, or
+/// trailer declarations. Static and body-produced trailers cannot be combined.
 pub fn validate_request_body_source_with_trailers(
     method: &Method,
     authority: &str,

@@ -32,6 +32,32 @@ use crate::{
 pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
 
 /// Reusable TLS and HTTP/2 settings for connections and one-shot requests.
+///
+/// # Examples
+///
+/// ```no_run
+/// use phantom_net::{
+///     http2::{Http2TlsConnector, OriginForm, RequestHeader},
+///     route::{DirectTlsSetup, Endpoint, Http2Route, OriginRoute, TcpRoute},
+/// };
+/// use phantom_profile::browser::chrome;
+///
+/// # async fn request() -> Result<(), Box<dyn std::error::Error>> {
+/// let connector = Http2TlsConnector::new(&chrome::v154_tcp_tls(), &chrome::v154_http2())?;
+/// let route = Http2Route::Origin(OriginRoute::Tls {
+///     tcp: TcpRoute::Direct(Endpoint { host: "example.com", port: 443 }),
+///     server_name: "example.com",
+///     setup: DirectTlsSetup::Default,
+/// });
+/// let connection = connector.connect(route).await?;
+/// let _response = connection.send_get(
+///     "example.com",
+///     OriginForm::parse("/")?,
+///     vec![RequestHeader::new("accept", "*/*")],
+/// ).await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Http2TlsConnector {
     tls: TlsConnector,
@@ -44,6 +70,11 @@ pub struct Http2TlsConnector {
 
 impl Http2TlsConnector {
     /// Builds a connector from validated TLS and HTTP/2 settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] when TLS cannot offer HTTP/2 or the
+    /// TLS settings are invalid or unsupported. Invalid HTTP/2 settings also fail.
     pub fn new(tls: &TlsSettings, http2: &Http2Settings) -> Result<Self, Http2TlsError> {
         require_h2_alpn(tls)?;
         validate_http2(http2)?;
@@ -61,8 +92,15 @@ impl Http2TlsConnector {
 
     /// Builds a connector with bundled public roots and additional DER certificates.
     ///
+    /// For a direct connection example, see [`Self`].
+    ///
     /// Additional roots extend verification for private authorities; they do
     /// not disable certificate or hostname verification.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. Additional DER
+    /// certificates can also fail to parse or enter the trust store.
     pub fn new_with_additional_roots<'a>(
         tls: &TlsSettings,
         http2: &Http2Settings,
@@ -84,9 +122,16 @@ impl Http2TlsConnector {
 
     /// Builds a connector with an explicit server-authentication policy.
     ///
+    /// For a direct connection example, see [`Self`].
+    ///
     /// A policy that does not verify the server, which the
     /// `danger-disable-verification` feature provides, accepts any server
     /// certificate but continues to send Server Name Indication.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. The selected
+    /// authentication policy also governs trust-store setup.
     pub fn new_with_server_authentication(
         tls: &TlsSettings,
         http2: &Http2Settings,

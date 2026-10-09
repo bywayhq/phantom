@@ -243,6 +243,11 @@ impl Http1Or2TlsConnector {
     /// Builds a connector using bundled public roots.
     ///
     /// Both `h2` and `http/1.1` must be present in the TLS ALPN offer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for missing protocol offers, invalid HTTP/2
+    /// settings, or invalid or unsupported TLS settings.
     pub fn new(tls: &TlsSettings, http2: &Http2Settings) -> Result<Self, Http1Or2TlsError> {
         validate_settings(tls, http2)?;
         Ok(Self {
@@ -256,6 +261,11 @@ impl Http1Or2TlsConnector {
     }
 
     /// Builds a connector with bundled roots plus additional DER certificates.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. Additional DER
+    /// certificates can also fail to parse or enter the trust store.
     pub fn new_with_additional_roots<'a>(
         tls: &TlsSettings,
         http2: &Http2Settings,

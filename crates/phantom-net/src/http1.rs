@@ -444,11 +444,21 @@ impl Http1Error {
 }
 
 /// Validates an empty-body HTTP/1.1 GET without performing I/O.
+///
+/// # Errors
+///
+/// Returns [`Http1Error`] for missing or duplicate `Host`, invalid fields,
+/// or unsupported request framing.
 pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
     validate_request(&Method::GET, target, headers, None)
 }
 
 /// Validates an HTTP/1.1 request without performing I/O.
+///
+/// # Errors
+///
+/// Returns [`Http1Error`] when the fields or body length cannot be encoded
+/// with the method and target.
 pub fn validate_request(
     method: &Method,
     target: &OriginForm,
@@ -496,6 +506,11 @@ fn validate_request_body_with_trailers(
 
 /// Validates an HTTP/1.1 request, its body source, and ordered static or
 /// body-produced trailers without performing I/O.
+///
+/// # Errors
+///
+/// Returns [`Http1Error`] for invalid fields, conflicting trailer sources,
+/// invalid trailer declarations, or incompatible body framing.
 pub fn validate_request_body_source_with_trailers(
     method: &Method,
     target: &OriginForm,
@@ -541,6 +556,11 @@ fn validate_forward_request_body(
 
 /// Validates an absolute-form request, its body source, and ordered static or
 /// body-produced trailers without performing I/O.
+///
+/// # Errors
+///
+/// Returns [`Http1Error`] for an authority mismatch, invalid fields or
+/// trailers, or incompatible body framing.
 pub fn validate_forward_request_body_source_with_trailers(
     method: &Method,
     target: &AbsoluteForm,

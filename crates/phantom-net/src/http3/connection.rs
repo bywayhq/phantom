@@ -231,6 +231,11 @@ impl Http3Connection {
     ///   reports for it;
     /// - the connection closed before its handshake completed, or before
     ///   HTTP/3 started again: the connection error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3Error`] when handshake metadata is invalid or the
+    /// connection closes before the handshake or HTTP/3 restart completes.
     pub async fn early_data_settled(&self) -> Result<(), Http3Error> {
         let Some(early_data) = &self.inner.early_data else {
             return Ok(());

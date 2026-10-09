@@ -78,6 +78,11 @@ pub struct Http3Connector {
 
 impl Http3Connector {
     /// Builds a connector using Phantom's bundled public trust roots.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid profiles, unsupported TLS
+    /// or QUIC settings, or a failed trust-store or QUIC configuration.
     pub fn new(
         tls: &TlsSettings,
         quic: &QuicTransportSettings,
@@ -91,6 +96,11 @@ impl Http3Connector {
     ///
     /// Additional roots extend verification for private authorities; they do
     /// not disable certificate or hostname verification.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. Additional DER
+    /// certificates can also fail to parse or enter the trust store.
     pub fn new_with_additional_roots<'a>(
         tls: &TlsSettings,
         quic: &QuicTransportSettings,
@@ -263,6 +273,11 @@ impl Http3Connector {
     /// connection that sent none, whose early data was accepted, or that
     /// started HTTP/3 again after a rejection, and otherwise the error that
     /// stops the connection from carrying a request.
+    ///
+    /// # Errors
+    ///
+    /// Returns the handshake or connection failure from
+    /// [`Http3Connection::early_data_settled`] as [`Http3ConnectorError`].
     pub async fn early_data_settled_on(
         &self,
         connection: &Http3Connection,
@@ -903,6 +918,11 @@ impl Http3Connector {
     ///
     /// The complete request and connector affinity are validated before a new
     /// request stream opens.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for an invalid request, a connection from
+    /// another connector, or a request-stream failure. See [`Self::send_request_on`].
     pub async fn send_get_on(
         &self,
         connection: &Http3Connection,
@@ -915,6 +935,12 @@ impl Http3Connector {
     }
 
     /// Sends one profiled request over a connection opened by this connector.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid request fields or body framing,
+    /// a connection from another connector, or a request-stream failure.
+    /// The source retains the underlying [`Http3Error`].
     #[allow(clippy::too_many_arguments)]
     pub async fn send_request_on(
         &self,
@@ -939,7 +965,13 @@ impl Http3Connector {
     /// Sends one profiled request body over a connection opened by this connector.
     ///
     /// The body is pulled only as HTTP/3 flow control accepts each preceding
-    /// DATA frame. Request trailers are rejected by [`RequestBody`].
+    /// DATA frame. For static or declared body-produced trailers, see
+    /// [`Self::send_request_body_with_trailers_on`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the failures from [`Self::send_request_body_with_trailers_on`],
+    /// including errors produced while pulling the caller body.
     #[allow(clippy::too_many_arguments)]
     pub async fn send_request_body_on(
         &self,
@@ -967,6 +999,12 @@ impl Http3Connector {
     /// Static trailer fields and a streaming body's declared trailer-name plan
     /// are validated before a stream opens or the body is polled. They cannot
     /// be combined on one request.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid fields or trailer plans,
+    /// conflicting trailer sources, a connection from another connector,
+    /// or a request-stream or body-source failure.
     #[allow(clippy::too_many_arguments)]
     pub async fn send_request_body_with_trailers_on(
         &self,
@@ -1005,6 +1043,12 @@ impl Http3Connector {
     /// only after the peer's SETTINGS enable extended CONNECT; otherwise this
     /// returns [`Http3ErrorKind::ExtendedConnectUnavailable`] without opening a
     /// stream or trying another protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid fields or pseudo-header order,
+    /// a connection from another connector, disabled peer extended CONNECT,
+    /// or a connection or stream failure. A rejected response is an outcome.
     pub async fn send_extended_connect_on(
         &self,
         connection: &Http3Connection,
@@ -1230,6 +1274,11 @@ impl Http3Connector {
 
     /// Validates a CONNECT-UDP request and this connector as its outer
     /// profile without opening a connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid proxy authority, server name,
+    /// fields, pseudo-header order, or outer CONNECT-UDP settings.
     pub fn validate_connect_udp(
         &self,
         proxy_host: &str,
@@ -1242,6 +1291,11 @@ impl Http3Connector {
 
     /// Validates both forms of an optionally authenticated HTTP/3
     /// CONNECT-UDP request and this connector as its outer profile.
+    ///
+    /// # Errors
+    ///
+    /// Returns the failures from [`Self::validate_connect_udp`]. Fields must
+    /// also allow the generated authorization field when credentials are supplied.
     pub fn validate_connect_udp_with_basic_auth(
         &self,
         proxy_host: &str,
@@ -1263,6 +1317,11 @@ impl Http3Connector {
 
     /// Validates a CONNECT-UDP request for an HTTP/1.1 or HTTP/2 proxy leg
     /// and the leg's configuration without opening a connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid proxy fields or authority,
+    /// incompatible proxy protocol settings, or an invalid authorization placement.
     pub fn validate_connect_udp_over_tcp(
         proxy: &HttpsProxyConnector,
         protocol: HttpsProxyProtocol,
@@ -1334,6 +1393,11 @@ impl Http3Connector {
     }
 
     /// Validates one extended CONNECT request without opening a connection or stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] when the authority, fields, or configured
+    /// extended CONNECT pseudo-header order cannot represent the request.
     pub fn validate_extended_connect(
         &self,
         protocol: Http3ExtendedProtocol,
@@ -1373,6 +1437,10 @@ impl Http3Connector {
     }
 
     /// Validates an empty-body GET without opening a connection or stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns the request-validation failures from [`Self::validate_request`].
     pub fn validate_get(
         &self,
         authority: &str,
@@ -1383,6 +1451,11 @@ impl Http3Connector {
     }
 
     /// Validates one profiled request without opening a connection or stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid authority or ordered fields,
+    /// unsupported request settings, or incompatible body framing.
     pub fn validate_request(
         &self,
         method: Method,
@@ -1401,6 +1474,11 @@ impl Http3Connector {
     }
 
     /// Validates one profiled request and body framing without polling a body.
+    ///
+    /// # Errors
+    ///
+    /// Returns the request-validation failures from [`Self::validate_request`].
+    /// Body-produced trailers require [`Self::validate_request_body_source_with_trailers`].
     pub fn validate_request_body(
         &self,
         method: Method,
@@ -1423,6 +1501,11 @@ impl Http3Connector {
     /// Validates one profiled request, body framing, and static trailers.
     ///
     /// This does not open a connection, stream, or poll the request body.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid request or trailer fields,
+    /// incompatible framing, or a body-produced trailer plan passed as metadata.
     #[allow(clippy::too_many_arguments)]
     pub fn validate_request_body_with_trailers(
         &self,
@@ -1448,6 +1531,11 @@ impl Http3Connector {
     /// Validates one profiled request, a body-produced trailer plan, and static trailers.
     ///
     /// This does not open a connection, stream, or poll the request body.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid request or trailer fields,
+    /// incompatible framing, or conflicting static and body-produced trailers.
     #[allow(clippy::too_many_arguments)]
     pub fn validate_request_body_source_with_trailers(
         &self,

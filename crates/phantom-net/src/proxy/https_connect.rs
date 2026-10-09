@@ -83,6 +83,11 @@ pub struct HttpsProxyConnector {
 
 impl HttpsProxyConnector {
     /// Builds a connector from TLS settings and bundled public roots.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HttpConnectError`] when TLS cannot offer HTTP/1.1 or the TLS
+    /// settings are invalid or unsupported.
     pub fn new(settings: &TlsSettings) -> Result<Self, HttpConnectError> {
         require_http1_alpn(settings)?;
         TlsConnector::new(settings)
@@ -91,6 +96,11 @@ impl HttpsProxyConnector {
     }
 
     /// Builds a connector with bundled public roots and additional DER certificates.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. Additional DER
+    /// certificates can also fail to parse or enter the trust store.
     pub fn new_with_additional_roots<'a>(
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
@@ -102,6 +112,11 @@ impl HttpsProxyConnector {
     }
 
     /// Builds a connector with an explicit server-authentication policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. The selected
+    /// authentication policy also governs trust-store setup.
     pub fn new_with_server_authentication(
         settings: &TlsSettings,
         server_authentication: ServerAuthentication,

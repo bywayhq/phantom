@@ -135,6 +135,12 @@ impl Http1Connection {
     ///
     /// An exact initial size hint uses `Content-Length`; an unknown size uses
     /// chunked transfer coding. Validation completes before the body is polled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] for invalid request fields or framing, an
+    /// unavailable runtime, a closed connection, or a protocol or response failure.
+    /// Body-source failures remain available through the protocol error source.
     pub async fn send_request_body(
         &self,
         method: Method,
@@ -147,6 +153,12 @@ impl Http1Connection {
     }
 
     /// Sends one pull-driven request body followed by exact ordered trailers.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] for invalid request fields or framing, an
+    /// unavailable runtime, a closed connection, or a protocol or response failure.
+    /// Body-source failures remain available through the protocol error source.
     pub async fn send_request_body_with_trailers(
         &self,
         method: Method,
@@ -165,6 +177,12 @@ impl Http1Connection {
     ///
     /// The `Host` field must match the target authority. The complete request
     /// is validated before it is admitted to the connection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] for invalid request fields or framing, an
+    /// unavailable runtime, a closed connection, or a protocol or response failure.
+    /// Body-source failures remain available through the protocol error source.
     pub async fn send_forward_request(
         &self,
         method: Method,
@@ -180,6 +198,12 @@ impl Http1Connection {
     ///
     /// The target, fields, and body framing metadata are validated before the
     /// body is polled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] for invalid request fields or framing, an
+    /// unavailable runtime, a closed connection, or a protocol or response failure.
+    /// Body-source failures remain available through the protocol error source.
     pub async fn send_forward_request_body(
         &self,
         method: Method,
@@ -194,6 +218,12 @@ impl Http1Connection {
     }
 
     /// Sends an absolute-form request body followed by exact ordered trailers.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Error`] for invalid request fields or framing, an
+    /// unavailable runtime, a closed connection, or a protocol or response failure.
+    /// Body-source failures remain available through the protocol error source.
     pub async fn send_forward_request_body_with_trailers(
         &self,
         method: Method,

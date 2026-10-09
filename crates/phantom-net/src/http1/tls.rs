@@ -33,6 +33,31 @@ pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
 pub use error::{Http1TlsError, Http1TlsErrorKind};
 
 /// A reusable connector for profiled HTTP/1.1 TLS and proxy-forwarded requests.
+///
+/// # Examples
+///
+/// ```no_run
+/// use phantom_net::{
+///     http1::{Http1TlsConnector, OriginForm, RequestHeader},
+///     route::{DirectTlsSetup, Endpoint, Http1Route, OriginRoute, TcpRoute},
+/// };
+/// use phantom_profile::browser::chrome;
+///
+/// # async fn request() -> Result<(), Box<dyn std::error::Error>> {
+/// let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?;
+/// let route = Http1Route::Origin(OriginRoute::Tls {
+///     tcp: TcpRoute::Direct(Endpoint { host: "example.com", port: 443 }),
+///     server_name: "example.com",
+///     setup: DirectTlsSetup::Default,
+/// });
+/// let (connection, _slower) = connector.connect(route).await?;
+/// let _response = connection.send_get(
+///     OriginForm::parse("/")?,
+///     vec![RequestHeader::new("Host", "example.com")],
+/// ).await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Http1TlsConnector {
     tls: TlsConnector,
@@ -44,6 +69,11 @@ pub struct Http1TlsConnector {
 
 impl Http1TlsConnector {
     /// Builds a connector from validated TLS settings and bundled public roots.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] when TLS cannot offer HTTP/1.1 or the
+    /// TLS settings are invalid or unsupported.
     pub fn new(settings: &TlsSettings) -> Result<Self, Http1TlsError> {
         require_http1_alpn(settings)?;
         TlsConnector::new(settings)
@@ -59,8 +89,15 @@ impl Http1TlsConnector {
 
     /// Builds a connector with bundled public roots and additional DER certificates.
     ///
+    /// For a direct connection example, see [`Self`].
+    ///
     /// Additional roots extend verification for private authorities; they do
     /// not disable certificate or hostname verification.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. Additional DER
+    /// certificates can also fail to parse or enter the trust store.
     pub fn new_with_additional_roots<'a>(
         settings: &TlsSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
@@ -79,9 +116,16 @@ impl Http1TlsConnector {
 
     /// Builds a connector with an explicit server-authentication policy.
     ///
+    /// For a direct connection example, see [`Self`].
+    ///
     /// A policy that does not verify the server, which the
     /// `danger-disable-verification` feature provides, accepts any server
     /// certificate but continues to send Server Name Indication.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`]. The selected
+    /// authentication policy also governs trust-store setup.
     pub fn new_with_server_authentication(
         settings: &TlsSettings,
         server_authentication: ServerAuthentication,
