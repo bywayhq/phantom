@@ -1027,6 +1027,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Warn when a `phantom-net::request::RequestBody` is discarded, including
+  bodies created from a one-shot streaming source.
+
 - `QuicTransportProfileError::kind()` distinguishes invalid settings from
   entropy failures through `QuicTransportProfileErrorKind`.
 
