@@ -181,8 +181,10 @@ impl QuicClientConfig {
     /// new-session callback was not replaced afterwards, and it takes
     /// effect only on configurations derived with
     /// [`Self::with_isolated_session_cache`]. Without `session_tickets` no
-    /// connection resumes, so this also clears the early-data offer that a
-    /// transport profile's `early_data` set.
+    /// connection resumes, so this discards any existing cache and clears the
+    /// early-data offer that a transport profile's `early_data` set. Enabling
+    /// tickets again requires a new [`Self::with_isolated_session_cache`]
+    /// configuration. Changing an enabled profile keeps its existing cache.
     ///
     /// A `requested_trust_anchor_ids` list drawn per connection gets a new
     /// order, drawn uniformly from its orders, in every session's
@@ -211,6 +213,7 @@ impl QuicClientConfig {
         }
         if !profile.session_tickets {
             self.early_data = false;
+            self.sessions = None;
         }
         let client_certificate = self.tls_profile.client_certificate.take();
         self.tls_profile = ClientTlsProfile {
