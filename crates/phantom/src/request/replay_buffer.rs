@@ -50,10 +50,10 @@ pub(crate) enum NoReplay {
 
 struct Shared {
     source: Source,
-    /// Kept data frames; the first is frame number `first_frame`.
+    /// Kept nonempty data frames; the first is frame number `first_frame`.
     frames: VecDeque<Bytes>,
     first_frame: usize,
-    /// Data frames read from the source so far.
+    /// Nonempty data frames read from the source so far.
     pulled: usize,
     kept_bytes: usize,
     maximum_bytes: usize,
@@ -62,7 +62,7 @@ struct Shared {
     retention: Retention,
     /// The attempt allowed to read; older cursors fail.
     generation: u64,
-    /// The number of the next data frame the current attempt sends.
+    /// The number of the next nonempty data frame the current attempt sends.
     cursor: usize,
     /// The task that last waited on the source, woken when a later attempt
     /// takes over so its transport sees that at once.
@@ -199,7 +199,7 @@ struct BufferedAttempt {
     generation: u64,
     exact_length: Option<u64>,
     size_hint: SizeHint,
-    /// The number of the next data frame this attempt sends.
+    /// The number of the next nonempty data frame this attempt sends.
     next_frame: usize,
     yielded_bytes: u64,
     trailers_sent: bool,
@@ -314,9 +314,14 @@ impl BufferedAttempt {
 }
 
 impl Shared {
-    /// Counts a data frame read from the source and keeps it while the
-    /// limit allows.
+    /// Counts a nonempty data frame read from the source and keeps it while
+    /// the limit allows.
     fn keep(&mut self, data: &Bytes) {
+        // Empty frames still reach the current attempt. Keeping only nonempty
+        // frames bounds both retained bytes and frame metadata by the limit.
+        if data.is_empty() {
+            return;
+        }
         self.pulled += 1;
         match self.retention {
             Retention::Keeping

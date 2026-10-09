@@ -490,11 +490,11 @@ impl RequestBuilder {
     /// Sets a pull-driven request body that a later attempt of this request
     /// may send again, keeping at most `maximum_bytes` of its data.
     ///
-    /// The body streams as [`Self::streaming_body`] does, and each data frame
-    /// is kept as it is sent, so the first attempt is not delayed. When a
-    /// redirect, retry, or replay needs another attempt, that attempt sends
-    /// the kept frames with the same frame boundaries and then reads on from
-    /// the body where the last attempt stopped. Each replay keeps its own
+    /// The body streams as [`Self::streaming_body`] does, and each nonempty
+    /// data frame is kept as it is sent, so the first attempt is not delayed.
+    /// When a redirect, retry, or replay needs another attempt, that attempt
+    /// sends the kept frames with the same frame boundaries and then reads on
+    /// from the body where the last attempt stopped. Each replay keeps its own
     /// method and policy rules: the Chromium recipes' resend after a failed
     /// HTTP/2 PING, for one, sends any method again, so a server may receive
     /// a `POST` twice.
@@ -504,6 +504,7 @@ impl RequestBuilder {
     /// sends all of it, and a later attempt fails with
     /// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody),
     /// or, for a replay after a failure, the request returns that failure.
+    /// Empty data frames pass through as read but are not kept for replay.
     /// The limit counts data bytes; a kept frame holds the buffer its bytes
     /// come from. Once [`Self::send`] returns, the kept frames are freed, at
     /// once or, while an attempt is still uploading, as it sends them.

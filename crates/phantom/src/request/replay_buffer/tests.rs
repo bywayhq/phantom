@@ -155,6 +155,73 @@ fn an_unknown_length_stays_unknown_and_an_empty_body_ends_at_once() {
 }
 
 #[test]
+fn empty_source_frames_pass_through_without_retained_replay_metadata() {
+    let body = Scripted::data(&vec![""; 4096]);
+    let buffer = ReplayBuffer::new(body, Vec::new(), 0);
+    let mut first = start(&buffer);
+    for _ in 0..4096 {
+        assert_eq!(poll(&mut first), data(""));
+        assert_eq!(first.size_hint().exact(), Some(0));
+        let shared = super::lock(&buffer.shared);
+        assert!(shared.frames.is_empty(), "empty frames must not accumulate");
+        assert_eq!(shared.kept_bytes, 0);
+    }
+    assert!(first.is_end_stream());
+    assert_eq!(poll(&mut first), Polled::End);
+    assert!(buffer.no_replay().is_none());
+    let mut replay = start(&buffer);
+    assert!(replay.is_end_stream());
+    assert_eq!(poll(&mut replay), Polled::End);
+}
+
+#[test]
+fn replay_omits_read_empty_frames_and_preserves_data_and_trailers() {
+    let mut trailers = HeaderMap::new();
+    trailers.insert("x-checksum", HeaderValue::from_static("1"));
+    let mut body = Scripted::data(&["", "ab", "", "", "cd", ""]);
+    body.frames.push_back(Ok(Frame::trailers(trailers.clone())));
+    let buffer = ReplayBuffer::new(body, vec![RequestTrailerName::new("x-checksum")], 4);
+    let mut first = start(&buffer);
+    for chunk in ["", "ab", ""] {
+        assert_eq!(poll(&mut first), data(chunk));
+    }
+    assert_eq!(first.size_hint().exact(), Some(2));
+
+    let mut second = start(&buffer);
+    assert_eq!(poll(&mut first), Polled::Error);
+    // The next empty frame is still unread in the source.
+    for chunk in ["ab", "", "cd", ""] {
+        assert_eq!(poll(&mut second), data(chunk));
+    }
+    assert_eq!(second.size_hint().exact(), Some(0));
+    assert!(!second.is_end_stream());
+    assert_trailers(&mut second, &trailers);
+    assert!(second.is_end_stream());
+    assert_eq!(poll(&mut second), Polled::End);
+    assert!(buffer.no_replay().is_none());
+    assert_eq!(super::lock(&buffer.shared).frames.len(), 2);
+
+    let mut replay = start(&buffer);
+    assert_eq!(replay.size_hint().exact(), Some(4));
+    assert_eq!(poll(&mut replay), data("ab"));
+    assert_eq!(poll(&mut replay), data("cd"));
+    assert_trailers(&mut replay, &trailers);
+    assert!(replay.is_end_stream());
+    assert_eq!(poll(&mut replay), Polled::End);
+}
+
+fn assert_trailers(cursor: &mut BufferedAttempt, expected: &HeaderMap) {
+    let mut context = Context::from_waker(Waker::noop());
+    let Poll::Ready(Some(Ok(frame))) = Pin::new(cursor).poll_frame(&mut context) else {
+        panic!("the trailer frame was not returned");
+    };
+    let Ok(trailers) = frame.into_trailers() else {
+        panic!("the returned frame was not trailers");
+    };
+    assert_eq!(&trailers, expected);
+}
+
+#[test]
 fn trailers_are_sent_again_after_the_data() {
     let mut trailers = HeaderMap::new();
     trailers.insert("x-checksum", HeaderValue::from_static("1"));
@@ -301,4 +368,39 @@ fn a_source_that_is_not_ready_is_waited_for() {
     assert_eq!(poll(&mut cursor), Polled::Error);
     assert_eq!(poll(&mut replay), data("ab"));
     assert_eq!(poll(&mut replay), Polled::End);
+}
+
+#[test]
+fn empty_frames_preserve_pending_takeover_and_owner_drop_cleanup() {
+    let slow = Slow {
+        inner: Scripted::data(&["", "ab", "", "", "cd"]),
+        ready: false,
+    };
+    let buffer = ReplayBuffer::new(slow, Vec::new(), 4);
+    let mut first = start(&buffer);
+    assert_eq!(poll(&mut first), Polled::Pending);
+    assert_eq!(poll(&mut first), data(""));
+    assert_eq!(poll(&mut first), Polled::Pending);
+    let mut second = start(&buffer);
+    assert_eq!(poll(&mut first), Polled::Error);
+    assert_eq!(poll(&mut second), data("ab"));
+    assert_eq!(poll(&mut second), Polled::Pending);
+    assert_eq!(poll(&mut second), data(""));
+
+    let mut replay = start(&buffer);
+    let shared = std::sync::Arc::clone(&buffer.shared);
+    drop(buffer);
+    assert_eq!(poll(&mut second), Polled::Error);
+    assert_eq!(poll(&mut replay), data("ab"));
+    assert!(super::lock(&shared).frames.is_empty());
+    assert_eq!(super::lock(&shared).kept_bytes, 0);
+    assert_eq!(poll(&mut replay), Polled::Pending);
+    assert_eq!(poll(&mut replay), data(""));
+    assert!(super::lock(&shared).frames.is_empty());
+    assert_eq!(poll(&mut replay), Polled::Pending);
+    assert_eq!(poll(&mut replay), data("cd"));
+    assert_eq!(poll(&mut replay), Polled::Pending);
+    assert_eq!(poll(&mut replay), Polled::End);
+    assert!(replay.is_end_stream());
+    assert!(super::lock(&shared).frames.is_empty());
 }
