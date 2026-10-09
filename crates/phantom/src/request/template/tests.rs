@@ -32,7 +32,7 @@ fn kind(
 ) -> Option<RequestErrorKind> {
     let prepared = PreparedRequestTemplate::new(template.clone())
         .unwrap_or_else(|error| panic!("template is invalid: {error}"));
-    check(&prepared, scope, caller, hints)
+    check(&prepared, scope, false, caller, hints)
         .err()
         .map(|error| error.kind())
 }
@@ -165,6 +165,57 @@ fn built_in_templates_validate_and_place_their_own_client_hints() {
 }
 
 #[test]
+fn required_fields_follow_exact_negotiated_and_fallback_protocols() {
+    let prepared = PreparedRequestTemplate::new(RequestTemplate {
+        http1_fields: vec![],
+        http2_fields: vec![RequestField::required_caller("x-h2")],
+        http3_fields: Some(vec![RequestField::required_caller("x-h3")]),
+        http2_priority: None,
+        requested_client_hint_placement: false,
+        restarts_for_connection_accept_ch: false,
+    })
+    .unwrap_or_else(|error| panic!("invalid test template: {error}"));
+    let h2 = RequestHeader::new("x-h2", "present");
+    let h3 = RequestHeader::new("x-h3", "present");
+    let negotiated = ProtocolScope {
+        exact: None,
+        alt_svc: false,
+        content_decoding: false,
+    };
+    for (scope, fallback, caller, missing) in [
+        (exact(HttpProtocol::Http1), false, vec![], false),
+        (exact(HttpProtocol::Http2), false, vec![], true),
+        (exact(HttpProtocol::Http2), false, vec![h2.clone()], false),
+        (exact(HttpProtocol::Http3), false, vec![h3.clone()], false),
+        (exact(HttpProtocol::Http3), true, vec![h3.clone()], true),
+        (
+            exact(HttpProtocol::Http3),
+            true,
+            vec![h2.clone(), h3.clone()],
+            false,
+        ),
+        (negotiated, false, vec![], true),
+        (negotiated, false, vec![h2.clone()], false),
+        (
+            ProtocolScope {
+                alt_svc: true,
+                ..negotiated
+            },
+            false,
+            vec![h2],
+            true,
+        ),
+    ] {
+        assert_eq!(
+            check(&prepared, scope, fallback, &caller, None)
+                .err()
+                .map(|error| error.kind()),
+            missing.then_some(RequestErrorKind::RequestTemplate)
+        );
+    }
+}
+
+#[test]
 fn a_required_caller_slot_left_empty_is_rejected() {
     let edge = edge::v154_windows_navigation_template();
     let edge_hints = edge::v154_windows_client_hints();
@@ -199,10 +250,11 @@ fn a_required_caller_slot_left_empty_is_rejected() {
         .unwrap_or_default();
     template.http2_fields[user_agent] = RequestField::caller("user-agent");
     assert_eq!(kind(&template, exact(HttpProtocol::Http2), &[], None), None);
-    // A required slot on one protocol list is required on every request.
+    // A required slot applies only when the request can use that protocol.
     template.http2_fields[user_agent] = RequestField::required_caller("user-agent");
+    assert_eq!(kind(&template, exact(HttpProtocol::Http1), &[], None), None);
     assert_eq!(
-        kind(&template, exact(HttpProtocol::Http1), &[], None),
+        kind(&template, exact(HttpProtocol::Http2), &[], None),
         Some(RequestErrorKind::RequestTemplate)
     );
 }
@@ -452,6 +504,7 @@ fn prepared_templates_report_the_accept_encoding_for_each_trust() {
             check(
                 &prepared,
                 decoding,
+                false,
                 &[RequestHeader::new("user-agent", EDGE_154)],
                 None
             )
@@ -539,14 +592,14 @@ fn template_after_a_cross_origin_hop_keeps_no_credential_slot()
     };
     let prepared = PreparedRequestTemplate::new(template)?;
     let scope = exact(HttpProtocol::Http1);
-    let missing = check(&prepared, scope, &[], None)
+    let missing = check(&prepared, scope, false, &[], None)
         .err()
         .map(|error| error.kind());
     assert_eq!(missing, Some(RequestErrorKind::RequestTemplate));
 
     let after_hop = prepared.without_credentials();
 
-    assert!(check(&after_hop, scope, &[], None).is_ok());
+    assert!(check(&after_hop, scope, false, &[], None).is_ok());
     let fields = after_hop
         .fields_for(HttpProtocol::Http1)
         .ok_or("the HTTP/1.1 list is missing")?;

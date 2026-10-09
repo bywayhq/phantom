@@ -34,8 +34,6 @@ struct Prepared {
     /// Whether every protocol list sends the same `Accept-Encoding` value to
     /// both kinds of URL.
     accept_encoding_agrees: bool,
-    /// Names of required caller slots on any protocol list.
-    required_fields: Vec<Box<str>>,
 }
 
 impl PreparedRequestTemplate {
@@ -95,26 +93,12 @@ impl PreparedRequestTemplate {
             accept_encoding_agrees &= codings.all(|coding| coding == first);
             accept_encoding[usize::from(trustworthy)] = first.map(Box::from);
         }
-        let mut required_fields: Vec<Box<str>> = Vec::new();
-        for field in lists(&template).flatten() {
-            if let RequestField::Caller {
-                name,
-                required: true,
-            } = field
-                && !required_fields
-                    .iter()
-                    .any(|seen| seen.eq_ignore_ascii_case(name))
-            {
-                required_fields.push(name.clone());
-            }
-        }
         Self(Arc::new(Prepared {
             template,
             client_hint_slots,
             restart_client_hint_slot,
             accept_encoding,
             accept_encoding_agrees,
-            required_fields,
         }))
     }
 
@@ -485,6 +469,7 @@ pub(crate) fn check_filled_slots(
 pub(crate) fn check(
     prepared: &PreparedRequestTemplate,
     scope: ProtocolScope,
+    http2_fallback: bool,
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
 ) -> Result<(), RequestError> {
@@ -498,10 +483,22 @@ pub(crate) fn check(
         return Err(RequestError::request_template_accept_encoding());
     }
 
-    let missing_required = prepared.0.required_fields.iter().any(|name| {
-        !caller
-            .iter()
-            .any(|header| header.name().eq_ignore_ascii_case(name))
+    let missing_required = selected_protocols(scope, http2_fallback).any(|protocol| {
+        prepared.fields_for(protocol).is_some_and(|fields| {
+            fields.iter().any(|field| {
+                if let RequestField::Caller {
+                    name,
+                    required: true,
+                } = field
+                {
+                    !caller
+                        .iter()
+                        .any(|header| header.name().eq_ignore_ascii_case(name))
+                } else {
+                    false
+                }
+            })
+        })
     });
     if missing_required {
         return Err(RequestError::request_template_required_field());

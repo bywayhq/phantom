@@ -360,7 +360,7 @@ async fn environment_credentials_challenge_once_and_remain_partitioned_from_over
     }).await
 }
 
-fn connect_cause(mut error: &(dyn Error + 'static)) -> Option<&HttpConnectError> {
+fn connect_cause<'a>(mut error: &'a (dyn Error + 'static)) -> Option<&'a HttpConnectError> {
     loop {
         if let Some(cause) = error.downcast_ref() {
             return Some(cause);

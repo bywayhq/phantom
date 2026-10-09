@@ -14,6 +14,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Check required request-template slots only on reachable protocols. Migrate:
+  supply fields required by the selected protocol, negotiated protocols, and
+  enabled HTTP/2 fallback. A pinned HTTP/3 alternative needs only HTTP/3
+  fields. Firefox's exact HTTP/2 upload uses its literal `priority` value;
+  its HTTP/1.1 upload still requires your caller `Priority` value.
+
 - Allow future TCP policy variants. Migrate: keep a fallback arm when
   matching `TcpKeepalivePolicy`, `TcpAddressAdvance`, and
   `TcpAddressSelection`. Unsupported policies fail recoverably before I/O.

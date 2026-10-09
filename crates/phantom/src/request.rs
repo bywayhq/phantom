@@ -878,6 +878,7 @@ impl RequestBuilder {
             template::check(
                 template,
                 scope,
+                initial_fallback,
                 &self.headers,
                 self.client.inner.client_hints.as_ref(),
             )?;
@@ -1042,6 +1043,7 @@ impl RequestBuilder {
                         alt_svc: client.alt_svc_enabled() && route.carries_quic_alternative(),
                         content_decoding: content_decoding.is_enabled(),
                     },
+                    http2_fallback && resolved.alternative.is_none(),
                     redirect.headers(),
                     client.inner.client_hints.as_ref(),
                 )
