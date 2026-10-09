@@ -577,13 +577,15 @@ async fn reused_connection_closed_before_response_is_typed() -> TestResult {
             .await?;
         let result = connection.send_get(target()?, vec![host()]).await;
 
-        let error = result.expect_err("closed reused connection must fail");
+        let Err(error) = result else {
+            panic!("closed reused connection must fail");
+        };
         let Http1Error::ReusedConnectionClosed(protocol) = &error else {
             panic!("expected reused connection failure: {error:?}");
         };
         let source = std::error::Error::source(&error)
             .and_then(|source| source.downcast_ref::<wreq_proto::Error>())
-            .expect("reused connection error must retain its direct backend source");
+            .ok_or("reused connection error must retain its direct backend source")?;
         assert_eq!(protocol.to_string(), source.to_string());
         assert_eq!(format!("{protocol:?}"), format!("{source:?}"));
         assert_eq!(

@@ -206,10 +206,12 @@ mod tests {
         assert_eq!(error.kind(), Http3ErrorKind::Protocol);
         assert_eq!(error.to_string(), "HTTP/3 request stream failed");
         assert_eq!(error.unprocessed(), None);
-        let source = error
+        let Some(source) = error
             .source()
             .and_then(|source| source.downcast_ref::<StreamError>())
-            .expect("stream failure must retain its backend source");
+        else {
+            panic!("stream failure must retain its backend source");
+        };
         assert!(matches!(source, StreamError::RemoteClosing));
     }
 
@@ -228,10 +230,12 @@ mod tests {
                 code: Code::H3_REQUEST_REJECTED,
             });
             assert_eq!(error.unprocessed(), Some(Http3Unprocessed::RequestRejected));
-            let source = error
+            let Some(source) = error
                 .source()
                 .and_then(|source| source.downcast_ref::<StreamError>())
-                .expect("request rejection must retain its backend source");
+            else {
+                panic!("request rejection must retain its backend source");
+            };
             assert!(matches!(source, StreamError::RemoteTerminate { code, .. }
                 if *code == Code::H3_REQUEST_REJECTED));
         }
