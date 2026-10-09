@@ -323,7 +323,12 @@ impl Table {
     /// Returns whether `header` is too large for the profile to index.
     fn exceeds_limit(&self, header: &Header) -> bool {
         match self.profile.limit() {
-            IndexingLimit::ThreeQuarters => header.len() * 4 > self.max_size * 3,
+            IndexingLimit::ThreeQuarters => {
+                // Subtract a quarter rounded up: floor(3 * max_size / 4)
+                // without multiplication overflow, even for usize::MAX.
+                let limit = self.max_size - self.max_size / 4 - usize::from(self.max_size % 4 != 0);
+                header.len() > limit
+            }
             IndexingLimit::Half => header.len() > self.max_size / 2 || self.max_size < 128,
             IndexingLimit::Unlimited => false,
         }
