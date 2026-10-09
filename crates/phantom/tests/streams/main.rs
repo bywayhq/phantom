@@ -8,6 +8,9 @@
 #[path = "../support.rs"]
 mod support;
 
+#[cfg(any(feature = "sse", feature = "websocket"))]
+mod environment;
+
 #[cfg(feature = "sse")]
 mod sse;
 #[cfg(feature = "sse")]
