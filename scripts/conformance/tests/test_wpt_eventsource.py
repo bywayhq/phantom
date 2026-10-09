@@ -363,6 +363,76 @@ class WptRunFixture(unittest.TestCase):
 
 
 class WptLifecycleTests(WptRunFixture):
+    def test_cleanup_interrupt_after_adapter_failure_keeps_identity_and_causes(self):
+        for operation in ("temporary files", "rotated log", "summary"):
+            with self.subTest(operation=operation):
+                interrupt = KeyboardInterrupt(f"{operation} interruption marker")
+                remove = shutil.rmtree
+                unlink = Path.unlink
+                write = Path.write_text
+
+                def interrupted_remove(
+                    path, *args, _remove=remove, _interrupt=interrupt, **kwargs
+                ):
+                    result = _remove(path, *args, **kwargs)
+                    if Path(path).name.startswith("phantom-wpt-eventsource-"):
+                        raise _interrupt
+                    return result
+
+                def interrupted_unlink(
+                    path, *args, _unlink=unlink, _interrupt=interrupt, **kwargs
+                ):
+                    result = _unlink(path, *args, **kwargs)
+                    if path.name == "server.log.1":
+                        raise _interrupt
+                    return result
+
+                def interrupted_write(
+                    path, *args, _write=write, _interrupt=interrupt, **kwargs
+                ):
+                    result = _write(path, *args, **kwargs)
+                    if path.name == "summary.json":
+                        raise _interrupt
+                    return result
+
+                target, replacement = {
+                    "temporary files": ((shutil, "rmtree"), interrupted_remove),
+                    "rotated log": ((Path, "unlink"), interrupted_unlink),
+                    "summary": ((Path, "write_text"), interrupted_write),
+                }[operation]
+                with patch.object(*target, replacement):
+                    result = self.exercise(
+                        adapter_error=OSError("adapter failure marker")
+                    )
+
+                self.assertIs(result.error, interrupt)
+                self.assertTrue(result.server.closed)
+                self.assertIn("adapter failure marker", result.stderr)
+                self.assertIn(f"{operation} interruption marker", result.stderr)
+
+    def test_summary_sigint_keeps_original_adapter_interrupt_identity(self):
+        interrupt = KeyboardInterrupt("original adapter interruption marker")
+        write = Path.write_text
+        signaled = False
+
+        def signaled_write(path, *args, **kwargs):
+            nonlocal signaled
+            result = write(path, *args, **kwargs)
+            if path.name == "summary.json" and not signaled:
+                signaled = True
+                signal.raise_signal(signal.SIGINT)
+            return result
+
+        with patch.object(Path, "write_text", signaled_write):
+            result = self.exercise(adapter_error=interrupt)
+
+        self.assertIs(result.error, interrupt)
+        self.assertTrue(result.server.closed)
+        self.assertTrue(result.summary["run_failed"])
+        failures = " ".join(result.summary["infrastructure_failures"])
+        self.assertIn("original adapter interruption marker", failures)
+        self.assertIn("summary publication: KeyboardInterrupt", failures)
+
     def test_complete_full_case_set_passes(self):
         result = self.exercise()
 
@@ -543,6 +613,106 @@ class WptLifecycleTests(WptRunFixture):
 
 
 class WptProcessOwnershipTests(WptRunFixture):
+    def test_construction_interrupt_and_control_close_failure_keep_identity(self):
+        interrupt = KeyboardInterrupt("construction interruption marker")
+        spawn = SpawnFixture()
+        close = spawn.child.close
+
+        def failed_construct(**kwargs):
+            raise interrupt
+
+        def failed_close():
+            close()
+            raise OSError("construction child control marker")
+
+        with (
+            patch.object(spawn, "Process", failed_construct),
+            patch.object(spawn.child, "close", failed_close),
+        ):
+            result = self.exercise(spawn=spawn)
+
+        self.assertIs(result.error, interrupt)
+        self.assertTrue(spawn.child.closed)
+        self.assertTrue(spawn.parent.closed)
+        failures = " ".join(result.summary["infrastructure_failures"])
+        self.assertIn("construction interruption marker", failures)
+        self.assertIn("construction child control marker", failures)
+
+    def test_construction_failure_and_control_close_interrupt_keep_both_causes(self):
+        interrupt = KeyboardInterrupt("construction control interruption marker")
+        spawn = SpawnFixture()
+        close = spawn.child.close
+
+        def failed_construct(**kwargs):
+            raise OSError("construction failure marker")
+
+        def interrupted_close():
+            close()
+            raise interrupt
+
+        with (
+            patch.object(spawn, "Process", failed_construct),
+            patch.object(spawn.child, "close", interrupted_close),
+        ):
+            result = self.exercise(spawn=spawn)
+
+        self.assertIs(result.error, interrupt)
+        self.assertTrue(spawn.child.closed)
+        self.assertTrue(spawn.parent.closed)
+        self.assertIn("construction failure marker", result.stderr)
+        self.assertIn("construction control interruption marker", result.stderr)
+
+    def test_start_failure_and_control_close_interrupt_keep_both_causes(self):
+        interrupt = KeyboardInterrupt("start control interruption marker")
+        spawn = SpawnFixture(start_error=OSError("start failure marker"))
+        close = spawn.child.close
+
+        def interrupted_close():
+            close()
+            raise interrupt
+
+        with patch.object(spawn.child, "close", interrupted_close):
+            result = self.exercise(spawn=spawn)
+
+        self.assertIs(result.error, interrupt)
+        self.assertTrue(spawn.child.closed)
+        self.assertTrue(spawn.process.closed)
+        self.assertIn("start failure marker", result.stderr)
+        self.assertIn("start control interruption marker", result.stderr)
+
+    def test_shutdown_control_interrupt_and_process_close_failure_keep_identity(self):
+        spawn = SpawnFixture(execute=False)
+        owner = self.owner(spawn)
+        owner.start()
+        spawn.process.execute = True
+        spawn.parent.messages.append(("stopped", []))
+        control_close = spawn.parent.close
+        process_close = spawn.process.close
+        interrupt = KeyboardInterrupt("shutdown control interruption marker")
+
+        def interrupted_close():
+            control_close()
+            raise interrupt
+
+        def failed_close():
+            process_close()
+            raise OSError("shutdown process close marker")
+
+        with (
+            patch.object(spawn.parent, "close", interrupted_close),
+            patch.object(spawn.process, "close", failed_close),
+            self.assertRaises(KeyboardInterrupt) as raised,
+        ):
+            owner.stop()
+
+        self.assertIs(raised.exception, interrupt)
+        self.assertTrue(spawn.parent.closed)
+        self.assertTrue(spawn.process.closed)
+        self.assertFalse(spawn.process.alive)
+        failures = " ".join(raised.exception.shutdown_failures)
+        self.assertIn("shutdown control interruption marker", failures)
+        self.assertIn("shutdown process close marker", failures)
+
     def owner(self, spawn):
         with (
             patch.object(runner.multiprocessing, "get_context", return_value=spawn),
