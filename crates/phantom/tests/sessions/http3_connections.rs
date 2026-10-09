@@ -308,7 +308,7 @@ fn bound(value: usize) -> TestResult<NonZeroUsize> {
 fn client_builder(identity: &TestIdentity) -> ClientBuilder {
     let base = client_settings();
     let mut quic_tls = base.tls().clone();
-    quic_tls.session_tickets = phantom_profile::SessionTickets::enabled(2)?;
+    quic_tls.session_tickets = phantom_profile::browser::chrome::v154_quic_tls().session_tickets;
     let http3 = Http3ClientSettings::new(
         quic_tls,
         base.quic_transport().clone(),

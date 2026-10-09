@@ -88,6 +88,7 @@ pub(crate) fn origin_identity() -> TestResult<TestIdentity> {
 /// recipe does.
 pub(crate) fn ech_tls_settings() -> TlsSettings {
     let mut settings = tls_settings();
+    settings.versions = phantom_profile::TlsVersionRange::TLS12_TO_TLS13;
     settings
         .cipher_suites
         .insert(0, CipherSuite::Aes128GcmSha256);
