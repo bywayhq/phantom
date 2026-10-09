@@ -241,7 +241,7 @@ impl PreparedRequest {
         let span = debug_span!("http2.request.prepare", method = %method, protocol = "h2",
             body_bytes = field::debug(body_bytes), outcome = field::Empty, error_kind = field::Empty);
         let outcome = OperationOutcome::new(&span);
-        let prepared = {
+        let prepared: Result<Self, Http2Error> = {
             let _entered = span.enter();
             (|| {
                 settings.validate().map_err(Http2Error::InvalidSettings)?;
