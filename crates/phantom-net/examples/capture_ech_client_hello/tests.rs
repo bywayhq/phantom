@@ -6,8 +6,12 @@ use std::{
 };
 
 use btls::{
-    ssl::{SslConnector, SslMethod},
+    ssl::{ErrorCode, SslConnector, SslMethod, SslVerifyMode},
     x509::X509,
+};
+use rcgen::{
+    BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
+    KeyUsagePurpose,
 };
 use tokio::{
     io::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _, BufReader},
@@ -31,14 +35,14 @@ enum ServerMode {
 
 struct Server {
     address: SocketAddr,
-    certificate: Vec<u8>,
+    trust_root: Vec<u8>,
     queries: Arc<Mutex<Vec<String>>>,
     task: JoinHandle<CaptureResult<()>>,
 }
 
 impl Server {
     async fn start(mode: ServerMode) -> CaptureResult<Self> {
-        let identity = Identity::generate()?;
+        let (identity, trust_root) = test_identity()?;
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(None)?;
@@ -65,20 +69,25 @@ impl Server {
 
         Ok(Self {
             address,
-            certificate: identity.certificate,
+            trust_root,
             queries,
             task,
         })
     }
 
     async fn client(&self) -> CaptureResult<Client> {
+        self.client_with_root(&self.trust_root).await
+    }
+
+    async fn client_with_root(&self, trust_root: &[u8]) -> CaptureResult<Client> {
         timeout(IO_TIMEOUT, async {
             let tcp = TcpStream::connect(self.address).await?;
             tcp.set_nodelay(true)?;
-            let mut builder = SslConnector::builder(SslMethod::tls())?;
+            let mut builder = SslConnector::bare_builder(SslMethod::tls())?;
+            builder.set_verify(SslVerifyMode::PEER);
             builder
                 .cert_store_mut()
-                .add_cert(X509::from_der(&self.certificate)?)?;
+                .add_cert(X509::from_der(trust_root)?)?;
             let ssl = builder.build().configure()?.into_ssl(HOSTNAME)?;
             let mut tls = SslStream::new(ssl, tcp)?;
             Pin::new(&mut tls).connect().await?;
@@ -104,6 +113,32 @@ impl Drop for Server {
         // A failed assertion must not leave the listener running.
         self.task.abort();
     }
+}
+
+fn test_identity() -> CaptureResult<(Identity, Vec<u8>)> {
+    let mut root_params = CertificateParams::new(Vec::<String>::new())?;
+    root_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    root_params.key_usages = vec![
+        KeyUsagePurpose::DigitalSignature,
+        KeyUsagePurpose::KeyCertSign,
+        KeyUsagePurpose::CrlSign,
+    ];
+    let root = CertifiedIssuer::self_signed(root_params, KeyPair::generate()?)?;
+
+    let mut leaf_params = CertificateParams::new(vec![HOSTNAME.to_owned()])?;
+    leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    leaf_params.use_authority_key_identifier_extension = true;
+    let leaf_key = KeyPair::generate()?;
+    let leaf = leaf_params.signed_by(&leaf_key, &root)?;
+
+    Ok((
+        Identity {
+            certificate: leaf.der().to_vec(),
+            private_key: leaf_key.serialize_der(),
+        },
+        root.der().to_vec(),
+    ))
 }
 
 fn query(name: &str, record_type: u16) -> CaptureResult<Vec<u8>> {
@@ -431,5 +466,28 @@ async fn malformed_doh_child_request_fails_the_capture_owner() -> TestResult {
         .ok_or("malformed DNS query did not fail the capture")?;
     assert!(failure.to_string().contains("malformed DNS query"));
     assert_eq!(server.descriptions().len(), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn doh_fixture_rejects_a_leaf_signed_by_an_untrusted_ca() -> TestResult {
+    let server = Server::start(ServerMode::Connection).await?;
+    let (_, unrelated_root) = test_identity()?;
+
+    let failure = server
+        .client_with_root(&unrelated_root)
+        .await
+        .err()
+        .ok_or("untrusted DNS fixture certificate was accepted")?;
+    let tls = failure
+        .downcast_ref::<btls::ssl::Error>()
+        .ok_or("untrusted certificate failed outside the TLS verification boundary")?;
+    assert_eq!(tls.code(), ErrorCode::SSL);
+    assert!(tls.ssl_error().is_some_and(|stack| {
+        stack
+            .errors()
+            .iter()
+            .any(|error| error.reason() == Some("CERTIFICATE_VERIFY_FAILED"))
+    }));
     Ok(())
 }
