@@ -38,6 +38,7 @@ use crate::{
         associate_socks5_udp_remote_with_auth, prepare_socks5_udp_remote_target,
     },
     request::{RequestBody, RequestBodyMetadata},
+    route::{ConnectUdpTransport, DatagramRoute, Socks5Target},
     source_binding::SourceBinding,
     tls::{ClientCertificate, EchFailure, TlsConnector, TlsError, TlsErrorKind},
 };
@@ -563,42 +564,107 @@ impl Http3Connector {
         Arc::clone(&self.crypto)
     }
 
-    /// Sends one empty-body GET over a newly resolved direct QUIC connection.
+    /// Opens an HTTP/3 connection through the explicit datagram route.
     ///
-    /// The complete request is prepared before the Tokio runtime is checked or
-    /// DNS is resolved. This method never falls back to TCP or another HTTP
-    /// protocol.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_get_direct(
+    /// The origin TLS name is independent of the dial target and any proxy.
+    /// Proxy failure never changes the route or HTTP protocol. Direct ECH
+    /// retains its bounded HTTPS-record wait and never retries a rejection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid configuration, resolution,
+    /// proxy setup, TLS, or HTTP/3 failures.
+    pub async fn connect(
         &self,
-        host: &str,
-        port: u16,
+        route: DatagramRoute<'_>,
         server_name: &str,
-        authority: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http3Body>, Http3ConnectorError> {
-        self.send_request_direct(
-            host,
-            port,
-            server_name,
-            Method::GET,
-            authority,
-            target,
-            headers,
-            None,
-        )
-        .await
+    ) -> Result<Http3Connection, Http3ConnectorError> {
+        match route {
+            DatagramRoute::Direct(endpoint) => {
+                self.connect_datagrams_direct(endpoint.host, endpoint.port, server_name)
+                    .await
+            }
+            #[cfg(feature = "https-records")]
+            DatagramRoute::DirectEch { endpoint, lookup } => {
+                self.connect_datagrams_ech(endpoint.host, endpoint.port, server_name, lookup)
+                    .await
+            }
+            DatagramRoute::Socks5 {
+                proxy,
+                target,
+                auth,
+            } => match target {
+                Socks5Target::LocalDns(target) => {
+                    self.connect_socks5_local_target(
+                        proxy.host,
+                        proxy.port,
+                        auth,
+                        target.host,
+                        target.port,
+                        server_name,
+                    )
+                    .await
+                }
+                Socks5Target::RemoteDns(target) => {
+                    self.connect_socks5_remote_target(
+                        proxy.host,
+                        proxy.port,
+                        auth,
+                        target.host,
+                        target.port,
+                        server_name,
+                    )
+                    .await
+                }
+            },
+            DatagramRoute::ConnectUdp(route) => match route.transport {
+                ConnectUdpTransport::Http3(proxy) => {
+                    self.connect_udp_quic(
+                        proxy,
+                        route.proxy.host,
+                        route.proxy.port,
+                        route.authority,
+                        route.path,
+                        route.headers,
+                        route.credentials,
+                        server_name,
+                    )
+                    .await
+                }
+                ConnectUdpTransport::Tls {
+                    connector,
+                    protocol,
+                } => {
+                    self.connect_udp_tcp(
+                        connector,
+                        protocol,
+                        route.proxy.host,
+                        route.proxy.port,
+                        route.authority,
+                        route.path,
+                        route.headers,
+                        route.credentials,
+                        server_name,
+                    )
+                    .await
+                }
+            },
+        }
     }
 
-    /// Sends one profiled request over a newly resolved direct connection.
+    /// Sends a request over a new connection through `route`.
     ///
-    /// Address fallback completes before the request is dispatched exactly once.
+    /// Fields are validated before route setup or lookup polling. The request
+    /// is dispatched once after connection setup succeeds.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http3ConnectorError`] for invalid fields, route setup, TLS,
+    /// or the HTTP/3 transaction.
     #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_direct(
+    pub async fn send(
         &self,
-        host: &str,
-        port: u16,
+        route: DatagramRoute<'_>,
         server_name: &str,
         method: Method,
         authority: &str,
@@ -615,29 +681,18 @@ impl Http3Connector {
             body,
         )
         .map_err(Http3ConnectorError::transaction)?;
-        QuicClientConfig::validate_server_name(server_name)
-            .map_err(Http3ConnectorError::invalid_server_name)?;
-        tokio::runtime::Handle::try_current()
-            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
-        poll_tokio_io(|| async {
-            let addresses = resolve(self.host_resolver.as_ref(), host, port)
-                .await
-                .map_err(Http3ConnectorError::resolve)?;
-            let connection = self.connect_to_addresses(addresses, server_name).await?;
-            connection
-                .send_prepared_request(request)
-                .await
-                .map_err(Http3ConnectorError::transaction)
-        })
-        .await
-        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+        let connection = self.connect(route, server_name).await?;
+        connection
+            .send_prepared_request(request)
+            .await
+            .map_err(Http3ConnectorError::transaction)
     }
 
     /// Opens one reusable direct HTTP/3 connection.
     ///
     /// The server name is validated before Tokio runtime checks or DNS I/O.
     /// This method never falls back to TCP or another HTTP protocol.
-    pub async fn connect_direct(
+    pub(crate) async fn connect_datagrams_direct(
         &self,
         host: &str,
         port: u16,
@@ -667,7 +722,7 @@ impl Http3Connector {
     /// still pending then counts as `None`. Chromium likewise starts a QUIC
     /// session only once host resolution, including the HTTPS record within
     /// the same bound, has finished. With `None` the connection is the one
-    /// [`Self::connect_direct`] makes.
+    /// [`Self::connect_datagrams_direct`] makes.
     ///
     /// A list the TLS client rejects fails with
     /// [`EchFailure::InvalidConfigList`] before any packet is sent. When the
@@ -682,7 +737,7 @@ impl Http3Connector {
     /// Returns [`Http3ConnectorError`] for server-name, runtime, resolution,
     /// ECH, connection, and handshake failures.
     #[cfg(feature = "https-records")]
-    pub async fn connect_direct_with_ech(
+    pub(crate) async fn connect_datagrams_ech(
         &self,
         host: &str,
         port: u16,
@@ -758,30 +813,6 @@ impl Http3Connector {
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
     }
 
-    /// Opens one reusable HTTP/3 connection through a SOCKS5 UDP association.
-    ///
-    /// Domain targets remain domain names for proxy-owned resolution. This
-    /// method never resolves the target locally or falls back to a direct route
-    /// or another protocol.
-    pub async fn connect_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http3Connection, Http3ConnectorError> {
-        self.connect_socks5_remote_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-        )
-        .await
-    }
-
     /// Opens one reusable HTTP/3 connection through an authenticated SOCKS5 UDP association.
     ///
     /// The server name, authentication, and remote target are validated before
@@ -789,7 +820,7 @@ impl Http3Connector {
     /// the proxy without local DNS resolution. Proxy and QUIC failures are
     /// terminal for this connection attempt.
     #[allow(clippy::too_many_arguments)]
-    pub async fn connect_socks5_remote_with_auth(
+    pub(crate) async fn connect_socks5_remote_target(
         &self,
         proxy_host: &str,
         proxy_port: u16,
@@ -832,30 +863,6 @@ impl Http3Connector {
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
     }
 
-    /// Opens one reusable HTTP/3 connection through a SOCKS5 UDP association.
-    ///
-    /// The target is resolved locally, and each resolved address receives a
-    /// fresh UDP association attempt. The proxy never receives a domain target,
-    /// and failure never falls back to a direct route or another protocol.
-    pub async fn connect_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-    ) -> Result<Http3Connection, Http3ConnectorError> {
-        self.connect_socks5_local_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-        )
-        .await
-    }
-
     /// Opens one reusable HTTP/3 connection through an authenticated SOCKS5 UDP association.
     ///
     /// The server name, connector profile, and authentication are validated
@@ -863,7 +870,7 @@ impl Http3Connector {
     /// QUIC failure advances to the next resolved address using a new
     /// association; proxy failures and all other failures are terminal.
     #[allow(clippy::too_many_arguments)]
-    pub async fn connect_socks5_local_with_auth(
+    pub(crate) async fn connect_socks5_local_target(
         &self,
         proxy_host: &str,
         proxy_port: u16,
@@ -1019,48 +1026,6 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::transaction)
     }
 
-    /// Opens one reusable HTTP/3 connection through an RFC 9298 CONNECT-UDP proxy.
-    ///
-    /// `proxy` opens a fresh outer HTTP/3 connection to `proxy_host` with its
-    /// own trust roots and server name; this connector owns the inner QUIC
-    /// connection, origin trust, and `server_name`. The outer connection
-    /// carries exactly one CONNECT-UDP request for `path` with `:authority`
-    /// set to `proxy_authority`, a generated `capsule-protocol: ?1` field,
-    /// and `headers` in order.
-    ///
-    /// The server names, request, and outer profile are validated before the
-    /// runtime is checked or any I/O starts. The outer profile must send
-    /// `SETTINGS_H3_DATAGRAM = 1` and accept a full 1200-byte inner Initial in
-    /// one HTTP Datagram; the outer connection assumes a 1252-byte UDP path
-    /// MTU. Failures are [`Http3ConnectorErrorKind::Proxy`] errors whose
-    /// source is a [`ConnectUdpError`] until the tunnel is open; inner QUIC
-    /// failures keep their ordinary kinds. Nothing falls back to a direct
-    /// route, another proxy protocol, DATAGRAM capsules, or another HTTP
-    /// version.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn connect_connect_udp(
-        &self,
-        proxy: &Http3Connector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_authority: &str,
-        path: OriginForm,
-        headers: Vec<RequestHeader>,
-        server_name: &str,
-    ) -> Result<Http3Connection, Http3ConnectorError> {
-        self.connect_connect_udp_with_basic_auth(
-            proxy,
-            proxy_host,
-            proxy_port,
-            proxy_authority,
-            path,
-            headers,
-            None,
-            server_name,
-        )
-        .await
-    }
-
     /// Opens one CONNECT-UDP connection over HTTP/3 with optional
     /// challenge-driven HTTP Basic proxy authentication.
     ///
@@ -1071,7 +1036,7 @@ impl Http3Connector {
     /// 407 is [`ConnectUdpErrorKind::Authentication`]. Both request forms are
     /// validated before I/O.
     #[allow(clippy::too_many_arguments)]
-    pub async fn connect_connect_udp_with_basic_auth(
+    pub(crate) async fn connect_udp_quic(
         &self,
         proxy: &Http3Connector,
         proxy_host: &str,
@@ -1198,11 +1163,11 @@ impl Http3Connector {
     /// the inner connection has no outer datagram-size limit beyond the
     /// 65 527-byte Context ID zero bound. Basic `credentials` follow the
     /// same one-retry challenge flow as
-    /// [`Self::connect_connect_udp_with_basic_auth`], each attempt on a fresh
+    /// [`Self::connect_udp_quic`], each attempt on a fresh
     /// proxy connection. The request and leg configuration are validated
     /// before I/O. Nothing falls back to another leg, route, or protocol.
     #[allow(clippy::too_many_arguments)]
-    pub async fn connect_connect_udp_over_tcp(
+    pub(crate) async fn connect_udp_tcp(
         &self,
         proxy: &HttpsProxyConnector,
         protocol: HttpsProxyProtocol,
@@ -1909,7 +1874,7 @@ impl Http3ConnectorError {
     /// Returns why a connection that offered Encrypted Client Hello failed,
     /// when that offer is the reason.
     ///
-    /// Only [`Http3Connector::connect_direct_with_ech`] sets it; the
+    /// Only direct ECH connection setup sets it; the
     /// handshake case has kind [`Http3ConnectorErrorKind::Handshake`].
     #[must_use]
     pub const fn ech_failure(&self) -> Option<EchFailure> {
@@ -1951,15 +1916,21 @@ mod socks5_tests {
     #[test]
     fn invalid_socks5_auth_precedes_runtime_dns_and_proxy_io() -> Result<(), Box<dyn Error>> {
         let connector = connector()?;
-        let request = connector.connect_socks5_local_with_auth(
-            "does-not-resolve.invalid",
-            1080,
-            Socks5Auth::UsernamePassword {
-                username: "",
-                password: "password",
+        let request = connector.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 1080,
+                },
+                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 443,
+                }),
+                auth: Socks5Auth::UsernamePassword {
+                    username: "",
+                    password: "password",
+                },
             },
-            "does-not-resolve.invalid",
-            443,
             "example.test",
         );
         let mut request = std::pin::pin!(request);
@@ -1981,15 +1952,21 @@ mod socks5_tests {
     #[test]
     fn invalid_server_name_precedes_socks5_auth_validation() -> Result<(), Box<dyn Error>> {
         let connector = connector()?;
-        let request = connector.connect_socks5_local_with_auth(
-            "does-not-resolve.invalid",
-            1080,
-            Socks5Auth::UsernamePassword {
-                username: "",
-                password: "password",
+        let request = connector.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 1080,
+                },
+                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 443,
+                }),
+                auth: Socks5Auth::UsernamePassword {
+                    username: "",
+                    password: "password",
+                },
             },
-            "does-not-resolve.invalid",
-            443,
             "absolute.example.",
         );
         let mut request = std::pin::pin!(request);
@@ -2006,15 +1983,21 @@ mod socks5_tests {
     #[test]
     fn invalid_remote_socks5_auth_precedes_target_validation() -> Result<(), Box<dyn Error>> {
         let connector = connector()?;
-        let request = connector.connect_socks5_remote_with_auth(
-            "does-not-resolve.invalid",
-            1080,
-            Socks5Auth::UsernamePassword {
-                username: "",
-                password: "password",
+        let request = connector.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 1080,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: "invalid target",
+                    port: 0,
+                }),
+                auth: Socks5Auth::UsernamePassword {
+                    username: "",
+                    password: "password",
+                },
             },
-            "invalid target",
-            0,
             "example.test",
         );
         let mut request = std::pin::pin!(request);
@@ -2036,11 +2019,18 @@ mod socks5_tests {
     #[test]
     fn invalid_remote_socks5_target_precedes_runtime_and_proxy_io() -> Result<(), Box<dyn Error>> {
         let connector = connector()?;
-        let request = connector.connect_socks5_remote(
-            "does-not-resolve.invalid",
-            1080,
-            "invalid target",
-            443,
+        let request = connector.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 1080,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: "invalid target",
+                    port: 443,
+                }),
+                auth: Socks5Auth::None,
+            },
             "example.test",
         );
         let mut request = std::pin::pin!(request);
@@ -2066,5 +2056,46 @@ mod socks5_tests {
             &chromium::v154_http3(),
             &chromium::v154_http3_request(),
         )
+    }
+
+    #[cfg(feature = "https-records")]
+    #[test]
+    fn invalid_send_fields_do_not_poll_ech_or_require_a_runtime() -> Result<(), Box<dyn Error>> {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+
+        let connector = connector()?;
+        let polls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&polls);
+        let mut lookup = std::pin::pin!(std::future::poll_fn(move |_| {
+            observed.fetch_add(1, Ordering::SeqCst);
+            Poll::Pending
+        }));
+        let mut request = std::pin::pin!(connector.send(
+            crate::route::DatagramRoute::DirectEch {
+                endpoint: crate::route::Endpoint {
+                    host: "does-not-resolve.invalid",
+                    port: 443
+                },
+                lookup: lookup.as_mut(),
+            },
+            "example.test",
+            http::Method::GET,
+            "example.test",
+            super::OriginForm::parse("/")?,
+            vec![super::RequestHeader::new("connection", "keep-alive")],
+            None,
+        ));
+        let mut context = Context::from_waker(Waker::noop());
+        let result = match request.as_mut().poll(&mut context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Err("invalid fields reached connection setup".into()),
+        };
+        let error = result.err().ok_or("invalid HTTP/3 fields were accepted")?;
+        assert_eq!(error.kind(), Http3ConnectorErrorKind::Request);
+        assert_eq!(polls.load(Ordering::SeqCst), 0);
+        Ok(())
     }
 }

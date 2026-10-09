@@ -38,7 +38,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for request in 0..requests {
         let connection = timeout(
             TIMEOUT,
-            connector.connect_direct("127.0.0.1", port, SERVER_NAME),
+            connector.connect(
+                phantom_net::route::DatagramRoute::Direct(phantom_net::route::Endpoint {
+                    host: "127.0.0.1",
+                    port,
+                }),
+                SERVER_NAME,
+            ),
         )
         .await??;
         let response = timeout(

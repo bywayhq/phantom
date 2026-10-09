@@ -154,7 +154,13 @@ pub(super) async fn connect(
 ) -> TestResult<Http3Connection> {
     Ok(timeout(
         TEST_TIMEOUT,
-        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+        connector.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &address.ip().to_string(),
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        ),
     )
     .await
     .map_err(|_| "HTTP/3 connection timed out")??)
@@ -379,7 +385,13 @@ async fn malformed_remembered_settings_fail_the_connection() -> TestResult<()> {
 
     let result = timeout(
         TEST_TIMEOUT,
-        corrupt.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+        corrupt.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &address.ip().to_string(),
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        ),
     )
     .await
     .map_err(|_| "a connection with corrupt remembered SETTINGS hung")?;
@@ -420,7 +432,13 @@ async fn remembered_settings_stay_with_their_ticket_cache_and_server_name() -> T
     // The same cache, for another server name.
     let other_name = timeout(
         TEST_TIMEOUT,
-        early.connect_direct(&address.ip().to_string(), address.port(), OTHER_NAME),
+        early.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &address.ip().to_string(),
+                port: address.port(),
+            }),
+            OTHER_NAME,
+        ),
     )
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;

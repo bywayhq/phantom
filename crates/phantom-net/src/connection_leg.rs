@@ -280,4 +280,25 @@ mod tests {
         fn assert_traits<T: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource>() {}
         assert_traits::<ConnectionLeg>();
     }
+
+    #[tokio::test]
+    async fn supplied_stream_is_owned_without_socket_metadata() -> Result<(), Box<dyn Error>> {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let (stream, mut peer) = tokio::io::duplex(16);
+        let mut leg = connect(
+            TcpRoute::Connected(ConnectedStream::new(stream)),
+            Dialer::default(),
+            None,
+        )
+        .await?;
+        assert!(leg.tcp_keepalive().is_none());
+        leg.write_all(b"route").await?;
+        let mut received = [0; 5];
+        peer.read_exact(&mut received).await?;
+        assert_eq!(&received, b"route");
+        drop(leg);
+        assert_eq!(peer.read(&mut received).await?, 0);
+        Ok(())
+    }
 }

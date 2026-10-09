@@ -767,41 +767,7 @@ impl PoolEntry {
         }
     }
 
-    /// Opens a direct connection to `transport`, offering the `ech` value of
-    /// the origin's HTTPS record when the profile does and `transport` is
-    /// the origin's own host and port.
-    ///
-    /// Chromium's QUIC session attempt takes the `ech` of the first HTTPS
-    /// record that lists `h3` for the host and port it connects to
-    /// (`QuicSessionPool::DirectJob::DoAttemptSession`,
-    /// `net/quic/quic_session_pool_direct_job.cc` lines 191-231, and
-    /// `QuicChromiumClientSession::GetSSLConfig`,
-    /// `net/quic/quic_chromium_client_session.cc` lines 1760-1790, at
-    /// `154.0.8037.58`). Phantom looks up HTTPS records only for the origin,
-    /// so an Alt-Svc alternative elsewhere offers ECH GREASE.
-    async fn connect_direct(
-        &self,
-        connector: &Http3Connector,
-        endpoint: &Endpoint,
-        transport: Http3TransportTarget<'_>,
-    ) -> Result<Http3Connection, phantom_net::http3::Http3ConnectorError> {
-        #[cfg(feature = "https-records")]
-        if connector.ech_from_https_records()
-            && transport.port == endpoint.port()
-            && transport.host.eq_ignore_ascii_case(endpoint.host())
-            && let Some(discovery) = &self.https_records
-        {
-            let ech = discovery.quic_ech(endpoint);
-            return connector
-                .connect_direct_with_ech(transport.host, transport.port, endpoint.host(), ech)
-                .await;
-        }
-        connector
-            .connect_direct(transport.host, transport.port, endpoint.host())
-            .await
-    }
-
-    /// Opens one connection with the given connectors, without retrying.
+    /// Builds one datagram route, retaining logical-origin authentication.
     async fn connect_with(
         &self,
         connector: &Http3Connector,
@@ -811,82 +777,98 @@ impl PoolEntry {
         transport: Http3TransportTarget<'_>,
         connect_udp_proxy: Option<&ConnectUdpConnectors>,
     ) -> Result<Http3Connection, SetupFailure> {
-        Ok(match route {
-            Route::Direct => self
-                .connect_direct(connector, endpoint, transport)
-                .await
-                .map_err(SetupFailure::Origin)?,
-            Route::Socks5(proxy) if proxy.dns_mode() == Socks5DnsMode::Local => connector
-                .connect_socks5_local_with_auth(
-                    proxy.host(),
-                    proxy.port(),
-                    proxy.auth(),
-                    transport.host,
-                    transport.port,
-                    endpoint.host(),
-                )
-                .await
-                .map_err(SetupFailure::Origin)?,
-            Route::Socks5(proxy) => connector
-                .connect_socks5_remote_with_auth(
-                    proxy.host(),
-                    proxy.port(),
-                    proxy.auth(),
-                    transport.host,
-                    transport.port,
-                    endpoint.host(),
-                )
-                .await
-                .map_err(SetupFailure::Origin)?,
-            // One fresh outer connection and CONNECT-UDP request per inner
-            // connection, including every retry on this route.
-            Route::ConnectUdp(proxy) => match proxy.tcp_protocol() {
-                None => connector
-                    .connect_connect_udp_with_basic_auth(
-                        http3_proxy.ok_or_else(|| {
-                            SetupFailure::Other(RequestError::unsupported_route(
-                                HttpProtocol::Http3,
-                            ))
-                        })?,
-                        proxy.host(),
-                        proxy.port(),
-                        proxy.authority(),
-                        connect_udp_path(proxy, transport).map_err(SetupFailure::Other)?,
-                        proxy.headers().to_vec(),
-                        proxy.credentials(),
-                        endpoint.host(),
-                    )
-                    .await
-                    .map_err(SetupFailure::ConnectUdp)?,
-                Some(protocol) => {
-                    let base = connect_udp_tcp(connect_udp_proxy).map_err(SetupFailure::Other)?;
-                    // Proxy TLS sessions stay within this origin-and-route
-                    // entry, like the HTTP proxy pools.
-                    let proxy_connector = self
-                        .tcp_proxy
-                        .get_or_init(|| base.with_isolated_session_cache());
-                    connector
-                        .connect_connect_udp_over_tcp(
-                            proxy_connector,
-                            protocol,
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.authority(),
-                            connect_udp_path(proxy, transport).map_err(SetupFailure::Other)?,
-                            proxy.headers().to_vec(),
-                            proxy.credentials(),
-                            endpoint.host(),
-                        )
-                        .await
-                        .map_err(SetupFailure::ConnectUdp)?
-                }
+        use phantom_net::route::{
+            ConnectUdpRoute, ConnectUdpTransport, DatagramRoute, Endpoint as DialEndpoint,
+            Socks5Target,
+        };
+        let dial = DialEndpoint {
+            host: transport.host,
+            port: transport.port,
+        };
+        #[cfg(feature = "https-records")]
+        let mut ech = pin!(if matches!(route, Route::Direct)
+            && connector.ech_from_https_records()
+            && transport.port == endpoint.port()
+            && transport.host.eq_ignore_ascii_case(endpoint.host())
+        {
+            self.https_records
+                .as_ref()
+                .map(|discovery| discovery.quic_ech(endpoint))
+        } else {
+            None
+        });
+        let datagrams = match route {
+            Route::Direct => {
+                #[cfg(feature = "https-records")]
+                let direct = match ech.as_mut().as_pin_mut() {
+                    Some(lookup) => DatagramRoute::DirectEch {
+                        endpoint: dial,
+                        lookup,
+                    },
+                    None => DatagramRoute::Direct(dial),
+                };
+                #[cfg(not(feature = "https-records"))]
+                let direct = DatagramRoute::Direct(dial);
+                direct
+            }
+            Route::Socks5(proxy) => DatagramRoute::Socks5 {
+                proxy: DialEndpoint {
+                    host: proxy.host(),
+                    port: proxy.port(),
+                },
+                target: match proxy.dns_mode() {
+                    Socks5DnsMode::Local => Socks5Target::LocalDns(dial),
+                    Socks5DnsMode::Remote => Socks5Target::RemoteDns(dial),
+                },
+                auth: proxy.auth(),
             },
+            // Each tunnel owns a fresh outer connection, including its retry.
+            Route::ConnectUdp(proxy) => {
+                let outer = match proxy.tcp_protocol() {
+                    None => ConnectUdpTransport::Http3(http3_proxy.ok_or_else(|| {
+                        SetupFailure::Other(RequestError::unsupported_route(HttpProtocol::Http3))
+                    })?),
+                    Some(protocol) => {
+                        let base =
+                            connect_udp_tcp(connect_udp_proxy).map_err(SetupFailure::Other)?;
+                        // Proxy TLS sessions remain isolated by this origin and route.
+                        let connector = self
+                            .tcp_proxy
+                            .get_or_init(|| base.with_isolated_session_cache());
+                        ConnectUdpTransport::Tls {
+                            connector,
+                            protocol,
+                        }
+                    }
+                };
+                DatagramRoute::ConnectUdp(ConnectUdpRoute {
+                    proxy: DialEndpoint {
+                        host: proxy.host(),
+                        port: proxy.port(),
+                    },
+                    transport: outer,
+                    authority: proxy.authority(),
+                    path: connect_udp_path(proxy, transport).map_err(SetupFailure::Other)?,
+                    headers: proxy.headers().to_vec(),
+                    credentials: proxy.credentials(),
+                })
+            }
             Route::HttpProxy(_) => {
                 return Err(SetupFailure::Other(RequestError::unsupported_route(
                     HttpProtocol::Http3,
                 )));
             }
-        })
+        };
+        connector
+            .connect(datagrams, endpoint.host())
+            .await
+            .map_err(|error| {
+                if matches!(route, Route::ConnectUdp(_)) {
+                    SetupFailure::ConnectUdp(error)
+                } else {
+                    SetupFailure::Origin(error)
+                }
+            })
     }
 
     fn invalidate(&self, token: &Arc<()>) {

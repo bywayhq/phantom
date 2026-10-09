@@ -8,6 +8,14 @@ use crate::{
 
 mod connected;
 pub use connected::ConnectedStream;
+mod datagram;
+pub use datagram::{ConnectUdpRoute, ConnectUdpTransport, DatagramRoute};
+
+/// Pinned HTTPS-record lookup borrowed for one connection setup.
+#[cfg(feature = "https-records")]
+pub type EchLookup<'a> = std::pin::Pin<
+    &'a mut (dyn std::future::Future<Output = Option<crate::dns::EchConfigList>> + Send + 'a),
+>;
 
 /// A host and port to connect to or ask a proxy to reach.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

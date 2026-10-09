@@ -319,13 +319,17 @@ pub(super) fn assert_client_hello_matches_capture(
 #[test]
 fn request_preparation_precedes_runtime_check() -> Result<(), Box<dyn std::error::Error>> {
     let connector = connector()?;
-    let request = connector.send_get_direct(
-        "127.0.0.1",
-        443,
+    let request = connector.send(
+        crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+            host: "127.0.0.1",
+            port: 443,
+        }),
         "example.test",
+        http::Method::GET,
         "example.test",
         OriginForm::parse("/")?,
         vec![RequestHeader::new("Uppercase", "rejected")],
+        None,
     );
     let mut request = std::pin::pin!(request);
     let mut context = Context::from_waker(Waker::noop());
@@ -343,13 +347,17 @@ fn request_preparation_precedes_runtime_check() -> Result<(), Box<dyn std::error
 #[test]
 fn missing_runtime_is_typed() -> Result<(), Box<dyn std::error::Error>> {
     let connector = connector()?;
-    let request = connector.send_get_direct(
-        "127.0.0.1",
-        443,
+    let request = connector.send(
+        crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+            host: "127.0.0.1",
+            port: 443,
+        }),
         "example.test",
+        http::Method::GET,
         "example.test",
         OriginForm::parse("/")?,
         Vec::new(),
+        None,
     );
     let mut request = std::pin::pin!(request);
     let mut context = Context::from_waker(Waker::noop());
@@ -365,13 +373,17 @@ fn missing_runtime_is_typed() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn invalid_server_name_precedes_runtime_and_dns() -> Result<(), Box<dyn std::error::Error>> {
     let connector = connector()?;
-    let request = connector.send_get_direct(
-        "does-not-resolve.invalid",
-        443,
+    let request = connector.send(
+        crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+            host: "does-not-resolve.invalid",
+            port: 443,
+        }),
         "absolute.example.",
+        http::Method::GET,
         "absolute.example.",
         OriginForm::parse("/")?,
         Vec::new(),
+        None,
     );
     let mut request = std::pin::pin!(request);
     let mut context = Context::from_waker(Waker::noop());
@@ -471,7 +483,13 @@ async fn connection_cannot_cross_connector_identity() -> TestResult<()> {
     });
     let host = address.ip().to_string();
     let connection = first
-        .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+        .connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &host,
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        )
         .await?;
 
     assert!(!second.can_reuse(&connection).await);
@@ -511,7 +529,13 @@ async fn bound_clone_does_not_reuse_a_connection_opened_without_the_binding() ->
     });
     let host = address.ip().to_string();
     let connection = unbound
-        .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+        .connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &host,
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        )
         .await?;
 
     assert!(unbound.can_reuse(&connection).await);
@@ -558,7 +582,13 @@ async fn certificate_clone_does_not_reuse_a_connection_opened_without_the_certif
     });
     let host = address.ip().to_string();
     let connection = without_certificate
-        .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+        .connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &host,
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        )
         .await?;
 
     assert!(without_certificate.can_reuse(&connection).await);
@@ -595,7 +625,13 @@ async fn reuse_check_is_prompt_while_a_request_waits_for_peer_settings() -> Test
     });
     let connection = tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+        connector.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &address.ip().to_string(),
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        ),
     )
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;
@@ -638,7 +674,13 @@ async fn reuse_check_is_prompt_while_a_request_waits_for_stream_credit() -> Test
     });
     let connection = tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+        connector.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &address.ip().to_string(),
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        ),
     )
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;
@@ -677,7 +719,13 @@ async fn a_connection_reports_the_server_s_bidirectional_stream_limit() -> TestR
     });
     let connection = tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct(&address.ip().to_string(), address.port(), TEST_SERVER_NAME),
+        connector.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: &address.ip().to_string(),
+                port: address.port(),
+            }),
+            TEST_SERVER_NAME,
+        ),
     )
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;

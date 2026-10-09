@@ -128,7 +128,13 @@ async fn recorded_client_hello(
     // answers, so the attempt holds it until the server has the ClientHello.
     let attempt = async {
         let _connection = connector
-            .connect_direct(&host, address.port(), server_name)
+            .connect(
+                crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                    host: &host,
+                    port: address.port(),
+                }),
+                server_name,
+            )
             .await;
         std::future::pending::<()>().await;
     };
@@ -234,7 +240,13 @@ async fn firefox_157_quic_offer_and_streams_match_windows_capture() -> TestResul
     let host = address.ip().to_string();
     let client = async {
         connector
-            .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+            .connect(
+                crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                    host: &host,
+                    port: address.port(),
+                }),
+                TEST_SERVER_NAME,
+            )
             .await
             .map_err(Into::into)
     };
@@ -545,7 +557,13 @@ async fn first_flight_of(
     let host = address.ip().to_string();
     let attempt = tokio::spawn(async move {
         let _ = connector
-            .connect_direct(&host, address.port(), TEST_SERVER_NAME)
+            .connect(
+                crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                    host: &host,
+                    port: address.port(),
+                }),
+                TEST_SERVER_NAME,
+            )
             .await;
     });
 

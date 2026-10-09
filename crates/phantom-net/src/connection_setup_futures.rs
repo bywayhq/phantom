@@ -88,34 +88,8 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             "Http1Or2TlsConnector::connect_via",
             future_size(&H12::connect_via),
         ),
-        (
-            "Http3Connector::connect_direct",
-            future_size(&H3::connect_direct),
-        ),
-        (
-            "Http3Connector::connect_socks5_remote_with_auth",
-            future_size(&H3::connect_socks5_remote_with_auth),
-        ),
-        (
-            "Http3Connector::connect_socks5_local_with_auth",
-            future_size(&H3::connect_socks5_local_with_auth),
-        ),
-        (
-            "Http3Connector::connect_connect_udp",
-            future_size(&H3::connect_connect_udp),
-        ),
-        (
-            "Http3Connector::connect_connect_udp_with_basic_auth",
-            future_size(&H3::connect_connect_udp_with_basic_auth),
-        ),
-        (
-            "Http3Connector::connect_connect_udp_over_tcp",
-            future_size(&H3::connect_connect_udp_over_tcp),
-        ),
-        (
-            "Http3Connector::send_request_direct",
-            future_size(&H3::send_request_direct),
-        ),
+        ("Http3Connector::connect", future_size(&H3::connect)),
+        ("Http3Connector::send", future_size(&H3::send)),
         (
             "HttpsProxyConnector::connect_forward_http2_with_credentials",
             future_size(&HttpsProxyConnector::connect_forward_http2_with_credentials),
@@ -207,7 +181,18 @@ mod ech {
     }
 
     fn http3<'a>(connector: &'a Http3Connector, host: &'a str) -> impl Future + 'a {
-        connector.connect_direct_with_ech(host, 443, host, no_ech())
+        async move {
+            let mut lookup = std::pin::pin!(no_ech());
+            connector
+                .connect(
+                    crate::route::DatagramRoute::DirectEch {
+                        endpoint: crate::route::Endpoint { host, port: 443 },
+                        lookup: lookup.as_mut(),
+                    },
+                    host,
+                )
+                .await
+        }
     }
 
     pub(super) fn futures() -> [(&'static str, usize); 5] {
@@ -228,10 +213,7 @@ mod ech {
                 "Http1Or2TlsConnector::connect_direct_with_ech",
                 future_size(&http1_or_2),
             ),
-            (
-                "Http3Connector::connect_direct_with_ech",
-                future_size(&http3),
-            ),
+            ("Http3Connector::connect (ECH)", future_size(&http3)),
         ]
     }
 }

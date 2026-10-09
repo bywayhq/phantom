@@ -165,7 +165,16 @@ async fn connect(
 ) -> TestResult<Result<Http3Connection, Http3ConnectorError>> {
     Ok(timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech(host, address.port(), server_name, ech),
+        connector.connect(
+            crate::route::DatagramRoute::DirectEch {
+                endpoint: crate::route::Endpoint {
+                    host: host,
+                    port: address.port(),
+                },
+                lookup: std::pin::pin!(ech).as_mut(),
+            },
+            server_name,
+        ),
     )
     .await?)
 }

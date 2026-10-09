@@ -33,13 +33,17 @@ async fn main() -> CaptureResult<()> {
     let authority = format!("{}:{}", arguments.hostname, arguments.remote.port());
     let response = timeout(
         REQUEST_TIMEOUT,
-        connector.send_get_direct(
-            &arguments.remote.ip().to_string(),
-            arguments.remote.port(),
+        connector.send(
+            phantom_net::route::DatagramRoute::Direct(phantom_net::route::Endpoint {
+                host: &arguments.remote.ip().to_string(),
+                port: arguments.remote.port(),
+            }),
             &arguments.hostname,
+            http::Method::GET,
             &authority,
             OriginForm::parse("/")?,
             chrome_request_headers(),
+            None,
         ),
     )
     .await
