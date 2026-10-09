@@ -21,6 +21,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   share their brand's module and include `_android_` after the version.
   Rename `*_tls` to `*_tcp_tls` and `*_http3_tls` to `*_quic_tls`.
 
+- Hide HTTP backend error types from `phantom-net`'s public signatures.
+  Migrate: `Http1Error::Protocol` and `ReusedConnectionClosed` now carry an
+  opaque `Http1ProtocolError`; inspect the underlying error through
+  `std::error::Error::source`. The public `From<wreq_proto::Error>` and
+  `From<h3::error::StreamError>` conversions are removed. Protocol operations
+  still return `Http1Error` and `Http3Error`, with their existing categories
+  and replay signals.
+
 
 - Keep QUIC packet cryptography private. Migrate: replace direct use of
   `HeaderProtectionKey`, `PacketProtectionKey`, `InitialKeys`,

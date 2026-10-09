@@ -53,6 +53,12 @@ The final full gate, path/git downstream checks, and CI remain required.
 
 ### 2. Public API boundaries
 
+An independently reviewed, unmerged error slice replaces HTTP/1.1 backend
+payloads with an opaque type and makes HTTP/3 backend conversion private.
+Existing source chains and replay signals remain available. Compilation,
+updated API inventories, the full gate, and CI remain required.
+
+
 - [ ] Unused internal exports become private. A public API inventory
   records the intended exports of each library crate.
 - [ ] Public enums have an explicit evolution policy. Extensible enums
