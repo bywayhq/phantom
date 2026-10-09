@@ -983,7 +983,8 @@ pub fn v154_windows_fetch_template() -> RequestTemplate {
 /// Returns same-origin POST upload fields for Chrome 154 on Windows 11.
 ///
 /// You supply `Origin` and `Referer`. `Content-Type` and `Content-Length` are
-/// optional caller slots. `prepared_body()` fills these slots automatically.
+/// optional caller slots. `prepared_body()` fills the type slot automatically.
+/// It fills the length slot when the request has no trailers.
 /// With a raw `body()`, an omitted length follows these fields when the body
 /// is nonempty, has a known length, and has no trailers.
 ///

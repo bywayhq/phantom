@@ -45,17 +45,21 @@ workflow's path filter did not select this change; its PR check passed.
 
 ### 2. Public API boundaries
 
-An independently reviewed, unmerged error slice replaces HTTP/1.1 backend
-payloads with an opaque type and makes HTTP/3 backend conversion private.
-Existing source chains and replay signals remain available. Compilation,
-updated API inventories, the full gate, and CI remain required.
-
-
+The first API batch merged at `d2b8a6bd` in
+[PR 186](https://github.com/bywayhq/phantom/pull/186). Its full Windows/Linux
+gate passed all 24 steps and 2,906 tests. All 43 PR checks and eight triggered
+push workflows passed, including Windows, macOS, and security scanning.
+The eight feature rows of the public API inventory were regenerated.
+Path/git downstream consumers passed with default and all features.
+HTTP/1.1 backend errors now have an opaque payload; HTTP/3 backend conversion
+is private. Source chains and replay observations remain available.
+The remaining settings and workflow APIs still need final inventories,
+integration checks, and CI.
 - [ ] Unused internal exports become private. A public API inventory
   records the intended exports of each library crate.
 - [ ] Public enums have an explicit evolution policy. Extensible enums
   use `#[non_exhaustive]` where callers should keep a fallback arm.
-- [ ] Error APIs hide unintended vendored types. Intentional dependencies,
+- [x] Error APIs hide unintended vendored types. Intentional dependencies,
   including the QUIC provider interface, are listed explicitly.
 - [ ] Retained public APIs have consistent names, builders, conversions,
   meaningful settings types, and applicable common traits. Tests assert
@@ -64,48 +68,41 @@ updated API inventories, the full gate, and CI remain required.
 
 ### 3. Profiles and settings
 
-The unmerged profile lane groups recipes under five browser modules and
-adds explicit Windows and Android constructors. Individual recipes remain
-available for custom composition. Factories leave the default request
-template unset. You can configure one on the profile, replace it on a
-request, or opt out for that request. Independent source reviews approved
-these changes and their credential-safe redirect behavior. Combined
-compilation, gate checks, and CI remain required.
-
-
-Checked TLS version ranges and ticket settings are also in the unmerged
-API lane. They preserve browser recipe values and keep TCP limits separate
-from QUIC's ticket storage. Source review found test-helper migration
-mistakes; those are repaired. Compilation and integration checks remain.
+PR 186 groups recipes under five browser modules and adds explicit Windows
+and Android constructors. Individual recipes remain available for custom
+composition. Factories leave the default request template unset. You can
+configure one on the profile, replace it on a request, or opt out for that
+request. Credential stripping across redirects passed integration checks.
+Checked TLS version ranges and ticket settings preserve recipe values and
+keep TCP limits separate from QUIC ticket storage. Checked ECH and trust
+anchor settings remain in the next batch.
 
 - [ ] Settings constructors and their evolution policy are settled.
   Invalid combinations are prevented by types where practical; remaining
   invalid or unsupported values produce recoverable errors.
-- [ ] Browser modules have one naming convention. Composed constructors
+- [x] Browser modules have one naming convention. Composed constructors
   select compatible TCP, TLS, HTTP, QUIC, and client-hint recipes.
-- [ ] Browser version, platform, supported protocols, and template/header
+- [x] Browser version, platform, supported protocols, and template/header
   behavior are explicit. Selecting a named version never resolves a
   moving latest-version alias.
-- [ ] Profiles can supply a default request template with documented
+- [x] Profiles can supply a default request template with documented
   override rules. Deliberate custom composition remains available.
   Custom headers are not claimed to be automatically browser-validated.
 
 ### 4. Errors and responses
 
-An unmerged response slice adds recoverable status checks and bounded
-bytes, UTF-8, and optional typed-JSON reads. Success and failure retain the
-response head and extensions. Bodies and trailers follow the existing
-collection and cancellation rules. Independent source review and combined
-compilation, runtime tests, the full gate, and CI remain required.
-
-
+PR 186 adds recoverable status checks and bounded bytes, UTF-8, and optional
+typed-JSON reads. Success and failure retain the response head and extensions.
+Bodies and trailers follow the existing collection and cancellation rules.
+These changes passed the full gate and CI. Request origin context, replay
+observations, and facade error formatting remain in the next batch.
 - [ ] Public errors expose typed categories and useful `source()` chains.
   A cause is not repeated at every display layer.
 - [ ] Request failures expose replay safety and origin context without
   retaining a sensitive full URL for diagnostics.
-- [ ] Opt-in status-to-error conversion retains the response. Existing
+- [x] Opt-in status-to-error conversion retains the response. Existing
   errors that have a response make it available to callers.
-- [ ] Bounded bytes, text, and typed-JSON helpers retain access to response
+- [x] Bounded bytes, text, and typed-JSON helpers retain access to response
   metadata. Their body ownership, decoding, limits, and failure behavior
   are documented and tested. They never set request headers.
 
