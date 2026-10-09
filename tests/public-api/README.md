@@ -30,8 +30,8 @@ feature-gated documentation links need separate checks from all-feature docs.
 The QUIC snapshots confirm the nine retired packet-crypto exports are
 absent in all four feature rows. Its intended public dependencies are
 `btls`, `quinn-proto`, and `phantom-profile`; the provider README describes
-the boundary. Export and trait decisions are tracked in the
-[Phase 2 checklist](../../docs/internals/phase2.md).
+the boundary. The [roadmap](../../docs/roadmap.md#phase-2-ergonomics)
+summarizes the completed API work.
 
 ## Intended public dependencies
 
@@ -51,5 +51,5 @@ BoringSSL linking restriction.
 
 ## Next
 
-- [Phase 2 checklist](../../docs/internals/phase2.md): completed API work.
+- [Migration notes](../../CHANGELOG.md#breaking): changes to public APIs.
 - [Provider API](../../crates/phantom-quic-btls/README.md#api-boundary): QUIC types.

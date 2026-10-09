@@ -444,9 +444,7 @@ the wire, capture evidence.
 
 Phase 2 is complete. Its required API changes shipped in PRs 184, 185,
 186, and 187. The final batch passed the full integration gate, all PR
-checks, and all ten triggered workflows on `main`. The
-[Phase 2 checklist](internals/phase2.md) records the acceptance criteria
-and verification results.
+checks, and all ten triggered workflows on `main`.
 
 - Workspace lints: `missing_debug_implementations`, `rust_2018_idioms`,
   `clippy::must_use_candidate`, `clippy::cast_lossless`, and `clippy::cargo`.

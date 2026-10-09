@@ -2545,6 +2545,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Removed
 
+- Retire the completed Phase 2 checklist. The roadmap retains the phase
+  summary, and the changelog retains its migration notes.
 - The Safari 18.5 TLS recipe and the Chrome 152, Chrome 153, and Firefox 154
   recipes. See the first Breaking entry. (`f129363`)
 
