@@ -149,6 +149,7 @@ async fn whole_cookie_setting_keeps_one_field() -> TestResult<()> {
 #[tokio::test]
 async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult<()> {
     use crate::support::h3 as h3_support;
+    use std::error::Error as _;
     use tokio::sync::oneshot;
 
     let identity = TestIdentity::generate()?;
@@ -194,7 +195,14 @@ async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult
             )?
             .header(RequestHeader::new("cookie", pairs.join("; ")))
             .send()
-            .await?;
+            .await
+            .inspect_err(|error| {
+                let mut source = error.source();
+                while let Some(cause) = source {
+                    eprintln!("HTTP/3 cookie request source: {cause}");
+                    source = cause.source();
+                }
+            })?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         assert!(response.into_body().collect().await?.to_bytes().is_empty());
         client_done
