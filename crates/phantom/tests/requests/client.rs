@@ -1128,11 +1128,16 @@ fn invalid_client_hint_profile_has_stable_build_category() -> TestResult<()> {
     };
 
     assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
-    assert!(
-        error
-            .to_string()
-            .starts_with("invalid client-hint profile:")
+    assert_eq!(error.to_string(), "invalid client-hint profile");
+    let source = error
+        .source()
+        .and_then(|source| source.downcast_ref::<phantom::profile::InvalidClientHintSettings>())
+        .ok_or("client-hint validation lost its typed source")?;
+    assert_eq!(
+        source.kind(),
+        phantom::profile::ValidationErrorKind::InvalidValue
     );
+    assert_eq!(source.field(), "hints.name");
     Ok(())
 }
 
