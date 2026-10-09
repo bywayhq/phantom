@@ -663,6 +663,7 @@ impl Client {
 /// # Ok(())
 /// # }
 /// ```
+#[must_use = "client builders do nothing until build is called"]
 pub struct ClientBuilder {
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,

@@ -237,9 +237,10 @@ pub use phantom_net::{ClientCertificate, ClientCertificateError, ClientCertifica
 /// Client-profile types used to configure observable wire behavior.
 pub mod profile {
     pub use phantom_profile::quic::{
-        GoogleConnectionOption, InvalidQuicTransportSettings, QuicTransportGrease,
-        QuicTransportParameter, QuicTransportParameterKind, QuicTransportParameterOrder,
-        QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
+        GoogleConnectionOption, InvalidQuicTransportSettings, QuicAckFrequencyDraft,
+        QuicConnectionIdLength, QuicTransportGrease, QuicTransportParameter,
+        QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+        QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
     };
     pub use phantom_profile::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
@@ -249,20 +250,20 @@ pub mod profile {
         Http2HuffmanCoding, Http2IdleTimeout, Http2IndexingLimit, Http2NameReference,
         Http2Priority, Http2ProxyConnections, Http2PseudoHeader, Http2RejectedConnect,
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
-        Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed, Http3ClientSettings,
-        Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
-        Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings, Http3Setting,
-        Http3SettingOrder, Http3Settings, InvalidClientHintSettings, InvalidHttp1Settings,
-        InvalidHttp2Settings, InvalidHttp3RequestSettings, InvalidHttp3Settings,
-        InvalidProxyConnectTemplate, InvalidRequestTemplate, InvalidTcpSettings,
-        InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup, ProxyAuthorizationAttempt,
-        ProxyConnectField, ProxyConnectTemplate, RequestField, RequestTemplate, SessionTicketOrder,
-        SignatureScheme, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
-        TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
-        TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion, TrustAnchorIds, UdpSettings,
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
-        WebSocketRefusedStreamRetry, WebSocketSettings,
+        Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed,
+        Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
+        Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
+        Http3Setting, Http3SettingOrder, Http3Settings, InvalidClientHintSettings,
+        InvalidHttp1Settings, InvalidHttp2Settings, InvalidHttp3RequestSettings,
+        InvalidHttp3Settings, InvalidProxyConnectTemplate, InvalidRequestTemplate,
+        InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings, NamedGroup,
+        ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate, RequestField,
+        RequestTemplate, SessionTicketOrder, SignatureScheme, TcpAddressAdvance, TcpAddressRacing,
+        TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
+        TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
+        TrustAnchorIds, UdpSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
+        WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
+        WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
     };
 
     /// Chromium-family connection settings and request templates.
@@ -406,8 +407,9 @@ pub mod profile {
 #[cfg(feature = "https-records")]
 pub mod dns {
     pub use phantom_net::dns::{
-        AliasRecord, EchConfigList, HttpsLookupError, HttpsLookupErrorKind, HttpsRecord,
-        HttpsRecordAnswer, HttpsRecordError, HttpsRecordErrorKind, HttpsRecordLookup,
+        AliasRecord, EchCipherSuite, EchConfig, EchConfigExtension, EchConfigList,
+        EchConfigListError, EchConfigListErrorKind, HttpsLookupError, HttpsLookupErrorKind,
+        HttpsRecord, HttpsRecordAnswer, HttpsRecordError, HttpsRecordErrorKind, HttpsRecordLookup,
         HttpsRecordResolver, ServiceRecord, SvcParam, TargetName,
     };
 }
@@ -420,5 +422,13 @@ pub use phantom_net::request::RequestTrailerName;
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};
 
+/// Shared byte buffer used for request and response bodies.
+pub use bytes::Bytes;
 /// HTTP request method accepted by [`Client::request`].
 pub use http::Method;
+/// HTTP response returned by [`RequestBuilder::send`].
+pub use http::Response;
+/// HTTP status accepted by [`StatusRetry`] and returned by [`Response::status`].
+pub use http::StatusCode;
+/// HTTP URI returned by [`ResponseInfo::effective_uri`].
+pub use http::Uri;

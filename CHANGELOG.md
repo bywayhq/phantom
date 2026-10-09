@@ -912,7 +912,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
-
+- `phantom` re-exports `Bytes`, `Response`, `StatusCode`, and `Uri` for
+  request and response APIs. `phantom::profile` also exports
+  `Http2StreamSettings`, `QuicAckFrequencyDraft`, and `QuicConnectionIdLength`.
+  With `https-records`, `phantom::dns` exports `EchConfig`, `EchCipherSuite`,
+  `EchConfigExtension`, `EchConfigListError`, and `EchConfigListErrorKind`, so
+  you can name parsed ECH configurations and errors through the facade.
+  Discarding a `ClientBuilder` now produces an unused-value warning.
 - `ClientBuilder::client_certificate_for(origin, certificate)` presents
   `certificate` to one host and port, such as `"https://api.example:8443"`,
   in place of the certificate from `ClientBuilder::client_certificate`,

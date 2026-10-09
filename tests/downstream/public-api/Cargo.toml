@@ -1,0 +1,14 @@
+[package]
+name = "phantom-public-api-check"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+default = []
+https-records = ["phantom/https-records"]
+
+[dependencies]
+phantom = { package = "phantom-http", path = "../../../crates/phantom" }
