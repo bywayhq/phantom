@@ -378,6 +378,10 @@ const V136_QUIC_ORDERS: [(usize, [u8; 32]); 19] = [
 
 // Each candidate is a permutation of the same checked ID array. Counts keep
 // repeated draw slots, and at least one slot must exist.
+#[allow(
+    dead_code,
+    reason = "Rust 1.88 does not count anonymous const assertions as uses"
+)]
 const fn valid_recipe_orders(orders: &[(usize, [u8; 32])]) -> bool {
     let mut total = 0usize;
     let mut index = 0;

@@ -760,6 +760,10 @@ impl TrustAnchorOrder {
     }
 
     /// Checks static recipe bounds without allocating or changing order.
+    #[allow(
+        dead_code,
+        reason = "Rust 1.88 does not count anonymous const assertions as uses"
+    )]
     pub(crate) const fn valid_recipe_ids(ids: &[&[u8]]) -> bool {
         let mut encoded = 0;
         let mut index = 0;
