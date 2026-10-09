@@ -129,7 +129,7 @@ impl Http3Error {
         };
         Self {
             unprocessed,
-            ..Self::from(error)
+            ..Self::stream(error)
         }
     }
 
@@ -137,8 +137,16 @@ impl Http3Error {
     pub(super) fn request_stream(error: h3::error::StreamError) -> Self {
         Self {
             unprocessed: rejected(&error),
-            ..Self::from(error)
+            ..Self::stream(error)
         }
+    }
+
+    pub(super) fn stream(error: h3::error::StreamError) -> Self {
+        Self::with_source(
+            Http3ErrorKind::Protocol,
+            "HTTP/3 request stream failed",
+            error,
+        )
     }
 
     /// Returns the stable failure category.
@@ -186,12 +194,61 @@ impl StdError for Http3Error {
     }
 }
 
-impl From<h3::error::StreamError> for Http3Error {
-    fn from(error: h3::error::StreamError) -> Self {
-        Self::with_source(
-            Http3ErrorKind::Protocol,
-            "HTTP/3 request stream failed",
-            error,
-        )
+#[cfg(test)]
+mod tests {
+    use h3::error::{Code, StreamError};
+
+    use super::{Http3Error, Http3ErrorKind, Http3Unprocessed, StdError};
+
+    #[test]
+    fn stream_failure_keeps_its_category_message_and_direct_source() {
+        let error = Http3Error::stream(StreamError::RemoteClosing);
+        assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+        assert_eq!(error.to_string(), "HTTP/3 request stream failed");
+        assert_eq!(error.unprocessed(), None);
+        let source = error
+            .source()
+            .and_then(|source| source.downcast_ref::<StreamError>())
+            .expect("stream failure must retain its backend source");
+        assert!(matches!(source, StreamError::RemoteClosing));
+    }
+
+    #[test]
+    fn goaway_is_replayable_only_before_a_request_stream_opens() {
+        let opening = Http3Error::request_open(StreamError::RemoteClosing);
+        let opened = Http3Error::request_stream(StreamError::RemoteClosing);
+        assert_eq!(opening.unprocessed(), Some(Http3Unprocessed::GoAway));
+        assert_eq!(opened.unprocessed(), None);
+    }
+
+    #[test]
+    fn rejected_request_signal_ends_at_the_response_head() {
+        for convert in [Http3Error::request_open, Http3Error::request_stream] {
+            let error = convert(StreamError::RemoteTerminate {
+                code: Code::H3_REQUEST_REJECTED,
+            });
+            assert_eq!(error.unprocessed(), Some(Http3Unprocessed::RequestRejected));
+            let source = error
+                .source()
+                .and_then(|source| source.downcast_ref::<StreamError>())
+                .expect("request rejection must retain its backend source");
+            assert!(matches!(source, StreamError::RemoteTerminate { code, .. }
+                if *code == Code::H3_REQUEST_REJECTED));
+        }
+        let after_head = Http3Error::stream(StreamError::RemoteTerminate {
+            code: Code::H3_REQUEST_REJECTED,
+        });
+        assert_eq!(after_head.unprocessed(), None);
+    }
+
+    #[test]
+    fn other_reset_code_does_not_authorize_replay() {
+        for convert in [Http3Error::request_open, Http3Error::request_stream] {
+            let error = convert(StreamError::RemoteTerminate {
+                code: Code::H3_REQUEST_CANCELLED,
+            });
+            assert_eq!(error.kind(), Http3ErrorKind::Protocol);
+            assert_eq!(error.unprocessed(), None);
+        }
     }
 }

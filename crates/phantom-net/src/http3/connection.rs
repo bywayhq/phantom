@@ -489,7 +489,12 @@ impl Http3Connection {
                     .ok_or_else(driver_unavailable)?
                     .peer_settings()
             };
-            if !peer_settings.ready().await?.enable_extended_connect() {
+            if !peer_settings
+                .ready()
+                .await
+                .map_err(Http3Error::stream)?
+                .enable_extended_connect()
+            {
                 return Err(Http3Error::without_source(
                     Http3ErrorKind::ExtendedConnectUnavailable,
                     "HTTP/3 peer did not enable extended CONNECT",
@@ -498,7 +503,10 @@ impl Http3Connection {
             let (stream, mut datagrams) = {
                 let mut sender = self.inner.session.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
-                let stream = sender.send_request(request).await?;
+                let stream = sender
+                    .send_request(request)
+                    .await
+                    .map_err(Http3Error::stream)?;
                 // Registering under the send lock keeps datagram monitors in
                 // stream-ID order, which the router relies on to drop
                 // datagrams for closed streams.
@@ -516,7 +524,7 @@ impl Http3Connection {
             };
             let response = match response {
                 Ok(response) => response,
-                Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
+                Err(ResponseHeadError::Stream(error)) => return Err(Http3Error::stream(error)),
                 Err(ResponseHeadError::UnsupportedDatagram) => {
                     datagrams.take();
                     let (send, recv) = pending.into_streams()?;
@@ -565,7 +573,7 @@ impl Http3Connection {
             if let Err(error) = poll_fn(|context| send.poll_finish(context)).await {
                 recv.stop_sending(h3::error::Code::H3_REQUEST_CANCELLED);
                 send.stop_stream(h3::error::Code::H3_REQUEST_CANCELLED);
-                return Err(error.into());
+                return Err(Http3Error::stream(error));
             }
             let body = Http3Body::new(RequestSend::stream(send), recv, self.clone(), datagrams);
             Ok(Http3ExtendedConnectOutcome::Rejected(Response::from_parts(
@@ -600,7 +608,7 @@ impl Http3Connection {
                 .ok_or_else(driver_unavailable)?
                 .peer_settings()
         };
-        let settings = peer_settings.ready().await?;
+        let settings = peer_settings.ready().await.map_err(Http3Error::stream)?;
         Ok(PeerExtensions {
             extended_connect: settings.enable_extended_connect(),
             datagram: settings.enable_datagram(),
@@ -637,7 +645,10 @@ impl Http3Connection {
         let (stream, flow) = {
             let mut sender = self.inner.session.sender.lock().await;
             let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
-            let stream = sender.send_request(request).await?;
+            let stream = sender
+                .send_request(request)
+                .await
+                .map_err(Http3Error::stream)?;
             let flow = router.flow(stream.id());
             (stream, flow)
         };
@@ -648,7 +659,7 @@ impl Http3Connection {
         };
         let response = match response {
             Ok(response) => response,
-            Err(ResponseHeadError::Stream(error)) => return Err(error.into()),
+            Err(ResponseHeadError::Stream(error)) => return Err(Http3Error::stream(error)),
             Err(ResponseHeadError::SwitchingProtocols) => {
                 return Err(Http3Error::without_source(
                     Http3ErrorKind::Protocol,

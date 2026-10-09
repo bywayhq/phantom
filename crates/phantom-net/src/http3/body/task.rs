@@ -219,7 +219,7 @@ async fn run(
             };
             match interrupted {
                 Interrupted::Stream(error) => {
-                    send_error(&events, error.into()).await;
+                    send_error(&events, Http3Error::stream(error)).await;
                     finish(send, recv, &connection, DriverSignal::ProtocolError);
                     return;
                 }
@@ -254,7 +254,7 @@ fn upload_failure(uploaded: Result<(), UploadError>) -> Option<Http3Error> {
     match uploaded {
         Ok(()) | Err(UploadError::Stream(StreamError::RemoteTerminate { .. })) => None,
         Err(UploadError::Body(error)) => Some(error),
-        Err(UploadError::Stream(error)) => Some(error.into()),
+        Err(UploadError::Stream(error)) => Some(Http3Error::stream(error)),
     }
 }
 
