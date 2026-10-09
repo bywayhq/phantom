@@ -23,7 +23,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args().skip(1);
     let port: u16 = args.next().ok_or(usage)?.parse()?;
     let root_path = args.next().ok_or(usage)?;
-    let requests = request_count(args.next().as_deref())?;
+    let requests = request_count(args.next().as_deref())
+        .map_err(|error| format!("requests must be a positive integer: {error}"))?;
 
     let root = fs::read(root_path)?;
 
