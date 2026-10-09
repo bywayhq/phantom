@@ -1,5 +1,6 @@
 [package]
 name = "phantom-http"
+autotests = false
 description = "HTTP client with browser TLS and HTTP profiles"
 readme = "../../README.md"
 keywords = ["http", "browser", "tls", "http2", "http3"]
@@ -67,6 +68,26 @@ tokio-btls.workspace = true
 
 [lints]
 workspace = true
+
+[[test]]
+name = "requests"
+path = "tests/requests/main.rs"
+
+[[test]]
+name = "sessions"
+path = "tests/sessions/main.rs"
+
+[[test]]
+name = "proxies"
+path = "tests/proxies/main.rs"
+
+[[test]]
+name = "http3"
+path = "tests/http3/main.rs"
+
+[[test]]
+name = "streams"
+path = "tests/streams/main.rs"
 
 [[example]]
 name = "autobahn-client"
