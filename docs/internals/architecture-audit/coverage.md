@@ -92,10 +92,28 @@ identify Windows working bytes at the recorded revision. All 99 new records
 were checked against their respective hash basis and line ranges. These
 passes retain their gaps and do not imply runtime verification.
 
+The [input and runtime continuation](net-input-runtime-continuation-coverage.json)
+records 34 further complete reads and one partial HTTP/3 helper read. All 35
+source identities and ranges match Windows working bytes at `df2ae9b7`.
+The review covers authorization, public exports and errors, request metadata,
+malformed peers, cancellation and platform tests. It identifies the HTTP/3
+cookie-limit mismatch and leaves the remaining transport files explicit.
+The ECH support wording and inline Client Hint tests have independent review;
+their seven and three existing tests pass respectively.
+
 Capture review reproduces a preassignment child escaping Windows job cleanup,
 a profile-prefix sweep stopping a different profile, and a quoted path
 preventing cleanup. Tests use harmless owned processes, rather than browsers.
-The launch and sweep remedies are in progress.
+The sweep's exact, descendant and prefix-sibling Windows controls pass.
+The launch remedy still fails its abrupt-runner-death control with the
+dependency-managed interpreter, so the containment correction remains open.
+
+Two actual HTTP/3 decoder regressions fail for retained unknown payload and
+oversized SETTINGS. The fragmented unknown-frame and following GOAWAY control
+passes. HTTP/3 cookie preparation also fails three new count, byte and
+extended CONNECT regressions; ten controls pass. Its facade regression fails
+before a successful exchange. The proposed remedies and composed reviews
+remain pending; these failing tests are evidence, not passed gates.
 
 The ACK parser repair passes 357 Quinn-proto unit tests and its complete
 Windows vendor check. Its renamed Quinn dependent also passes that check.

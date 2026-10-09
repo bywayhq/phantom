@@ -36,11 +36,12 @@ No finding is resolved by an assignment or a proposed fix.
 | A27 | P2 | SOCKS CONNECT errors retain their negotiation category | Upstream UnknownAuthMethod also denotes an unknown CONNECT reply | Red/green test; review approved; proxy suite and lint pass |
 | A28 | P2 | ACK_FREQUENCY validates the selected wire format | A one-byte flag is decoded as a variable-length integer | Real connection regression red/green; review approved; vendor replay passes |
 | A29 | P3 | Windows option tests survive reserved UDP ports | A raw port-zero bind bypasses the retry helper | Shared binder repair; 37 UDP tests pass; review approved |
-| A30 | P2 | Capture containment owns children before they run | Job assignment follows an already-running process | Windows child-survival reproduction confirmed; launch remedy pending |
-| A31 | P2 | Profile sweeps preserve unrelated processes | Windows substring matching kills a different profile and quoted paths fail | Real owned-process controls reproduce both defects; repair pending |
-| A32 | P3 | ECH support documentation states what is checked | Parameter support does not validate the HPKE public key | Source qualification confirmed; documentation correction pending |
-| A33 | P3 | Short tests stay with their module | AcceptCh's 51-line tests use a separate directory and path annotation | Layout mismatch confirmed; inline move pending |
-| A34 | P2 | HTTP/3 control parsing bounds retained payloads | Control decoding waits for an entire peer-declared non-DATA payload | Source candidate; retained-buffer and next-frame regressions pending |
+| A30 | P2 | Capture containment owns children before they run | Job assignment follows an already-running process | Barrier controls pass; dependency-managed interpreter shutdown fails; repair in progress |
+| A31 | P2 | Profile sweeps preserve unrelated processes | Windows substring matching kills a different profile and quoted paths fail | Exact, descendant and prefix-sibling Windows controls pass; independent repair review pending |
+| A32 | P3 | ECH support documentation states what is checked | Parameter support does not validate the HPKE public key | Source correction and independent review approved; seven parser tests pass |
+| A33 | P3 | Short tests stay with their module | AcceptCh's 51-line tests use a separate directory and path annotation | Inline move independently approved; all three tests pass |
+| A34 | P2 | HTTP/3 control parsing bounds retained payloads | Control decoding waits for an entire peer-declared non-DATA payload | Two decoder regressions fail; following GOAWAY control passes; canonical repair in progress |
+| A35 | P2 | HTTP/3 cookie limits apply before splitting | Semantic validation repeats supplied-field limits over emitted crumbs | Count, byte and extended CONNECT regressions fail; facade request fails; repair in progress |
 
 ## Initial source evidence
 
@@ -279,25 +280,47 @@ its own retained process handle. The matrix CLI rejects quoted work paths,
 but the shared browser cleanup helper has no equivalent restriction.
 The process-ownership lane is repairing matching and data transfer together.
 
-A32 concerns `EchConfig::is_supported` and its parser test comment. The
+A32 qualifies `EchConfig::is_supported` and its parser test comment. The
 method checks supported parameters and names, while cryptographic public-key
 validation happens later in HPKE setup. The native oracle in the parser test
 checks configuration-list acceptance, rather than encryption or a completed
-handshake. The correction will qualify those two comments without changing
-the native-compatible validation behavior.
+handshake. Independent review approves the source correction at `ba05c009`.
+All seven existing ECH parser tests pass with the actual native oracle.
 
-A33 concerns `accept_ch.rs` and `accept_ch/tests.rs`. The separate file holds
-three short tests and needs no separate fixture directory. Moving them inline
-removes the unnecessary path annotation and follows the working agreement.
-No runtime defect or broader abstraction change is established.
+A33 moves the three short `accept_ch/tests.rs` tests inline in `accept_ch.rs`.
+They need no separate fixture directory. The test bodies remain unchanged
+apart from indentation, and the unnecessary path annotation is removed.
+Independent review approves `44ae0f3e`; all three tests pass. No runtime
+defect or broader abstraction change is established.
 
 A34 traces the active HTTP/3 control stream through `FrameStream`,
 `BufRecvStream` and frame decoding. The decoder waits for the complete
-declared payload before discarding an unknown frame. The control path has
-no identified retained-payload cap, while consuming transport chunks can
-replenish QUIC receive credit. A retained-buffer regression and a following
-valid control-frame test are required before selecting a canonical repair.
-Large unknown frames must retain the protocol's ignore behavior.
+declared payload before discarding an unknown frame. The real decoder retains
+16,389 bytes after the first independent 16 KiB payload chunk of an incomplete
+2 MiB unknown frame. A separate oversized SETTINGS header returns Pending
+instead of rejecting the declared payload before buffering. Those two tests
+fail at `a077e28c`; 27 selected decoder tests pass, including a fragmented
+unknown frame followed by coalesced GOAWAY. Independent review approves the
+regression tests. The canonical repair remains in progress. Large unknown
+frames must retain the protocol's ignore behavior. These observations concern
+decoder retention, rather than a complete transport-memory measurement.
+
+A35 compares the documented pre-split header bounds with HTTP/1.1 and HTTP/2
+preparation and the actual HTTP/3 factories. One caller Cookie containing
+101 short pairs passes the supplied-field bound, then fails when semantic
+validation counts the emitted crumbs. A separate 100-pair Cookie whose
+original name and value total exactly 32 KiB fails when repeated names count
+toward the byte bound. Extended CONNECT uses the same validation path.
+At `155fe999`, the three preparation regressions fail and ten controls pass,
+including captured QPACK bytes and generated framing and capsule fields.
+The facade's exact HTTP/3 request also fails before a successful exchange.
+The remedy must retain protocol validation, supplied-field limits, generated
+field accounting, and the separate peer SETTINGS field-section bound.
+
+The capture repair's Windows run selects 85 tests. Profile matching and
+startup-barrier controls pass, but the abrupt-runner-death control fails with
+the dependency-managed interpreter. That failure remains open; it prevents
+accepting the containment repair. No passing full capture suite is claimed.
 
 ## Rejected candidates
 

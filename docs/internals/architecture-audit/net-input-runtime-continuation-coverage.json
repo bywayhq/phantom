@@ -1,0 +1,1248 @@
+{
+  "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+  "scope": "Additive authorization, public exports/errors, H3 request metadata, adversarial response, runtime/deadline/platform and cancellation tests source pass",
+  "previous_coverage": [
+    "transport-report.md",
+    "net-remaining-coverage.json",
+    "net-proxy-continuation-coverage.json",
+    "net-lifecycle-continuation-coverage.json",
+    "net-establishment-continuation-coverage.json"
+  ],
+  "files": [
+    {
+      "path": "crates/phantom-net/src/authorization.rs",
+      "sha256": "a5eae6dd6b7ca0de336a58246fdba60c28e13838584d6cd9042cd3fe810dae74",
+      "total_lines": 317,
+      "reviewed_ranges": [
+        [
+          1,
+          317
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/lib.rs",
+      "sha256": "38b2b25ed0c1d6a092046e3d6f99fa83fb316c7a0561c6028733f0fa3400731a",
+      "total_lines": 81,
+      "reviewed_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy.rs",
+      "sha256": "f6bc9f044a831b0eb03d04b00bb4032784d6b46e242dd6a031766ac449ae17a8",
+      "total_lines": 39,
+      "reviewed_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/authentication.rs",
+      "sha256": "0fa1334a4328a4892e06675a5f3e5ad1941c1c92cabd6f78c04ba7ea416604af",
+      "total_lines": 373,
+      "reviewed_ranges": [
+        [
+          1,
+          373
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/authentication.rs",
+      "sha256": "5ff0a188cd94cb2d9b29eef17d3a27cd9e0e368a43bfcee0abc9ce91d710f669",
+      "total_lines": 413,
+      "reviewed_ranges": [
+        [
+          1,
+          413
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http1.rs",
+      "sha256": "2a66aca9588441193cd2669885e67ef44f5043d268f06be02069f16912e02df9",
+      "total_lines": 639,
+      "reviewed_ranges": [
+        [
+          1,
+          639
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "sha256": "cb1094f80c3ab22d600e6cec138965aafeedbbde91b4da8892977377a78ccff0",
+      "total_lines": 756,
+      "reviewed_ranges": [
+        [
+          1,
+          756
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/request.rs",
+      "sha256": "ef59dd44459d6417ef268cc6f7128ed81514153f196dec377223bd563a0ff12d",
+      "total_lines": 812,
+      "reviewed_ranges": [
+        [
+          1,
+          812
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/error.rs",
+      "sha256": "666999a67ddd9b06d83714493888992914f636475260a7dc3d752b5f2d536c9c",
+      "total_lines": 260,
+      "reviewed_ranges": [
+        [
+          1,
+          260
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/varint.rs",
+      "sha256": "bb8fc6359c814e986ae5ed1e2dbb509a676fa733c837fb126e70d3527008dd69",
+      "total_lines": 81,
+      "reviewed_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/cookie_crumbs.rs",
+      "sha256": "842bffbf8d1f1a20fec0ef878015bb80ea3e4432b5caf573fc0ff25f897173fd",
+      "total_lines": 285,
+      "reviewed_ranges": [
+        [
+          1,
+          285
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/error.rs",
+      "sha256": "933bb2d8c3287f4c65f6d3887aa72e4b09f483cea51e441fa85140be388bc958",
+      "total_lines": 389,
+      "reviewed_ranges": [
+        [
+          1,
+          389
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/response_limits.rs",
+      "sha256": "e97e287385c68308ec844ad2595d15c389ef49e07cc4d74043cb98eb906cbc93",
+      "total_lines": 477,
+      "reviewed_ranges": [
+        [
+          1,
+          477
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_malformed.rs",
+      "sha256": "903aea03fda7c548f2960d45e91adde8b7f56b5899b88c02d5bbfcf716a1b06e",
+      "total_lines": 402,
+      "reviewed_ranges": [
+        [
+          1,
+          402
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_header_limits.rs",
+      "sha256": "f4940ae39d628c47dd79acd6da8cc01a7546f04f98b05e0972f33d8ca11ec4ab",
+      "total_lines": 351,
+      "reviewed_ranges": [
+        [
+          1,
+          351
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_data_frames.rs",
+      "sha256": "4ee097562e011b218b7a77f89c6f0a6f7e2b419283b399463a75927595d9255d",
+      "total_lines": 179,
+      "reviewed_ranges": [
+        [
+          1,
+          179
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_informational.rs",
+      "sha256": "5062fce9095b5925104d51c2171ed01ffef902091e76cc3fc7ae0cb84dc4a76a",
+      "total_lines": 163,
+      "reviewed_ranges": [
+        [
+          1,
+          163
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/adversarial_wire.rs",
+      "sha256": "1c82c033ad2a350c6523cff3525e5f17d6feca262070bb708e6bc4c3b47260ef",
+      "total_lines": 191,
+      "reviewed_ranges": [
+        [
+          1,
+          191
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "sha256": "a951d5ead32b2bc094c94406039d71d25ed62f8cfa5d6e51442bc4765d3bcb36",
+      "total_lines": 162,
+      "reviewed_ranges": [
+        [
+          1,
+          162
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests.rs",
+      "sha256": "4499685474fc27398182f5c74d6fad5e8e9b6f0bd355fd2863589fc0d603abdd",
+      "total_lines": 103,
+      "reviewed_ranges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/port_randomization.rs",
+      "sha256": "11959ece46375d2ec432c6efb85d548dc3e6dbccc071250c64efb16377e338a0",
+      "total_lines": 179,
+      "reviewed_ranges": [
+        [
+          1,
+          179
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/paths.rs",
+      "sha256": "f8b0d54670d5f96bccb2ec49986469db2810306706b9be90bf5718527e1efbc6",
+      "total_lines": 399,
+      "reviewed_ranges": [
+        [
+          1,
+          399
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/keepalive_paths.rs",
+      "sha256": "7e74882eb6a8d1259d47a0fca19f9cabcb941c4897a653e4c7b062d3953f705f",
+      "total_lines": 308,
+      "reviewed_ranges": [
+        [
+          1,
+          308
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/error.rs",
+      "sha256": "320941815c50e38d3e5c115a9c729587b392d1ca16ae82e7524bb13a2dfb2b41",
+      "total_lines": 603,
+      "reviewed_ranges": [
+        [
+          1,
+          603
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/alt_svc.rs",
+      "sha256": "bdfa9c301184e4bb381f30974751ff9d6590343024ad365a1812d00605ccc02c",
+      "total_lines": 86,
+      "reviewed_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/routes.rs",
+      "sha256": "096e463b611db26855c88b86697ed4eda47d4983432ed66acffbf2369b7f3372",
+      "total_lines": 287,
+      "reviewed_ranges": [
+        [
+          1,
+          287
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/expect_continue.rs",
+      "sha256": "cb5c78e3b2f921e3fd8e8d0a9ba383c99bae6b09b9a465ecd932f983c5967866",
+      "total_lines": 158,
+      "reviewed_ranges": [
+        [
+          1,
+          158
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/expect_continue.rs",
+      "sha256": "3085cc671494fd885561c3b3216c95177f9933e040cb1358627d4f7a0bc5e182",
+      "total_lines": 115,
+      "reviewed_ranges": [
+        [
+          1,
+          115
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/expect_continue.rs",
+      "sha256": "4dccc4607fb1ae58e436b4732ef666ac817f3840fd991d6978e41a58399f00e8",
+      "total_lines": 208,
+      "reviewed_ranges": [
+        [
+          1,
+          208
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/quic.rs",
+      "sha256": "fa786bde372f65c229eeabaec1259de96740b5e580df0ef7c09b45dfbfb96be9",
+      "total_lines": 84,
+      "reviewed_ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/connection.rs",
+      "sha256": "5093733c6e1359508399ffe54c829794de1bbcbeacf56f3d455ae98fc4360d5d",
+      "total_lines": 317,
+      "reviewed_ranges": [
+        [
+          1,
+          317
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/reset_churn.rs",
+      "sha256": "d5d8af3028fffec051dc9113f803678bc6a0bf9b3b443a051958c5e60ee065d1",
+      "total_lines": 106,
+      "reviewed_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/stream_limit.rs",
+      "sha256": "7bbdb75b1a5477064ac127506ec8fa9931f76034fc819cf5439200112b0b6f29",
+      "total_lines": 261,
+      "reviewed_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/tls/test_support.rs",
+      "sha256": "6fafd42cab6e75caae07bde42c274dbd309eeb0679859b027f88009484568418",
+      "total_lines": 298,
+      "reviewed_ranges": [
+        [
+          1,
+          298
+        ]
+      ],
+      "status": "complete",
+      "verification": "complete source read; no builds or tests executed",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "sha256": "5cc4a9ecb944e0e05a21ebca88edcb1e869a199d312c2ad0aeb5d623371f2d70",
+      "total_lines": 724,
+      "reviewed_ranges": [
+        [
+          614,
+          724
+        ]
+      ],
+      "status": "partial",
+      "verification": "test endpoint and deadline helper trace only; tests 1-613 not completed in this pass",
+      "contracts_record": "net-input-runtime-continuation-report.md"
+    }
+  ],
+  "dependency_traces": [
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "reviewed_ranges": [
+        [
+          676,
+          715
+        ]
+      ],
+      "status": "previous complete read; current sensitive-field rustdoc caller trace"
+    },
+    {
+      "path": "docs/reference/limits.md",
+      "reviewed_ranges": [
+        [
+          215,
+          238
+        ]
+      ],
+      "status": "partial reference bounds trace"
+    },
+    {
+      "path": "docs/reference/profiles.md",
+      "sha256": "d4fe8aed3e9a722808d8d30566389919385034e1efa4b89207206c5c68159ed4",
+      "total_lines": 872,
+      "reviewed_ranges": [
+        [
+          576,
+          613
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom-profile/src/http3.rs",
+      "sha256": "e7788efc26f9200d0e01d2e3841dadf9a1e5588b2b1cafaf6b30eec975e0867f",
+      "total_lines": 522,
+      "reviewed_ranges": [
+        [
+          251,
+          320
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom-net/src/http2/request.rs",
+      "sha256": "725b6dabefbddf67132263af6424263a079550d568fc3c0eca94bb4427bd6e85",
+      "total_lines": 437,
+      "reviewed_ranges": [
+        [
+          117,
+          153
+        ],
+        [
+          265,
+          418
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/request.rs",
+      "sha256": "12d6c760ea8d1b3aa490861090f1da7aa320babc97035b02b1b88687b0c6159b",
+      "total_lines": 972,
+      "reviewed_ranges": [
+        [
+          478,
+          558
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom-net/src/http3.rs",
+      "sha256": "89cf5f5a591f244f603fc5f35e9653078f7d9fa4a102fd48a2c78a88afd96e45",
+      "total_lines": 1373,
+      "reviewed_ranges": [
+        [
+          215,
+          259
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "sha256": "b61efe68f9f77ace416922d9174342d407c192e89ea22b49f2cbaec0c9bb3931",
+      "total_lines": 1790,
+      "reviewed_ranges": [
+        [
+          71,
+          154
+        ],
+        [
+          184,
+          223
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "total_lines": 794,
+      "reviewed_ranges": [
+        [
+          231,
+          350
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom-net/src/http3/connector.rs",
+      "sha256": "e092743d10f44301f4b462e20a6e9f30e9e4aadb4b8e88c70bc6f7a2874c0f30",
+      "total_lines": 2208,
+      "reviewed_ranges": [
+        [
+          321,
+          440
+        ],
+        [
+          1479,
+          1575
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/src/session/http3_pool.rs",
+      "sha256": "ada01073b4d56dae0e75951bbdc4978985af26dff22cb83092264d6c61fd11be",
+      "total_lines": 1697,
+      "reviewed_ranges": [
+        [
+          1215,
+          1298
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/src/request/field_lists.rs",
+      "sha256": "1fbf15d27178f54dd9803fac3a8a8a31b6f30a381d37336ebeae83f58d7165a1",
+      "total_lines": 230,
+      "reviewed_ranges": [
+        [
+          124,
+          183
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "sha256": "e797348e398942443c6c1709ffcc6bf559d1567647dbb5e56631b4e98dcb00a2",
+      "total_lines": 1406,
+      "reviewed_ranges": [
+        [
+          1031,
+          1080
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "sha256": "caada6b80b1de05835b08904f1b371f7891c88dd20ea4ebab6e42b38248a8ec2",
+      "total_lines": 2317,
+      "reviewed_ranges": [
+        [
+          211,
+          257
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "sha256": "aef17d1c921f8025c7e40da4e0ab37aedcfb3fca7dd37ba83d22ef3416dafe3e",
+      "total_lines": 556,
+      "reviewed_ranges": [
+        [
+          1,
+          165
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/tests/requests/expect_continue/http3.rs",
+      "sha256": "4620d61e97048237ad763a8bdeaf984bd0e0787068e33a5a556d16b1c469d06b",
+      "total_lines": 311,
+      "reviewed_ranges": [
+        [
+          1,
+          190
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "total_lines": 116,
+      "reviewed_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "status": "current partial cookie-contract caller/encoder/reference trace; earlier completed owners not reclaimed"
+    }
+  ],
+  "remaining_paths_in_this_agent_reports": [
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "sha256": "37dc200503632024b5a1aba3fe18e996c9d3cd094e4d2000765cee8152bb1ec7",
+      "total_lines": 661,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests/routes.rs",
+      "sha256": "5b52a3479341f9cf45a580ad694f1df6fcb0c4e53e72710f7d03b468434e4258",
+      "total_lines": 454,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/dns/address_lookup/tests.rs",
+      "sha256": "ffc4bd9ceb86e72a25214956ad3bfb1fdcd12ab0b2d8d9bf5439ec6e5514f679",
+      "total_lines": 421,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/host_resolver/tests.rs",
+      "sha256": "dc2d928511fba67407ce1c6a67bbbddc9cf510478ae118105bc9638589f6e149",
+      "total_lines": 195,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/request_wire.rs",
+      "sha256": "686a0ff5fcd62c34b424409b264cc5a791459b534cf8606331f937e35b86cd9f",
+      "total_lines": 1250,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/reuse.rs",
+      "sha256": "94ec5b9ebabede24c22a83896bc63d73363bacdfc0ace59029c286f44e46fcb7",
+      "total_lines": 663,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tests/upgrade.rs",
+      "sha256": "f758e71b158781afc6dd43e6e664dba9694ef78455e322565fc746ac73c876bb",
+      "total_lines": 177,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/alps/tests.rs",
+      "sha256": "ddebac3ae8c847deca9e7a572e6fb6767cb91e6496cc7b24049995c988550b44",
+      "total_lines": 262,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/continuation_matrix.rs",
+      "sha256": "e0650b42d231e4cd3c6b5215eaa7e13ecb1a66abb1c5b16894be989cb175f597",
+      "total_lines": 431,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/extended_connect.rs",
+      "sha256": "21a15ba62e1426ff531737612cf3b5fdbac18cf88ecf717bd40d0e8572ab66c3",
+      "total_lines": 242,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/hpack_replay.rs",
+      "sha256": "511d14a6cbce88b9b83a1216f23915943ca08b82b0da3885a3224e3c77eec991",
+      "total_lines": 1104,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/hpack_transitions.rs",
+      "sha256": "12917cd282514557161e1b8d4507c9629e94b7aec5fc4a0ef96c39a21565b63b",
+      "total_lines": 314,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+      "sha256": "14ac9501e989bfe9d5cae350b8a66f35a83ec6dc39e078a952956ae4a54405a0",
+      "total_lines": 284,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/idle_ping.rs",
+      "sha256": "70a983f3d7d7df275bce823563fce7ae898ce6c41aa587352ecd5ea34eae082c",
+      "total_lines": 201,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/ping_peer.rs",
+      "sha256": "7a2e6ae7e4ffc27c85beb3b4b69fc796f455b0ad7678101f66496f04d615b6cd",
+      "total_lines": 240,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/preface_ping.rs",
+      "sha256": "6e7def5b73702047658bc910bae715ef11dc658c9c9d7d350c3acda38e2feae8",
+      "total_lines": 363,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+      "sha256": "76e93643c18bb6348189997bf9e96ca947c0acf9e0ac216e6d4e9c7561188caf",
+      "total_lines": 520,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+      "sha256": "f2409da5ab6aa44e2b45e58e3d3e04a300137361134d0c124792e13b5dbd9298",
+      "total_lines": 386,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+      "sha256": "258a2d4f25654c26688c4c8888e17b303f28ba4095a5815ff3d4fe5689a469c9",
+      "total_lines": 512,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+      "sha256": "16234b4af629f44a35dcbb49e117b22e6653ee2996d8fcc2c5c43f79f42cbaa0",
+      "total_lines": 301,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/ping_close.rs",
+      "sha256": "d8138509101f0146d4d28588c0b2b10cc45a20e1a8acdfab01f184b816067642",
+      "total_lines": 86,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+      "sha256": "8eda5d9f158264f329b6c4e82495dc0c30d696a81863da7a7541d42d6b6c8fdf",
+      "total_lines": 342,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/alps/tests.rs",
+      "sha256": "dcc7188b22387dd9f5534dc106141c3e4914cea8835a248fc2f8b26b05953ebc",
+      "total_lines": 155,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests.rs",
+      "sha256": "5cc4a9ecb944e0e05a21ebca88edcb1e869a199d312c2ad0aeb5d623371f2d70",
+      "total_lines": 724,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": [
+        [
+          614,
+          724
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connection.rs",
+      "sha256": "7d27aff27150367ee0732b46bfb1a220dd5abc26ef207ff7195e2365a0d00551",
+      "total_lines": 1252,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/connector.rs",
+      "sha256": "4d1e48cca863749aee07427a9237ebb440de7447861e14fc32f079ebca26fa15",
+      "total_lines": 938,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/datagram.rs",
+      "sha256": "d291a39dfc4138849d044f8f52c26b378200fb83c4bcc5c9d2caf9508e9485bc",
+      "total_lines": 314,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_data.rs",
+      "sha256": "24d8b2a59fae588901c8d72d829a3f67010711dd05aea5ea3ba884bbc8a7ef18",
+      "total_lines": 967,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/early_streams.rs",
+      "sha256": "d8a9ba22e93fc27795f81175ae36ddf0c940e7f1aad98d80db4fe7073e754419",
+      "total_lines": 1089,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [
+        [
+          1,
+          430
+        ]
+      ],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/ech.rs",
+      "sha256": "99001115e3d63811858414a59229727d03d653e1873c8bf035a794d6348f750e",
+      "total_lines": 498,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/extended_connect.rs",
+      "sha256": "7ef932a4c9441d4deb18efed10d8938ffe5bf43f29ddde6fb284fe337d7c70ac",
+      "total_lines": 799,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/firefox.rs",
+      "sha256": "32213922c8b9aeb0f880286cea314e19344e7b213909d5b69a780cb55a1d9b76",
+      "total_lines": 876,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/profile.rs",
+      "sha256": "9cede4eb4e3c95631af2852a83fe56b30bfb1db19de0cc8cfaf890f907f812c8",
+      "total_lines": 464,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/qpack.rs",
+      "sha256": "34ef311c6150aa59d34c5707cdef8733c0411115cd7141c661174171fe983750",
+      "total_lines": 557,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/request.rs",
+      "sha256": "63a031eb6dc489a28cc95527b9f5bf370b6e89ed22a8b72e5ca844c2c7deb474",
+      "total_lines": 1121,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/http3/tests/resumption.rs",
+      "sha256": "027310ea1355ba9ba1886acd1240275805505b0b0fbdc81e5c82ed778ed49ead",
+      "total_lines": 530,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http2_pool/tests.rs",
+      "sha256": "bdec7cc7e09f39305c23369cb9045f85348fb4a4d3709bc46b9831737eb472f7",
+      "total_lines": 222,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests.rs",
+      "sha256": "e8d909abb9d3e792060e9bbbbdb983f5b4f8ff0c1dcd3d13bc45846359476946",
+      "total_lines": 298,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/challenged_connection.rs",
+      "sha256": "b88ea65327b4a49c3ccd03d1a136a7585cc6e81e356aa69d1880e060719432d9",
+      "total_lines": 482,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/credential_cache.rs",
+      "sha256": "b9b2cb9a6a65ae86aeb0471b9d54cb44a189b625fb7a63e7ebc347e424d94e69",
+      "total_lines": 246,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_challenge.rs",
+      "sha256": "e8c7569fc8dfe1fcf535ee328d778d11367e29e8cac59d6908100cfc91921f59",
+      "total_lines": 497,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_challenge_frames.rs",
+      "sha256": "94b0bb66a9daa1775d882eaf6bb16e32c09cf7e5f2dec64cd7124b641b737955",
+      "total_lines": 486,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_connect.rs",
+      "sha256": "3e8dcb6af99909d0f05c519ad904fc7fdae9dd48ba5c3fcc8c667b8df8db0d83",
+      "total_lines": 569,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_pool.rs",
+      "sha256": "b10f9ae6875ca8492ace140f4fd5ecc4254e0d90a8f63ad5dc8f18c299730d39",
+      "total_lines": 740,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/tests/http2_raw_proxy.rs",
+      "sha256": "931a2f774022d19fb3eccb883edf7872250d594d20043901ceb2cab9e46631a2",
+      "total_lines": 248,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/address_racing/tests.rs",
+      "sha256": "8d108695054d247cae2b448243a5863bd08c99b66f7b8ee15fc9e8e1eb12cfca",
+      "total_lines": 286,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/keepalive_schedule/tests.rs",
+      "sha256": "8a3bda5e355be704be269e3ef878c3e3dc172c083031869b7c620d9037d600c6",
+      "total_lines": 251,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tcp/tests/address_selection.rs",
+      "sha256": "d4181f539a05360fd0d1f8374db1889176e09af57afb1e4b5a2d960e3414bc0d",
+      "total_lines": 123,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/test_support/nss_ech_grease.rs",
+      "sha256": "168448d44643107dc2024168f32e4bd5d4adb9908024104a1634e44cd7e5f5e6",
+      "total_lines": 203,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests.rs",
+      "sha256": "8065a521d778cff7924f5b5df3b3b8e600cdc9477275069e17e0cd7b935c3e54",
+      "total_lines": 359,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/alps.rs",
+      "sha256": "25dff7388a9855232e9b20853e86a727301b451967172c14e88118f5cddea08d",
+      "total_lines": 356,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/capabilities.rs",
+      "sha256": "41a1f792ffa39f55c42d75b8104d8ede684c176e8185750ef61d681299a4b94a",
+      "total_lines": 148,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/chrome.rs",
+      "sha256": "fe81830252fd9c0f904dbb1624a0a6e54358e834bea4d00d3084e3e007eeea14",
+      "total_lines": 484,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/client_hello_fixture.rs",
+      "sha256": "5b000c475a27eef182e89a87d41aa682545398d421edb022eef29bfc37cd0a98",
+      "total_lines": 121,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/early_data.rs",
+      "sha256": "eda4b5270e9ff9eb4c9a0eab02388a6ca09fc3f6b9d06875d797d72aa67fb000",
+      "total_lines": 227,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/ech.rs",
+      "sha256": "2c0aabfbfe3c32c777d25bb3b133f9ee4099485837b5bbc015abf4a421a88f0e",
+      "total_lines": 110,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/firefox.rs",
+      "sha256": "07af7abab976804dae57d1b7c553cb3ae6f4b36067f683a27ce143ec4bd8db92",
+      "total_lines": 439,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/hello_retry.rs",
+      "sha256": "41ce753450d76c0f4541a978a85808b7904980280fdcbf09eae37322858b23b0",
+      "total_lines": 269,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/record_size_limit.rs",
+      "sha256": "1944e79cec0cfca464f3cc41e3c8b3df47b2b19ea84604f551f16307e8d86cdc",
+      "total_lines": 39,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/resumption.rs",
+      "sha256": "55e11c930b6922e92185965e95e654fb6cb8f0cd8511d0c701b585c89ac4af21",
+      "total_lines": 742,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/session_cache.rs",
+      "sha256": "2169ddea87575c418fe4c2c1e7cd28b7f371bc828b1ec4609cab0aa511804f2b",
+      "total_lines": 641,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/tracing.rs",
+      "sha256": "47e5bc60dd45d79e02434ee1d730bc7fb7f4cb64581caa0c9d0e27f1356fcd61",
+      "total_lines": 104,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tls/tests/websocket_early_data.rs",
+      "sha256": "4fd8ff94f19aad46f7da97e7a2b99fed7f97e3341cf41c659f918f10b4ca0e4f",
+      "total_lines": 469,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    },
+    {
+      "path": "crates/phantom-net/src/tracing_test.rs",
+      "sha256": "174d5658d72e7fdd1fd11b339e12aab7a5083277fcd51ae8df7d6b45c359ad20",
+      "total_lines": 345,
+      "status": "not_completed_in_this_agent_reports",
+      "prior_partial_ranges": [],
+      "reviewed_ranges": []
+    }
+  ],
+  "limits": [
+    "Source inspection only; no tests, Cargo, builds, platform sockets or live captures executed.",
+    "Remaining list describes this agent reports, not whole-team coverage.",
+    "H3 cookie public pre-split contract confirmed in profiles.md:609-610, independently compared with H1/H2; regression sketched, not executed.",
+    "No new tracked edits."
+  ],
+  "hash_basis": "Windows working-tree bytes at recorded revision"
+}

@@ -2450,6 +2450,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Clarify that `EchConfig::is_supported` checks configuration parameters and
+  public names. It does not validate the HPKE public key or prove that a
+  handshake will succeed.
+
 - Reject malformed ACK_FREQUENCY flags in the Firefox QUIC format. Read
   exactly one flag byte, accepting only zero or one, so a malformed flag
   cannot consume the following frame. Modern varint thresholds keep their
