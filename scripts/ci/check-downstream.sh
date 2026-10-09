@@ -51,6 +51,9 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 
+[features]
+https-records = ["phantom/https-records"]
+
 [dependencies]
 $dependency
 EOF
@@ -59,6 +62,7 @@ use phantom as _;
 
 fn main() {}
 EOF
+  cp "$repository_root/tests/downstream/public-api/src/lib.rs" "$consumer/src/lib.rs"
 }
 
 assert_fork_graph() {
@@ -140,7 +144,10 @@ check_consumer() {
     --all-features \
     --locked >"$consumer/metadata.json"
   assert_fork_graph "$consumer/metadata.json" "$expected_source"
-  cargo check \
+  cargo test \
+    --manifest-path "$consumer/Cargo.toml" \
+    --locked
+  cargo test \
     --manifest-path "$consumer/Cargo.toml" \
     --all-features \
     --locked
