@@ -23,7 +23,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
     sync::{mpsc, watch},
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
 };
 
 use crate::support::client_certificate::{presented_leaf, rustls_config_requesting};
@@ -481,19 +481,28 @@ impl MasqueStreamProxy {
         let log = Arc::new(Mutex::new(StreamLog::default()));
         let task_log = Arc::clone(&log);
         let task = tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
-                lock(&task_log).connections += 1;
-                let log = Arc::clone(&task_log);
-                let acceptor = acceptor.clone();
-                tokio::spawn(async move {
-                    let Ok(stream) = accept_tls_stream(tcp, acceptor).await else {
-                        return;
-                    };
-                    let _ = match leg {
-                        StreamLeg::Http1 => serve_http1(stream, mode, log).await,
-                        StreamLeg::Http2 => serve_http2(stream, mode, log).await,
-                    };
-                });
+            // Dropping this accept loop also cancels accepted TLS handshakes
+            // and active relays. Reap completed peers during long test runs.
+            let mut connections = JoinSet::new();
+            loop {
+                tokio::select! {
+                    accepted = listener.accept() => {
+                        let Ok((tcp, _)) = accepted else { break };
+                        lock(&task_log).connections += 1;
+                        let log = Arc::clone(&task_log);
+                        let acceptor = acceptor.clone();
+                        connections.spawn(async move {
+                            let Ok(stream) = accept_tls_stream(tcp, acceptor).await else {
+                                return;
+                            };
+                            let _ = match leg {
+                                StreamLeg::Http1 => serve_http1(stream, mode, log).await,
+                                StreamLeg::Http2 => serve_http2(stream, mode, log).await,
+                            };
+                        });
+                    }
+                    Some(_) = connections.join_next(), if !connections.is_empty() => {}
+                }
             }
         });
         Ok(Self { address, log, task })
@@ -611,7 +620,10 @@ where
             let (inbound_tx, inbound) = mpsc::channel(64);
             let (outbound, mut outbound_rx) = mpsc::channel::<Bytes>(64);
             let (mut reader, mut writer) = tokio::io::split(stream);
-            tokio::spawn(async move {
+            // The relay future owns both halves, including on cancellation
+            // while a partial capsule keeps the reader waiting for bytes.
+            let mut pumps = JoinSet::new();
+            pumps.spawn(async move {
                 let mut buffer = vec![0; 16 * 1024];
                 while let Ok(count) = reader.read(&mut buffer).await {
                     if count == 0
@@ -624,7 +636,7 @@ where
                     }
                 }
             });
-            tokio::spawn(async move {
+            pumps.spawn(async move {
                 while let Some(bytes) = outbound_rx.recv().await {
                     match writer.write_all(&bytes).await {
                         Ok(()) => {}
@@ -705,10 +717,12 @@ where
                 false,
             )?;
             let mut body = request.into_body();
-            tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
+            // All transport and body pumps share the relay's lifetime.
+            let mut pumps = JoinSet::new();
+            pumps.spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
             let (inbound_tx, inbound) = mpsc::channel(64);
             let (outbound, mut outbound_rx) = mpsc::channel::<Bytes>(64);
-            tokio::spawn(async move {
+            pumps.spawn(async move {
                 while let Some(Ok(chunk)) = body.data().await {
                     let _ = body.flow_control().release_capacity(chunk.len());
                     if inbound_tx.send(chunk).await.is_err() {
@@ -716,7 +730,7 @@ where
                     }
                 }
             });
-            tokio::spawn(async move {
+            pumps.spawn(async move {
                 while let Some(mut chunk) = outbound_rx.recv().await {
                     while !chunk.is_empty() {
                         send.reserve_capacity(chunk.len());

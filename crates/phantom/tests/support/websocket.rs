@@ -6,7 +6,7 @@ use tokio::{
     time::timeout,
 };
 
-use super::tls::{TestResult, accept_tls, read_head};
+use super::tls::{TestResult, accept_tls, is_peer_gone, read_head};
 
 pub(crate) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -144,14 +144,7 @@ pub(crate) async fn forward_one_https_connect(
 fn accept_relay_result(result: io::Result<(u64, u64)>) -> io::Result<()> {
     match result {
         Ok(_) => Ok(()),
-        Err(error)
-            if matches!(
-                error.kind(),
-                io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe
-            ) =>
-        {
-            Ok(())
-        }
+        Err(error) if is_peer_gone(&error) => Ok(()),
         Err(error) => Err(error),
     }
 }
