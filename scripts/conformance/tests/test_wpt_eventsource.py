@@ -701,6 +701,26 @@ class WebTestHttpd:
         self.assertIs(signal.getsignal(signal.SIGINT), previous)
         self.assertIn("shutdown exceeded", " ".join(raised.exception.shutdown_failures))
 
+    def test_start_interrupt_and_control_close_failure_keep_identity_and_causes(self):
+        interrupt = KeyboardInterrupt("start interruption marker")
+        spawn = SpawnFixture(start_error=interrupt)
+        close = spawn.child.close
+
+        def failed_close():
+            close()
+            raise OSError("child control close marker")
+
+        with patch.object(spawn.child, "close", failed_close):
+            result = self.exercise(spawn=spawn)
+
+        self.assertIs(result.error, interrupt)
+        self.assertTrue(spawn.process.closed)
+        self.assertTrue(spawn.child.closed)
+        self.assertTrue(result.summary["run_failed"])
+        failures = " ".join(result.summary["infrastructure_failures"])
+        self.assertIn("start interruption marker", failures)
+        self.assertIn("child control close marker", failures)
+
 
 class WptAcquisitionTests(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "POSIX writes bootstrap data after spawn")
