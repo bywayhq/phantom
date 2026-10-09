@@ -292,7 +292,13 @@ pub(crate) async fn connect_resolved_keeping_slower(
     let dial = |address| connect_address(address, settings, source);
     let schedule = match settings.map(|settings| settings.keepalive) {
         Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(schedule),
-        _ => None,
+        Some(TcpKeepalivePolicy::Unchanged | TcpKeepalivePolicy::Fixed(_)) | None => None,
+        Some(_) => {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                UnsupportedTcpSettings::unknown_policy("keepalive"),
+            ));
+        }
     };
     let (stream, attempt_started, slower) = match selection {
         TcpAddressSelection::Sequential(advance) => (
@@ -327,6 +333,12 @@ pub(crate) async fn connect_resolved_keeping_slower(
             });
             (connected.stream, connected.started, slower)
         }
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                UnsupportedTcpSettings::unknown_policy("address_selection"),
+            ));
+        }
     };
     let keepalive =
         schedule.map(|schedule| TcpKeepaliveControl::opened(schedule, attempt_started.elapsed()));
@@ -344,16 +356,22 @@ where
     Dial: FnMut(SocketAddr) -> Attempt,
     Attempt: std::future::Future<Output = io::Result<Stream>>,
 {
+    let stop_on_other_failure = match advance {
+        TcpAddressAdvance::AfterAnyFailure => false,
+        TcpAddressAdvance::AfterRefusalOrTimeout => true,
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                UnsupportedTcpSettings::unknown_policy("address_selection.advance"),
+            ));
+        }
+    };
     let mut last_error = None;
     for address in addresses {
         match dial(address).await {
             Ok(stream) => return Ok(stream),
             Err(error) => {
-                let moves_on = match advance {
-                    TcpAddressAdvance::AfterAnyFailure => true,
-                    TcpAddressAdvance::AfterRefusalOrTimeout => is_refusal_or_timeout(&error),
-                };
-                if !moves_on {
+                if stop_on_other_failure && !is_refusal_or_timeout(&error) {
                     return Err(error);
                 }
                 last_error = Some(error);
@@ -435,6 +453,10 @@ async fn connect_address(
     settings: Option<TcpSettings>,
     source: Option<&SourceBinding>,
 ) -> io::Result<TcpStream> {
+    if let Some(settings) = settings {
+        check_policy_support(&settings)
+            .map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))?;
+    }
     let socket = match address {
         SocketAddr::V4(_) => TcpSocket::new_v4()?,
         SocketAddr::V6(_) => TcpSocket::new_v6()?,
@@ -461,6 +483,16 @@ async fn connect_address(
 /// order, and before a source binding binds the socket, which Windows
 /// requires.
 fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
+    let fixed_keepalive = match settings.keepalive {
+        TcpKeepalivePolicy::Fixed(keepalive) => Some(keepalive),
+        TcpKeepalivePolicy::Unchanged | TcpKeepalivePolicy::Schedule(_) => None,
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                UnsupportedTcpSettings::unknown_policy("keepalive"),
+            ));
+        }
+    };
     let socket = SockRef::from(socket);
     if settings.nodelay {
         socket
@@ -474,7 +506,7 @@ fn apply_options(socket: &TcpSocket, settings: TcpSettings) -> io::Result<()> {
             .set_send_buffer_size(size)
             .map_err(|error| option_error("SO_SNDBUF", error))?;
     }
-    if let TcpKeepalivePolicy::Fixed(keepalive) = settings.keepalive {
+    if let Some(keepalive) = fixed_keepalive {
         socket
             .set_tcp_keepalive(&keepalive_parameters(keepalive)?)
             .map_err(|error| option_error("TCP keepalive", error))?;
@@ -648,9 +680,33 @@ const UNSUPPORTED_INTERVAL: &str = "this platform cannot set a TCP keepalive int
 ///
 /// Returns [`UnsupportedTcpSettings`] when this platform cannot set a
 /// keepalive idle time, when an interval is requested where none can be set,
-/// or when Windows would need an interval the settings leave unset.
+/// or when Windows would need an interval the settings leave unset. It also
+/// rejects unknown keepalive, address-selection, and address-advance policies.
 pub fn check_host_support(settings: &TcpSettings) -> Result<(), UnsupportedTcpSettings> {
+    check_policy_support(settings)?;
     check_keepalive_support(settings, HOST_KEEPALIVE)
+}
+
+fn check_policy_support(settings: &TcpSettings) -> Result<(), UnsupportedTcpSettings> {
+    match settings.keepalive {
+        TcpKeepalivePolicy::Unchanged
+        | TcpKeepalivePolicy::Fixed(_)
+        | TcpKeepalivePolicy::Schedule(_) => {}
+        _ => return Err(UnsupportedTcpSettings::unknown_policy("keepalive")),
+    }
+    match settings.address_selection {
+        TcpAddressSelection::Sequential(advance) => match advance {
+            TcpAddressAdvance::AfterAnyFailure | TcpAddressAdvance::AfterRefusalOrTimeout => {}
+            _ => {
+                return Err(UnsupportedTcpSettings::unknown_policy(
+                    "address_selection.advance",
+                ));
+            }
+        },
+        TcpAddressSelection::Racing(_) | TcpAddressSelection::Backup(_) => {}
+        _ => return Err(UnsupportedTcpSettings::unknown_policy("address_selection")),
+    }
+    Ok(())
 }
 
 fn check_keepalive_support(
@@ -676,6 +732,7 @@ fn check_keepalive_support(
             }
             return Ok(());
         }
+        _ => return Err(UnsupportedTcpSettings::unknown_policy("keepalive")),
     };
     if !support.idle {
         return Err(UnsupportedTcpSettings {
@@ -704,6 +761,13 @@ pub struct UnsupportedTcpSettings {
 }
 
 impl UnsupportedTcpSettings {
+    fn unknown_policy(field: &'static str) -> Self {
+        Self {
+            field,
+            message: "the configured policy is not implemented",
+        }
+    }
+
     /// Returns the setting's field name.
     #[must_use]
     pub fn field(&self) -> &'static str {

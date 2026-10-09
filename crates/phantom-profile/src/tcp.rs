@@ -105,6 +105,7 @@ pub struct TcpKeepaliveSchedule {
 
 /// When and how a client sets TCP keepalive.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum TcpKeepalivePolicy {
     /// Leaves `SO_KEEPALIVE` and its timing at the operating-system default.
     #[default]
@@ -205,6 +206,7 @@ pub struct TcpBackupConnection {
 
 /// Which connect failures move an attempt to its next address.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum TcpAddressAdvance {
     /// Every failure.
     #[default]
@@ -218,6 +220,7 @@ pub enum TcpAddressAdvance {
 
 /// How a client chooses among a host's resolved addresses.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum TcpAddressSelection {
     /// Tries the addresses one at a time in resolver order, moving on after
     /// the failures the value names.
@@ -287,6 +290,12 @@ pub struct TcpSettings {
 
 impl TcpSettings {
     /// Validates settings that are independent of the host operating system.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidTcpSettings`] for an oversized send buffer, invalid
+    /// keepalive timing or probe count, or an invalid connection fallback
+    /// delay or backup timeout. Host support is checked by the transport.
     pub fn validate(&self) -> Result<(), InvalidTcpSettings> {
         if let Some(size) = self.send_buffer_size
             && i32::try_from(size.get()).is_err()

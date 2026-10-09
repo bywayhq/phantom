@@ -182,6 +182,12 @@ pub struct Http3Settings {
 
 impl Http3Settings {
     /// Validates settings independent of a concrete HTTP/3 backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidHttp3Settings`] for repeated SETTINGS, values outside
+    /// their supported ranges, enabled WebTransport, or a draft Datagram
+    /// setting without the final Datagram setting enabled.
     pub fn validate(&self) -> Result<(), InvalidHttp3Settings> {
         let mut kinds = Vec::with_capacity(self.initial_settings.len());
 
@@ -308,6 +314,13 @@ pub struct Http3RequestSettings {
 
 impl Http3RequestSettings {
     /// Validates the request profile independently of a concrete backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidHttp3RequestSettings`] when the ordinary pseudo-header
+    /// order does not contain method, authority, scheme, and path exactly
+    /// once. An extended CONNECT order must also contain protocol exactly
+    /// once. An ordinary order must not contain protocol.
     pub fn validate(&self) -> Result<(), InvalidHttp3RequestSettings> {
         validate_pseudo_header_order(&self.pseudo_header_order)?;
         if let Some(order) = &self.extended_connect_pseudo_header_order {

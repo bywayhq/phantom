@@ -20,6 +20,24 @@ Brave 1.96.59, and `v153_android` describes Brave 1.95.104.
 This crate defines the settings. `phantom-net` applies them to connections,
 and `phantom-http` provides the client API.
 
+## Change settings
+
+Public fields let you combine recipe components and change individual values.
+After editing a settings value, call its `validate` method when it has one.
+Validation checks the value's structure. A transport can still reject settings
+that its backend or your operating system cannot apply.
+
+Adding or removing required public fields is a breaking API change. Before
+version 1.0, it requires a minor release. Policy enums marked `non_exhaustive`
+require a catch-all match arm. Reject an unknown policy when applying settings.
+
+Equality compares stored values, including list order. Equal settings do not
+promise equal bytes across connections with random draws or different peers.
+Settings and validation errors provide Clone, Debug, Eq, Send, and Sync where
+those traits appear on the type. Network errors may retain runtime or backend
+sources and are outside this contract. Defaults, builders, and Hash apply only
+to types that provide them.
+
 ## Next
 
 - [Profiles guide](https://github.com/bywayhq/phantom/blob/main/docs/guides/profiles.md):

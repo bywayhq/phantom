@@ -413,6 +413,13 @@ pub struct QuicTransportSettings {
 
 impl QuicTransportSettings {
     /// Validates settings independent of a concrete QUIC backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidQuicTransportSettings`] for invalid transport limits,
+    /// ACK delays, path MTU, connection IDs, or parameter encodings. It also
+    /// rejects repeated parameter kinds and missing parameters required by
+    /// nondefault values. The error identifies the setting that failed.
     pub fn validate(&self) -> Result<(), InvalidQuicTransportSettings> {
         validate_varint("max_idle_timeout_ms", self.max_idle_timeout_ms)?;
         if !(MIN_UDP_PAYLOAD_SIZE..=MAX_UDP_PAYLOAD_SIZE).contains(&self.max_udp_payload_size) {

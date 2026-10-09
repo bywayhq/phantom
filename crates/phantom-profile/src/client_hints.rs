@@ -35,7 +35,9 @@ impl ClientHint {
         }
     }
 
-    /// Returns the lowercase request-field name.
+    /// Returns the request-header name exactly as supplied.
+    ///
+    /// [`ClientHintSettings::validate`] checks that the name is lowercase.
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
@@ -85,6 +87,13 @@ impl ClientHintSettings {
     }
 
     /// Validates field syntax and uniqueness.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidClientHintSettings`] for invalid or repeated names,
+    /// or values containing bytes other than visible ASCII, spaces, or tabs.
+    /// Names must start with a lowercase letter and contain only lowercase
+    /// HTTP header-name token characters.
     pub fn validate(&self) -> Result<(), InvalidClientHintSettings> {
         let mut names = HashSet::with_capacity(self.hints.len());
         for hint in &self.hints {

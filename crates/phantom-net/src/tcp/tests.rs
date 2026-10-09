@@ -392,3 +392,9 @@ async fn a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium() -
     assert_eq!(*dialed.borrow(), [first, second]);
     Ok(())
 }
+
+#[test]
+fn unsupported_tcp_settings_keep_their_public_error_traits() {
+    fn check<T: Clone + std::fmt::Debug + Eq + std::error::Error + Send + Sync>() {}
+    check::<super::UnsupportedTcpSettings>();
+}

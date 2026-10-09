@@ -1,4 +1,22 @@
 //! Browser recipes and typed settings for Phantom connections.
+//!
+//! Public settings fields let you combine recipe components and change the
+//! values you need. Call each changed settings type's `validate` method when
+//! it has one before passing it to a transport. Backend and host checks can
+//! still reject a structurally valid configuration.
+//!
+//! Adding or removing a required public field is a breaking API change.
+//! Before version 1.0, such changes require a minor release. Policy enums
+//! marked `non_exhaustive` require a catch-all match arm. A transport must
+//! reject an unknown policy instead of choosing an implicit behavior.
+//!
+//! Settings equality compares stored values, including the order of lists.
+//! It does not prove that two settings produce the same connection bytes.
+//! Clone, Debug, Eq, Send, and Sync apply where each type implements them.
+//! Validation errors in this crate support these traits too. Network errors
+//! can carry runtime or backend sources and are outside this contract.
+//! Defaults, builders, and Hash are provided only by types that implement
+//! them.
 
 pub mod browser;
 
@@ -62,3 +80,32 @@ pub use websocket::{
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
     WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_and_validation_errors_keep_their_public_traits() {
+        fn settings<T: Clone + std::fmt::Debug + Eq + Send + Sync>() {}
+        settings::<TcpSettings>();
+        settings::<ClientHint>();
+        settings::<ClientHintSettings>();
+        settings::<TlsSettings>();
+        settings::<Http2Settings>();
+        settings::<Http2HpackSettings>();
+        settings::<Http2StreamSettings>();
+        settings::<Http3Settings>();
+        settings::<Http3RequestSettings>();
+        settings::<quic::QuicTransportSettings>();
+
+        fn error<T: Clone + std::fmt::Debug + Eq + std::error::Error + Send + Sync>() {}
+        error::<InvalidTcpSettings>();
+        error::<InvalidClientHintSettings>();
+        error::<InvalidTlsSettings>();
+        error::<InvalidHttp2Settings>();
+        error::<InvalidHttp3Settings>();
+        error::<InvalidHttp3RequestSettings>();
+        error::<quic::InvalidQuicTransportSettings>();
+    }
+}

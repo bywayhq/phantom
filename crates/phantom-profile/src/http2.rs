@@ -497,6 +497,14 @@ impl Http2IdleTimeout {
 
 impl Http2Settings {
     /// Validates settings that are independent of a particular HTTP/2 backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidHttp2Settings`] for repeated or out-of-range SETTINGS,
+    /// a missing initial window setting, invalid receive windows,
+    /// pseudo-header lists, stream limits, priority values, or inconsistent
+    /// PING and idle timers. Timer delays must fit the host clock. The error
+    /// identifies the setting that failed.
     pub fn validate(&self) -> Result<(), InvalidHttp2Settings> {
         validate_initial_settings(&self.initial_settings)?;
 

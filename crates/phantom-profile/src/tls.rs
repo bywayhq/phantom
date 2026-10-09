@@ -990,6 +990,14 @@ pub struct TlsSettings {
 
 impl TlsSettings {
     /// Validates settings that are independent of a particular TLS backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidTlsSettings`] for missing algorithms, invalid record
+    /// or ALPN lengths, or inconsistent TLS-version and extension settings.
+    /// It also rejects unsupported delegated-credential schemes, repeated
+    /// compression algorithms, and empty or repeated fixed extension lists.
+    /// The error identifies the setting that failed.
     pub fn validate(&self) -> Result<(), InvalidTlsSettings> {
         if self.cipher_suites.is_empty() {
             return Err(InvalidTlsSettings::new(
