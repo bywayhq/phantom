@@ -678,9 +678,7 @@ impl PoolEntry {
                         credentials: proxy.basic_credentials(),
                     })
                     .await
-                    .map_err(|error| {
-                        RequestError::http2_connection_setup(Http2TlsError::from(error))
-                    })?
+                    .map_err(RequestError::http2_connection_setup)?
             }
             // Checked before admission; forwarding needs an HTTP proxy.
             _ if mode == Http2ConnectionMode::Forward => {

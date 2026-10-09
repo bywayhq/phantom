@@ -39,6 +39,7 @@ mod alps_hpack_last_wins;
 mod key_update;
 mod ping_close;
 mod record_shape;
+mod routes;
 
 const TEST_AUTHORITY: &str = "server.phantom.test:8443";
 
