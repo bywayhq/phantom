@@ -56,11 +56,14 @@ No finding is resolved by an assignment or a proposed fix.
 | A47 | P2 | Conformance image arguments cannot execute shell syntax | Whitespace-only validation forwards shell substitutions into the pinned runner | Marker reproduction and 18 failed baseline subcases; corrected eight-method suite passes; independent review approved |
 | A48 | P2 | HPACK indexing arithmetic accepts legal peer limits | Three-quarter selection multiplies a peer u32 table limit in usize | Actual 32-bit debug panic and release mismatch; three corrected tests pass in debug and release; independent review and Windows/Linux vendor checks pass |
 | A49 | P2 | WebSocket compression negotiation follows HTTP grammar | Unicode trim accepts non-HTTP whitespace around parameters | Two intended baseline failures and seven passes; nine corrected tests pass; independent review and Windows/Linux vendor checks pass |
-| A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Initial repair passes fourteen Windows controls; both new path-replacement controls fail; repair remains open |
+| A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Private staging independently approved; eighteen tests pass on Windows and Linux; Linux Rust 1.88 check passes; added two-owner test review pending |
 | A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Zero baseline reproduced; count controls and actual default/one-request peers pass; independent source review approved |
 | A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Baseline has seven failures across six methods; twenty corrected methods and composed conformance suite pass; independent review approved |
 | A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Source candidate; ownership design and bounded reproduction pending |
-| A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Actual controlled baseline has one pass and three intended failures; repair in progress |
+| A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Repair independently approved; composed 51-method suite passes on Windows and Linux; actual loopback output and scratch controls pass |
+| A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected Windows controls pass; independent review and native checks pending |
+| A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Signed baseline has seven passes and eight intended lifecycle failures; bounded process owner repair in progress |
+| A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Signed baseline has five passes and two intended failures; ownership and cleanup repair in progress |
 
 ## Initial source evidence
 
@@ -608,6 +611,17 @@ response publishes its bytes instead of the body written to the original
 file. Fourteen controls still pass; these two fail. Path ownership remains
 unresolved, and the first correction is not final approval.
 
+The replacement at `9cc681ad` uses an exclusive private staging directory,
+leaving the shared legacy path outside its write and cleanup namespace.
+Create-only hard-link publication refuses a competing output. At `73a08ed8`,
+eighteen tests pass on Windows and Linux, including actual HTTP/3 peers,
+two owners targeting one output, cancellation and platform-specific failure
+or permission controls. Linux Rust 1.88 compilation passes. Independent
+source review approves private staging; the added two-owner test review and
+final integration remain pending. The filesystem must support hard links.
+Deliberate mutation inside private staging and ancestor replacement are
+outside the documented ordinary-concurrency contract.
+
 A51 is the manual Rust version-report client accepting a zero request count.
 An authenticated baseline exits successfully without any request or report.
 The Rust correction parses `NonZeroUsize` before reading the CA or building
@@ -655,6 +669,33 @@ failure after acquisition skips server close. One positive control passes
 and three intended ownership controls fail. The remedy must own scratch
 space for the server lifetime and cover publication with close-finally.
 These controls do not prove real QUIC shutdown.
+
+The A54 correction owns internal scratch through synchronous acquired-server
+close and includes address lookup and caller port publication in close-finally.
+Independent source review approves the source. The composed 51-method suite
+passes on Windows and Linux. Actual default-three and explicit-one loopback
+runs retain caller outputs and remove certificate scratch. Final composed
+review and gates remain pending.
+
+A55's configuration regression observes a forbidden sixth iterator read
+after five values and still receives InvalidRequest. Four independent
+compression controls pass at the test-only checkpoint; the iterator test
+fails. Its remedy takes at most five values before applying the existing
+four-parameter validation and checks profile length before copying.
+
+A56's signed WPT baseline runs all 29 full-manifest cases through controlled
+boundaries. Seven methods pass and eight fail for resource lifetime,
+startup, cleanup, interruption and retained-summary contracts. The pinned
+server uses an unbounded shutdown wait and daemon request threads. The
+remedy places it in an owned child process with bounded startup and reaping,
+retains infrastructure errors separately from observed case failures, and
+keeps scratch until reaping. This is not a measured native thread leak.
+
+A57's signed TLS-Anvil baseline observes the exact two required IDs and
+strict counts. Five methods pass; failed-removal and deadline controls fail.
+The remedy verifies a unique ownership label and immutable container ID,
+bounds removal, and retains suite and cleanup causes together. Controlled
+subprocess fixtures do not establish actual Docker daemon behavior.
 
 ## Rejected candidates
 

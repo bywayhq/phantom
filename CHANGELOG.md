@@ -2450,6 +2450,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Bound WebSocket compression-offer collection before validation. Oversized
+  iterators stop after five values; oversized profiles fail before copying.
+
+- Keep QUIC interoperability downloads in separate staging directories and
+  preserve existing outputs when another invocation publishes first.
+  Report publication and cleanup failures without deleting caller files.
+- Remove version-report certificate scratch space after server shutdown,
+  including preparation, publication and cancellation failures.
+
 - Reject non-positive request counts in manual QUIC version-report tools
   before starting an observation run.
 - Give Autobahn cleanup finite deadlines, verify container ownership, and

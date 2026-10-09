@@ -1,0 +1,182 @@
+{
+  "finding": "A50",
+  "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+  "compared_revisions": [
+    "320be15b90553de2c30c9bc2aa0c63d3c19931f0",
+    "18403468"
+  ],
+  "verdict": "source approved for exclusive-private-staging contract; actual Windows/Linux verification pending",
+  "coverage": [
+    {
+      "path": "crates/phantom/examples/quic_interop/main.rs",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "3359cbac4b27bf39bb2c598b297d1073f2ddcb9c",
+      "sha256": "ea49dd816b5a35fcb2b7ec0c88c4715dbe070556c6e802c56088ea6b6a6887c4",
+      "ranges": [
+        [
+          1,
+          318
+        ]
+      ],
+      "disposition": "full source review; not test execution"
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/partial_download.rs",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "dbd557091bf18e397ac65cf37b60a946372504b1",
+      "sha256": "464ecf863532f75bde95547f45f57a969e4314e35f01bec5760a3e1dfbf084db",
+      "ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "disposition": "full source review; not test execution"
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/tests.rs",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "e8dc6c812f75777288b2911ca2c34c860e7e37df",
+      "sha256": "3696bb1dcafa01736c836107ded6c3083f6654e6efa3c2f1d8e41f1604e38475",
+      "ranges": [
+        [
+          1,
+          807
+        ]
+      ],
+      "disposition": "full source review; not test execution"
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/target.rs",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "9c2e02570ed10f3614698cae37dd2b50af9f18d6",
+      "sha256": "e08fa5b6a8bdd59ae093a8a145c0ebf5327651b57947db075bb9e33186460956",
+      "ranges": [
+        [
+          1,
+          143
+        ]
+      ],
+      "disposition": "full source review; not test execution"
+    },
+    {
+      "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "4d385c10987598af7408713198b4a2a4c86685e8",
+      "sha256": "eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02",
+      "ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "disposition": "full actual entry caller source review; not test execution"
+    },
+    {
+      "path": "scripts/conformance/quic-interop/Dockerfile",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "e36f7c5af7df774b8204c4fd3a70c487f05d9251",
+      "sha256": "5d643165c36200dbb28f8afad9b4427e0d9cbc87462aefe33653822ecec17f91",
+      "ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "disposition": "full actual packaging caller source review; not test execution"
+    },
+    {
+      "path": ".github/workflows/quic-interop.yml",
+      "revision": "ccc167167286c75f5d129a962010ec4940e23202",
+      "git_blob": "23cd13e413e4c54047cb25d6e8f3e9ceaa1c3453",
+      "sha256": "f7db0a2e433585b0ba961fd32b2bed7e414f9c6f8eaa337d9c0405b8fb0eb55f",
+      "ranges": [
+        [
+          51,
+          88
+        ]
+      ],
+      "disposition": "partial invocation evidence source review; not test execution"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\fs\\file.rs",
+      "sha256": "8a50f8dbe3563dec59fd6362f6ceabe75963e0e4006174805c745ed5f2aad02b",
+      "ranges": [
+        [
+          275,
+          303
+        ],
+        [
+          728,
+          810
+        ],
+        [
+          1090,
+          1126
+        ]
+      ],
+      "disposition": "partial resolved Tokio queue/flush contract reread; full dependency audit excluded"
+    }
+  ],
+  "baseline": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\a50-replaced-partial-authenticated-baseline-windows.log",
+    "sha256": "9f88ca8b8d6284e07b74bbf058d13975b0db8ce1d028ff7fc1f393acb0156630",
+    "ranges": [
+      [
+        1,
+        43
+      ]
+    ],
+    "result": "actual original replacement controls: 14 pass, 2 intended fail; retained log fully read"
+  },
+  "source_contracts": [
+    "Shared legacy partial names are checked using symlink_metadata and refused if present; never created, written, published or removed",
+    "Random 128-bit suffix plus exclusive create_dir avoids ordinary invocation collision; at most 16 directory-creation attempts",
+    "Unix mode 0700 applied during directory creation; no claim of Windows ACL restrictions",
+    "Directory guard exists before file create; file create is synchronous create_new with no cancellation point before recording ownership",
+    "Flush awaits actual Tokio write before publication; hard_link is create-only and cannot replace existing final output",
+    "Drop removes only recorded file then empty directory; no recursive production cleanup; one cleanup record at most per owner",
+    "Published output remains visible if subsequent file/directory removal fails; typed error preserves underlying cause",
+    "Internal batch failure aborts/drains before final cleanup rendering; external cancellation cannot return diagnostics to a dropped caller"
+  ],
+  "test_contracts": [
+    "Test-only created-path observer belongs to shared CleanupFailures and records exact owner path; no directory scan or wildcard ownership inference",
+    "Actual controlled authenticated H3 peer observes GET/path before releasing response; published bytes compared to independently sent WIRE_BODY",
+    "New replacement tests exercise caller shared legacy names with sibling/moved-file preservation under the new contract; historical original owner-path replacement regressions remain in retained baseline",
+    "Actual queued-write FIFO control awaits owner cancellation before releasing blocking worker; Windows file/directory deletion must be verified",
+    "Nonrecursive obstruction test injects sibling in owned stage and checks no recursive removal",
+    "Windows deny-delete test retains original raw-error32/combined-primary-cleanup contract",
+    "Unix two-owner same-legacy test verifies separate directories and owner-only modes"
+  ],
+  "supported_scope": "Regular concurrent invocations may share public destination directory. They receive independent private stage directories; create-only final publication decides a same-output collision without consuming other owners. The contract excludes same-user deliberate inspection/mutation of internal owned stage entries and mutable ancestor replacement. No inode/file-identity or durability proof.",
+  "minor_readability": [
+    {
+      "path": "crates/phantom/examples/quic_interop/partial_download.rs",
+      "ranges": [
+        [
+          56,
+          93
+        ],
+        [
+          158,
+          186
+        ]
+      ],
+      "remedy": "Separate legacy guard from staging lookup, directory creation from owner setup, recorded file ownership from test observation/success, cfg builder setup from retries, entropy draw from suffix conversion, retry exhaustion from return."
+    }
+  ],
+  "runtime_controls_required": [
+    "Run full example test suite on Windows including queued-write cancellation and post-publication deny-delete",
+    "Run native Unix cfg permissions test and full example suite",
+    "Observe real H3 replacement success/failure controls now preserve caller legacy/sibling artifacts and remove exact private stage",
+    "Consider portable same-output two-owner publication control to assert winner bytes and loser AlreadyExists plus independent stage cleanup; current uniqueness control is Unix-only"
+  ],
+  "limitations": [
+    "No builds/test execution/replay/external mutation by reviewer",
+    "Earlier queue/FIFO source proof reused only for exact unchanged resolved Tokio dependency; no exhaustive runtime audit",
+    "Hard-link unsupported filesystems fail visibly; no durability/sync_all claim",
+    "Synchronous filesystem calls can exceed async deadline",
+    "Private stage deliberate mutation is expressly excluded; no Windows privacy ACL claim",
+    "Creation collision exhaustion/random failure and opening-file-failure cleanup are source traced without injected runtime tests"
+  ]
+}

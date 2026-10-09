@@ -1,0 +1,142 @@
+{
+  "review": "Bounded Autobahn tooling continuation",
+  "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+  "files": [
+    {
+      "path": "scripts/conformance/autobahn.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "6a8acd14937c021d2ee88b5e565d384da3c81735",
+      "sha256": "e13a33b67f068135946099771e1d56ceb07022f6cfb938736d0844dee67b8948",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 418,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          418
+        ]
+      ],
+      "contract": "Pinned suite owner and independent outcome parser",
+      "limitations": "Exact agent, nonempty results, expected counts8/216/463, smoke set, typed warning/failure statuses, duplicate JSON keys rejected. Builds separate1800s, adapter mode timeout, loopback host port and unique named container, report copy deadline. Current cleanup ignores removal status; see finding. Container launch success flag set after detached command returns, uncertain-start cleanup unproven. JSON/log retention has no byte cap; report tmpfs128MiB is finite. OpenSSL helper source reviewed in first group."
+    },
+    {
+      "path": "scripts/conformance/tests/test_autobahn.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "5953a67cb762fbb9f32db1ed1f21ca7a080c50ce",
+      "sha256": "95165ee3bbbaea86e22d37523aeebf8acdbd429def91da6945e0786d47c30f29",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 69,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "contract": "Independent report classifications",
+      "limitations": "Three tests assert strict/informational success, exact warning/failure lists, missing count/set and wrong agent failure. No run/cleanup fault-injection, duplicate JSON or failure-summary publication control."
+    },
+    {
+      "path": "scripts/conformance/autobahn/compression.json",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "25f100baa6098422ced4c67555bbcebd2e00f0ef",
+      "sha256": "55db08da098656d9e6150d453eac35834700dac2b63d305e7a9dd9f599668abf",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 9,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "contract": "Compression case selection",
+      "limitations": "Pinned JSON selects12.* and13.* without exclusions, TLS config paths and temp report destination. Exact216 matches runner constant; case enumeration not independently executed."
+    },
+    {
+      "path": "scripts/conformance/autobahn/full.json",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "287eda868d30b0946c6a79ec13a576e2d9e5547e",
+      "sha256": "222f5dad03774303349cd9927d1c8a760f4555fd4c3c3daaba0907f0a377e549",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 9,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "contract": "Full case selection",
+      "limitations": "Selects* excluding9.*; runner expects463 outcomes. Wildcard modes enforce count only, not exact expanded IDs; no independent count enumeration in this pass."
+    },
+    {
+      "path": "scripts/conformance/autobahn/smoke.json",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "106252419294a16ebca0d46b25cdf07c921a90f9",
+      "sha256": "4089dfdd2a6508d213103842f5ac4520d74b5ea0d6ea340c1e368378cb066ee5",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 18,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "contract": "Exact smoke cases",
+      "limitations": "Eight explicit case IDs, no exclusions; runner computes exactset and cardinality8 before trusting status results. Placeholder9001 is replaced by owned loopback port before Docker."
+    },
+    {
+      "path": "crates/phantom/examples/autobahn_client.rs",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "7fcb61f62118347e747e5ee9e8cf82dfa7acc299",
+      "sha256": "816dbb58de2f9bbb2e71973d92dc671e66591365227dbd4b726ec3aee701f124",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 282,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          282
+        ]
+      ],
+      "contract": "WebSocket protocol exercise caller",
+      "limitations": "Typed root/wss config, query encoding, finite discovery and per-case/report deadlines, text/binary echo, protocol errors break case for independent server result, timeouts counted then adapter fails after report update. Case-count zero can succeed adapter alone but outer suite rejects absent/incorrect reports. No raw implementation-derived expected payload oracle; pinned peer report independent."
+    },
+    {
+      "path": ".github/workflows/autobahn.yml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "8f1e25194c01cbd60ce5f3736d5f651adaff8ab8",
+      "sha256": "2e0bcc284cdd5924340f0cbf732e0ba198cfc6fc95f86c0a58a87ee0b4e0a1d0",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 97,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "contract": "Actual suite scheduling",
+      "limitations": "Pinned source checkout, Docker/OpenSSL prerequisite, schedulefull, PR/main smoke, explicit dispatch choice; uploads exact generated report paths. No workflow executed."
+    }
+  ],
+  "findings": [
+    {
+      "id": "T04",
+      "path": "scripts/conformance/autobahn.py",
+      "line": 391,
+      "severity": "major",
+      "problem": "Finally ignores docker rm --force exit status, so successful protocol results can be returned with a still-running container after removal failure. Log collection/removal have no deadline and can also defeat the suite deadline.",
+      "recommendation": "Always attempt named-owner removal with finite deadlines, check its outcome and retain cleanup failure without replacing an earlier suite cause; add controlled failure and combined-failure tests. Account explicitly for uncertain detached-launch completion.",
+      "evidence": "Exact source only; no controlled cleanup failure executed. Normal suite result validation is separate and remains sound within documented classification."
+    }
+  ],
+  "tests_executed": false,
+  "builds_executed": false,
+  "remaining_verification": [
+    "Integration owner controlled cleanup/status/cancellation reproductions and final relevant Python tests.",
+    "Pinned actual Docker modes remain separate from parser unit controls; no new runtime or browser coverage claim."
+  ]
+}

@@ -265,14 +265,42 @@ its implementation, tests and actual workflow caller. Twenty focused
 methods and the composed forty-four-method conformance suite pass on
 Windows. Those controlled tests do not establish live Docker cleanup.
 
-The initial download-ownership repair passes fourteen Windows example
-controls. Two additional actual HTTP/3 peer regressions fail after an
-in-flight partial path is replaced: cleanup deletes the replacement and
-publication can use its bytes. This repair remains open. Four controlled
-version-report server tests also reproduce three scratch-space and
-publication-close failures, with one valid positive control. The server
-tests observe the actual runner and filesystem through controlled external
-boundaries, rather than real QUIC shutdown.
+The [WebSocket continuation](client-websocket-continuation-coverage.json)
+records sixteen complete reads at `04aa870b`, including all three protocol
+dispatch paths. Further tooling passes retain their own revisions and gaps:
+[development and docs](new-tooling-source-pass-01-coverage.json),
+[Autobahn](new-tooling-source-pass-02-coverage.json),
+[initial WPT](new-tooling-source-pass-05-coverage.json), and
+[WPT and TLS-Anvil](new-tooling-source-pass-06-coverage.json).
+Together with the two ownership reviews below, 96 historical records passed
+source-identity, hash and range validation before import. Repeated reads do
+not count as additional distinct files; historical complete reads do not
+approve subsequent changes automatically.
+
+The [private download review](a50-private-staging-independent-review.json)
+approves separate, exclusively created staging directories and create-only
+publication. The initial fourteen-pass/two-failure replacement baseline is
+retained. At `73a08ed8`, eighteen tests pass on Windows and Linux, including
+two owners competing for one output, actual HTTP/3 downloads, cancellation,
+and platform-specific cleanup or permission controls. The Linux example
+also compiles on Rust 1.88. Deliberate modification inside private staging
+and ancestor replacement remain outside its documented contract. The added
+two-owner test still needs independent review.
+
+The [version-server review](a54-production-independent-review.json) covers
+scratch ownership and close-finally across publication and cancellation.
+The composed 51-method conformance suite passes on Windows and Linux.
+Actual loopback runs complete three default and one explicit observation,
+retain caller outputs and remove certificate scratch. Controlled failure
+tests and normal loopback completion do not prove every native shutdown path.
+
+Six test placements preserve production text and test behavior. Source
+review and parsed Rust comparisons cover the moved bodies. The composed
+selection passes 73 tests on both platforms. Windows reports one lingering
+output warning for the retry timeout test; an isolated rerun passes without
+that warning. Its cause remains unresolved, and the combined gate must
+check it again. Linux reports no such warning. These checks remain focused
+verification rather than a full gate.
 
 ## Limits of the record
 

@@ -274,6 +274,13 @@ The conformance suites are [Autobahn](.github/workflows/autobahn.yml),
 [WPT EventSource](.github/workflows/wpt-eventsource.yml).
 [Release](.github/workflows/release.yml) runs only by manual dispatch.
 
+The QUIC interoperability download example creates a staging directory beside
+each output. Publication requires hard-link support on that filesystem and
+refuses an existing output. Each invocation removes only its staging file
+and empty directory. A cleanup failure after publication leaves the completed
+output in place and reports the failure. Concurrent modification of private
+staging entries or their ancestor directories is outside this contract.
+
 ### Which jobs a change runs
 
 [`scripts/ci/changed-paths.sh`](scripts/ci/changed-paths.sh) classifies the

@@ -1,0 +1,849 @@
+{
+  "review": "Bounded tooling source continuation",
+  "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+  "tests_executed": false,
+  "builds_executed": false,
+  "files": [
+    {
+      "path": "scripts/dev/tests/test_cargo_lock.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "82e6860f70c688e158dddf7e4c9b99a9831545a3",
+      "sha256": "25b459445df21d178581d0fea9d1fd1feca9f569cdf9813c2a6cc122b80fc490",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 227,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          227
+        ]
+      ],
+      "contract": "Lock fixture controls",
+      "limitations": "Eight tests own isolated Git repos and marker barriers; check stale preservation, live ordering, slots, sibling common directory, failures/signals, unknown and denied PID probes. Cleanup releases markers, then signals wrapper and bounded communicate; does not cover second cleanup failure or numeric overflow."
+    },
+    {
+      "path": "scripts/dev/tests/test_ci_checks.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "9b291d4ee7624cbf7ebd356a88d61896258840fd",
+      "sha256": "bf191b75eaeaf7c389b5eb8bb0ceaca250a403254b01b225b312837dd9d526ed",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 114,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "contract": "CI search-status controls",
+      "limitations": "Four tests inject Git grep status 1 versus 2 into actual copied scripts and inspect exit status and forbidden success text; no live Git network or Cargo; no exhaustive malformed manifest grammar claim."
+    },
+    {
+      "path": "scripts/dev/tests/test_upstream_report.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "ff15b35b25b83bd3026c6faaf9c0957356012b7f",
+      "sha256": "66827d07b5779c2d242898f4e8d1ab15163bdf36f06ee20fdee69ac2e8bdf08c",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 128,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "contract": "Freshness report end-to-end fixture",
+      "limitations": "Offline curl and ls-remote stubs reject unexpected URLs, actual shell helper executes with timeout; asserts exact TLS/H2 paths, recipe, checksums and 14 workflow outputs. Needs Bash/jq and otherwise skips; no live upstream freshness evidence."
+    },
+    {
+      "path": "scripts/dev/with-cargo-lock.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "58b0e5fdda526ad6d37328fb87fc4207ac6a73dc",
+      "sha256": "df011173d12785cceee0489768b7ecf91be390636f5996d8a4f6ba21e020b2fc",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 86,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "contract": "Shared Cargo command admission",
+      "limitations": "Atomic mkdir shares slots through Git common directory; stale proven-dead owner fails closed, unknown/denied probes wait; command status and delayed signal traps preserve ownership until foreground command exits. No SIGKILL or repeated-interrupt proof; count regex has no finite upper bound."
+    },
+    {
+      "path": "scripts/ci/check-unsafe-boundaries.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "83a3bd8dd82a95b4f83390b202762a90e6ec7f9f",
+      "sha256": "a1631d89e68dd77194cfcff77befba4488abcae650c43f2cf5f9a269f1d20601",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 74,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "contract": "Tracked unsafe boundary check",
+      "limitations": "Search distinguishes status 1 from errors >1; validates exact allowance counts and rejects relaxed manifests; textual inspection rather than Rust semantic analysis."
+    },
+    {
+      "path": "scripts/ci/check-tool-pins.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "bd0937010b6bbc1253e9fae40dc5e6d66af23d75",
+      "sha256": "a17c88eab149beae84814ca58f06f73ea9a273322cb7ed6acb5a384fa312bc30",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 145,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          145
+        ]
+      ],
+      "contract": "Tracked tool-pin agreement",
+      "limitations": "Reads requirement pins, validates required Ruff and copied commands, nightly uniqueness, ShellCheck and nextest; search errors propagate, optional absence allowed. Pattern formats are intentionally constrained."
+    },
+    {
+      "path": "scripts/ci/report-upstream-freshness.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "13307d39f9f33a973b0eab95178141bce5143a9b",
+      "sha256": "74fb324adb77d24350598db95513fb47c58ab082f586a6d109ef30beb805b001",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 462,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          462
+        ]
+      ],
+      "contract": "Freshness publication",
+      "limitations": "Validates selected recipe metadata, exact retained paths, source pins/checksums and major drift before JSON and output publication; fetch pipelines use pipefail. Network subprocess time bounded by CI job, not curl itself; output writes are not an atomic multi-file transaction."
+    },
+    {
+      "path": "scripts/dev/gate.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "c5ea92425fe0fc23fe6172471ca169aa6e78f2e0",
+      "sha256": "0ee126debd628bb577635d6638b9b2756df289b4a7e923d82a8bab5dab19833f",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 495,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          495
+        ]
+      ],
+      "contract": "Integration gate caller chain",
+      "limitations": "Positive-count preflight, merge-base failure, command status/log flags, independent group ownership, feature rows parsed from CI with count agreement, serialized Cargo slots and Python discovery. SIGKILL cleanup explicitly out of scope; arbitrary count overflow and repeated signal behavior lack controls."
+    },
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "db20eab44cdca456f67027422b665fabe43107fc",
+      "sha256": "0881915425771cbf54d3331ac0b45f16c5ed56a9fdb34fd1b40388808ceb6733",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 427,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          427
+        ]
+      ],
+      "contract": "Canonical vendor validation",
+      "limitations": "Checks archives and exact patch series, dry/applies each patch, compares payloads, then selected package commands. Original snapshot still has three banned --all formatting selectors; separately reviewed working correction. Network stalls rely on outer CI timeout; no replay executed here."
+    },
+    {
+      "path": "scripts/docs/check_docs.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "bbdc00a9b8d2c1ca0bdc9c8a084dff759d14f575",
+      "sha256": "90f95242417fb7ec7200134011f89ce952461f560521051445cc5d52a8a72a62",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 622,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          622
+        ]
+      ],
+      "contract": "Documentation checker",
+      "limitations": "Parses fenced/inline code masks, reference definitions, nested links, case-sensitive relative paths/anchors, page shape, prose and scoped allow directives. CLI errors return 1, warnings return 0; IO failures propagate nonzero. Supported Markdown subset only; not a security sanitizer or whole CommonMark parser."
+    },
+    {
+      "path": "scripts/docs/tests/test_check_docs.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "32c02266a9347e94c087df04f578bcaef94b0d00",
+      "sha256": "427c727246cefd1e624ea5ebd0eec7147b8e821833146562e3e44b237f668597",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 327,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          327
+        ]
+      ],
+      "contract": "Documentation independent controls",
+      "limitations": "Temporary independent pages exercise missing versus existing links/anchors, duplicate headings, masks, reference/HTML/image links, repository escape/case, shape, prose, directives, CLI failures and clean success. Thirty-three tests; no browser-rendering equivalence proof."
+    },
+    {
+      "path": "scripts/docs/README.md",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "8201a252c77751a028e8c6289d19a7838a0ca7ca",
+      "sha256": "68b2d4f41ced99a3d1471d1fa3ac5a9d11c30f07d2896215993c3c14cc467a2d",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 51,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          51
+        ]
+      ],
+      "contract": "Checker documented contract",
+      "limitations": "Commands, rule groups, warning status and explicit directives match current code; guide banner is pre-existing contributor documentation, not a new product flow."
+    },
+    {
+      "path": "scripts/docs/__init__.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "e4de2a6e9ed050ba0ae4b90cd469ecf288622303",
+      "sha256": "da7d099575f73ec9220f01b5e3339365287cf1eda177d386dde6eac1a815987a",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 1,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "contract": "Package declaration",
+      "limitations": "One docstring only; no execution or hidden state."
+    },
+    {
+      "path": "scripts/docs/tests/__init__.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "9e7239c5ee17dc022c803ea46d04d218c388428d",
+      "sha256": "47c71e92d08787a97bb90577553c4410de74080ea8d12f0e75421e10bd794394",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 1,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "contract": "Test package declaration",
+      "limitations": "One docstring only; no test registration side effects."
+    },
+    {
+      "path": "scripts/conformance/__init__.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "c216ffd98b34d3a03da85d2f8dc17328c7ae8b5a",
+      "sha256": "7fbdecb4938ee737aea09fd99a7995e608967bb7e2c030242a1b7fcaa71b0391",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 1,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "contract": "Package declaration",
+      "limitations": "One docstring only; no execution or hidden state."
+    },
+    {
+      "path": "scripts/conformance/tests/__init__.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "4ba8912e94409c19416c93e3624b1e0d5880d6af",
+      "sha256": "b943aa84c59577a4cadc45a0221bfc9c5b96d1c004707bbaef16683a14f3a4fa",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 1,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "contract": "Test package declaration",
+      "limitations": "One docstring only; no test registration side effects."
+    },
+    {
+      "path": "scripts/conformance/aioquic_versions.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "7d7d9e76781f4e6aa508976a585d4e901f14456d",
+      "sha256": "9d192af3600aed229150c4c44968c7dc356f9896bf395191eef80f0864133546",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 182,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          182
+        ]
+      ],
+      "contract": "Loopback QUIC version observer",
+      "limitations": "Loopback listen validation, four reserved-port attempts, owned ticket map, actual negotiated/first packet reports and response emission; done threshold counts HeadersReceived events without uniqueness. Server close starts only after port-file write; certificate temp directory persists. Requests parameter is unrestricted int; manual default three observation evidence preserved separately."
+    },
+    {
+      "path": "scripts/conformance/tests/test_aioquic_versions.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "faba7f33d059df87e6dc71e25c64fb60abc5aeab",
+      "sha256": "8c6cb775693de29bfd90b2b0a440b5cf83b2567d1272d13c6f9ae88375f02259",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 62,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "contract": "Version-report controls",
+      "limitations": "Five independent tests assert exact report text, absent state, nonloopback rejection and finite 10055-only retry. No handshake runtime, unique stream counting or setup-file failure cleanup control."
+    },
+    {
+      "path": "scripts/conformance/loopback_tls.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "c4b62f5e45c9748c689d3022202aebde0edd4fe0",
+      "sha256": "96cb706298afd74f71e71363fbacb3295bbf069d7a73237eaf8816d84d8a2a84",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 132,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "contract": "Ephemeral loopback certificate production",
+      "limitations": "OpenSSL argv lists avoid shell interpolation, check=True propagates failure; generated SAN is localhost/127.0.0.1. Caller supplies/owns directory. No subprocess deadline or descendant ownership of its own; actual OpenSSL not executed."
+    },
+    {
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "615959aaf781b31599f61d8784792ed5268e0ae6",
+      "sha256": "70f6f6a956e66a2db4cda2f52e4319a70e6c280f06116c3891d9651aede66d48",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 78,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "contract": "Manual version interoperability caller",
+      "limitations": "Actual connector with Firefox recipe, isolated tickets, bounded connect/send/body/ticket waits and retained connections. Optional usize request count accepts zero then returns Ok without observation; reports version/resumption rather than asserting expected pattern."
+    },
+    {
+      "path": "scripts/conformance/quic_interop.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "3315c2bb412e5ad3396208068c94ad5e56aad8a4",
+      "sha256": "f7267bf8c71e29bee458394d03cc18a475de680170914d5806021fd57affdec0",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 418,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          418
+        ]
+      ],
+      "contract": "Pinned QUIC runner orchestration",
+      "limitations": "Exact clean checkout check, bounded-name server role, image argument check, guarded mutation of three files, matching one-cell successful JSON plus zero process status. Writes failed summary on Exception and restores files in finally. See findings for shell image input and timeout ownership; log bound is post-collection artifact retention only."
+    },
+    {
+      "path": "scripts/conformance/tests/test_quic_interop.py",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "d9a1da09d5c67aafc2b33bfa60fb75e6e9d0a7a8",
+      "sha256": "b49bd20a4e901c7ad531cb3568f635db924983f1febf0cab92bbb27bf5a83a03",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 126,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          126
+        ]
+      ],
+      "contract": "QUIC result controls",
+      "limitations": "Four tests require role/name constraints, matching result sets, unsupported rejection and named successful cell; restore test manually restores returned bytes rather than testing run finally. No malformed duplicate-key, timeout, signal, returncode or mutation restoration fault injection."
+    },
+    {
+      "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "4d385c10987598af7408713198b4a2a4c86685e8",
+      "sha256": "eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 11,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "contract": "Container endpoint launch",
+      "limitations": "Client-only guard, setup and bounded simulator readiness precede exec client; set -euo pipefail preserves failure. Actual image-provided scripts not fully audited."
+    },
+    {
+      "path": "scripts/conformance/quic-interop/Dockerfile",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "e36f7c5af7df774b8204c4fd3a70c487f05d9251",
+      "sha256": "5d643165c36200dbb28f8afad9b4427e0d9cbc87462aefe33653822ecec17f91",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 20,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "contract": "Endpoint image composition",
+      "limitations": "Pinned builder/base image digests and locked release example build; runtime copies correct executable and entrypoint. Apt indexes/packages are not digest pinned; no image build claim."
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/main.rs",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "b773ac81006e893ae54506b57a59981cfb298bd1",
+      "sha256": "e95f3583d9388837b73f6814d0725705e31c30d5d0b37ef773d7ac7d8e417ce3",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 368,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          368
+        ]
+      ],
+      "contract": "Real QUIC runner client",
+      "limitations": "Requires nonempty <=64 same-origin safe URLs, one root, HTTP/3 response metadata and status; joined bounded batch aborts/drains remaining tasks and removes partials on failure. Each file bounded16MiB; encoded environment input itself is not byte capped before splitting. Success does not independently compare downloaded content; upstream runner owns that check."
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/target.rs",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "a26838af05bd5b08592a9cd2f319856223b64413",
+      "sha256": "b916f25242966e16b71aabadc4ccc66f96509d7d5e48832b0a1a6494580f898a",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 128,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "contract": "Restricted download target",
+      "limitations": "HTTPS, credential-free, runner-host allowlist, default443, no query/fragment, one <=255 safe filename; positive and negative controls. URL normalization intentional for runner inputs; no production route behavior claim."
+    },
+    {
+      "path": ".github/workflows/quic-interop.yml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "23cd13e413e4c54047cb25d6e8f3e9ceaa1c3453",
+      "sha256": "f7db0a2e433585b0ba961fd32b2bed7e414f9c6f8eaa337d9c0405b8fb0eb55f",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 141,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "contract": "Interop workflow execution scope",
+      "limitations": "PR/main build image and unknown-case127 only; actual pinned HTTP/3 case restricted to schedule/manual, artifact paths selected. Documentation must not treat PR green as full interop execution. No CI executed."
+    },
+    {
+      "path": ".github/workflows/upstream-freshness.yml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "3fd2357f2c0e962e67be950556ba4cab09de4da7",
+      "sha256": "e8299678d1cd8771f3f14056fa17bf81bf2fbe9bd0e8d657fe515b8cc7cbf687",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 138,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          138
+        ]
+      ],
+      "contract": "Freshness workflow consumers",
+      "limitations": "Exact output wiring and disposable probe guard, report artifacts always published when possible, drift/rejected infrastructure return failure. Current upstream candidates not queried by this review."
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "46889e3c9c97a29f7608166a8de3f54983baaf31",
+      "sha256": "6ecfb784d6fa2a14f608d717154307171e3acb18ca5c968be1d0e87e5f5fe7da",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 80,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "contract": "Workspace fork source selection",
+      "limitations": "Exact renamed path identities and pins for btls/tokio-btls/http2/quinn-proto match maintenance prose; no dependency resolution executed."
+    },
+    {
+      "path": "vendor/btls/Cargo.toml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "17bb936ba90b386c07a425fe28867bb23be71319",
+      "sha256": "75ad8724a7f356224bd65b8c5dd8164165d537cc3d67802ea14646eeb835fc20",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 85,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "contract": "Selected formatter package and sys source",
+      "limitations": "Package phantom-btls; Git btls-sys exact revision; excludes standalone workspace mixing. Full manifest read; cryptographic backend not audited in this pass."
+    },
+    {
+      "path": "vendor/http2/Cargo.toml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "4b7fa5a5236351689d0bd24c3a37ec702946bc8b",
+      "sha256": "9b444a0d4caeb2553edda869fe476a5a965fa6ab3e9640a51ea01de172b5f401",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 187,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "contract": "Selected formatter package",
+      "limitations": "Package phantom-http2 with exact fork version; full manifest read, no source/lint test execution."
+    },
+    {
+      "path": "vendor/wreq-proto/Cargo.toml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "79373bfcd6996322d07da6db3e5fa464dc5efaff",
+      "sha256": "e778b7bceb730a0799cda530227b044c836e4631dd96c7c22e84e7f6e97d63ed",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 178,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "contract": "Selected formatter package",
+      "limitations": "Package phantom-wreq-proto and local exact phantom-http2 dependency match selected package and graph; full manifest read only."
+    },
+    {
+      "path": "vendor/quinn-proto/Cargo.toml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "22e659ca0abb27aa2f92e84bfb62333e2cf8be1a",
+      "sha256": "48a1d0b1d4d5ab23f9f7d0995dd96654db81929158a3b384fcdbc7fe6dad0dc6",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 205,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          205
+        ]
+      ],
+      "contract": "Current renamed fork identity",
+      "limitations": "Package phantom-quinn-proto and fork version match corrected source-selection instructions; full manifest read only."
+    },
+    {
+      "path": "vendor/tokio-btls/Cargo.toml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "634220fcdc921949425c577e702619513eb01d94",
+      "sha256": "b07433ef30e191e8198ca8815293b0e65f42ddd2f98f626a7dcef2b66f13a4c7",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 48,
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "contract": "Local adapter composition",
+      "limitations": "Package phantom-tokio-btls and local exact phantom-btls dependency confirm corrected provenance; full manifest read only."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "a863ab8e1a758b549d8be367d61f73ba8a57c4f5",
+      "sha256": "2f6bae06533f982ee81787f7a2dbd2abc964d08d22243ec3dc65c4f34865251a",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 520,
+      "read_kind": "partial_source",
+      "reviewed_ranges": [
+        [
+          1,
+          405
+        ]
+      ],
+      "contract": "Caller/configuration boundary",
+      "limitations": "Current docs, quality, feature and vendor caller rows; remaining workflow platform/MSRV/security/required tail retains original historical review only."
+    },
+    {
+      "path": "docs/explanation/validation.md",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "2956563a6eea282f4ba83f53974f7a52a828a721",
+      "sha256": "398b0672d75dc35eb1d26005e42c6b1ccbb268441540941b441565315dc4b8ef",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 6910,
+      "read_kind": "partial_source",
+      "reviewed_ranges": [
+        [
+          1818,
+          1850
+        ]
+      ],
+      "contract": "Caller/configuration boundary",
+      "limitations": "Historical three-request manual version observation and exact reproduction command; not complete page review."
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "96eb48678320d4ea2906f0ce898ae44b7082a05b",
+      "sha256": "10df38511ca4d98bec54719c427f6049e3c44460ab4a7dcd9ac7c444adaee04b",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 2772,
+      "read_kind": "partial_source",
+      "reviewed_ranges": [
+        [
+          184,
+          194
+        ],
+        [
+          1328,
+          1338
+        ],
+        [
+          1507,
+          1526
+        ],
+        [
+          1535,
+          1542
+        ]
+      ],
+      "contract": "Caller/configuration boundary",
+      "limitations": "Exact renamed fork and Git sys package source entries only; not full lock or graph resolution."
+    },
+    {
+      "path": "scripts/conformance/quic-interop/requirements.txt",
+      "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "git_oid": "7f6c6b9716655667d2e82d3a3e38870a4d8bba19",
+      "sha256": "3c4be3015cfff4a0377f2e59ee4ea25bdb1fcb40492c48b15dd91b05c209c1fe",
+      "hash_basis": "raw committed Git blob bytes",
+      "line_count": 259,
+      "read_kind": "partial_source",
+      "reviewed_ranges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "contract": "Caller/configuration boundary",
+      "limitations": "Leading hash-pinned package block; dependency list and remaining hashes not fully read."
+    }
+  ],
+  "working_maintenance": [
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "revision": "uncommitted working bytes atop 2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "base_git_oid": "db20eab44cdca456f67027422b665fabe43107fc",
+      "sha256": "2e65d1730d99837fae4d20d2ad86f1795cd212ebda190939cf5e1a49c5ca175d",
+      "hash_basis": "exact working bytes; not normalized or a committed Git blob",
+      "line_count": 427,
+      "read_kind": "partial_source_and_diff",
+      "reviewed_ranges": [
+        [
+          273,
+          314
+        ],
+        [
+          408,
+          423
+        ]
+      ],
+      "contract": "Five maintenance source/prose files, all changed hunks reviewed against actual manifests and selected lock entries",
+      "limitations": "No formatter, graph resolution, canonical replay or docs command executed; outside ranges not promoted. Three formatter --all selectors become exact --package; corrected local/Git provenance only."
+    },
+    {
+      "path": "vendor/btls/PHANTOM.md",
+      "revision": "uncommitted working bytes atop 2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "base_git_oid": "ccebfe0217eef88d320f8e340aec3c3f0aa2fabc",
+      "sha256": "223ea62678588d8bdd7a36435581f7d011036074f05a273f5341816f70633e00",
+      "hash_basis": "exact working bytes; not normalized or a committed Git blob",
+      "line_count": 383,
+      "read_kind": "partial_source_and_diff",
+      "reviewed_ranges": [
+        [
+          298,
+          362
+        ]
+      ],
+      "contract": "Five maintenance source/prose files, all changed hunks reviewed against actual manifests and selected lock entries",
+      "limitations": "No formatter, graph resolution, canonical replay or docs command executed; outside ranges not promoted. Three formatter --all selectors become exact --package; corrected local/Git provenance only."
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "revision": "uncommitted working bytes atop 2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "base_git_oid": "ed66fc98ff2dea8013d1ae0ba2a8bca3d00a23cf",
+      "sha256": "7f9ab0948b868ae9b1f0d9ead8953ab3640ef990c07e5df23ae907500075b209",
+      "hash_basis": "exact working bytes; not normalized or a committed Git blob",
+      "line_count": 923,
+      "read_kind": "partial_source_and_diff",
+      "reviewed_ranges": [
+        [
+          884,
+          923
+        ]
+      ],
+      "contract": "Five maintenance source/prose files, all changed hunks reviewed against actual manifests and selected lock entries",
+      "limitations": "No formatter, graph resolution, canonical replay or docs command executed; outside ranges not promoted. Three formatter --all selectors become exact --package; corrected local/Git provenance only."
+    },
+    {
+      "path": "vendor/wreq-proto/PHANTOM.md",
+      "revision": "uncommitted working bytes atop 2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "base_git_oid": "4857507a510a60e405d3fed8bbcc9c410c374546",
+      "sha256": "953c4060816e85e6c68ac39c8a5365cdcf1164af4954d45cdf67cd06550f0dad",
+      "hash_basis": "exact working bytes; not normalized or a committed Git blob",
+      "line_count": 141,
+      "read_kind": "partial_source_and_diff",
+      "reviewed_ranges": [
+        [
+          118,
+          141
+        ]
+      ],
+      "contract": "Five maintenance source/prose files, all changed hunks reviewed against actual manifests and selected lock entries",
+      "limitations": "No formatter, graph resolution, canonical replay or docs command executed; outside ranges not promoted. Three formatter --all selectors become exact --package; corrected local/Git provenance only."
+    },
+    {
+      "path": "vendor/quinn-proto/PHANTOM.md",
+      "revision": "uncommitted working bytes atop 2cb59371ee00b4ae6369dfff06683d090e5762f5",
+      "base_git_oid": "8a49988dd885b921d27542e85f7fc7ba9b56dbba",
+      "sha256": "35f7befc56522b3529c4b9fc8336989561c06e80c1fb80e945d561f48657411d",
+      "hash_basis": "exact working bytes; not normalized or a committed Git blob",
+      "line_count": 296,
+      "read_kind": "partial_source_and_diff",
+      "reviewed_ranges": [
+        [
+          232,
+          286
+        ]
+      ],
+      "contract": "Five maintenance source/prose files, all changed hunks reviewed against actual manifests and selected lock entries",
+      "limitations": "No formatter, graph resolution, canonical replay or docs command executed; outside ranges not promoted. Three formatter --all selectors become exact --package; corrected local/Git provenance only."
+    }
+  ],
+  "external_source_records": [
+    {
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/run.py",
+      "read_kind": "full_source",
+      "reviewed_ranges": [
+        [
+          1,
+          211
+        ]
+      ],
+      "contract": "Selected one http3 pair calls InteropRunner.run.",
+      "sha256": "e6242d2fc0ed77fc894976d656abcfd2b15283a546a5f1be5fa3c8fcdf0dde0e",
+      "hash_basis": "raw bytes from exact commit URL",
+      "line_count": 221,
+      "limitations": "Partial dependencies are not complete upstream runner audit; no Docker/runtime execution."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/interop.py",
+      "read_kind": "partial_source",
+      "reviewed_ranges": [
+        [
+          105,
+          180
+        ],
+        [
+          282,
+          320
+        ],
+        [
+          337,
+          477
+        ]
+      ],
+      "contract": "Image strings enter shell commands; own timeout stops containers; exported success has matching cell.",
+      "sha256": "19bf7696ba0558a9d381b81ba7742a411a9a9ec47b328f6cfa684a0dedddf511",
+      "hash_basis": "raw bytes from exact commit URL",
+      "line_count": 611,
+      "limitations": "Partial dependencies are not complete upstream runner audit; no Docker/runtime execution."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/quic-interop/quic-interop-runner/740c05a10b61d65e8abd3ad38d60898004d335d9/testcases_quic.py",
+      "read_kind": "partial_source",
+      "reviewed_ranges": [
+        [
+          437,
+          465
+        ]
+      ],
+      "contract": "HTTP3 selects three nonempty files and requires exactly one handshake plus version/files check; body of that helper not read here.",
+      "sha256": "8e004e1e58a1b5a83e8e02c59ff7cf53dfb397b756e868629aa241b523a12e91",
+      "hash_basis": "raw bytes from exact commit URL",
+      "line_count": 1448,
+      "limitations": "Partial dependencies are not complete upstream runner audit; no Docker/runtime execution."
+    }
+  ],
+  "findings": [
+    {
+      "id": "T01",
+      "severity": "minor",
+      "path": "crates/phantom-net/examples/quic_version_interop.rs",
+      "line": 26,
+      "problem": "Explicit zero requests returns success after zero handshakes/responses.",
+      "recommendation": "Parse a nonzero request count before root/connector/network work; reject zero with pure parser control; retain default three only when absent.",
+      "evidence": "Static loop/control flow only, not reproduced. Manual example not selected by current gate."
+    },
+    {
+      "id": "T02",
+      "severity": "major",
+      "path": "scripts/conformance/quic_interop.py",
+      "line": 95,
+      "related_lines": [
+        136
+      ],
+      "problem": "Image arguments only reject whitespace, but pinned upstream runner interpolates them into shell=True command strings. Metacharacters and ${IFS} are accepted and acquire shell syntax.",
+      "recommendation": "Validate a constrained Docker image/reference grammar rejecting all shell syntax before registry/file writes, with atomic invalid-input controls and a harmless controlled upstream-shell reproduction.",
+      "evidence": "Pinned interop.py lines123-140,154-170,392-427 source inspected; no reproduction run, no claim of attacker-controlled CI values."
+    },
+    {
+      "id": "T03",
+      "severity": "major",
+      "path": "scripts/conformance/quic_interop.py",
+      "line": 291,
+      "problem": "The outer runner timeout owns only run.py, while that process launches shell/docker compose descendants and its normal per-test timeout cleanup. Killing run.py can bypass that cleanup; finally restores files without stopping its descendants or containers.",
+      "recommendation": "Use an owned subprocess group plus attempt-specific Docker project cleanup on timeout/interruption, drain/join before restoration and failed summary publication, and test controlled descendants plus cleanup faults.",
+      "evidence": "Local subprocess.run timeout and final restoration; pinned upstream interop.py lines421-443 stop containers only on its own TimeoutExpired. Source-supported ownership gap, no live leak reproduction. Normal success/failure path is not claimed to leak."
+    }
+  ],
+  "remaining_verification": [
+    "Root controlled reproductions for T01/T02/T03 before implementation; no baseline runtime from this review.",
+    "Root final full gate, ShellCheck and relevant Python discovery on final integrated tree.",
+    "Root scripts/ci/check-vendor.sh btls/http2/wreq-proto/quinn-proto for touched vendor maintenance scope, including canonical replay."
+  ]
+}
