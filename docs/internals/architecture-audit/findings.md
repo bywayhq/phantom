@@ -61,7 +61,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Baseline has seven failures across six methods; twenty corrected methods and composed conformance suite pass; independent review approved |
 | A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Source candidate; ownership design and bounded reproduction pending |
 | A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Repair independently approved; composed 51-method suite passes on Windows and Linux; actual loopback output and scratch controls pass |
-| A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected Windows controls pass; independent review and native checks pending |
+| A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent review pending |
 | A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Signed baseline has seven passes and eight intended lifecycle failures; bounded process owner repair in progress |
 | A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Signed baseline has five passes and two intended failures; ownership and cleanup repair in progress |
 
@@ -696,6 +696,13 @@ strict counts. Five methods pass; failed-removal and deadline controls fail.
 The remedy verifies a unique ownership label and immutable container ID,
 bounds removal, and retains suite and cleanup causes together. Controlled
 subprocess fixtures do not establish actual Docker daemon behavior.
+
+The A57 implementation at `2c9dbead` remains unintegrated. Root review
+reproduces another interruption gap: log-retention KeyboardInterrupt skips
+the second log and summary, losing an observed suite exit of 7 and removal
+exit of 9. Eighteen existing lifecycle methods pass; the added controlled
+regression fails because the retained summary is absent. The author is
+remediating it before independent approval and composition.
 
 ## Rejected candidates
 
