@@ -66,6 +66,77 @@ async fn read_request(
 A failed or cancelled capture may consume part of the head. Discard the
 stream or restore a known boundary before using it again.
 
+## Capture initial HTTP/2 frames
+
+Choose the event that ends the capture. This example stops after the
+client's initial SETTINGS and connection WINDOW_UPDATE.
+
+```rust
+use phantom_testkit::http2::{
+    CaptureCompletion, CaptureLimits, ClientFrameCapture, capture_client_frames,
+};
+use tokio::{io::AsyncRead, time::{Duration, Instant}};
+
+async fn read_http2(
+    reader: &mut (impl AsyncRead + Unpin),
+) -> Result<ClientFrameCapture, Box<dyn std::error::Error>> {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let limits = CaptureLimits::new(16 * 1024, 64 * 1024, 16);
+    Ok(capture_client_frames(
+        reader, deadline, limits,
+        CaptureCompletion::InitialSettingsAndConnectionWindowUpdate,
+    ).await?)
+}
+```
+
+The result keeps the exact preface and frame bytes, in wire order. Capture
+validates SETTINGS and WINDOW_UPDATE. Other frame payloads stay undecoded.
+Use `CapturedFrame::settings` or `window_update` to inspect a known frame.
+They return `Ok(None)` for another frame type and an error for malformed
+bytes of the requested type. Frames after completion remain unread.
+
+## Capture and summarize a TLS handshake
+
+Capture the records carrying the first ClientHello, then check its fields
+with `summary`.
+
+```rust
+use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hello};
+use tokio::{io::AsyncRead, time::{Duration, Instant}};
+
+async fn read_client_hello(
+    reader: &mut (impl AsyncRead + Unpin),
+) -> Result<ClientHelloSummary, Box<dyn std::error::Error>> {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let limits = CaptureLimits::new(64 * 1024, 128 * 1024, 16);
+    let captured = capture_client_hello(reader, deadline, limits).await?;
+    Ok(captured.summary()?)
+}
+```
+
+Capture checks record and handshake framing. The summary checks inner
+lengths and extensions and keeps their order. Later records remain unread.
+Extra bytes after ClientHello within its final record return an error.
+The summary describes the ClientHello, rather than completing a TLS handshake.
+
+## Run asynchronous helpers
+
+Poll deadline-based captures in a Tokio runtime with its timer enabled.
+Socket readers and `DnsServer::spawn` also need runtime I/O. Delayed DNS
+replies need the timer. A manually built runtime can enable both:
+
+```rust
+let runtime = tokio::runtime::Builder::new_current_thread()
+    .enable_all()
+    .build()?;
+# drop(runtime);
+# Ok::<(), std::io::Error>(())
+```
+
+A missing runtime driver can panic. Read, syntax, bounds, and deadline
+failures return typed errors. A failed or cancelled stream capture may
+consume input. Discard the stream or restore a known boundary before reuse.
+
 ## Other captures
 
 - TLS records and decoded handshake summaries: `phantom_testkit::tls`

@@ -139,6 +139,15 @@ impl CapturedFrame {
     ///
     /// Entries retain their wire order. HTTP/2 permits an identifier to occur
     /// more than once; the last value is effective, so duplicates are retained.
+    /// Unknown setting identifiers are retained too. This method borrows the
+    /// captured bytes and consumes no reader input.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SettingsDecodeError`] for a nonzero stream ID, an ACK with a
+    /// payload, a payload length not divisible by six, or invalid ENABLE_PUSH,
+    /// INITIAL_WINDOW_SIZE, or MAX_FRAME_SIZE values. A malformed SETTINGS
+    /// frame returns an error, rather than `Ok(None)`.
     pub fn settings(&self) -> Result<Option<SettingsFrame>, SettingsDecodeError> {
         if self.header.frame_type != SETTINGS_FRAME_TYPE {
             return Ok(None);
@@ -180,6 +189,15 @@ impl CapturedFrame {
     }
 
     /// Decodes this frame as WINDOW_UPDATE, or returns `Ok(None)` for another type.
+    ///
+    /// The reserved payload bit is retained separately from the normalized
+    /// 31-bit increment. This method consumes no reader input.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WindowUpdateDecodeError`] when a WINDOW_UPDATE payload is not
+    /// four bytes or its normalized increment is zero. A malformed
+    /// WINDOW_UPDATE returns an error, rather than `Ok(None)`.
     pub fn window_update(&self) -> Result<Option<WindowUpdateFrame>, WindowUpdateDecodeError> {
         if self.header.frame_type != WINDOW_UPDATE_FRAME_TYPE {
             return Ok(None);

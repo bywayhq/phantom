@@ -101,6 +101,15 @@ impl ClientHelloCapture {
     }
 
     /// Decodes the ordered fingerprint-relevant fields in this ClientHello.
+    ///
+    /// Record capture alone does not validate the ClientHello's inner vectors
+    /// and extensions. This method borrows the capture without reading a stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ClientHelloDecodeError`] for truncated or malformed fields,
+    /// invalid vector lengths, duplicate extensions or server-name types, or
+    /// trailing bytes. Unknown extension types remain in the summary.
     pub fn summary(&self) -> Result<ClientHelloSummary, ClientHelloDecodeError> {
         ClientHelloSummary::decode(&self.handshake)
     }
@@ -219,8 +228,23 @@ impl Error for CaptureError {
 ///
 /// `deadline` bounds the entire operation rather than each individual read.
 /// Records are accepted only while the first handshake message is incomplete.
-/// After any error, the reader may be partially consumed and must be discarded
-/// or reset to a known boundary before it is reused.
+/// Success consumes records through the complete ClientHello and leaves later
+/// records unread. Inner vectors and extensions are checked separately by
+/// [`ClientHelloCapture::summary`]. An error or cancellation may consume part
+/// of a record. Discard the reader or restore a known boundary before reuse.
+///
+/// # Errors
+///
+/// Returns [`CaptureError`] for truncated input, a read failure, an elapsed
+/// deadline, or record-size, record-count, wire-byte, or handshake-byte limits.
+/// Non-handshake records, empty fragments, a first message other than
+/// ClientHello, and bytes
+/// after that message in its final record also return errors.
+///
+/// # Panics
+///
+/// Panics when polled outside a Tokio runtime with its timer enabled, as
+/// [`tokio::time::timeout_at`] does. Socket readers also need runtime I/O.
 pub async fn capture_client_hello<R>(
     reader: &mut R,
     deadline: Instant,

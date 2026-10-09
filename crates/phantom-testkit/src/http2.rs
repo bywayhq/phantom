@@ -209,8 +209,22 @@ impl Error for CaptureError {
 /// Captures an HTTP/2 client preface and the requested initial frame sequence.
 ///
 /// `deadline` bounds the entire operation rather than each read. Capture ends
-/// as soon as `completion` is satisfied. After an error, the reader may be
-/// partially consumed and must be discarded or reset to a known boundary.
+/// as soon as `completion` is satisfied, leaving subsequent frames unread.
+/// An error or cancellation may consume part of the preface or a frame.
+/// Discard the reader or restore a known boundary before reusing it.
+///
+/// # Errors
+///
+/// Returns [`CaptureError`] for a truncated or invalid preface, an invalid
+/// initial frame, malformed SETTINGS or WINDOW_UPDATE, a payload, total-byte,
+/// or frame-count limit, a read failure, or an elapsed deadline. Input ending
+/// before `completion` also returns an error. Other frame types are retained
+/// without decoding their payloads.
+///
+/// # Panics
+///
+/// Panics when polled outside a Tokio runtime with its timer enabled, as
+/// [`tokio::time::timeout_at`] does. Socket readers also need runtime I/O.
 pub async fn capture_client_frames<R>(
     reader: &mut R,
     deadline: Instant,

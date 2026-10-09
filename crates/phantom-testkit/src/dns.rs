@@ -164,7 +164,14 @@ impl DnsServer {
     ///
     /// # Errors
     ///
-    /// Returns the bind error.
+    /// Returns an I/O error if binding, setting nonblocking mode, registering
+    /// the socket, or reading its local address fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics when polled outside a Tokio runtime with I/O enabled, as
+    /// [`crate::udp::bind_tokio`] and [`tokio::spawn`] do. Delayed reply tasks
+    /// also require the runtime's timer to be enabled.
     pub async fn spawn(
         responder: impl Fn(&DnsQuery) -> DnsReply + Send + Sync + 'static,
     ) -> io::Result<Self> {

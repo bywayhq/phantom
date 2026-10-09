@@ -295,7 +295,14 @@ impl Error for CaptureError {
 ///
 /// # Errors
 ///
-/// Returns an input, syntax, limit, read, or deadline error.
+/// Returns [`CaptureError`] for empty or truncated input, invalid head syntax,
+/// a head, line, or header-count limit, a read failure, or an elapsed deadline.
+/// An error may consume part or all of the head without restoring the reader.
+///
+/// # Panics
+///
+/// Panics when polled outside a Tokio runtime with its timer enabled, as
+/// [`tokio::time::timeout_at`] does. Socket readers also need runtime I/O.
 pub async fn capture_request_head<R>(
     reader: &mut R,
     deadline: Instant,
