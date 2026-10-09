@@ -2260,9 +2260,9 @@ mod tests {
             .http2_fields
             .push(RequestField::literal("X-Invalid", "value"));
         let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_request_template(template);
-        let error = Client::builder(profile)
-            .build()
-            .expect_err("uppercase H2 field was accepted");
+        let Err(error) = Client::builder(profile).build() else {
+            panic!("uppercase H2 field was accepted");
+        };
 
         assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
         assert!(

@@ -193,14 +193,16 @@ async fn inherited_required_slot_is_checked_before_connecting() -> TestResult<()
         let client =
             Client::builder(ClientProfile::new(tls_settings()).with_request_template(default))
                 .build()?;
-        let error = client
+        let Err(error) = client
             .get(
                 HttpProtocol::Http1,
                 &format!("https://{}/", listener.local_addr()?),
             )?
             .send()
             .await
-            .expect_err("missing required caller field was sent");
+        else {
+            panic!("missing required caller field was sent");
+        };
         assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
         assert!(
             timeout(std::time::Duration::from_millis(100), listener.accept())
