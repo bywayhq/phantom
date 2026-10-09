@@ -218,11 +218,13 @@ pub enum Http1Target {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proxy::HttpConnectError;
 
     #[test]
-    fn http_route_debug_redacts_basic_credentials() -> Result<(), HttpConnectError> {
-        let credentials = HttpBasicCredentials::new("private-user", "private-password")?;
+    fn http_route_debug_redacts_basic_credentials() -> Result<(), Box<dyn std::error::Error>> {
+        let mut canary = [0_u8; 16];
+        btls::rand::rand_bytes(&mut canary)?;
+        let password = format!("{canary:02x?}");
+        let credentials = HttpBasicCredentials::new("private-user", &password)?;
         let route = TcpRoute::HttpConnect(HttpConnectRoute {
             proxy: ProxyTransport::Tcp(Endpoint {
                 host: "proxy.example",
@@ -234,7 +236,7 @@ mod tests {
         });
         let debug = format!("{route:?}");
         assert!(!debug.contains("private-user"));
-        assert!(!debug.contains("private-password"));
+        assert!(!debug.contains(&password));
         assert!(debug.contains("[REDACTED]"));
         Ok(())
     }

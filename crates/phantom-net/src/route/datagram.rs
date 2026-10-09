@@ -121,7 +121,10 @@ mod tests {
             &chromium::v154_http3(),
             &chromium::v154_http3_request(),
         )?;
-        let credentials = HttpBasicCredentials::new("private-user", "private-password")?;
+        let mut canary = [0_u8; 16];
+        btls::rand::rand_bytes(&mut canary)?;
+        let password = format!("{canary:02x?}");
+        let credentials = HttpBasicCredentials::new("private-user", &password)?;
         let route = DatagramRoute::ConnectUdp(ConnectUdpRoute {
             proxy: Endpoint {
                 host: "proxy.example",
@@ -138,7 +141,7 @@ mod tests {
             "private-path-token",
             "private-header-token",
             "private-user",
-            "private-password",
+            &password,
         ] {
             assert!(!debug.contains(secret));
         }
