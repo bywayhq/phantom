@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import signal
 import sys
 import tempfile
 import threading
@@ -817,6 +818,123 @@ class CleanupFailureTests(unittest.TestCase):
             )
             self.assertEqual(results[1].attempts[0].detail, "stopped")
             self.assertEqual([len(result.attempts) for result in results], [1, 1])
+
+    def test_second_interrupt_during_cleanup_still_ends_every_owner(self) -> None:
+        releases = [threading.Event(), threading.Event()]
+        registered = [threading.Event(), threading.Event()]
+        attempts = Attempts()
+        items = [job("first"), job("second")]
+        containers = [mock.Mock(), mock.Mock()]
+        join = threading.Thread.join
+        owned_threads = []
+        interrupted = False
+        repeated = []
+        old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+
+        def close_first() -> None:
+            releases[0].set()
+            signal.raise_signal(signal.SIGINT)
+            repeated.append(True)
+
+        containers[0].close.side_effect = close_first
+        containers[1].close.side_effect = releases[1].set
+
+        def run(item: Job) -> JobResult:
+            index = items.index(item)
+            attempts.add(slug(item.id) + ".1", containers[index], Path(item.id))
+            registered[index].set()
+            releases[index].wait(10)
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def interrupt_join(thread, *args, **kwargs):
+            nonlocal interrupted
+            owned_threads.append(thread)
+            if not interrupted:
+                for event in registered:
+                    self.assertTrue(event.wait(10))
+                interrupted = True
+                raise KeyboardInterrupt
+            return join(thread, *args, **kwargs)
+
+        try:
+            with (
+                mock.patch.object(threading.Thread, "join", interrupt_join),
+                mock.patch.object(run_matrix, "stop_processes_naming") as sweep,
+            ):
+                results = schedule(
+                    items,
+                    run,
+                    limit=2,
+                    stopped=attempts.stopped,
+                    on_interrupt=attempts.stop,
+                )
+        finally:
+            for release in releases:
+                release.set()
+            for thread in owned_threads:
+                join(thread, 10)
+            signal.signal(signal.SIGINT, old_handler)
+
+        self.assertEqual(repeated, [True])
+        self.assertEqual(
+            [container.close.call_count for container in containers], [1, 1]
+        )
+        self.assertEqual(sweep.call_count, 2)
+        self.assertEqual([result.status for result in results], ["stopped", "stopped"])
+
+    def test_second_interrupt_during_join_still_returns_results(self) -> None:
+        release, finish, registered = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+        stopped = threading.Event()
+        join = threading.Thread.join
+        owned_threads = []
+        join_count = 0
+        repeated = []
+        old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+
+        def run(item: Job) -> JobResult:
+            registered.set()
+            release.wait(10)
+            finish.wait(10)
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def interrupt_join(thread, *args, **kwargs):
+            nonlocal join_count
+            owned_threads.append(thread)
+            join_count += 1
+            if join_count == 1:
+                self.assertTrue(registered.wait(10))
+                raise KeyboardInterrupt
+            if join_count == 2:
+                signal.raise_signal(signal.SIGINT)
+                repeated.append(True)
+                finish.set()
+            return join(thread, *args, **kwargs)
+
+        try:
+            with mock.patch.object(threading.Thread, "join", interrupt_join):
+                results = schedule(
+                    [job("running")],
+                    run,
+                    limit=1,
+                    stopped=stopped,
+                    on_interrupt=release.set,
+                )
+                handler_after_schedule = signal.getsignal(signal.SIGINT)
+        finally:
+            release.set()
+            finish.set()
+            for thread in owned_threads:
+                join(thread, 10)
+            signal.signal(signal.SIGINT, old_handler)
+
+        self.assertEqual(repeated, [True])
+        self.assertEqual(results[0].status, "stopped")
+        self.assertTrue(stopped.is_set())
+        self.assertIs(handler_after_schedule, signal.default_int_handler)
 
     def test_interrupt_cleanup_failure_removes_a_racing_completion_record(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
