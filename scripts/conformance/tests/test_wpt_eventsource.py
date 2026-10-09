@@ -692,6 +692,56 @@ class WebTestHttpd:
 
 
 class WptAcquisitionTests(unittest.TestCase):
+    @unittest.skipUnless(
+        sys.platform == "win32", "Windows serializes after native spawn"
+    )
+    def test_native_serialization_failure_observes_child_exit_before_file_cleanup(self):
+        from multiprocessing import popen_spawn_win32, reduction
+
+        constructor = popen_spawn_win32.Popen
+        dump = reduction.dump
+        native = []
+        failure = OSError("native serialization write marker")
+
+        def captured_constructor(process):
+            popen = constructor.__new__(constructor)
+            native.append(popen)
+            constructor.__init__(popen, process)
+            return popen
+
+        def failed_dump(value, destination, protocol=None):
+            if isinstance(value, multiprocessing.process.BaseProcess):
+                self.assertIsNotNone(native[0].pid)
+                raise failure
+            return dump(value, destination, protocol)
+
+        try:
+            # The child is real; only the serialization write after CreateProcess
+            # fails. Its EOF exit must be observed by the production owner.
+            with (
+                patch.object(popen_spawn_win32, "Popen", captured_constructor),
+                patch.object(reduction, "dump", failed_dump),
+            ):
+                spawn = multiprocessing.get_context("spawn")
+                result = WptRunFixture().exercise(spawn=spawn)
+
+            observed_exit = native[0].returncode
+            self.assertIsNotNone(
+                observed_exit, "owner did not observe acquired child exit"
+            )
+            self.assertNotEqual(observed_exit, 0)
+            self.assertTrue(result.summary["run_failed"])
+            self.assertIn("native serialization write marker", result.stderr)
+            self.assertIn("exited with status", result.stderr)
+        finally:
+            for popen in native:
+                if popen.poll() is None:
+                    popen.terminate()
+                self.assertIsNotNone(
+                    popen.wait(8), "native fixture child was not reaped"
+                )
+                popen.close()
+
     def exercise_native_acquisition(self, *, interrupt=None, start_error=None):
         context = multiprocessing.get_context("spawn")
         original_popen = context.Process._Popen
