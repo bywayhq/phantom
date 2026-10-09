@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.10`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.11`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -407,6 +407,14 @@ The patch changes `src/ext.rs` and `src/hpack/{encoder,table}.rs`, and adds
 encoder unit tests for both split rules, the indexing of each crumb, the
 sensitivity override, a nameless further value, and the unchanged default.
 
+`cookie-diagnostic-tests.patch` and `cookie-diagnostic-marks.patch` preserve
+the caller's diagnostic sensitivity separately from the crumb's wire rule.
+After encoding, an inserted or reused dynamic entry is marked sensitive so
+Encoder and Table Debug omit its value. The tests use runtime canaries,
+retained decoding, and exact initial and repeated wire-byte controls under
+both split rules. This protects encoder-cache diagnostics; it does not
+establish redaction of every connection buffer.
+
 ## HPACK indexing rules
 
 The encoder profile above leaves the rest of the indexing policy upstream's:
@@ -538,8 +546,8 @@ clears the mark on a `proxy-authorization` value, and on each nameless
 further value of that field, before indexing it, so the field indexing rule
 decides its representation as it would for an unmarked value. The value keeps
 its mark everywhere outside the encoder, so a request's `Debug` output still
-hides it. Once the encoder has written a field it inserted, it marks the
-table entry sensitive again, so the connection's `Debug` output hides it too.
+hides it. Once the encoder has written an inserted or reused field, it marks
+the retained table entry sensitive again, so the table's `Debug` output hides it.
 Only the insertion reads an entry's sensitivity, when `encode_header` writes
 it; lookups compare values alone, and a later match is decided by the
 incoming field's mark. Other sensitive fields are unaffected.

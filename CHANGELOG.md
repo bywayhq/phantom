@@ -2450,6 +2450,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Hide caller-marked sensitive cookie crumbs in HTTP/2 encoder-cache Debug
+  output while retaining the profile's initial and repeated wire encoding.
+
 - Reject shell syntax in QUIC conformance image arguments before changing
   the runner registry.
 
