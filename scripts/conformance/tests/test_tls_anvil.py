@@ -415,6 +415,59 @@ class TlsAnvilCleanupTests(unittest.TestCase):
         self.assertIn("controlled log retention", " ".join(summary["failures"]))
         self.assertEqual(calls[-1][0], ["docker", "rm", "--force", self.container_id])
 
+    def test_log_retention_interrupt_preserves_suite_and_cleanup_failures(self):
+        self.run_status = 7
+        self.removal_status = 9
+        error = KeyboardInterrupt("controlled log retention interrupt")
+
+        with mock.patch.object(
+            tls_anvil, "_bound_log", side_effect=[error, None]
+        ) as retention:
+            try:
+                status, summary, calls, stderr = self.exercise()
+            except KeyboardInterrupt:
+                self.fail("log retention interruption escaped before failure aggregation")
+
+        self.assertNotEqual(status, 0)
+        self.assertEqual(summary["runner_exit_status"], 7)
+        self.assertEqual(summary["strictly_succeeded_tests"], 2)
+        self.assertEqual(retention.call_count, 2)
+        self.assertEqual(
+            [call.args[0].name for call in retention.call_args_list],
+            ["container.log", "adapter.log"],
+        )
+        self.assertEqual(calls[-1][0], ["docker", "rm", "--force", self.container_id])
+        for cause in (
+            "status 7",
+            "status 9",
+            "controlled daemon removal failure",
+            "controlled log retention interrupt",
+        ):
+            self.assertIn(cause, " ".join(summary["failures"]))
+            self.assertIn(cause, stderr)
+
+    def test_lone_log_retention_interrupt_is_reported_before_reraising(self):
+        error = KeyboardInterrupt("controlled lone retention interrupt")
+
+        with (
+            mock.patch.object(
+                tls_anvil, "_bound_log", side_effect=[error, None]
+            ) as retention,
+            self.assertRaises(KeyboardInterrupt) as failed,
+        ):
+            self.exercise()
+
+        self.assertIs(failed.exception, error)
+        self.assertEqual(retention.call_count, 2)
+        summary = json.loads(
+            next(self.reports.glob("smoke-*/summary.json")).read_text(encoding="utf-8")
+        )
+        self.assertEqual(summary["runner_exit_status"], 0)
+        self.assertEqual(summary["strictly_succeeded_tests"], 2)
+        self.assertIn(
+            "controlled lone retention interrupt", " ".join(summary["failures"])
+        )
+
     def test_existing_log_read_failure_is_not_treated_as_absence(self):
         log = self.reports / "retained.log"
         log.write_text("retained diagnostic", encoding="utf-8")
@@ -447,6 +500,34 @@ class TlsAnvilCleanupTests(unittest.TestCase):
         self.assertIsNone(summary)
         self.assertIn("controlled daemon removal failure", stderr)
         self.assertIn("controlled summary retention", stderr)
+
+    def test_summary_retention_interrupt_preserves_existing_failure_causes(self):
+        self.run_status = 7
+        self.removal_status = 9
+        error = KeyboardInterrupt("controlled summary retention interrupt")
+        write_text = Path.write_text
+
+        def retain(path, *args, **options):
+            if path.name == "summary.json":
+                raise error
+            return write_text(path, *args, **options)
+
+        with mock.patch.object(Path, "write_text", new=retain):
+            try:
+                status, summary, calls, stderr = self.exercise()
+            except KeyboardInterrupt:
+                self.fail("summary interruption discarded existing failure causes")
+
+        self.assertNotEqual(status, 0)
+        self.assertIsNone(summary)
+        self.assertEqual(calls[-1][0], ["docker", "rm", "--force", self.container_id])
+        for cause in (
+            "status 7",
+            "status 9",
+            "controlled daemon removal failure",
+            "controlled summary retention interrupt",
+        ):
+            self.assertIn(cause, stderr)
 
 
 if __name__ == "__main__":
