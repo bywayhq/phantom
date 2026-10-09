@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
-use phantom_net::{http1::Http1Connection, http2::Http2Connection};
+use phantom_net::{http1::Http1Connection, http1_or_2::Http1Or2Connection, http2::Http2Connection};
 use phantom_profile::browser::chrome;
 use tokio::{
     io::{DuplexStream, duplex},
@@ -32,7 +32,9 @@ fn bound(value: usize) -> Result<NonZeroUsize, Box<dyn std::error::Error>> {
 async fn http1() -> Result<(PooledConnection, DuplexStream), Box<dyn std::error::Error>> {
     let (client, server) = duplex(1024);
     Ok((
-        PooledConnection::Http1(Http1Connection::connect(client).await?),
+        PooledConnection::try_from(Http1Or2Connection::Http1(
+            Http1Connection::connect(client).await?,
+        ))?,
         server,
     ))
 }
@@ -41,7 +43,10 @@ async fn http1() -> Result<(PooledConnection, DuplexStream), Box<dyn std::error:
 async fn http2() -> Result<(PooledConnection, DuplexStream), Box<dyn std::error::Error>> {
     let (client, server) = duplex(64 * 1024);
     let connection = Http2Connection::connect(client, &chrome::v154_http2()).await?;
-    Ok((PooledConnection::Http2(connection), server))
+    Ok((
+        PooledConnection::try_from(Http1Or2Connection::Http2(connection))?,
+        server,
+    ))
 }
 
 fn key(host: &str) -> Result<PoolKey, Box<dyn std::error::Error>> {
@@ -287,7 +292,15 @@ async fn failed_setup_releases_requests_waiting_for_it() -> TestResult {
         tokio::spawn(async move { connections.setup_finished().await })
     };
     tokio::task::yield_now().await;
-    drop(setup);
+    let rejected = {
+        let _reservation = setup;
+        Err::<Acquired, _>(crate::RequestError::unsupported_transport_outcome())
+    };
+    let error = rejected
+        .err()
+        .ok_or("unsupported setup result was accepted")?;
+    assert_eq!(error.kind(), crate::RequestErrorKind::ProtocolUnavailable);
+    assert_eq!(connections.lock().connecting, 0);
     timeout(Duration::from_secs(5), waiter).await??;
     assert!(matches!(
         connections.before_admission(false),

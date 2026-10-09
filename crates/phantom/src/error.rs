@@ -174,6 +174,7 @@ impl BuildError {
             | Http1Or2TlsErrorKind::HttpProxy
             | Http1Or2TlsErrorKind::Http1
             | Http1Or2TlsErrorKind::UnsupportedAlpn => BuildErrorKind::ProtocolConfiguration,
+            _ => BuildErrorKind::ProtocolConfiguration,
         };
         Self::with_source(
             kind,
@@ -200,6 +201,7 @@ impl BuildError {
             | Http3ConnectorErrorKind::ExtendedConnectUnavailable => {
                 BuildErrorKind::ProtocolConfiguration
             }
+            _ => BuildErrorKind::ProtocolConfiguration,
         };
         Self::with_source(kind, "failed to configure HTTP/3", source)
     }
@@ -273,6 +275,7 @@ fn tls_build_error_kind(kind: TlsErrorKind) -> BuildErrorKind {
         TlsErrorKind::BackendConfiguration
         | TlsErrorKind::UnsupportedSetting
         | TlsErrorKind::Handshake => BuildErrorKind::ProtocolConfiguration,
+        _ => BuildErrorKind::ProtocolConfiguration,
     }
 }
 
@@ -287,6 +290,7 @@ fn classify_http1_build_error(error: &Http1TlsError) -> BuildErrorKind {
         | Http1TlsError::Socks5Proxy(_)
         | Http1TlsError::Http1(_)
         | Http1TlsError::UnsupportedAlpn { .. } => BuildErrorKind::ProtocolConfiguration,
+        _ => BuildErrorKind::ProtocolConfiguration,
     }
 }
 
@@ -307,6 +311,7 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
         | Http2TlsError::InvalidPeerApplicationSettings { .. } => {
             BuildErrorKind::ProtocolConfiguration
         }
+        _ => BuildErrorKind::ProtocolConfiguration,
     }
 }
 
@@ -330,7 +335,8 @@ pub enum RequestErrorKind {
     /// lists when content decoding is enabled.
     RequestTemplate,
     /// The selected protocol is absent from the client profile, or a
-    /// negotiated request's profile lacks HTTP/2 or `http/1.1` ALPN.
+    /// negotiated request's profile lacks HTTP/2 or `http/1.1` ALPN. The
+    /// transport may also return an outcome this client cannot handle.
     ProtocolUnavailable,
     /// The selected route cannot carry the requested protocol.
     UnsupportedRoute,
@@ -696,6 +702,13 @@ impl RequestError {
         }
     }
 
+    pub(crate) fn unsupported_transport_outcome() -> Self {
+        Self::without_source(
+            RequestErrorKind::ProtocolUnavailable,
+            "transport returned an unsupported connection outcome",
+        )
+    }
+
     pub(crate) fn unsupported_negotiation() -> Self {
         Self::without_source(
             RequestErrorKind::ProtocolUnavailable,
@@ -830,6 +843,7 @@ impl RequestError {
                 Http1TlsError::Http1(_)
                 | Http1TlsError::UnsupportedAlpn { .. }
                 | Http1TlsError::MissingHttp1Alpn => RequestErrorKind::Http1,
+                _ => RequestErrorKind::ProtocolUnavailable,
             }
         };
         let retryability = if matches!(
@@ -884,6 +898,7 @@ impl RequestError {
                 | Http2TlsError::UnsupportedAlpn { .. }
                 | Http2TlsError::InvalidPeerApplicationSettings { .. }
                 | Http2TlsError::MissingHttp2Alpn => RequestErrorKind::Http2,
+                _ => RequestErrorKind::ProtocolUnavailable,
             }
         };
         Self::with_source(
@@ -953,6 +968,7 @@ impl RequestError {
             Http1Or2TlsErrorKind::Socks5Proxy | Http1Or2TlsErrorKind::HttpProxy => {
                 (RequestErrorKind::Proxy, None)
             }
+            _ => (RequestErrorKind::ProtocolUnavailable, None),
         };
         Self::with_source(
             kind,
@@ -976,6 +992,7 @@ impl RequestError {
             | Http1Or2TlsError::UnsupportedAlpn { .. }
             | Http1Or2TlsError::MissingHttp1Alpn
             | Http1Or2TlsError::MissingHttp2Alpn => false,
+            _ => false,
         };
         let mut error = Self::http1_or_2(source);
         if retryable {
@@ -1025,6 +1042,7 @@ impl RequestError {
                 | Http3ConnectorErrorKind::Protocol
                 | Http3ConnectorErrorKind::Local
                 | Http3ConnectorErrorKind::ExtendedConnectUnavailable => RequestErrorKind::Http3,
+                _ => RequestErrorKind::ProtocolUnavailable,
             }
         };
         Self::with_source(
@@ -1047,6 +1065,7 @@ impl RequestError {
                 Http3Unprocessed::RequestRejected
                 | Http3Unprocessed::GoAway
                 | Http3Unprocessed::EarlyDataRejected => true,
+                _ => false,
             });
         let mut error = Self::http3(source);
         if unprocessed {
@@ -1274,6 +1293,7 @@ fn is_retryable_http1_connection_setup(source: &Http1TlsError) -> bool {
         | Http1TlsError::Http1(_)
         | Http1TlsError::UnsupportedAlpn { .. }
         | Http1TlsError::MissingHttp1Alpn => false,
+        _ => false,
     }
 }
 
@@ -1289,6 +1309,7 @@ fn is_retryable_http2_connection_setup(source: &Http2TlsError) -> bool {
         | Http2TlsError::UnsupportedAlpn { .. }
         | Http2TlsError::InvalidPeerApplicationSettings { .. }
         | Http2TlsError::MissingHttp2Alpn => false,
+        _ => false,
     }
 }
 
@@ -1317,6 +1338,7 @@ fn socks5_request_error_kind(kind: Socks5ErrorKind) -> RequestErrorKind {
         | Socks5ErrorKind::Negotiation
         | Socks5ErrorKind::Authentication
         | Socks5ErrorKind::Rejected => RequestErrorKind::Proxy,
+        _ => RequestErrorKind::Proxy,
     }
 }
 
@@ -1372,6 +1394,7 @@ impl Http3ProxyFailure {
                 | ConnectUdpErrorKind::Authentication
                 | ConnectUdpErrorKind::Protocol,
             ) => RequestErrorKind::Proxy,
+            Self::ConnectUdp(_) => RequestErrorKind::Proxy,
         }
     }
 
@@ -1429,6 +1452,7 @@ pub(crate) fn is_unprocessed_http2(error: &Http2Error) -> bool {
             Http2ProtocolErrorKind::Transport
             | Http2ProtocolErrorKind::Protocol
             | Http2ProtocolErrorKind::Local => false,
+            _ => false,
         },
         _ => false,
     }
@@ -1542,6 +1566,27 @@ mod tests {
         let http2 = RequestError::http2(Http2TlsError::Http2(Http2Error::RuntimeUnavailable));
         assert_eq!(http2.kind(), RequestErrorKind::RuntimeUnavailable);
         assert_eq!(http2.protocol(), Some(HttpProtocol::Http2));
+    }
+
+    #[test]
+    fn unsupported_transport_outcome_has_no_invented_identity_or_replay_signal() {
+        let error = RequestError::unsupported_transport_outcome();
+
+        assert_eq!(error.kind(), RequestErrorKind::ProtocolUnavailable);
+        assert_eq!(error.protocol(), None);
+        assert_eq!(error.timeout_phase(), None);
+        assert!(error.origin().is_none());
+        assert!(std::error::Error::source(&error).is_none());
+        assert_eq!(
+            error.replay_observation(),
+            super::RequestReplayObservation::Unknown,
+        );
+        assert!(!error.is_retryable_connection_setup());
+        assert!(!error.http3_setup_failed);
+        assert_eq!(
+            error.to_string(),
+            "transport returned an unsupported connection outcome"
+        );
     }
 
     #[test]

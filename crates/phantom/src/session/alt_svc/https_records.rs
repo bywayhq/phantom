@@ -453,6 +453,7 @@ fn summarize(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> RecordS
             TargetName::Name(name) => {
                 name.eq_ignore_ascii_case(host) || name.eq_ignore_ascii_case(owner)
             }
+            _ => false,
         };
         let same_port = service.port().is_none_or(|record_port| record_port == port);
         if !compatible || !same_target || !same_port {

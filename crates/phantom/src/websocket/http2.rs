@@ -514,5 +514,8 @@ async fn finish_http2(
             )
             .await)
         }
+        _ => Err(WebSocketError::request(
+            RequestError::unsupported_transport_outcome(),
+        )),
     }
 }

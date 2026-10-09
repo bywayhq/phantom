@@ -1175,6 +1175,12 @@ impl Http3Lease {
                 drop(permit);
                 Err(error)
             }
+            Ok(Ok(_)) => {
+                drop(stream);
+                drop(permit);
+                entry.invalidate(&lease.token);
+                Err(RequestError::unsupported_transport_outcome())
+            }
         }
     }
 }

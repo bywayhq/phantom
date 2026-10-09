@@ -336,6 +336,9 @@ impl WebSocketRequestBuilder {
                 )
                 .await)
             }
+            _ => Err(WebSocketError::request(
+                RequestError::unsupported_transport_outcome(),
+            )),
         }
     }
 }

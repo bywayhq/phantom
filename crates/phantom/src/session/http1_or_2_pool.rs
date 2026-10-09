@@ -1195,7 +1195,8 @@ impl PoolEntry {
         // one that reuses a pooled connection.
         let (connection, slower) =
             super::box_send(self.open(connector, https_proxy, endpoint, route)).await?;
-        let acquired = reservation.finish(connection.into());
+        let connection = PooledConnection::try_from(connection)?;
+        let acquired = reservation.finish(connection);
         // Adopted after the first connection, so a slower H1 connection
         // finds the key's protocol already chosen.
         if let Some(slower) = slower {
@@ -1722,6 +1723,14 @@ impl EntryConnections {
                     self.idle_added();
                 }
             }
+            Some(connection) => {
+                drop(state);
+                debug!(
+                    outcome = "unsupported",
+                    "negotiated slower backup connection discarded"
+                );
+                drop(connection);
+            }
         }
         // A claimant whose claim is dropped here chooses again: the H2
         // connection, an idle one, or a new one.
@@ -2211,11 +2220,14 @@ enum PooledConnection {
     Http2(Http2Connection),
 }
 
-impl From<Http1Or2Connection> for PooledConnection {
-    fn from(connection: Http1Or2Connection) -> Self {
+impl TryFrom<Http1Or2Connection> for PooledConnection {
+    type Error = RequestError;
+
+    fn try_from(connection: Http1Or2Connection) -> Result<Self, Self::Error> {
         match connection {
-            Http1Or2Connection::Http1(connection) => Self::Http1(connection),
-            Http1Or2Connection::Http2(connection) => Self::Http2(connection),
+            Http1Or2Connection::Http1(connection) => Ok(Self::Http1(connection)),
+            Http1Or2Connection::Http2(connection) => Ok(Self::Http2(connection)),
+            _ => Err(RequestError::unsupported_transport_outcome()),
         }
     }
 }

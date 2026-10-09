@@ -286,12 +286,13 @@ impl AltSvcStore {
         self.learn_frames_at(
             origin,
             route,
-            frames.as_slice().iter().map(|frame| {
+            frames.as_slice().iter().filter_map(|frame| {
                 let scope = match frame.scope() {
                     AltSvcFrameScope::Connection(origin) => Some(origin.as_ref()),
                     AltSvcFrameScope::Stream => None,
+                    _ => return None,
                 };
-                (scope, frame.field_value())
+                Some((scope, frame.field_value()))
             }),
             Instant::now(),
         );
