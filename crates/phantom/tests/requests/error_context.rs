@@ -47,7 +47,7 @@ async fn preflight_error_has_a_safe_origin_and_unparsed_input_has_none() -> Test
         else {
             return Err("caller Host was accepted".into());
         };
-        assert_eq!(error.kind(), RequestErrorKind::InvalidAuthority);
+        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
         let origin = error.origin().ok_or("missing validated origin")?;
         assert_eq!(origin.scheme(), "https");
         assert_eq!(origin.host(), "xn--bcher-kva.example");
