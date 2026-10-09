@@ -726,8 +726,7 @@ impl PoolEntry {
                     ProxyTransport::Tcp(endpoint)
                 };
                 if mode == Http1ConnectionMode::Forward {
-                    return connector
-                        .connect(Http1Route::Forward(transport))
+                    return super::box_send(connector.connect(Http1Route::Forward(transport)))
                         .await
                         .map_err(RequestError::http1_connection_setup);
                 }
@@ -757,14 +756,9 @@ impl PoolEntry {
             }
         };
         let operation = connector.connect(Http1Route::Origin(origin));
-        // Bound the challenge/retry future only for authenticated proxies.
-        let opened = if matches!(route, Route::HttpProxy(proxy) if proxy.basic_credentials().is_some())
-        {
-            super::box_send(operation).await
-        } else {
-            operation.await
-        };
-        opened.map_err(RequestError::http1_connection_setup)
+        super::box_send(operation)
+            .await
+            .map_err(RequestError::http1_connection_setup)
     }
 }
 
