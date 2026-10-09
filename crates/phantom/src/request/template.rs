@@ -230,7 +230,11 @@ pub(crate) fn expand_on_route(
         match field {
             RequestField::Literal { name, .. } | RequestField::ByTrust { name, .. } => {
                 if !place(name, &mut expanded)
-                    && let Some(value) = field.default_value(trustworthy)
+                    && let Some(value) = field.default_value(if trustworthy {
+                        phantom_profile::UrlTrust::PotentiallyTrustworthy
+                    } else {
+                        phantom_profile::UrlTrust::Untrustworthy
+                    })
                 {
                     expanded.push(RequestHeader::new(&**name, value.as_bytes()));
                 }
@@ -553,7 +557,13 @@ fn default_value<'a>(fields: &'a [RequestField], name: &str, trustworthy: bool) 
                 .name()
                 .is_some_and(|field_name| field_name.eq_ignore_ascii_case(name))
         })
-        .and_then(|field| field.default_value(trustworthy))
+        .and_then(|field| {
+            field.default_value(if trustworthy {
+                phantom_profile::UrlTrust::PotentiallyTrustworthy
+            } else {
+                phantom_profile::UrlTrust::Untrustworthy
+            })
+        })
 }
 
 #[cfg(test)]

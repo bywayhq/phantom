@@ -952,7 +952,9 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             .http2_fields
             .iter()
             .find(|field| field.name() == Some("user-agent"))
-            .and_then(|field| field.default_value(true))
+            .and_then(|field| {
+                field.default_value(phantom::profile::UrlTrust::PotentiallyTrustworthy)
+            })
             .ok_or("template has no user-agent")?
             .as_bytes()
             .to_vec();

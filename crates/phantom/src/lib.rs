@@ -287,9 +287,10 @@ pub mod profile {
         TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection,
         TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
         TlsSettings, TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder,
-        TrustAnchorOrders, UdpSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
-        WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
-        WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
+        TrustAnchorOrders, UdpSettings, UnknownCipherSuite, UrlTrust, ValidationErrorKind,
+        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
+        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
+        WebSocketRefusedStreamRetry, WebSocketSettings,
     };
 
     /// Browser recipes and composed profiles grouped by brand and platform.

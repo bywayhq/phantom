@@ -2,6 +2,7 @@
 //!
 //! Covers profile construction through the public API.
 
+mod api_policy;
 mod browser_profiles;
 mod http3_public_api;
 mod quic_public_api;

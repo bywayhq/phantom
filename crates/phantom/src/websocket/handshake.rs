@@ -589,7 +589,11 @@ pub(super) fn profile_headers(
                 WebSocketHeader::Field(RequestHeader::new(name.clone(), value.as_bytes()))
             }
             WebSocketField::Caller { name } => WebSocketHeader::caller_field(name.clone()),
-            WebSocketField::ByTrust { name, .. } => match field.default_value(trustworthy) {
+            WebSocketField::ByTrust { name, .. } => match field.default_value(if trustworthy {
+                phantom_profile::UrlTrust::PotentiallyTrustworthy
+            } else {
+                phantom_profile::UrlTrust::Untrustworthy
+            }) {
                 Some(value) => WebSocketHeader::default_field(RequestHeader::new(
                     name.clone(),
                     value.as_bytes(),

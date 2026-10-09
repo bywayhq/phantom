@@ -14,6 +14,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Allow transport enums to grow and retire unused validator wrappers.
+  Migrate: keep a fallback arm when matching public `phantom-net` enums.
+  Validate bodies with the retained source-body validators or protocol
+  operations. Inspect `kind()` on HTTP/1.1 and HTTP/2 errors and TLS errors
+  for a stable category; their typed source chains remain available.
+
+- Replace boolean URL trust selectors with `UrlTrust`. Migrate: pass
+  `UrlTrust::PotentiallyTrustworthy` or `UrlTrust::Untrustworthy` to
+  `RequestField::default_value` and `WebSocketField::default_value`.
+  Profile validation errors now expose `ValidationErrorKind` through
+  `kind()`. Field names and reasons remain diagnostic details.
+
 - Check required request-template slots only on reachable protocols. Migrate:
   supply fields required by the selected protocol, negotiated protocols, and
   enabled HTTP/2 fallback. A pinned HTTP/3 alternative needs only HTTP/3

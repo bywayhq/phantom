@@ -1299,7 +1299,8 @@ fn fill_callers(
         if let Some((_, value)) = captured
             .iter()
             .find(|(captured, _)| captured.eq_ignore_ascii_case(name))
-            && field.default_value(true) != Some(value.as_str())
+            && field.default_value(phantom::profile::UrlTrust::PotentiallyTrustworthy)
+                != Some(value.as_str())
         {
             builder = builder.header(RequestHeader::new(name.clone(), value.as_str()));
         }
