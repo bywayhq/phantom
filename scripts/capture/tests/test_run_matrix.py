@@ -730,15 +730,18 @@ def container_awaiting(path: Path, seconds: float = 60) -> type[ProcessContainer
     """
 
     class Awaiting(ProcessContainer):
-        def __init__(self, process) -> None:
-            super().__init__(process)
+        def start(self) -> bool:
+            started = super().start()
+            if not started:
+                return False
             deadline = time.monotonic() + seconds
             while (
                 not path.exists()
-                and process.poll() is None
+                and self.process.poll() is None
                 and time.monotonic() < deadline
             ):
                 time.sleep(0.05)
+            return True
 
     return Awaiting
 

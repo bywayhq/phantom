@@ -1,10 +1,10 @@
 """Hold a capture attempt's process tree so it can be stopped as one.
 
-On Windows each attempt's tool process joins a Job Object created with
-`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. Browsers the tool starts join the same
-job, so closing the handle, or the runner exiting for any reason, ends every
-process of the attempt. On other systems the tool leads a new process group;
-browser_launch.py starts browsers in groups of their own, so a stop also ends
+On Windows a trusted bootstrap waits for release inside a kill-on-close Job
+Object before starting the capture interpreter. Ordinary children inherit
+that job, so runner exit also ends them. On other systems the tool leads a
+new process group. browser_launch.py starts browsers in groups of their own,
+so a stop also ends
 every process whose command line names the attempt's temporary directory.
 """
 
@@ -15,7 +15,10 @@ import os
 import signal
 import subprocess
 import sys
+import threading
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import BinaryIO
 
 JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS = 9
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
@@ -23,40 +26,102 @@ PROCESS_SET_QUOTA = 0x0100
 PROCESS_TERMINATE = 0x0001
 
 
-def popen_options() -> dict[str, object]:
-    """Extra `subprocess.Popen` arguments for a process to be contained."""
-    if sys.platform == "win32":
-        return {}
-    return {"start_new_session": True}
+# No site or capture imports execute before the gate. The normal child keeps
+# the original interpreter's environment, site/venv setup and command line.
+_BOOTSTRAP = """import sys
+if sys.stdin.buffer.read(1) != b'G':
+    raise SystemExit(125)
+sys.stdin.close()
+import subprocess
+code = subprocess.call(sys.argv[1:], stdin=subprocess.DEVNULL)
+# Preserve the full Windows DWORD exit status through Python's signed int.
+raise SystemExit(code if code < (1 << 31) else code - (1 << 32))
+"""
+
+
+def _bootstrap_command(command: Sequence[str]) -> list[str]:
+    return [sys.executable, "-I", "-S", "-c", _BOOTSTRAP, *command]
 
 
 class ProcessContainer:
-    """The process tree of one attempt; `close` ends whatever still runs."""
+    """Own an attempt before releasing its tool with `start`.
 
-    def __init__(self, process: subprocess.Popen[bytes]) -> None:
-        self.process = process
+    Windows job refusal fails before the tool runs. `close` also disposes of
+    an unreleased bootstrap. POSIX starts in its own group immediately.
+    """
+
+    def __init__(
+        self,
+        command: Sequence[str],
+        *,
+        stdout: BinaryIO | int | None = None,
+        stderr: BinaryIO | int | None = None,
+        env: Mapping[str, str] | None = None,
+    ) -> None:
+        self._lock = threading.Lock()
+        self._started = False
+        self._closed = False
+        self._gate: BinaryIO | None = None
         self.job: int | None = None
+        windows = sys.platform == "win32"
+        self.process = subprocess.Popen(
+            _bootstrap_command(command) if windows else list(command),
+            stdin=subprocess.PIPE if windows else subprocess.DEVNULL,
+            stdout=stdout,
+            stderr=stderr,
+            env=env,
+            close_fds=True,
+            **({"bufsize": 0} if windows else {"start_new_session": True}),
+        )
         if sys.platform == "win32":
-            self.job = _windows_job(process.pid)
-        # Whether every descendant is stopped with the container. False when
-        # Windows refused the Job Object; `close` then stops the process tree
-        # by parent and relies on the caller's profile sweep. Kept after
-        # `close`, which releases the job.
-        self.contained = sys.platform != "win32" or self.job is not None
+            self._gate = self.process.stdin
+            try:
+                self.job = _windows_job(self.process.pid)
+                if self.job is None:
+                    raise OSError("Windows refused the capture job object")
+            except BaseException:
+                self.close()
+                raise
+        # The assigned job or POSIX group, not a claim about external brokers.
+        # Retained after close for reporting.
+        self.contained = True
+
+    def start(self) -> bool:
+        """Release the assigned tool once; a closed container cannot start."""
+        try:
+            with self._lock:
+                if self._closed:
+                    return False
+                if self._started:
+                    return True
+                gate, self._gate = self._gate, None
+                if gate is not None:
+                    try:
+                        if gate.write(b"G") != 1:
+                            raise OSError("the capture gate was not released")
+                        gate.flush()
+                    finally:
+                        gate.close()
+                self._started = True
+                return True
+        except BaseException:
+            self.close()
+            raise
 
     def close(self) -> None:
         """End every process still in the container. Safe to call twice."""
-        if sys.platform == "win32":
+        with self._lock:
+            self._closed = True
             job, self.job = self.job, None
+            gate, self._gate = self._gate, None
+            if gate is not None:
+                gate.close()
+        if sys.platform == "win32":
             if job is not None:
                 _windows_close_job(job)
             elif self.process.poll() is None:
-                subprocess.run(
-                    ["taskkill", "/PID", str(self.process.pid), "/T", "/F"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=False,
-                )
+                # Assignment failed: only the blocked bootstrap exists.
+                self.process.kill()
         else:
             with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(self.process.pid, signal.SIGKILL)
@@ -64,12 +129,13 @@ class ProcessContainer:
             self.process.wait(timeout=10)
         except subprocess.TimeoutExpired:
             self.process.kill()
+            self.process.wait(timeout=10)
 
 
 def stop_processes_naming(directory: Path) -> None:
     """End processes whose command line names `directory`, such as browsers.
 
-    The browser launcher's own sweep does the matching, so outside Windows
+    The browser launcher's own sweep does the matching, so
     `directory` must appear as a whole path component: a person's browser
     whose profile path merely starts with the same text is left alone.
     """
@@ -106,8 +172,7 @@ def _kernel32():
 def _windows_job(pid: int) -> int | None:
     """Create a kill-on-close job holding `pid`, or None if Windows refuses.
 
-    The tool is assigned just after it starts. It is a Python interpreter that
-    imports its modules before it starts any browser, so no child exists yet.
+    The caller keeps the bootstrap behind its gate until assignment succeeds.
     """
     import ctypes
     from ctypes import wintypes
@@ -171,6 +236,9 @@ def _windows_job(pid: int) -> int | None:
     except OSError:
         kernel32.CloseHandle(job)
         return None
+    except BaseException:
+        kernel32.CloseHandle(job)
+        raise
     finally:
         if process:
             kernel32.CloseHandle(process)

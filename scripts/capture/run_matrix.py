@@ -30,7 +30,7 @@ from pathlib import Path
 
 from .browser_launch import FIREFOX_START_LIMIT_SECONDS, LAUNCH_LOCK_DIRECTORY
 from .fixture_file import write_atomically
-from .process_container import ProcessContainer, popen_options, stop_processes_naming
+from .process_container import ProcessContainer, stop_processes_naming
 
 # Shared by every runner on the host, so launches take turns across runners
 # too. Each job's TEMP points elsewhere, so the path is fixed here.
@@ -767,19 +767,18 @@ def run_attempt(
     begin = time.perf_counter()
     detail = ""
     with log.open("wb") as output:
-        process = subprocess.Popen(
+        container = ProcessContainer(
             job.command(sys.executable, netlog),
-            stdin=subprocess.DEVNULL,
             stdout=output,
             stderr=subprocess.STDOUT,
             env=environment,
-            **popen_options(),
         )
-        container = ProcessContainer(process)
-        if not attempts.add(name, container, temporary):
-            end_attempt(container, temporary)
         try:
-            code = process.wait(timeout=timeout)
+            if attempts.add(name, container, temporary):
+                container.start()
+            else:
+                end_attempt(container, temporary)
+            code = container.process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             code = None
             detail = f"timed out after {timeout:g}s"
@@ -788,9 +787,6 @@ def run_attempt(
             end_attempt(container, temporary)
     seconds = time.perf_counter() - begin
     shutil.rmtree(temporary, ignore_errors=True)
-    if not container.contained:
-        with log.open("ab") as output:
-            output.write(b"run_matrix: Windows refused the job object\n")
     if code != 0 and attempts.stopped.is_set():
         detail = "stopped"
     elif code is not None and code != 0:
