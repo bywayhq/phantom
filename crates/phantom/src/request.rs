@@ -306,9 +306,21 @@ impl RequestBuilder {
         self
     }
 
+    /// The template conditions of a request that can reach the wire.
+    #[cfg(feature = "sse")]
+    pub(crate) fn supported_template_conditions(&self) -> Option<(bool, bool)> {
+        let route = self.selected_route();
+        ensure_request_supported(self.selection, &route, &self.request).ok()?;
+        Some((
+            secure_context::is_potentially_trustworthy(&self.request.url),
+            route.forwards(&self.request.uri),
+        ))
+    }
+
     #[cfg(feature = "sse")]
     pub(crate) fn protect_event_source_headers(mut self) -> Self {
         self.protected_hook_headers = &["last-event-id"];
+        self.request.managed_headers = self.protected_hook_headers;
         self
     }
 
@@ -963,12 +975,17 @@ impl RequestBuilder {
                 alt_svc: self.client.alt_svc_enabled() && route.carries_quic_alternative(),
                 content_decoding: content_decoding.is_enabled(),
             };
-            template::check(
+            template::check_with_managed_headers(
                 template,
                 scope,
                 initial_fallback,
                 &self.headers,
                 self.client.inner.client_hints.as_ref(),
+                self.request.managed_headers,
+                (
+                    secure_context::is_potentially_trustworthy(&self.request.url),
+                    route.forwards(&self.request.uri),
+                ),
             )?;
         }
         // A template's `Accept-Encoding` depends on whether the URL is
@@ -1124,7 +1141,7 @@ impl RequestBuilder {
                     .map_err(|error| error.with_origin(resolved.origin()))?;
             }
             if let Some(template) = &resolved.template {
-                template::check(
+                template::check_with_managed_headers(
                     template,
                     template::ProtocolScope {
                         exact: match selection {
@@ -1137,6 +1154,11 @@ impl RequestBuilder {
                     http2_fallback && resolved.alternative.is_none(),
                     redirect.headers(),
                     client.inner.client_hints.as_ref(),
+                    resolved.managed_headers,
+                    (
+                        secure_context::is_potentially_trustworthy(&resolved.url),
+                        route.forwards(&resolved.uri),
+                    ),
                 )
                 .map_err(|error| error.with_origin(resolved.origin()))?;
             }
@@ -1201,11 +1223,13 @@ impl RequestBuilder {
                         template = template.map(|template| template.without_credentials());
                     }
                     let expect_continue = resolved.expect_continue;
+                    let managed_headers = resolved.managed_headers;
                     let alternative = resolved.alternative.take().filter(|_| same_origin);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())
                         .map_err(|error| error.with_origin(resolved.origin()))?;
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
+                    resolved.managed_headers = managed_headers;
                     resolved.alternative = alternative;
                 }
             }
@@ -1572,6 +1596,8 @@ struct ResolvedRequest {
     target: OriginForm,
     absolute_target: AbsoluteForm,
     template: Option<PreparedRequestTemplate>,
+    /// Fields owned by a higher-level request, excluded from hint handling.
+    managed_headers: &'static [&'static str],
     /// How long each attempt waits for `100 Continue` before it sends a
     /// body, when it sends `Expect: 100-continue`.
     expect_continue: Option<std::time::Duration>,
@@ -1638,6 +1664,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            managed_headers: &[],
             expect_continue: None,
             alternative: None,
         })
@@ -1680,6 +1707,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            managed_headers: &[],
             expect_continue: None,
             alternative: None,
         })

@@ -198,12 +198,24 @@ pub(crate) fn expand(
 /// tells whether a slot placed them; the caller appends them otherwise.
 /// Without generated credentials, a forwarded request's caller field of that
 /// name takes the first slot that covers a preemptive attempt.
+#[cfg(test)]
 pub(crate) fn expand_on_route(
     fields: &[RequestField],
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
     trustworthy: bool,
     route: Forwarding<'_>,
+) -> (Vec<RequestHeader>, bool) {
+    expand_on_route_with_managed_headers(fields, caller, hints, trustworthy, route, &[])
+}
+
+pub(crate) fn expand_on_route_with_managed_headers(
+    fields: &[RequestField],
+    caller: &[RequestHeader],
+    hints: Option<&ClientHintSettings>,
+    trustworthy: bool,
+    route: Forwarding<'_>,
+    managed: &[&str],
 ) -> (Vec<RequestHeader>, bool) {
     let mut credentials = route.credentials;
     let mut used = vec![false; caller.len()];
@@ -269,12 +281,15 @@ pub(crate) fn expand_on_route(
                     place(name, &mut expanded);
                 }
             }
-            RequestField::Caller { name, .. } | RequestField::ClientHint { name } => {
+            RequestField::Caller { name, .. } => {
+                place(name, &mut expanded);
+            }
+            RequestField::ClientHint { name } if !is_managed(managed, name) => {
                 place(name, &mut expanded);
             }
             RequestField::ClientHints => {
                 for hint in hints.map_or(&[][..], ClientHintSettings::hints) {
-                    if !slotted.contains(&hint.name()) {
+                    if !slotted.contains(&hint.name()) && !is_managed(managed, hint.name()) {
                         place(hint.name(), &mut expanded);
                     }
                 }
@@ -291,6 +306,52 @@ pub(crate) fn expand_on_route(
     );
     let placed = route.credentials.is_some() && credentials.is_none();
     (expanded, placed)
+}
+
+/// Whether the actual URL and route would insert a managed field absent from the caller.
+pub(crate) fn supplies_managed_default(
+    fields: &[RequestField],
+    caller: &[RequestHeader],
+    managed: &[&str],
+    (trustworthy, forwarded): (bool, bool),
+) -> bool {
+    fields.iter().any(|field| {
+        let Some(name) = field.name().filter(|name| is_managed(managed, name)) else {
+            return false;
+        };
+        if caller
+            .iter()
+            .any(|header| header.name().eq_ignore_ascii_case(name))
+        {
+            return false;
+        }
+        match field {
+            RequestField::ByForwarding {
+                unforwarded,
+                forwarded: value,
+                ..
+            } => {
+                if forwarded {
+                    value.is_some()
+                } else {
+                    unforwarded.is_some()
+                }
+            }
+            _ => field
+                .default_value(if trustworthy {
+                    phantom_profile::UrlTrust::PotentiallyTrustworthy
+                } else {
+                    phantom_profile::UrlTrust::Untrustworthy
+                })
+                .is_some(),
+        }
+    })
+}
+
+pub(crate) fn is_managed(managed: &[&str], name: &str) -> bool {
+    managed
+        .iter()
+        .any(|managed| managed.eq_ignore_ascii_case(name))
 }
 
 fn respelled(name: &str, header: &RequestHeader) -> RequestHeader {
@@ -470,6 +531,7 @@ pub(crate) fn check_filled_slots(
 /// caller leaves empty, profile hints sent by default when the template has no client-hint slot, or a
 /// caller field carrying a hint the profile sends only on request when the
 /// template does not capture where such hints go.
+#[cfg(test)]
 pub(crate) fn check(
     prepared: &PreparedRequestTemplate,
     scope: ProtocolScope,
@@ -477,7 +539,34 @@ pub(crate) fn check(
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
 ) -> Result<(), RequestError> {
+    check_with_managed_headers(
+        prepared,
+        scope,
+        http2_fallback,
+        caller,
+        hints,
+        &[],
+        (false, false),
+    )
+}
+
+pub(crate) fn check_with_managed_headers(
+    prepared: &PreparedRequestTemplate,
+    scope: ProtocolScope,
+    http2_fallback: bool,
+    caller: &[RequestHeader],
+    hints: Option<&ClientHintSettings>,
+    managed: &[&str],
+    conditions: (bool, bool),
+) -> Result<(), RequestError> {
     let template = &prepared.0.template;
+    if selected_protocols(scope, http2_fallback).any(|protocol| {
+        prepared
+            .fields_for(protocol)
+            .is_some_and(|fields| supplies_managed_default(fields, caller, managed, conditions))
+    }) {
+        return Err(RequestError::request_template_managed_default());
+    }
     let missing_http3 = template.http3_fields.is_none()
         && (scope.exact == Some(HttpProtocol::Http3) || (scope.exact.is_none() && scope.alt_svc));
     if missing_http3 {
@@ -514,6 +603,7 @@ pub(crate) fn check(
         caller.iter().any(|header| {
             settings.hints().iter().any(|hint| {
                 hint.delivery() != ClientHintDelivery::Default
+                    && !is_managed(managed, hint.name())
                     && hint.name().eq_ignore_ascii_case(header.name())
             })
         })
@@ -525,10 +615,9 @@ pub(crate) fn check(
     // a position no capture shows. A Firefox template has none.
     let has_hint_slot = !prepared.0.client_hint_slots.is_empty();
     let sends_default_hints = hints.is_some_and(|settings| {
-        settings
-            .hints()
-            .iter()
-            .any(|hint| hint.delivery() == ClientHintDelivery::Default)
+        settings.hints().iter().any(|hint| {
+            hint.delivery() == ClientHintDelivery::Default && !is_managed(managed, hint.name())
+        })
     });
     if !has_hint_slot && sends_default_hints {
         return Err(RequestError::request_template_unslotted_hints());

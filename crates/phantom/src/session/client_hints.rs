@@ -10,7 +10,9 @@ use phantom_profile::{ClientHintDelivery, ClientHintSettings, request_template::
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
 
-use crate::{PreparedRequestTemplate, RequestError, authority::Endpoint};
+use crate::{
+    PreparedRequestTemplate, RequestError, authority::Endpoint, request::template::is_managed,
+};
 
 const ACCEPT_CH: HeaderName = HeaderName::from_static("accept-ch");
 const CRITICAL_CH: HeaderName = HeaderName::from_static("critical-ch");
@@ -30,6 +32,7 @@ pub(crate) struct ClientHintContext<'a> {
     store: Option<&'a ClientHintStore>,
     template: Option<&'a PreparedRequestTemplate>,
     restart: &'a [usize],
+    managed: &'a [&'a str],
 }
 
 impl<'a> ClientHintContext<'a> {
@@ -46,6 +49,7 @@ impl<'a> ClientHintContext<'a> {
             store,
             template: None,
             restart: &[],
+            managed: &[],
         }
     }
 
@@ -59,6 +63,12 @@ impl<'a> ClientHintContext<'a> {
     /// for.
     pub(crate) fn with_restart_hints(mut self, restart: &'a RestartHints) -> Self {
         self.restart = &restart.indices;
+        self
+    }
+
+    /// Keeps higher-level managed fields out of client-hint generation and placement.
+    pub(crate) fn with_managed_headers(mut self, managed: &'a [&'a str]) -> Self {
+        self.managed = managed;
         self
     }
 
@@ -93,13 +103,14 @@ impl<'a> ClientHintContext<'a> {
             Some(self.restart),
             caller,
             self.template,
+            self.managed,
         );
         // A template without slots places no hint; `check` already refused
         // default hints for it, so only requested hints remain.
         let unplaced = self.template.is_some_and(|template| {
             !template.requested_client_hint_placement() || template.client_hint_slots().is_empty()
         });
-        if unplaced && sends_requested_hint(self.settings, &prepared) {
+        if unplaced && sends_requested_hint(self.settings, &prepared, self.managed) {
             return Err(RequestError::request_template_requested_hint());
         }
         Ok(prepared)
@@ -162,7 +173,9 @@ impl<'a> ClientHintContext<'a> {
             .copied()
             .filter(|index| {
                 let name = self.settings.hints()[*index].name();
-                !is_width_hint(name) && !contains_field(sent, name)
+                !is_width_hint(name)
+                    && !is_managed(self.managed, name)
+                    && !contains_field(sent, name)
             })
             .collect();
         let stored = self.store.and_then(|store| {
@@ -246,10 +259,15 @@ impl<T> Dispatched<T> {
 }
 
 /// Returns whether `fields` carry a hint the profile sends only on request.
-fn sends_requested_hint(settings: &ClientHintSettings, fields: &[RequestHeader]) -> bool {
+fn sends_requested_hint(
+    settings: &ClientHintSettings,
+    fields: &[RequestHeader],
+    managed: &[&str],
+) -> bool {
     fields.iter().any(|field| {
         settings.hints().iter().any(|hint| {
             hint.delivery() != ClientHintDelivery::Default
+                && !is_managed(managed, hint.name())
                 && hint.name().eq_ignore_ascii_case(field.name())
         })
     })
@@ -293,9 +311,10 @@ impl ClientHintStore {
     ) -> Vec<RequestHeader> {
         let origin = OriginKey::new(endpoint, true);
         let active = self.active_indices(&origin);
-        prepare_fields(settings, active.as_deref(), None, caller, None)
+        prepare_fields(settings, active.as_deref(), None, caller, None, &[])
     }
 
+    #[cfg(test)]
     pub(super) fn learn_and_should_retry(
         &self,
         endpoint: &Endpoint,
@@ -303,6 +322,25 @@ impl ClientHintStore {
         settings: &ClientHintSettings,
         response: &HeaderMap,
         sent: &[RequestHeader],
+    ) -> bool {
+        self.learn_and_should_retry_with_managed_headers(
+            endpoint,
+            https,
+            settings,
+            response,
+            sent,
+            &[],
+        )
+    }
+
+    pub(super) fn learn_and_should_retry_with_managed_headers(
+        &self,
+        endpoint: &Endpoint,
+        https: bool,
+        settings: &ClientHintSettings,
+        response: &HeaderMap,
+        sent: &[RequestHeader],
+        managed: &[&str],
     ) -> bool {
         let Some(accept_ch) = parse_header(response, &ACCEPT_CH) else {
             return false;
@@ -318,7 +356,8 @@ impl ClientHintStore {
             .and_then(Result::ok)
             .unwrap_or_default();
         let should_retry = requested.iter().any(|index| {
-            critical.contains(settings.hints()[*index].name())
+            !is_managed(managed, settings.hints()[*index].name())
+                && critical.contains(settings.hints()[*index].name())
                 && !contains_field(sent, settings.hints()[*index].name())
         });
 
@@ -369,7 +408,7 @@ pub(crate) fn prepare_default_fields(
     settings: &ClientHintSettings,
     caller: Vec<RequestHeader>,
 ) -> Vec<RequestHeader> {
-    prepare_fields(settings, None, None, caller, None)
+    prepare_fields(settings, None, None, caller, None, &[])
 }
 
 fn prepare_fields(
@@ -378,12 +417,14 @@ fn prepare_fields(
     restart: Option<&[usize]>,
     caller: Vec<RequestHeader>,
     template: Option<&PreparedRequestTemplate>,
+    managed: &[&str],
 ) -> Vec<RequestHeader> {
     let restart = restart.unwrap_or_default();
     // A hint a restart added is not part of the fields the request was
     // first built with, whether or not the origin stored it since.
     let enabled = |index: usize| {
-        !restart.contains(&index)
+        !is_managed(managed, settings.hints()[index].name())
+            && !restart.contains(&index)
             && (settings.hints()[index].delivery() == ClientHintDelivery::Default
                 || stored.is_some_and(|indices| indices.binary_search(&index).is_ok()))
     };
@@ -391,12 +432,12 @@ fn prepare_fields(
     let mut prepared = if slots.is_empty() {
         place_before_caller(settings, enabled, caller)
     } else {
-        place_in_slots(settings, slots, enabled, caller)
+        place_in_slots(settings, slots, enabled, caller, managed)
     };
     let added: Vec<RequestHeader> = restart
         .iter()
         .map(|index| &settings.hints()[*index])
-        .filter(|hint| !contains_field(&prepared, hint.name()))
+        .filter(|hint| !is_managed(managed, hint.name()) && !contains_field(&prepared, hint.name()))
         .map(|hint| RequestHeader::new(hint.name(), hint.value()))
         .collect();
     // Chromium's merge appends the hints after the navigation's own fields,
@@ -450,19 +491,21 @@ fn place_in_slots(
     slots: &[ClientHintSlot],
     enabled: impl Fn(usize) -> bool,
     caller: Vec<RequestHeader>,
+    managed: &[&str],
 ) -> Vec<RequestHeader> {
     let single: Vec<&str> = slots
         .iter()
         .filter_map(|slot| slot.hint.as_deref())
         .collect();
     let is_hint = |name: &str| {
-        single
-            .iter()
-            .any(|single| single.eq_ignore_ascii_case(name))
-            || settings
-                .hints()
+        !is_managed(managed, name)
+            && (single
                 .iter()
-                .any(|hint| hint.name().eq_ignore_ascii_case(name))
+                .any(|single| single.eq_ignore_ascii_case(name))
+                || settings
+                    .hints()
+                    .iter()
+                    .any(|hint| hint.name().eq_ignore_ascii_case(name)))
     };
     let (mut supplied, mut fields): (Vec<_>, Vec<_>) = caller
         .into_iter()

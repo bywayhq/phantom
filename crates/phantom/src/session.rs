@@ -571,12 +571,15 @@ impl Client {
         settings: &phantom_profile::ClientHintSettings,
         response: &http::HeaderMap,
         sent: &[phantom_net::request::RequestHeader],
+        managed: &[&str],
     ) -> bool {
         self.state
             .client_hints
             .as_ref()
             .is_some_and(|client_hints| {
-                client_hints.learn_and_should_retry(endpoint, https, settings, response, sent)
+                client_hints.learn_and_should_retry_with_managed_headers(
+                    endpoint, https, settings, response, sent, managed,
+                )
             })
     }
 

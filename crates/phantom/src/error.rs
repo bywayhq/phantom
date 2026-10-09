@@ -647,6 +647,13 @@ impl RequestError {
         )
     }
 
+    pub(crate) fn request_template_managed_default() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "request template supplies a default for an EventSource-managed field",
+        )
+    }
+
     pub(crate) fn request_template_protocol() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,
