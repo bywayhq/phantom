@@ -1775,8 +1775,13 @@ impl ClientBuilder {
     /// [`Self::alt_svc`], which this requires; building without it
     /// fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    /// Concurrent requests for one origin share one lookup. Proxy routes never
-    /// query. The client opens the resolver's query sockets with the
+    /// Concurrent requests for one origin share one lookup on their runtime.
+    /// Each runtime runs at most `maximum_origins` lookups, including those
+    /// whose requests ended. A full runtime starts no lookup for another origin
+    /// until one ends. An unavailable lookup supplies no advertisement or ECH
+    /// configuration. Completed records are shared across runtimes and obey
+    /// the separate cache bound. Proxy routes never query. The client opens
+    /// the resolver's query sockets with the
     /// profile's [`UdpSettings`](crate::profile::UdpSettings), so the
     /// Chromium-family recipes set `SO_RANDOMIZE_PORT` on them on Windows.
     ///
