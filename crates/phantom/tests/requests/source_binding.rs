@@ -203,9 +203,13 @@ async fn proxy_connections_use_the_binding() -> TestResult<()> {
 #[tokio::test]
 async fn connect_udp_tcp_proxy_legs_leave_from_the_bound_address() -> TestResult<()> {
     let source = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
-    if phantom_testkit::udp::bind((source, 0).into()).is_err() {
-        eprintln!("skipped: 127.0.0.2 is not a local address on this host");
-        return Ok(());
+    match phantom_testkit::udp::bind((source, 0).into()) {
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::AddrNotAvailable => {
+            eprintln!("skipped: 127.0.0.2 is not a local address on this host");
+            return Ok(());
+        }
+        Err(error) => return Err(error.into()),
     }
     let listener = TcpListener::bind((IPV4_LOOPBACK, 0)).await?;
     let address = listener.local_addr()?;
@@ -246,9 +250,13 @@ async fn connect_udp_tcp_proxy_legs_leave_from_the_bound_address() -> TestResult
 #[tokio::test]
 async fn connect_udp_http3_proxy_leg_leaves_from_the_bound_address() -> TestResult<()> {
     let source = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
-    if phantom_testkit::udp::bind((source, 0).into()).is_err() {
-        eprintln!("skipped: 127.0.0.2 is not a local address on this host");
-        return Ok(());
+    match phantom_testkit::udp::bind((source, 0).into()) {
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::AddrNotAvailable => {
+            eprintln!("skipped: 127.0.0.2 is not a local address on this host");
+            return Ok(());
+        }
+        Err(error) => return Err(error.into()),
     }
     let identity = TestIdentity::generate()?;
     let (address, endpoint) = h3_support::server_endpoint(&identity)?;
