@@ -1,7 +1,8 @@
-//! Exact HTTP/2 client connections and one-shot transactions.
+//! Exact HTTP/2 client connections and request streams.
 //!
-//! The core transaction accepts an already-connected byte stream. It owns no
-//! pool and does not fall back to another HTTP version.
+//! [`Http2Connection`] uses an already-connected byte stream and supports
+//! concurrent requests. [`Http2TlsConnector`] opens profiled origin or proxy
+//! connections. This module owns no pool or protocol fallback.
 
 use ::http2::{
     client,
@@ -13,14 +14,13 @@ use ::http2::{
     frame::{PseudoId, PseudoOrder, SettingId, SettingsOrder, StreamDependency, StreamId},
 };
 use bytes::Bytes;
-use http::{Method, Request, Response};
+use http::{Method, Request};
 use phantom_profile::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
     Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
     Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
     Http2TableSizeUpdates, Http2UnindexedMatch,
 };
-use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Span, debug_span, field};
 
 use crate::shutdown_timer;
@@ -179,192 +179,6 @@ pub fn validate_request_body_source_with_trailers(
     PreparedRequestTrailers::new(trailers.to_vec()).map(drop)
 }
 
-/// Sends one empty-body HTTP/2 GET over an already-connected stream.
-///
-/// The profile, authority, target, and complete ordered header list are
-/// validated before the supplied stream is touched. Ordinary header order and
-/// duplicate positions are emitted exactly as supplied. Completing or dropping
-/// the response body closes this one-shot connection after the stream reaches
-/// its terminal protocol state.
-pub async fn send_get<T>(
-    stream: T,
-    settings: &Http2Settings,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-) -> Result<Response<Http2Body>, Http2Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    send_request(
-        stream,
-        settings,
-        Method::GET,
-        authority,
-        target,
-        headers,
-        None,
-    )
-    .await
-}
-
-/// Sends one HTTP/2 request over an already-connected stream.
-///
-/// The complete request is validated before the supplied stream is touched.
-/// Ordinary header order and duplicate positions are emitted exactly as
-/// supplied. A missing content-length is appended for a non-empty body.
-///
-/// # Errors
-///
-/// Returns [`Http2Error`] when request validation, connection setup, upload, or
-/// response processing fails.
-pub async fn send_request<T>(
-    stream: T,
-    settings: &Http2Settings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-) -> Result<Response<Http2Body>, Http2Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    send_request_with_trailers(
-        stream,
-        settings,
-        method,
-        authority,
-        target,
-        headers,
-        body,
-        Vec::new(),
-    )
-    .await
-}
-
-/// Sends one owned request body followed by exact ordered static trailers.
-///
-/// # Errors
-///
-/// Returns [`Http2Error`] when request or trailer validation, connection
-/// setup, upload, or response processing fails.
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_with_trailers<T>(
-    stream: T,
-    settings: &Http2Settings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-    trailers: Vec<RequestHeader>,
-) -> Result<Response<Http2Body>, Http2Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    send_request_body_with_trailers(
-        stream,
-        settings,
-        method,
-        authority,
-        target,
-        headers,
-        body.map(RequestBody::from_bytes),
-        trailers,
-    )
-    .await
-}
-
-/// Sends one HTTP/2 request with a pull-driven body over an already-connected stream.
-///
-/// Request validation completes before the supplied stream is touched. The
-/// body is consumed once with HTTP/2 flow control and no aggregate buffering.
-///
-/// # Errors
-///
-/// Returns [`Http2Error`] when request validation, connection setup, upload,
-/// or response processing fails.
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_body<T>(
-    stream: T,
-    settings: &Http2Settings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<RequestBody>,
-) -> Result<Response<Http2Body>, Http2Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    send_request_body_with_trailers(
-        stream,
-        settings,
-        method,
-        authority,
-        target,
-        headers,
-        body,
-        Vec::new(),
-    )
-    .await
-}
-
-/// Sends a pull-driven request body followed by exact ordered trailers.
-///
-/// Request and static-trailer or body trailer-plan validation completes before
-/// the stream or body is touched. Static and body-produced trailers cannot be
-/// combined.
-///
-/// # Errors
-///
-/// Returns [`Http2Error`] when request or trailer validation, connection
-/// setup, body production, upload, or response processing fails.
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_body_with_trailers<T>(
-    stream: T,
-    settings: &Http2Settings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<RequestBody>,
-    trailers: Vec<RequestHeader>,
-) -> Result<Response<Http2Body>, Http2Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let body_bytes = body
-        .as_ref()
-        .map(RequestBody::metadata)
-        .and_then(RequestBodyMetadata::exact_length);
-    let span = debug_span!(
-        "http2.request.prepare",
-        method = %method,
-        protocol = "h2",
-        body_bytes = field::debug(body_bytes),
-        outcome = field::Empty,
-        error_kind = field::Empty,
-    );
-    let outcome = OperationOutcome::new(&span);
-    let prepared = {
-        let _entered = span.enter();
-        PreparedRequest::new_body_with_trailers(
-            settings, method, authority, target, headers, body, trailers,
-        )
-    };
-    match &prepared {
-        Ok(_) => outcome.finish("ok"),
-        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
-    }
-    let prepared = prepared?;
-    let connection = Http2Connection::connect_with_builder(stream, prepared.client).await?;
-    connection
-        .send_prepared_request(prepared.request, prepared.body, prepared.trailers)
-        .await
-}
-
 struct PreparedRequest {
     request: Request<()>,
     body: Option<RequestBody>,
@@ -420,19 +234,36 @@ impl PreparedRequest {
         body: Option<RequestBody>,
         trailers: Vec<RequestHeader>,
     ) -> Result<Self, Http2Error> {
-        settings.validate().map_err(Http2Error::InvalidSettings)?;
-        let client = translate_settings(settings)?;
-        PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
-        let metadata = body.as_ref().map(RequestBody::metadata);
-        let request = build_request(method, authority, target, headers, metadata)?;
-        let trailers = PreparedRequestTrailers::new(trailers)?;
+        let body_bytes = body
+            .as_ref()
+            .map(RequestBody::metadata)
+            .and_then(RequestBodyMetadata::exact_length);
+        let span = debug_span!("http2.request.prepare", method = %method, protocol = "h2",
+            body_bytes = field::debug(body_bytes), outcome = field::Empty, error_kind = field::Empty);
+        let outcome = OperationOutcome::new(&span);
+        let prepared = {
+            let _entered = span.enter();
+            (|| {
+                settings.validate().map_err(Http2Error::InvalidSettings)?;
+                let client = translate_settings(settings)?;
+                PreparedRequestTrailers::validate_body_plan(body.as_ref(), &trailers)?;
+                let metadata = body.as_ref().map(RequestBody::metadata);
+                let request = build_request(method, authority, target, headers, metadata)?;
+                let trailers = PreparedRequestTrailers::new(trailers)?;
 
-        Ok(Self {
-            request,
-            body,
-            trailers,
-            client,
-        })
+                Ok(Self {
+                    request,
+                    body,
+                    trailers,
+                    client,
+                })
+            })()
+        };
+        match &prepared {
+            Ok(_) => outcome.finish("ok"),
+            Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
+        }
+        prepared
     }
 }
 

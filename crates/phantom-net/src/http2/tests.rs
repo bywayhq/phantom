@@ -14,7 +14,8 @@ use tokio::{
 };
 
 use super::{OriginForm, RequestHeader};
-use crate::http2::{Http2Body, send_get};
+use crate::http2::Http2Body;
+use crate::http2::PreparedRequest;
 use crate::tracing_test::OutcomeSubscriber;
 
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -50,24 +51,28 @@ async fn prime_request_trace_callsites() -> TestResult<()> {
     // Dispatch is built, so register both request spans before building it.
     OutcomeSubscriber::install_dynamic_callsite_fallback();
     let (invalid_client, _invalid_peer) = duplex(128);
-    let _ = send_get(
-        invalid_client,
-        &v154_http2(),
-        "user@example.test",
-        target()?,
-        vec![],
-    )
+    let _ = send_once(invalid_client, {
+        let settings = v154_http2();
+        let method = http::Method::GET;
+        let authority = "user@example.test";
+        let target = target()?;
+        let headers = vec![];
+        let body = None;
+        move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+    })
     .await;
 
     let (closed_client, closed_peer) = duplex(128);
     drop(closed_peer);
-    let _ = send_get(
-        closed_client,
-        &v154_http2(),
-        "example.test",
-        target()?,
-        vec![],
-    )
+    let _ = send_once(closed_client, {
+        let settings = v154_http2();
+        let method = http::Method::GET;
+        let authority = "example.test";
+        let target = target()?;
+        let headers = vec![];
+        let body = None;
+        move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+    })
     .await;
     Ok(())
 }
@@ -139,3 +144,19 @@ mod request_wire;
 mod reset_churn;
 mod response_body;
 mod stream_limit;
+
+// Prepare before raw setup so invalid requests cannot touch the stream or body.
+async fn send_once<T, F>(
+    stream: T,
+    prepare: F,
+) -> Result<http::Response<super::Http2Body>, super::Http2Error>
+where
+    T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    F: FnOnce() -> Result<PreparedRequest, super::Http2Error>,
+{
+    let prepared = prepare()?;
+    let connection = super::Http2Connection::connect_with_builder(stream, prepared.client).await?;
+    connection
+        .send_prepared_request(prepared.request, prepared.body, prepared.trailers)
+        .await
+}

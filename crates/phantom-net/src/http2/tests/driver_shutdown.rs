@@ -21,12 +21,12 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
-use super::{TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, target};
-use crate::tracing_test::OutcomeSubscriber;
-use crate::{
-    http2::{driver::DRIVER_SHUTDOWN_GRACE, send_get},
-    shutdown_timer,
+use super::{
+    TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, send_once, target,
 };
+use crate::http2::PreparedRequest;
+use crate::tracing_test::OutcomeSubscriber;
+use crate::{http2::driver::DRIVER_SHUTDOWN_GRACE, shutdown_timer};
 
 #[test]
 fn body_drop_after_originating_runtime_shutdown_records_driver_outcome() -> TestResult<()> {
@@ -39,15 +39,22 @@ fn body_drop_after_originating_runtime_shutdown_records_driver_outcome() -> Test
             let control = WriteControl::default();
             let (client, server) = duplex(64 * 1024);
             let _server_task = tokio::spawn(terminal_headers_server(server, control.clone()));
-            let response = send_get(
+            let response = send_once(
                 BlockingWrites {
                     inner: client,
                     control,
                 },
-                &v154_http2(),
-                "example.test",
-                target()?,
-                vec![],
+                {
+                    let settings = v154_http2();
+                    let method = http::Method::GET;
+                    let authority = "example.test";
+                    let target = target()?;
+                    let headers = vec![];
+                    let body = None;
+                    move || {
+                        PreparedRequest::new(&settings, method, authority, target, headers, body)
+                    }
+                },
             )
             .await?;
             let body = response.into_body();
@@ -75,8 +82,16 @@ fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
         async {
             let (client, server) = duplex(64 * 1024);
             let server_task = tokio::spawn(terminal_response_server(server));
-            let response =
-                send_get(client, &v154_http2(), "example.test", target()?, vec![]).await?;
+            let response = send_once(client, {
+                let settings = v154_http2();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = target()?;
+                let headers = vec![];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
+            .await?;
             let body = response.into_body();
             assert!(body.is_end_stream());
             drop(body);
@@ -98,15 +113,22 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
             let control = WriteControl::default();
             let (client, server) = duplex(64 * 1024);
             let server_task = tokio::spawn(reset_observing_server(server));
-            let response = send_get(
+            let response = send_once(
                 BlockingWrites {
                     inner: client,
                     control: control.clone(),
                 },
-                &v154_http2(),
-                "example.test",
-                target()?,
-                vec![],
+                {
+                    let settings = v154_http2();
+                    let method = http::Method::GET;
+                    let authority = "example.test";
+                    let target = target()?;
+                    let headers = vec![];
+                    let body = None;
+                    move || {
+                        PreparedRequest::new(&settings, method, authority, target, headers, body)
+                    }
+                },
             )
             .await?;
             let mut body = response.into_body();
@@ -139,15 +161,22 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
         let server_task = tokio::spawn(reset_observing_server(server));
 
         async {
-            let response = send_get(
+            let response = send_once(
                 BlockingWrites {
                     inner: client,
                     control: control.clone(),
                 },
-                &v154_http2(),
-                "example.test",
-                target()?,
-                vec![],
+                {
+                    let settings = v154_http2();
+                    let method = http::Method::GET;
+                    let authority = "example.test";
+                    let target = target()?;
+                    let headers = vec![];
+                    let body = None;
+                    move || {
+                        PreparedRequest::new(&settings, method, authority, target, headers, body)
+                    }
+                },
             )
             .await?;
             let mut body = response.into_body();

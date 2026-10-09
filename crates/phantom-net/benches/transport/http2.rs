@@ -3,7 +3,7 @@ use std::hint::black_box;
 use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
-use phantom_net::http2::{OriginForm, RequestHeader, send_get};
+use phantom_net::http2::{Http2Connection, OriginForm, RequestHeader};
 use phantom_profile::{Http2Settings, chromium::v154_http2};
 use tokio::runtime::Builder;
 use tracing::{Dispatch, instrument::WithSubscriber};
@@ -109,7 +109,12 @@ async fn complete_response(
         headers,
     } = input;
     async move {
-        let response = match send_get(stream, &settings, "example.test", target, headers).await {
+        let response = match async {
+            let connection = Http2Connection::connect(stream, &settings).await?;
+            connection.send_get("example.test", target, headers).await
+        }
+        .await
+        {
             Ok(response) => response,
             Err(error) => panic!("HTTP/2 benchmark failed before the body: {error}"),
         };

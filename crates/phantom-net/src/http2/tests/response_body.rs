@@ -10,11 +10,9 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
-use super::{TestResult, bounded_peer_test, headers, next_nonempty_data, target};
-use crate::{
-    http2::{Http2Connection, send_get},
-    tracing_test::OutcomeSubscriber,
-};
+use super::{TestResult, bounded_peer_test, headers, next_nonempty_data, send_once, target};
+use crate::http2::PreparedRequest;
+use crate::{http2::Http2Connection, tracing_test::OutcomeSubscriber};
 
 #[tokio::test]
 async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult<()> {
@@ -23,8 +21,16 @@ async fn streams_data_then_trailers_without_buffering_later_data() -> TestResult
         let (release_tx, release_rx) = oneshot::channel();
         let server_task = tokio::spawn(streaming_server(server, release_rx));
 
-        let response =
-            send_get(client, &v154_http2(), "example.test", target()?, headers()).await?;
+        let response = send_once(client, {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "example.test";
+            let target = target()?;
+            let headers = headers();
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        })
+        .await?;
         assert_eq!(response.status(), 206);
         let mut body = response.into_body();
         let first = next_nonempty_data(&mut body).await?;
@@ -80,8 +86,16 @@ async fn terminal_data_completes_without_an_extra_body_poll() -> TestResult<()> 
         let server_task = tokio::spawn(terminal_data_server(server));
 
         async {
-            let response =
-                send_get(client, &v154_http2(), "example.test", target()?, vec![]).await?;
+            let response = send_once(client, {
+                let settings = v154_http2();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = target()?;
+                let headers = vec![];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
+            .await?;
             let mut body = response.into_body();
             let frame = body
                 .frame()

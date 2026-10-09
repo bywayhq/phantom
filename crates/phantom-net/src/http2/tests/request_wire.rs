@@ -17,9 +17,10 @@ use tracing::instrument::WithSubscriber;
 
 use super::{
     PEER_TEST_TIMEOUT, TestResult, bounded_peer_test, headers, prime_request_trace_callsites,
-    target,
+    send_once, target,
 };
-use crate::http2::{Http2Error, Http2ProtocolErrorKind, OriginForm, RequestHeader, send_get};
+use crate::http2::PreparedRequest;
+use crate::http2::{Http2Error, Http2ProtocolErrorKind, OriginForm, RequestHeader};
 use crate::tracing_test::OutcomeSubscriber;
 
 #[test]
@@ -49,9 +50,17 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult<()>
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let result = send_get(client, &v154_http2(), "example.test", target()?, Vec::new())
-            .with_subscriber(subscriber.dispatch())
-            .await;
+        let result = send_once(client, {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "example.test";
+            let target = target()?;
+            let headers = Vec::new();
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        })
+        .with_subscriber(subscriber.dispatch())
+        .await;
         assert!(matches!(result, Err(Http2Error::Protocol(_))));
         assert_eq!(
             subscriber.outcomes_for("http2.response_head"),
@@ -80,7 +89,16 @@ async fn peer_reset_preserves_stream_error_classification() -> TestResult<()> {
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let result = send_get(client, &v154_http2(), "example.test", target()?, Vec::new()).await;
+        let result = send_once(client, {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "example.test";
+            let target = target()?;
+            let headers = Vec::new();
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        })
+        .await;
         let error = match result {
             Ok(_) => return Err("peer RST_STREAM was accepted as a response".into()),
             Err(error) => error,
@@ -128,7 +146,16 @@ async fn peer_goaway_preserves_connection_error_classification() -> TestResult<(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
-        let result = send_get(client, &v154_http2(), "example.test", target()?, Vec::new()).await;
+        let result = send_once(client, {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "example.test";
+            let target = target()?;
+            let headers = Vec::new();
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        })
+        .await;
         let error = match result {
             Ok(_) => return Err("peer GOAWAY was accepted as a response".into()),
             Err(error) => error,
@@ -190,13 +217,15 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
-            send_get(
-                client,
-                &settings,
-                "example.test",
-                OriginForm::parse("/").map_err(|error| error.to_string())?,
-                vec![],
-            )
+            send_once(client, {
+                let settings = settings.clone();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = OriginForm::parse("/").map_err(|error| error.to_string())?;
+                let headers = vec![];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
             .await
             .map_err(|error| error.to_string())
         });
@@ -244,7 +273,16 @@ async fn emits_chrome_preface_settings_and_connection_window() -> TestResult<()>
         let request_target = target()?;
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
-            send_get(client, &settings, "example.test", request_target, vec![]).await
+            send_once(client, {
+                let settings = settings.clone();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = request_target;
+                let headers = vec![];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
+            .await
         });
 
         let capture = capture_client_frames(
@@ -291,7 +329,16 @@ async fn headers_carry_chrome_priority_and_pseudo_order() -> TestResult<()> {
         let request_target = OriginForm::parse("/")?;
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
-            send_get(client, &settings, "example.test", request_target, headers()).await
+            send_once(client, {
+                let settings = settings.clone();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = request_target;
+                let headers = headers();
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
+            .await
         });
 
         let mut preface = [0_u8; 24];
@@ -347,17 +394,19 @@ async fn content_length_zero_is_emitted_in_declared_wire_order() -> TestResult<(
         let request_target = OriginForm::parse("/")?;
         let (client, mut server) = duplex(64 * 1024);
         let transaction = tokio::spawn(async move {
-            send_get(
-                client,
-                &settings,
-                "example.test",
-                request_target,
-                vec![
+            send_once(client, {
+                let settings = settings.clone();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = request_target;
+                let headers = vec![
                     RequestHeader::new("x-before", "a"),
                     RequestHeader::new("content-length", "0"),
                     RequestHeader::new("x-after", "b"),
-                ],
-            )
+                ];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
             .await
         });
 
@@ -408,13 +457,15 @@ async fn accepts_bracketed_ipv6_authority_with_port() -> TestResult<()> {
     bounded_peer_test(async {
         let (client, server) = duplex(64 * 1024);
         let server = tokio::spawn(uri_observing_server(server));
-        let response = send_get(
-            client,
-            &v154_http2(),
-            "[2001:db8::1]:8443",
-            OriginForm::parse("/ipv6")?,
-            vec![],
-        )
+        let response = send_once(client, {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "[2001:db8::1]:8443";
+            let target = OriginForm::parse("/ipv6")?;
+            let headers = vec![];
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        })
         .await?;
         assert_eq!(response.status(), 204);
         assert!(response.into_body().collect().await?.to_bytes().is_empty());

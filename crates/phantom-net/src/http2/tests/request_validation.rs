@@ -12,11 +12,9 @@ use phantom_profile::chromium::v154_http2;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex};
 use tracing::instrument::WithSubscriber;
 
-use super::{TestResult, prime_request_trace_callsites, target};
-use crate::http2::{
-    Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader, send_get,
-    send_request_body_with_trailers,
-};
+use super::{TestResult, prime_request_trace_callsites, send_once, target};
+use crate::http2::PreparedRequest;
+use crate::http2::{Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader};
 use crate::tracing_test::OutcomeSubscriber;
 
 #[tokio::test]
@@ -89,15 +87,18 @@ async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {
     for (settings, authority, headers) in cases {
         let touches = Arc::new(AtomicUsize::new(0));
         let (client, _server) = duplex(128);
-        let result = send_get(
+        let result = send_once(
             TouchCountingStream {
                 inner: client,
                 touches: Arc::clone(&touches),
             },
-            &settings,
-            authority,
-            target()?,
-            headers,
+            {
+                let settings = settings.clone();
+                let method = http::Method::GET;
+                let target = target()?;
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            },
         )
         .await;
         assert!(result.is_err());
@@ -116,15 +117,20 @@ async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> Test
         .dependency_stream_id = 1;
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
-    let result = send_get(
+    let result = send_once(
         TouchCountingStream {
             inner: client,
             touches: Arc::clone(&touches),
         },
-        &settings,
-        "example.test",
-        target()?,
-        vec![],
+        {
+            let settings = settings.clone();
+            let method = http::Method::GET;
+            let authority = "example.test";
+            let target = target()?;
+            let headers = vec![];
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        },
     )
     .await;
     let error = match result {
@@ -139,15 +145,20 @@ async fn self_dependency_and_userinfo_report_specific_errors_before_io() -> Test
 
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
-    let result = send_get(
+    let result = send_once(
         TouchCountingStream {
             inner: client,
             touches: Arc::clone(&touches),
         },
-        &v154_http2(),
-        "user@example.test",
-        target()?,
-        vec![],
+        {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "user@example.test";
+            let target = target()?;
+            let headers = vec![];
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        },
     )
     .await;
     let error = match result {
@@ -215,15 +226,20 @@ async fn nonzero_or_malformed_content_length_is_rejected_before_io() -> TestResu
     for value in [b"1".as_slice(), b"00", b"", b"not-a-number"] {
         let touches = Arc::new(AtomicUsize::new(0));
         let (client, _server) = duplex(128);
-        let result = send_get(
+        let result = send_once(
             TouchCountingStream {
                 inner: client,
                 touches: Arc::clone(&touches),
             },
-            &v154_http2(),
-            "example.test",
-            target()?,
-            vec![RequestHeader::new("content-length", value)],
+            {
+                let settings = v154_http2();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = target()?;
+                let headers = vec![RequestHeader::new("content-length", value)];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            },
         )
         .await;
         assert!(matches!(
@@ -241,15 +257,20 @@ async fn invalid_request_is_traced_before_stream_io() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     let touches = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
-    let result = send_get(
+    let result = send_once(
         TouchCountingStream {
             inner: client,
             touches: Arc::clone(&touches),
         },
-        &v154_http2(),
-        "user@example.test",
-        target()?,
-        Vec::new(),
+        {
+            let settings = v154_http2();
+            let method = http::Method::GET;
+            let authority = "user@example.test";
+            let target = target()?;
+            let headers = Vec::new();
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        },
     )
     .with_subscriber(subscriber.dispatch())
     .await;
@@ -295,18 +316,24 @@ async fn invalid_static_trailers_never_touch_stream() -> TestResult<()> {
     for trailers in cases {
         let touches = Arc::new(AtomicUsize::new(0));
         let (client, _server) = duplex(128);
-        let result = send_request_body_with_trailers(
+        let result = send_once(
             TouchCountingStream {
                 inner: client,
                 touches: Arc::clone(&touches),
             },
-            &v154_http2(),
-            Method::POST,
-            "example.test",
-            target()?,
-            Vec::new(),
-            None,
-            trailers,
+            {
+                let settings = v154_http2();
+                let method = Method::POST;
+                let authority = "example.test";
+                let target = target()?;
+                let headers = Vec::new();
+                let body = None;
+                move || {
+                    PreparedRequest::new_body_with_trailers(
+                        &settings, method, authority, target, headers, body, trailers,
+                    )
+                }
+            },
         )
         .await;
         assert!(result.is_err());

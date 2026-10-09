@@ -8,7 +8,7 @@ mod fixture;
 use std::{error::Error, time::Duration};
 
 use fixture::Fixture;
-use phantom_net::http2::{Http2Error, OriginForm, send_get};
+use phantom_net::http2::{Http2Connection, Http2Error, OriginForm};
 use phantom_profile::Http2Settings;
 use phantom_testkit::http2::{CaptureCompletion, ClientFrameCapture, capture_client_frames};
 use tokio::{io::duplex, time::timeout};
@@ -69,7 +69,9 @@ async fn assert_public_startup_matches_fixture(
     let target = OriginForm::parse("/")?;
     let (client, mut server) = duplex(64 * 1024);
     let transaction = tokio::spawn(async move {
-        send_get(client, &settings, "server.phantom.test", target, vec![])
+        let connection = Http2Connection::connect(client, &settings).await?;
+        connection
+            .send_get("server.phantom.test", target, vec![])
             .await
             .map(drop)
     });

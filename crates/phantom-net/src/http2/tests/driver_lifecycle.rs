@@ -9,8 +9,11 @@ use phantom_profile::chromium::v154_http2;
 use tokio::{io::duplex, runtime::Builder, time::timeout};
 use tracing::{Dispatch, dispatcher, instrument::WithSubscriber};
 
-use super::{TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, target};
-use crate::http2::send_get;
+use super::{
+    TestResult, bounded_peer_test, next_nonempty_data, reset_observing_server, send_once, target,
+};
+
+use crate::http2::PreparedRequest;
 use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
 
 #[tokio::test]
@@ -21,8 +24,16 @@ async fn incomplete_body_drop_flushes_reset_and_driver_closes() -> TestResult<()
         let server_task = tokio::spawn(reset_observing_server(server));
 
         async {
-            let response =
-                send_get(client, &v154_http2(), "example.test", target()?, vec![]).await?;
+            let response = send_once(client, {
+                let settings = v154_http2();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = target()?;
+                let headers = vec![];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
+            .await?;
             let mut body = response.into_body();
             assert_eq!(next_nonempty_data(&mut body).await?, "partial");
             drop(body);
@@ -54,8 +65,18 @@ fn response_body_may_be_dropped_on_plain_thread() -> TestResult<()> {
             let (client, server) = duplex(64 * 1024);
             let server_task = tokio::spawn(reset_observing_server(server));
             let body = async {
-                let response =
-                    send_get(client, &v154_http2(), "example.test", target()?, vec![]).await?;
+                let response = send_once(client, {
+                    let settings = v154_http2();
+                    let method = http::Method::GET;
+                    let authority = "example.test";
+                    let target = target()?;
+                    let headers = vec![];
+                    let body = None;
+                    move || {
+                        PreparedRequest::new(&settings, method, authority, target, headers, body)
+                    }
+                })
+                .await?;
                 let mut body = response.into_body();
                 assert_eq!(next_nonempty_data(&mut body).await?, "partial");
                 Ok::<_, Box<dyn Error + Send + Sync>>(body)
@@ -100,8 +121,16 @@ async fn cross_thread_body_poll_uses_originating_dispatcher() -> TestResult<()> 
         let (client, server) = duplex(64 * 1024);
         let server_task = tokio::spawn(reset_observing_server(server));
         let body = async {
-            let response =
-                send_get(client, &v154_http2(), "example.test", target()?, vec![]).await?;
+            let response = send_once(client, {
+                let settings = v154_http2();
+                let method = http::Method::GET;
+                let authority = "example.test";
+                let target = target()?;
+                let headers = vec![];
+                let body = None;
+                move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+            })
+            .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(response.into_body())
         }
         .with_subscriber(origin.clone())
@@ -141,7 +170,15 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult<()> {
     let (client, _server) = duplex(4096);
     let settings = v154_http2();
     let pending = poll_once_then_drop(
-        send_get(client, &settings, "example.test", target()?, vec![]),
+        send_once(client, {
+            let settings = settings.clone();
+            let method = http::Method::GET;
+            let authority = "example.test";
+            let target = target()?;
+            let headers = vec![];
+            let body = None;
+            move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+        }),
         subscriber.clone(),
     )
     .await;
@@ -159,13 +196,15 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult<()> {
 fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult<()> {
     let (client, _server) = duplex(64);
     let settings = v154_http2();
-    let mut request = Box::pin(send_get(
-        client,
-        &settings,
-        "example.test",
-        target()?,
-        vec![],
-    ));
+    let mut request = Box::pin(send_once(client, {
+        let settings = settings.clone();
+        let method = http::Method::GET;
+        let authority = "example.test";
+        let target = target()?;
+        let headers = vec![];
+        let body = None;
+        move || PreparedRequest::new(&settings, method, authority, target, headers, body)
+    }));
     let mut context = Context::from_waker(Waker::noop());
 
     let std::task::Poll::Ready(result) = request.as_mut().poll(&mut context) else {
