@@ -42,7 +42,7 @@ copy_checkout() {
 }
 
 write_consumer() {
-  local consumer=$1 dependency=$2
+  local consumer=$1 dependency=$2 testkit_dependency=$3
   mkdir -p "$consumer/src"
   cat >"$consumer/Cargo.toml" <<EOF
 [package]
@@ -57,6 +57,10 @@ json = ["phantom/json"]
 
 [dependencies]
 $dependency
+
+[dev-dependencies]
+$testkit_dependency
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "time"] }
 EOF
   cat >"$consumer/src/main.rs" <<'EOF'
 use phantom as _;
@@ -64,6 +68,8 @@ use phantom as _;
 fn main() {}
 EOF
   cp "$repository_root/tests/downstream/public-api/src/lib.rs" "$consumer/src/lib.rs"
+  cp "$repository_root/tests/downstream/public-api/src/wire.rs" "$consumer/src/wire.rs"
+  cp -R "$repository_root/tests/downstream/public-api/fixtures" "$consumer/fixtures"
 }
 
 assert_fork_graph() {
@@ -159,7 +165,8 @@ check_path() {
   local consumer="$work_root/path"
   copy_checkout "$consumer/vendor/phantom"
   write_consumer "$consumer" \
-    'phantom = { package = "phantom-http", path = "vendor/phantom/crates/phantom", features = ["full"] }'
+    'phantom = { package = "phantom-http", path = "vendor/phantom/crates/phantom", features = ["full"] }' \
+    'phantom-testkit = { path = "vendor/phantom/crates/phantom-testkit" }'
   check_consumer "$consumer" path
 }
 
@@ -172,14 +179,16 @@ check_git() {
     -c commit.gpgsign=false commit --quiet --message snapshot
   revision=$(git -C "$source" rev-parse HEAD)
   write_consumer "$consumer" \
-    "phantom = { package = \"phantom-http\", git = \"$(file_url "$source")\", rev = \"$revision\", features = [\"full\"] }"
+    "phantom = { package = \"phantom-http\", git = \"$(file_url "$source")\", rev = \"$revision\", features = [\"full\"] }" \
+    "phantom-testkit = { git = \"$(file_url "$source")\", rev = \"$revision\" }"
   check_consumer "$consumer" git
 }
 
 check_registry() {
   local version=$1 consumer="$work_root/registry"
   write_consumer "$consumer" \
-    "phantom = { package = \"phantom-http\", version = \"=$version\", features = [\"full\"] }"
+    "phantom = { package = \"phantom-http\", version = \"=$version\", features = [\"full\"] }" \
+    "phantom-testkit = { version = \"=$version\" }"
   check_consumer "$consumer" registry
 }
 

@@ -13,3 +13,7 @@ json = ["phantom/json"]
 
 [dependencies]
 phantom = { package = "phantom-http", path = "../../../crates/phantom" }
+
+[dev-dependencies]
+phantom-testkit = { path = "../../../crates/phantom-testkit" }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt", "time"] }

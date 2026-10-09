@@ -1,4 +1,7 @@
 #[cfg(test)]
+mod wire;
+
+#[cfg(test)]
 mod tests {
     use std::{num::NonZeroUsize, time::Duration};
 
