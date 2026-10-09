@@ -738,9 +738,9 @@ Supported:
   [Client hints](../guides/request-templates.md#send-client-hints).
 - Opt-in finite redirects: WHATWG URL resolution, `http://` and `https://`
   targets, browser method and body transitions, and removal of
-  `Authorization`, `Cookie`, `Cookie2`, `Proxy-Authorization`, and caller
-  client hints on cross-origin hops, including a change of scheme. This rule
-  does not protect custom credential fields, even when marked sensitive.
+  `Authorization`, `Cookie`, `Cookie2`, `Proxy-Authorization`, and configured
+  caller client hints on cross-origin hops, including a change of scheme. This
+  rule does not protect custom credential fields, even when marked sensitive.
   Turn off automatic redirects and check each destination before sending
   those fields. Each hop is checked against the request's protocol and route
   before it is sent.

@@ -790,13 +790,14 @@ pooled connection whose own early data is unanswered.
 
 When another candidate wins, each alternative setup that has begun connecting
 keeps running in the background, like Chromium's orphaned alternative job. If it
-connects, the connection is pooled for later requests. If it fails, including
-at the 4-second limit, the alternative is marked broken. A background setup
-that resumed with early data connects before its handshake completes. It
+connects, the connection is pooled for later requests. A failure that invalidates
+the alternative, including reaching the 4-second limit, marks it broken. A
+background setup that resumed with early data connects before its handshake
+completes. It
 confirms the alternative once that handshake completes, and marks nothing if
 the handshake fails, as Chromium marks nothing for a session that carried no
-request. Until it finishes, it keeps its H3 admission permit for the origin
-and route.
+request. The setup keeps its H3 admission permit for the origin and route
+until it returns. An early-data handshake can finish later.
 
 Failures returned by the race are marked broken after the winner's handshake
 completes. Only errors that invalidate their alternatives count. When every

@@ -547,12 +547,13 @@ not backend toggles.
 - Alt-Svc use is sequential by default. Opt-in racing starts one alternative
   QUIC connection and, after a delay, the origin H1/H2 connection, on the same
   route. `AltSvcRace::with_max_alternatives` allows up to three alternatives
-  alongside the origin. The request is sent once, on the winner. Failed
-  alternatives back off when another candidate succeeds. Every candidate
-  failing leaves that state unchanged.
+  alongside the origin. The request is sent once, on the winner. Failures that
+  invalidate an alternative trigger backoff when another candidate succeeds.
+  Every candidate failing leaves that state unchanged.
 - Response content decoding is an opt-in facade body stage above every
-  transport. It is gated by the caller's own `Accept-Encoding`, never edits
-  request fields, and keeps the response fields as the wire view.
+  transport. It uses the request's `Accept-Encoding`, supplied by the caller
+  or a template. It never edits request fields and keeps response fields as
+  the wire view.
 - A streaming request body declares its complete, ordered plan of trailer
   names before I/O. The shared body boundary validates the final semantic map
   and rebuilds the ordered values. Each transport then validates and emits its
