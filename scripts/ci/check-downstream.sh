@@ -53,6 +53,7 @@ publish = false
 
 [features]
 https-records = ["phantom/https-records"]
+json = ["phantom/json"]
 
 [dependencies]
 $dependency
