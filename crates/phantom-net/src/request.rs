@@ -224,6 +224,7 @@ impl fmt::Debug for RequestTrailerName {
 /// let body: RequestBody = Bytes::from_static(b"upload").into();
 /// assert_eq!(body.metadata().exact_length(), Some(6));
 /// ```
+#[must_use]
 pub struct RequestBody {
     inner: UnsyncBoxBody<Bytes, RequestBodyError>,
     exact_length: Option<u64>,
@@ -240,6 +241,7 @@ impl RequestBody {
     ///
     /// Trailer frames fail with [`RequestBodyErrorKind::TrailersUnsupported`].
     /// Use [`Self::streaming_with_trailers`] to declare body-produced trailers.
+    #[must_use]
     pub fn streaming<B>(body: B) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,
@@ -265,6 +267,7 @@ impl RequestBody {
     /// lowercase names. The body-produced trailer map must contain exactly the
     /// declared normalized names and multiplicities. An empty list does not
     /// enable trailer frames.
+    #[must_use]
     pub fn streaming_with_trailers<B>(body: B, trailer_names: Vec<RequestTrailerName>) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,

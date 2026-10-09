@@ -15,6 +15,37 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Stream for T {}
 ///
 /// The connector performs protocol setup but does not resolve names, open a
 /// socket, apply profile socket options, or recover TCP keepalive metadata.
+///
+/// # Examples
+///
+/// You can open a Tokio socket and use it for plaintext HTTP/1.1.
+/// `OriginRoute::Plaintext` selects HTTP without TLS.
+///
+/// ```no_run
+/// use phantom_net::{
+///     http1::{Http1TlsConnector, OriginForm, RequestHeader},
+///     route::{ConnectedStream, Http1Route, OriginRoute, TcpRoute},
+/// };
+/// use phantom_profile::browser::chrome;
+/// use tokio::net::TcpStream;
+///
+/// # async fn request() -> Result<(), Box<dyn std::error::Error>> {
+/// let tls = chrome::v154_tcp_tls()
+///     .with_alpn_protocols(&[Box::from(&b"http/1.1"[..])])?;
+/// let connector = Http1TlsConnector::new(&tls)?;
+/// let socket = TcpStream::connect("example.com:80").await?;
+/// let route = Http1Route::Origin(OriginRoute::Plaintext {
+///     tcp: TcpRoute::Connected(ConnectedStream::new(socket)),
+///     family: None,
+/// });
+/// let (connection, _slower) = connector.connect(route).await?;
+/// let _response = connection.send_get(
+///     OriginForm::parse("/")?,
+///     vec![RequestHeader::new("Host", "example.com")],
+/// ).await?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct ConnectedStream(Box<dyn Stream>);
 
 impl ConnectedStream {
