@@ -518,37 +518,37 @@ impl PoolEntry {
         connector: &Http2TlsConnector,
         endpoint: &Endpoint,
     ) -> Result<Http2Connection, Http2TlsError> {
+        // Bound the connector's `Send` proof separately from pool setup;
+        // see `box_send`.
         #[cfg(feature = "https-records")]
         if connector.ech_from_https_records()
             && let Some(discovery) = &self.https_records
         {
             let ech = discovery.tcp_ech(endpoint, connector.alpn_protocols());
             let mut ech = pin!(ech);
-            return connector
-                .connect(phantom_net::route::Http2Route::Origin(
-                    phantom_net::route::OriginRoute::Tls {
-                        tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
-                            host: endpoint.host(),
-                            port: endpoint.port(),
-                        }),
-                        server_name: endpoint.host(),
-                        setup: phantom_net::route::DirectTlsSetup::Ech(ech.as_mut()),
-                    },
-                ))
-                .await;
-        }
-        connector
-            .connect(phantom_net::route::Http2Route::Origin(
+            return super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
                 phantom_net::route::OriginRoute::Tls {
                     tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
                         host: endpoint.host(),
                         port: endpoint.port(),
                     }),
                     server_name: endpoint.host(),
-                    setup: phantom_net::route::DirectTlsSetup::Default,
+                    setup: phantom_net::route::DirectTlsSetup::Ech(ech.as_mut()),
                 },
-            ))
-            .await
+            )))
+            .await;
+        }
+        super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
+            phantom_net::route::OriginRoute::Tls {
+                tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
+                    host: endpoint.host(),
+                    port: endpoint.port(),
+                }),
+                server_name: endpoint.host(),
+                setup: phantom_net::route::DirectTlsSetup::Default,
+            },
+        )))
+        .await
     }
 
     fn lock(&self) -> MutexGuard<'_, Connections> {
@@ -665,20 +665,19 @@ impl PoolEntry {
                 let proxy_connector = self
                     .https_proxy
                     .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
-                connector
-                    .connect(phantom_net::route::Http2Route::Forward {
-                        proxy: phantom_net::route::ProxyTransport::Tls {
-                            endpoint: phantom_net::route::Endpoint {
-                                host: proxy.host(),
-                                port: proxy.port(),
-                            },
-                            server_name: proxy.host(),
-                            connector: proxy_connector,
+                super::box_send(connector.connect(phantom_net::route::Http2Route::Forward {
+                    proxy: phantom_net::route::ProxyTransport::Tls {
+                        endpoint: phantom_net::route::Endpoint {
+                            host: proxy.host(),
+                            port: proxy.port(),
                         },
-                        credentials: proxy.basic_credentials(),
-                    })
-                    .await
-                    .map_err(RequestError::http2_connection_setup)?
+                        server_name: proxy.host(),
+                        connector: proxy_connector,
+                    },
+                    credentials: proxy.basic_credentials(),
+                }))
+                .await
+                .map_err(RequestError::http2_connection_setup)?
             }
             // Checked before admission; forwarding needs an HTTP proxy.
             _ if mode == Http2ConnectionMode::Forward => {
@@ -694,159 +693,84 @@ impl PoolEntry {
                 .map_err(RequestError::http2_connection_setup)?,
             Route::HttpProxy(proxy) => {
                 let connect_authority = endpoint.tunnel_authority();
-                if proxy.uses_tls() {
+                let proxy_endpoint = phantom_net::route::Endpoint {
+                    host: proxy.host(),
+                    port: proxy.port(),
+                };
+                let transport = if proxy.uses_tls() {
                     let base = https_proxy
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
                     let proxy_connector = self
                         .https_proxy
                         .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
-                    if let Some(credentials) = proxy.basic_credentials() {
-                        // The retry state machine is large; one allocation per
-                        // authenticated proxy connection bounds this future.
-                        super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
-                            phantom_net::route::OriginRoute::Tls {
-                                tcp: phantom_net::route::TcpRoute::HttpConnect(
-                                    phantom_net::route::HttpConnectRoute {
-                                        proxy: phantom_net::route::ProxyTransport::Tls {
-                                            endpoint: phantom_net::route::Endpoint {
-                                                host: proxy.host(),
-                                                port: proxy.port(),
-                                            },
-                                            server_name: proxy.host(),
-                                            connector: proxy_connector,
-                                        },
-                                        authority: &connect_authority,
-                                        headers: proxy.ordered_connect_headers(),
-                                        credentials: Some(credentials),
-                                    },
-                                ),
-                                server_name: endpoint.host(),
-                                setup: phantom_net::route::DirectTlsSetup::Default,
-                            },
-                        )))
-                        .await
-                        .map_err(RequestError::http2_connection_setup)?
-                    } else {
-                        connector
-                            .connect(phantom_net::route::Http2Route::Origin(
-                                phantom_net::route::OriginRoute::Tls {
-                                    tcp: phantom_net::route::TcpRoute::HttpConnect(
-                                        phantom_net::route::HttpConnectRoute {
-                                            proxy: phantom_net::route::ProxyTransport::Tls {
-                                                endpoint: phantom_net::route::Endpoint {
-                                                    host: proxy.host(),
-                                                    port: proxy.port(),
-                                                },
-                                                server_name: proxy.host(),
-                                                connector: proxy_connector,
-                                            },
-                                            authority: &connect_authority,
-                                            headers: proxy.ordered_connect_headers(),
-                                            credentials: None,
-                                        },
-                                    ),
-                                    server_name: endpoint.host(),
-                                    setup: phantom_net::route::DirectTlsSetup::Default,
-                                },
-                            ))
-                            .await
-                            .map_err(RequestError::http2_connection_setup)?
+                    phantom_net::route::ProxyTransport::Tls {
+                        endpoint: proxy_endpoint,
+                        server_name: proxy.host(),
+                        connector: proxy_connector,
                     }
                 } else {
-                    if let Some(credentials) = proxy.basic_credentials() {
-                        // See the TLS-proxy branch above.
-                        super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
-                            phantom_net::route::OriginRoute::Tls {
-                                tcp: phantom_net::route::TcpRoute::HttpConnect(
-                                    phantom_net::route::HttpConnectRoute {
-                                        proxy: phantom_net::route::ProxyTransport::Tcp(
-                                            phantom_net::route::Endpoint {
-                                                host: proxy.host(),
-                                                port: proxy.port(),
-                                            },
-                                        ),
-                                        authority: &connect_authority,
-                                        headers: proxy.ordered_connect_headers(),
-                                        credentials: Some(credentials),
-                                    },
-                                ),
-                                server_name: endpoint.host(),
-                                setup: phantom_net::route::DirectTlsSetup::Default,
+                    phantom_net::route::ProxyTransport::Tcp(proxy_endpoint)
+                };
+                super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
+                    phantom_net::route::OriginRoute::Tls {
+                        tcp: phantom_net::route::TcpRoute::HttpConnect(
+                            phantom_net::route::HttpConnectRoute {
+                                proxy: transport,
+                                authority: &connect_authority,
+                                headers: proxy.ordered_connect_headers(),
+                                credentials: proxy.basic_credentials(),
                             },
-                        )))
-                        .await
-                        .map_err(RequestError::http2_connection_setup)?
-                    } else {
-                        connector
-                            .connect(phantom_net::route::Http2Route::Origin(
-                                phantom_net::route::OriginRoute::Tls {
-                                    tcp: phantom_net::route::TcpRoute::HttpConnect(
-                                        phantom_net::route::HttpConnectRoute {
-                                            proxy: phantom_net::route::ProxyTransport::Tcp(
-                                                phantom_net::route::Endpoint {
-                                                    host: proxy.host(),
-                                                    port: proxy.port(),
-                                                },
-                                            ),
-                                            authority: &connect_authority,
-                                            headers: proxy.ordered_connect_headers(),
-                                            credentials: None,
-                                        },
-                                    ),
-                                    server_name: endpoint.host(),
-                                    setup: phantom_net::route::DirectTlsSetup::Default,
-                                },
-                            ))
-                            .await
-                            .map_err(RequestError::http2_connection_setup)?
-                    }
-                }
+                        ),
+                        server_name: endpoint.host(),
+                        setup: phantom_net::route::DirectTlsSetup::Default,
+                    },
+                )))
+                .await
+                .map_err(RequestError::http2_connection_setup)?
             }
             Route::Socks5(proxy) => match proxy.dns_mode() {
-                crate::Socks5DnsMode::Local => connector
-                    .connect(phantom_net::route::Http2Route::Origin(
-                        phantom_net::route::OriginRoute::Tls {
-                            tcp: phantom_net::route::TcpRoute::Socks5 {
-                                proxy: phantom_net::route::Endpoint {
-                                    host: proxy.host(),
-                                    port: proxy.port(),
-                                },
-                                target: phantom_net::route::Socks5Target::LocalDns(
-                                    phantom_net::route::Endpoint {
-                                        host: endpoint.host(),
-                                        port: endpoint.port(),
-                                    },
-                                ),
-                                auth: proxy.auth(),
+                crate::Socks5DnsMode::Local => super::box_send(connector.connect(
+                    phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
+                        tcp: phantom_net::route::TcpRoute::Socks5 {
+                            proxy: phantom_net::route::Endpoint {
+                                host: proxy.host(),
+                                port: proxy.port(),
                             },
-                            server_name: endpoint.host(),
-                            setup: phantom_net::route::DirectTlsSetup::Default,
-                        },
-                    ))
-                    .await
-                    .map_err(RequestError::http2_connection_setup)?,
-                crate::Socks5DnsMode::Remote => connector
-                    .connect(phantom_net::route::Http2Route::Origin(
-                        phantom_net::route::OriginRoute::Tls {
-                            tcp: phantom_net::route::TcpRoute::Socks5 {
-                                proxy: phantom_net::route::Endpoint {
-                                    host: proxy.host(),
-                                    port: proxy.port(),
+                            target: phantom_net::route::Socks5Target::LocalDns(
+                                phantom_net::route::Endpoint {
+                                    host: endpoint.host(),
+                                    port: endpoint.port(),
                                 },
-                                target: phantom_net::route::Socks5Target::RemoteDns(
-                                    phantom_net::route::Endpoint {
-                                        host: endpoint.host(),
-                                        port: endpoint.port(),
-                                    },
-                                ),
-                                auth: proxy.auth(),
-                            },
-                            server_name: endpoint.host(),
-                            setup: phantom_net::route::DirectTlsSetup::Default,
+                            ),
+                            auth: proxy.auth(),
                         },
-                    ))
-                    .await
-                    .map_err(RequestError::http2_connection_setup)?,
+                        server_name: endpoint.host(),
+                        setup: phantom_net::route::DirectTlsSetup::Default,
+                    }),
+                ))
+                .await
+                .map_err(RequestError::http2_connection_setup)?,
+                crate::Socks5DnsMode::Remote => super::box_send(connector.connect(
+                    phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
+                        tcp: phantom_net::route::TcpRoute::Socks5 {
+                            proxy: phantom_net::route::Endpoint {
+                                host: proxy.host(),
+                                port: proxy.port(),
+                            },
+                            target: phantom_net::route::Socks5Target::RemoteDns(
+                                phantom_net::route::Endpoint {
+                                    host: endpoint.host(),
+                                    port: endpoint.port(),
+                                },
+                            ),
+                            auth: proxy.auth(),
+                        },
+                        server_name: endpoint.host(),
+                        setup: phantom_net::route::DirectTlsSetup::Default,
+                    }),
+                ))
+                .await
+                .map_err(RequestError::http2_connection_setup)?,
             },
         };
         Ok(connection)
