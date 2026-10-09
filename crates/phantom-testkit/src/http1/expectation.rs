@@ -508,7 +508,7 @@ fn append_hex_line(
     {
         return Err(ExpectationError::Head(CaptureError::HeadLimitExceeded));
     }
-    for pair in hex.as_bytes().chunks_exact(2) {
+    for pair in hex.as_bytes().as_chunks::<2>().0 {
         let high = hex_digit(pair[0]).ok_or(ExpectationError::InvalidHex)?;
         let low = hex_digit(pair[1]).ok_or(ExpectationError::InvalidHex)?;
         let byte = high * 16 + low;
