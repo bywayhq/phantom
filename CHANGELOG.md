@@ -14,6 +14,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Require Linux for the full QUIC Interop Runner. Migrate: run
+  `scripts/conformance/quic_interop.py` on Linux, with exclusive use of its
+  Docker daemon and runner checkout. Other hosts now fail before mutation.
+  The runner stops its owned process group before restoring checkout files,
+  removes only verified owned Docker resources on the selected daemon, and
+  retains recovery files when cleanup fails. Cleanup failure fails the run
+  even when the HTTP/3 case succeeds.
+
 - Separate WPT EventSource observations from runner failures. Migrate:
   readers of `summary.json` must use `run_failed` for the overall result and
   `infrastructure_failures` for setup, shutdown and cleanup errors.

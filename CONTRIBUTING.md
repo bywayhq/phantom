@@ -287,6 +287,14 @@ observes its child exiting before removing temporary server files. If child
 exit cannot be established, it retains those files and reports their path.
 Cleanup and publication failures remain in the report or command diagnostics.
 
+The full QUIC Interop Runner requires Linux and exclusive use of its Docker
+daemon and checkout. It stops its owned process group before restoring the
+three modified checkout files. Cleanup verifies owner labels and immutable
+IDs, uses the launch's captured Docker environment, and refuses to detach
+network endpoints. A failed reap retains the checkout and scratch files.
+Other cleanup failures retain original byte backups in scratch. The failed
+summary and diagnostics give recovery paths and resource ownership metadata.
+
 The QUIC interoperability download example creates a staging directory beside
 each output. Publication requires hard-link support on that filesystem and
 refuses an existing output. Each invocation removes only its staging file
