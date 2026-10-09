@@ -150,7 +150,8 @@ impl WebSocketRequestBuilder {
             handshake_timeout: _,
             retry_policy: _,
         } = self;
-        let route = route.as_ref().unwrap_or(&client.inner.route);
+        let selected_route = request.selected_route(&client, route.as_ref());
+        let route = &selected_route;
 
         #[cfg(feature = "cookies")]
         let cookie_jar = client.state.cookies.as_ref().map(Arc::clone);

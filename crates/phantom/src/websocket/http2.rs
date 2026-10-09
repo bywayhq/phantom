@@ -100,7 +100,8 @@ impl WebSocketRequestBuilder {
             handshake_timeout: _,
             retry_policy: _,
         } = self;
-        let route = route.as_ref().unwrap_or(&client.inner.route);
+        let selected_route = request.selected_route(&client, route.as_ref());
+        let route = &selected_route;
         // RFC 8441 carries only `wss://` here: plaintext H2 (h2c) is not
         // spoken to any origin, so `ws://` fails before route or origin I/O.
         if request.transport != WebSocketTransport::Tls {

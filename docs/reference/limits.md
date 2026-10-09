@@ -9,6 +9,7 @@ explains how Phantom limits the state a client keeps.
 | Policy | Default | Enable with |
 | --- | --- | --- |
 | Timeouts | None | `ClientBuilder::request_timeouts`, `RequestBuilder::timeouts` |
+| Environment proxies | Ignored | `ClientBuilder::environment_proxies(EnvironmentProxies::from_env()?)` |
 | Redirects | Not followed | `RedirectPolicy::limited` |
 | Connection-setup retries | None | `RetryPolicy::connection_failures` |
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |

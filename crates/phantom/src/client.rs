@@ -149,6 +149,8 @@ pub(crate) struct ClientInner {
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
     pub(crate) route: Route,
+    route_explicit: bool,
+    environment_proxies: Option<crate::EnvironmentProxies>,
     /// Profile CONNECT fields for HTTP proxy routes that set none.
     pub(crate) proxy_connect: Option<Arc<ProxyConnectTemplate>>,
     /// Profile WebSocket templates and connection policy.
@@ -200,6 +202,24 @@ pub(crate) struct OriginConnectors<'a> {
 }
 
 impl ClientInner {
+    pub(crate) fn selected_route(
+        &self,
+        request_route: Option<&Route>,
+        scheme: &str,
+        endpoint: &crate::authority::Endpoint,
+    ) -> Route {
+        if let Some(route) = request_route {
+            return route.clone();
+        }
+        if self.route_explicit {
+            return self.route.clone();
+        }
+        self.environment_proxies.as_ref().map_or_else(
+            || self.route.clone(),
+            |proxies| proxies.route_for(scheme, endpoint),
+        )
+    }
+
     /// Returns the origin connectors for `endpoint`'s host and port: those
     /// with the certificate [`ClientBuilder::client_certificate_for`] mapped
     /// to it, or otherwise the client-wide ones.
@@ -373,6 +393,8 @@ impl Client {
             proxy_additional_roots: Vec::new(),
             proxy_server_authentication: ServerAuthentication::default(),
             route: Route::Direct,
+            route_explicit: false,
+            environment_proxies: None,
             options: ClientOptions::default(),
             preemptive_proxy_authentication: true,
             http2_proxy_connections_per_route: NonZeroUsize::MIN,
@@ -672,6 +694,8 @@ pub struct ClientBuilder {
     proxy_additional_roots: Vec<Box<[u8]>>,
     proxy_server_authentication: ServerAuthentication,
     route: Route,
+    route_explicit: bool,
+    environment_proxies: Option<crate::EnvironmentProxies>,
     options: ClientOptions,
     preemptive_proxy_authentication: bool,
     http2_proxy_connections_per_route: NonZeroUsize,
@@ -726,6 +750,8 @@ impl fmt::Debug for ClientBuilder {
                 &self.proxy_server_authentication,
             )
             .field("route", &self.route)
+            .field("route_explicit", &self.route_explicit)
+            .field("environment_proxies", &self.environment_proxies.is_some())
             .field(
                 "preemptive_proxy_authentication",
                 &self.preemptive_proxy_authentication,
@@ -841,6 +867,26 @@ impl ClientBuilder {
     /// it for one request.
     pub fn route(mut self, route: Route) -> Self {
         self.route = route;
+        self.route_explicit = true;
+        self
+    }
+
+    /// Enables routing through a validated environment snapshot.
+    ///
+    /// Environment routing is off by default. The snapshot stays unchanged
+    /// for this client and its clones. Explicit client or request routes,
+    /// including [`Route::Direct`], override it regardless of setter order.
+    /// Without an explicit route, `NO_PROXY` is checked against each logical
+    /// origin, including redirect targets. A proxy failure remains an error.
+    ///
+    /// ```no_run
+    /// # fn example(profile: phantom::profile::ClientProfile) -> Result<phantom::Client, Box<dyn std::error::Error>> {
+    /// let proxies = phantom::EnvironmentProxies::from_env()?;
+    /// Ok(phantom::Client::builder(profile).environment_proxies(proxies).build()?)
+    /// # }
+    /// ```
+    pub fn environment_proxies(mut self, proxies: crate::EnvironmentProxies) -> Self {
+        self.environment_proxies = Some(proxies);
         self
     }
 
@@ -1931,6 +1977,10 @@ impl ClientBuilder {
             .as_http_proxy()
             .is_some_and(|proxy| proxy.uses_tls())
             || matches!(&self.route, Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_some())
+            || self
+                .environment_proxies
+                .as_ref()
+                .is_some_and(crate::EnvironmentProxies::uses_tls_proxy)
             || !self.proxy_additional_roots.is_empty()
             || proxy_authentication_disabled;
         let https_proxy = (supports_http1 || secure_proxy_requested)
@@ -2065,6 +2115,8 @@ impl ClientBuilder {
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
+            route_explicit: self.route_explicit,
+            environment_proxies: self.environment_proxies,
             proxy_connect: self.profile.proxy_connect().cloned().map(Arc::new),
             #[cfg(feature = "websocket")]
             websocket: self.profile.websocket().cloned(),

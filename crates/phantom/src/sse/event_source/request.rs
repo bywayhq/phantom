@@ -286,11 +286,15 @@ impl SseRequestBuilder {
     /// [`SseErrorKind::InvalidContentType`]: crate::SseErrorKind::InvalidContentType
     /// [encoding]: crate::SseErrorKind::UnsupportedContentEncoding
     pub async fn connect(self) -> Result<Response<SseEventSource>, SseError> {
-        let route = self
+        let mut request = self
             .request
-            .route
-            .as_ref()
-            .unwrap_or(&self.request.client.inner.route);
+            .client
+            .get(self.request.protocol, &self.request.uri)
+            .map_err(SseError::request)?;
+        if let Some(route) = &self.request.route {
+            request = request.route(route.clone());
+        }
+        let route = request.selected_route();
         let span = debug_span!(
             "sse.event_source.connect",
             protocol = self.request.protocol.trace_name(),

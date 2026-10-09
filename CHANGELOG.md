@@ -988,6 +988,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Opt in to environment proxy routing with a validated
+  `EnvironmentProxies` snapshot. Explicit client and request routes,
+  including direct routes, take precedence. Each redirect target checks
+  `NO_PROXY` against its logical origin. HTTP, WebSocket, and SSE openings
+  use the same snapshot; proxy failures remain errors.
+
 - Compare bounded HTTP/1 request heads against selected retained browser
   requests with `phantom-testkit::http1`. Keep raw names, values, order and
   duplicates; replace targets and indexed Host/User-Agent values explicitly.

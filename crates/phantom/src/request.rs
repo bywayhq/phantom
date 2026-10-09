@@ -447,6 +447,14 @@ impl RequestBuilder {
         self
     }
 
+    pub(crate) fn selected_route(&self) -> Route {
+        self.client.inner.selected_route(
+            self.route.as_ref(),
+            self.request.uri.scheme_str().unwrap_or_default(),
+            &self.request.endpoint,
+        )
+    }
+
     /// Sends this exact HTTP/3 request to the alternative service at `host`
     /// and `port`, as a request to an alternative learned from `Alt-Svc`
     /// goes (RFC 7838): QUIC connects to that location over the request's
@@ -625,7 +633,7 @@ impl RequestBuilder {
     /// ```
     pub async fn send(self) -> Result<Response<ResponseBody>, RequestError> {
         let origin = self.request.origin();
-        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+        let route = self.selected_route();
         let span = debug_span!(
             "client.request",
             method = %self.method,
@@ -732,7 +740,7 @@ impl RequestBuilder {
         }
         let content_decoding = self.content_decoding;
         if let Some(template) = &self.request.template {
-            let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+            let route = self.selected_route();
             let scope = template::ProtocolScope {
                 exact: match self.selection {
                     ProtocolSelection::Exact(protocol) => Some(protocol),
@@ -790,7 +798,13 @@ impl RequestBuilder {
         let mut request = request;
         request.alternative = alternative;
         let body = body.with_continue_wait(request.expect_continue);
-        let route = route.as_ref().unwrap_or(&client.inner.route);
+        let route_override = route;
+        let selected_route = client.inner.selected_route(
+            route_override.as_ref(),
+            request.uri.scheme_str().unwrap_or_default(),
+            &request.endpoint,
+        );
+        let route = &selected_route;
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
         let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
         ensure_request_supported(selection, route, &request)?;
@@ -864,8 +878,34 @@ impl RequestBuilder {
         let mut resolved = request;
 
         loop {
+            let selected_route = client.inner.selected_route(
+                route_override.as_ref(),
+                resolved.uri.scheme_str().unwrap_or_default(),
+                &resolved.endpoint,
+            );
+            let route = &selected_route;
             ensure_request_supported(selection, route, &resolved)
                 .map_err(|error| error.with_origin(resolved.origin()))?;
+            if resolved.alternative.is_none() {
+                ensure_http2_fallback_supported(&client, selection, route, retry_policy)
+                    .map_err(|error| error.with_origin(resolved.origin()))?;
+            }
+            if let Some(template) = &resolved.template {
+                template::check(
+                    template,
+                    template::ProtocolScope {
+                        exact: match selection {
+                            ProtocolSelection::Exact(protocol) => Some(protocol),
+                            ProtocolSelection::Http1Or2 => None,
+                        },
+                        alt_svc: client.alt_svc_enabled() && route.carries_quic_alternative(),
+                        content_decoding: content_decoding.is_enabled(),
+                    },
+                    redirect.headers(),
+                    client.inner.client_hints.as_ref(),
+                )
+                .map_err(|error| error.with_origin(resolved.origin()))?;
+            }
             let outcome = send_once(
                 &client,
                 &resolved,

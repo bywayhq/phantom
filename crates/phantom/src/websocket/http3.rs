@@ -50,7 +50,8 @@ impl WebSocketRequestBuilder {
             handshake_timeout: _,
             retry_policy: _,
         } = self;
-        let route = route.as_ref().unwrap_or(&client.inner.route);
+        let selected_route = request.selected_route(&client, route.as_ref());
+        let route = &selected_route;
         // RFC 9220 tunnels over QUIC, which always carries TLS, so `ws://`
         // has no HTTP/3 form; an HTTP proxy route cannot carry QUIC.
         if request.transport != WebSocketTransport::Tls || matches!(route, Route::HttpProxy(_)) {

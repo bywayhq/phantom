@@ -171,6 +171,7 @@ mod client;
 mod content_coding;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
+mod environment_proxy;
 mod error;
 mod link;
 mod redirect;
@@ -191,6 +192,7 @@ pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use content_coding::{ContentCoding, ContentDecoding};
 #[cfg(feature = "diagnostics")]
 pub use diagnostics::KeyLog;
+pub use environment_proxy::{EnvironmentProxies, EnvironmentProxyError, EnvironmentProxyErrorKind};
 pub use error::{
     BuildError, BuildErrorKind, RequestError, RequestErrorKind, RequestReplayObservation,
 };

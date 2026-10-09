@@ -378,7 +378,9 @@ impl WebSocketRequestBuilder {
     ///   [`WebSocketErrorKind::Random`] when the runtime cannot do network I/O
     ///   or the handshake nonce cannot be generated.
     pub async fn connect(self) -> Result<WebSocket, WebSocketError> {
-        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+        let route = self
+            .request
+            .selected_route(&self.client, self.route.as_ref());
         let span = debug_span!(
             "websocket.connect",
             protocol = match self.selection {
@@ -492,12 +494,16 @@ impl WebSocketRequestBuilder {
     async fn connect_inner(mut self, request_span: &Span) -> Result<WebSocket, WebSocketError> {
         // A tunnel's CONNECT copies fields such as `User-Agent` from the
         // opening, as browsers do.
-        let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+        let route = self
+            .request
+            .selected_route(&self.client, self.route.as_ref());
         if let Some(route) = route
             .with_profile_connect(self.client.inner.proxy_connect.as_deref(), |name| {
                 opening_field_value(&self.headers, name)
             })
         {
+            self.route = Some(route);
+        } else {
             self.route = Some(route);
         }
         match self.selection {
@@ -556,7 +562,10 @@ impl WebSocketRequestBuilder {
         let choice = if self.request.transport == WebSocketTransport::Plaintext {
             WebSocketNewConnection::Http1Upgrade
         } else {
-            let route = self.route.as_ref().unwrap_or(&self.client.inner.route);
+            let selected_route = self
+                .request
+                .selected_route(&self.client, self.route.as_ref());
+            let route = &selected_route;
             // The stream takes the same per-origin admission as an ordinary
             // request, waiting or failing with a typed capacity error.
             match self
@@ -646,6 +655,16 @@ enum WebSocketTransport {
 }
 
 impl ResolvedWebSocket {
+    fn selected_route(&self, client: &Client, request_route: Option<&Route>) -> Route {
+        let scheme = match self.transport {
+            WebSocketTransport::Plaintext => "ws",
+            WebSocketTransport::Tls => "wss",
+        };
+        client
+            .inner
+            .selected_route(request_route, scheme, &self.endpoint)
+    }
+
     fn new(value: &str) -> Result<Self, WebSocketError> {
         let uri = parse_absolute_uri(value).map_err(|error| match error {
             ParseUriError::Syntax(error) => WebSocketError::invalid_uri(error),
