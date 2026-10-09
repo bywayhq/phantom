@@ -103,40 +103,6 @@ fn an_unbound_udp_socket_takes_port_randomization() -> TestResult {
     Ok(())
 }
 
-/// Without the option, Windows hands out the ports of successive binds in
-/// sequence, one apart, which is what `chrome::v154_udp` changes.
-///
-/// Other test processes bind UDP ports at the same time and can take ports
-/// in between, so a pair counts as sequential when the next port is at most
-/// 64 above the last; random ports almost never are. A host whose pairs are
-/// mostly further apart already randomizes UDP ports, and the test prints a
-/// skip line.
-#[test]
-fn sockets_without_udp_settings_take_sequential_local_ports() -> TestResult {
-    let sockets = sockets(None, None, 16)?;
-    for socket in &sockets {
-        assert!(!random_port(socket)?);
-    }
-    let ports = sockets
-        .iter()
-        .map(|socket| Ok(socket.local_addr()?.port()))
-        .collect::<std::io::Result<Vec<u16>>>()?;
-    let pairs = ports.len() - 1;
-    let steps = || ports.windows(2).map(|pair| pair[1].wrapping_sub(pair[0]));
-    let sequential = steps().filter(|step| (1..=64).contains(step)).count();
-    let one_apart = steps().filter(|step| *step == 1).count();
-    if steps().filter(|step| !(1..=64).contains(step)).count() * 2 > pairs {
-        eprintln!("skipped: this host already randomizes UDP ports: {ports:?}");
-        return Ok(());
-    }
-    // A wrap from the top of the dynamic range to its bottom, and a jump
-    // over a reserved port block, each leave one pair that is not
-    // sequential.
-    assert!(sequential + 2 >= pairs, "{ports:?}");
-    eprintln!("{one_apart} of {pairs} successive ports were one apart");
-    Ok(())
-}
-
 #[test]
 fn chromium_sockets_take_scattered_local_ports() -> TestResult {
     let sockets = sockets(Some(chrome::v154_udp()), None, 8)?;

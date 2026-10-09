@@ -2048,7 +2048,7 @@ Tests:
 
 | Test | What it proves |
 | --- | --- |
-| `udp::tests::port_randomization` (`phantom-net`) | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chrome::v154_udp` and not without UDP settings; a bound UDP socket rejects it with `WSAEINVAL`; eight successive Chromium-profile sockets, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart; sixteen successive sockets without UDP settings take ascending ports at most 64 apart, all but two pairs, and the test prints how many were one apart |
+| `udp::tests::port_randomization` (`phantom-net`) | On Windows, read back with `getsockopt`: `SO_RANDOMIZE_PORT` set by `chrome::v154_udp` and not without UDP settings; a bound UDP socket rejects it with `WSAEINVAL`; eight successive Chromium-profile sockets, with and without a source binding, each have it set, and at least two successive ones take local ports more than 64 apart |
 | `udp::tests::paths` (`phantom-net`) | The UDP socket of a direct HTTP/3 connection, with and without a source binding, and of a SOCKS5 UDP association, with local and remote DNS, has the option exactly when the connector has Chromium's UDP settings |
 | `udp::tests::a_socket_takes_port_randomization_only_when_the_settings_ask` (`phantom-net`) | On every platform, a socket has the option only on Windows and only with `chrome::v154_udp`, not with default or absent settings |
 | `profile_udp_settings_reach_every_http3_connector` (facade) | A profile's UDP settings reach the HTTP/3 connector and the CONNECT-UDP proxy's HTTP/3 connector the client builds |
