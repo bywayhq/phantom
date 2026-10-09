@@ -1656,6 +1656,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Document Phase 2 API milestones, completion criteria, and browser/TLS
+  behavior that each change must preserve.
 - Add crate READMEs, keywords, categories, and plain package descriptions
   for the four publishable crates. Enable Cargo lints, with five documented
   exceptions for incompatible transitive dependency versions.

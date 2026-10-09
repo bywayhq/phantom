@@ -85,6 +85,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
 
 ## Optional
 
+- [Phase 2 checklist](docs/internals/phase2.md): API work and completion criteria
 - [Design](docs/explanation/design.md): why Phantom behaves this way
 - [Validation](docs/explanation/validation.md): how each recipe is tested against the browser
 - [Contributing](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md): only for changing Phantom itself

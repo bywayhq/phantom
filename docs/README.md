@@ -67,6 +67,8 @@ Find the page you need below. If you're new, start at the top.
 
 - [Contributing](../CONTRIBUTING.md): setup, checks, and pull requests.
 - [Roadmap](roadmap.md): what comes next.
+- [Phase 2 checklist](internals/phase2.md): API milestones and completion
+  criteria.
 - [Writing the documentation](internals/documentation.md): how these pages
   are written.
 - [Browser recipes](internals/browser-recipes.md): add a browser recipe.

@@ -442,6 +442,10 @@ the wire, capture evidence.
 
 ## Phase 2: Ergonomics
 
+Track implementation and acceptance criteria in the
+[Phase 2 checklist](internals/phase2.md). The workspace lint baseline is
+merged; route API consolidation is next.
+
 Phase 2 settles the public API before the first release, so it starts with
 the structural changes that would otherwise break published crates. They
 wait for Phase 1, so they cover every route and setting it adds. A lint
