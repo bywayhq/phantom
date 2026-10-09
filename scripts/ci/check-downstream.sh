@@ -54,6 +54,7 @@ publish = false
 [features]
 https-records = ["phantom/https-records"]
 json = ["phantom/json"]
+sse = ["phantom/sse"]
 
 [dependencies]
 $dependency
@@ -69,6 +70,7 @@ fn main() {}
 EOF
   cp "$repository_root/tests/downstream/public-api/src/lib.rs" "$consumer/src/lib.rs"
   cp "$repository_root/tests/downstream/public-api/src/wire.rs" "$consumer/src/wire.rs"
+  cp "$repository_root/tests/downstream/public-api/src/workflows.rs" "$consumer/src/workflows.rs"
   cp -R "$repository_root/tests/downstream/public-api/fixtures" "$consumer/fixtures"
 }
 

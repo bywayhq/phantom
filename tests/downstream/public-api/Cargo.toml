@@ -10,6 +10,7 @@ publish = false
 default = []
 https-records = ["phantom/https-records"]
 json = ["phantom/json"]
+sse = ["phantom/sse"]
 
 [dependencies]
 phantom = { package = "phantom-http", path = "../../../crates/phantom" }

@@ -2,6 +2,9 @@
 mod wire;
 
 #[cfg(test)]
+mod workflows;
+
+#[cfg(test)]
 mod tests {
     use std::{num::NonZeroUsize, time::Duration};
 

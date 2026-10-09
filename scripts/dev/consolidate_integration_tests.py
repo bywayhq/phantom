@@ -47,6 +47,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "direct_http",
                 "error_context",
                 "plaintext_templates",
+                "prepared_bodies",
                 "query_authorization",
                 "redirects",
                 "request_templates",
@@ -54,6 +55,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "stale_connection_replay",
                 "status_retry",
                 "timeouts",
+                "tracing",
                 "unprocessed_replay",
             ],
         ),
@@ -96,6 +98,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
         "proxies": (
             "HTTP CONNECT, forwarding, and SOCKS5 proxy routes",
             [
+                "environment",
                 "forward_proxy",
                 "negotiated_proxy",
                 "proxy",
@@ -110,6 +113,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
         "streams": (
             "WebSocket and server-sent event streams",
             [
+                "environment",
                 "sse",
                 "sse_browser_reconnect",
                 "websocket",
@@ -123,7 +127,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
     "crates/phantom-profile": {
         "public_api": (
             "profile construction through the public API",
-            ["browser_profiles", "http3_public_api", "quic_public_api"],
+            ["browser_profiles", "http3_public_api", "quic_public_api", "traits"],
         ),
     },
 }

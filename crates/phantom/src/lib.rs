@@ -99,6 +99,10 @@ struct ProfilesGuideDoctests;
 struct RequestTemplatesGuideDoctests;
 
 #[cfg(doctest)]
+#[doc = include_str!("../../../docs/guides/request-bodies.md")]
+struct RequestBodiesGuideDoctests;
+
+#[cfg(doctest)]
 #[doc = include_str!("../../../docs/guides/routes-and-proxies.md")]
 struct RoutesGuideDoctests;
 
