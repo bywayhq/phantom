@@ -75,6 +75,6 @@ stream or restore a known boundary before using it again.
 
 ## Next
 
-- [HTTP/1 fixture provenance](fixtures/http1/README.md): original capture
+- [HTTP/1 fixture provenance](https://github.com/bywayhq/phantom/blob/main/crates/phantom-testkit/fixtures/http1/README.md): original capture
   locations and hashes.
 - [API reference](https://docs.rs/phantom-testkit): capture types and errors.

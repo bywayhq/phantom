@@ -568,12 +568,9 @@ not carry its renames. Until then, depend on a pinned git revision
     share a dependency graph outside Linux, because symbol prefixing is
     skipped elsewhere and both ask for the same static archive names. Do not
     promise coexistence beyond Linux.
-- Decide how `phantom-testkit` appears in the published manifests.
-  `crates/phantom`, `crates/phantom-net`, and `crates/phantom-quic-btls` name
-  it by path alone, so `cargo publish` drops it, and a downstream
-  `cargo deny check --all-features` reads it as a wildcard. An exact version
-  removes the warning but means publishing `phantom-testkit` too, which the
-  Phase 2 wire-assertion harness may need anyway.
+- Publish `phantom-testkit` before the crates that use it for tests. Their
+  development dependencies pin its exact version. Its packaged fixtures
+  keep tests independent of the repository checkout.
 - Measure the public API with `cargo public-api`, and check each release
   against the previous one with `cargo semver-checks`.
 - Check the vendored forks against security advisories before the first

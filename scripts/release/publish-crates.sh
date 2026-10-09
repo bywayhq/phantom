@@ -30,6 +30,7 @@ manifests=(
   vendor/wreq-proto/Cargo.toml
   vendor/tungstenite/Cargo.toml
   vendor/tokio-tungstenite/Cargo.toml
+  crates/phantom-testkit/Cargo.toml
   crates/phantom-profile/Cargo.toml
   crates/phantom-quic-btls/Cargo.toml
   crates/phantom-net/Cargo.toml

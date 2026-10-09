@@ -35,7 +35,7 @@ btls = { workspace = true, features = ["prefix-symbols"] }
 btls-sys = { workspace = true, features = ["prefix-symbols"] }
 
 [dev-dependencies]
-phantom-testkit = { path = "../phantom-testkit" }
+phantom-testkit = { version = "=0.1.0", path = "../phantom-testkit" }
 
 [lints.rust]
 missing_debug_implementations = "warn"

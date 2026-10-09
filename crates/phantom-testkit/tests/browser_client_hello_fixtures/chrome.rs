@@ -3,7 +3,7 @@ use phantom_testkit::tls::{ClientHelloSummary, is_grease};
 use super::{TestResult, fixture::Fixture, redecode};
 
 pub(super) const FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/tls/chrome/154.0.8037.58/",
+    "../../fixtures/tls/chrome/154.0.8037.58/",
     "windows-11-26200/client-hello.txt"
 ));
 const GREASE_SENTINEL: u16 = 0x0a0a;

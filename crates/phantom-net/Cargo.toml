@@ -74,7 +74,7 @@ libc = "0.2.189"
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 phantom-quic-btls = { version = "=0.1.0", path = "../phantom-quic-btls", features = ["server"] }
-phantom-testkit = { path = "../phantom-testkit" }
+phantom-testkit = { version = "=0.1.0", path = "../phantom-testkit" }
 quinn = { workspace = true, features = ["rustls-ring"] }
 quinn-proto.workspace = true
 rcgen = "=0.14.10"

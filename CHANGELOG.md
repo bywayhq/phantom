@@ -981,6 +981,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Compare bounded HTTP/1 request heads against selected retained browser
+  requests with `phantom-testkit::http1`. Keep raw names, values, order and
+  duplicates; replace targets and indexed Host/User-Agent values explicitly.
+  Mismatches and diagnostics omit request bytes. Packaged fixtures and
+  versioned development dependencies prepare the testkit for publication.
+
 - Cap caller-enabled retries across redirects with
   `RetryPolicy::with_max_retries`. Per-kind eligibility and limits still
   apply. Browser-required replays keep their separate limits.

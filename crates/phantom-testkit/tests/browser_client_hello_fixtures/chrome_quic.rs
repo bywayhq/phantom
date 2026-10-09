@@ -5,11 +5,11 @@ use phantom_testkit::tls::ClientHelloSummary;
 use super::TestResult;
 
 const FIRST: &str = include_str!(concat!(
-    "../../../../fixtures/http3/chrome/154.0.8037.58/",
+    "../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-1.txt"
 ));
 const SECOND: &str = include_str!(concat!(
-    "../../../../fixtures/http3/chrome/154.0.8037.58/",
+    "../../fixtures/http3/chrome/154.0.8037.58/",
     "windows-11-26200/quic-client-hello-2.txt"
 ));
 const EXPECTED_EXTENSIONS: [u16; 12] = [

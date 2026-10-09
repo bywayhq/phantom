@@ -6,7 +6,7 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
-publish = false
+readme = "README.md"
 
 [dependencies]
 tokio = { version = "1.53.1", features = ["io-util", "net", "rt", "time"] }

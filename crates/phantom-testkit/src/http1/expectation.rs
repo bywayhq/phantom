@@ -488,7 +488,7 @@ fn append_hex_line(
     limits: CaptureLimits,
     line: usize,
 ) -> Result<(), ExpectationError> {
-    if hex.is_empty() || hex.len() % 2 != 0 {
+    if hex.is_empty() || !hex.len().is_multiple_of(2) {
         return Err(ExpectationError::InvalidHex);
     }
     let length = hex.len() / 2;

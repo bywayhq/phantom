@@ -3,7 +3,7 @@ use phantom_testkit::tls::is_grease;
 use super::{TestResult, fixture::Fixture, redecode};
 
 const FIXTURE_TEXT: &str = include_str!(concat!(
-    "../../../../fixtures/tls/firefox/157.0/",
+    "../../fixtures/tls/firefox/157.0/",
     "windows-11-26200/client-hello.txt"
 ));
 
