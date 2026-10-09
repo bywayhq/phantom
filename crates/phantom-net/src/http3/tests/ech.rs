@@ -161,14 +161,14 @@ async fn connect(
     host: &str,
     address: SocketAddr,
     server_name: &str,
-    ech: impl Future<Output = Option<EchConfigList>>,
+    ech: impl Future<Output = Option<EchConfigList>> + Send,
 ) -> TestResult<Result<Http3Connection, Http3ConnectorError>> {
     Ok(timeout(
         TEST_TIMEOUT,
         connector.connect(
             crate::route::DatagramRoute::DirectEch {
                 endpoint: crate::route::Endpoint {
-                    host: host,
+                    host,
                     port: address.port(),
                 },
                 lookup: std::pin::pin!(ech).as_mut(),

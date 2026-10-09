@@ -14,6 +14,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- `Http3Connector` opens connections with `connect(DatagramRoute, server_name)`
+  and sends one-shot requests with `send`. Migrate: replace `connect_direct`
+  with `DatagramRoute::Direct`, SOCKS5 connection methods with
+  `DatagramRoute::Socks5`, and CONNECT-UDP methods with
+  `DatagramRoute::ConnectUdp`. Use `DirectEch` with a pinned lookup instead of
+  `connect_direct_with_ech`. Replace `send_get_direct` and
+  `send_request_direct` with `send`, passing `Method::GET` and no body for
+  GET. Keep the dial target, origin TLS name, and request authority separate.
+  Connection-based request and WebSocket operations remain available.
+
 - `phantom-net`'s HTTP/1.1, HTTP/2, and negotiated TLS connectors use
   `connect_via(route, server_name)` instead of ordinary direct, HTTP CONNECT,
   HTTPS CONNECT, and SOCKS5 connection methods. Migrate: construct a

@@ -122,13 +122,25 @@ async fn direct_quic_sockets_apply_the_udp_settings() -> TestResult {
 
     for settings in [Some(chromium::v154_udp()), None] {
         let connector = http3(settings)?;
-        let sockets =
-            sockets_bound_by(connector.connect_direct("127.0.0.1", port, SERVER_NAME)).await;
+        let sockets = sockets_bound_by(connector.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: port,
+            }),
+            SERVER_NAME,
+        ))
+        .await;
         assert_bound_with("direct", &sockets, settings);
 
         let connector = connector.with_source_binding(source.clone());
-        let sockets =
-            sockets_bound_by(connector.connect_direct("127.0.0.1", port, SERVER_NAME)).await;
+        let sockets = sockets_bound_by(connector.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: port,
+            }),
+            SERVER_NAME,
+        ))
+        .await;
         assert_bound_with("source-bound direct", &sockets, settings);
     }
     Ok(())
@@ -140,21 +152,35 @@ async fn socks5_association_sockets_apply_the_udp_settings() -> TestResult {
 
     for settings in [Some(chromium::v154_udp()), None] {
         let connector = http3(settings)?;
-        let sockets = sockets_bound_by(connector.connect_socks5_local(
-            "127.0.0.1",
-            proxy.port,
-            "127.0.0.1",
-            443,
+        let sockets = sockets_bound_by(connector.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: proxy.port,
+                },
+                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
             SERVER_NAME,
         ))
         .await;
         assert_bound_with("SOCKS5 local DNS", &sockets, settings);
 
-        let sockets = sockets_bound_by(connector.connect_socks5_remote(
-            "127.0.0.1",
-            proxy.port,
-            SERVER_NAME,
-            443,
+        let sockets = sockets_bound_by(connector.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: proxy.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: SERVER_NAME,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
             SERVER_NAME,
         ))
         .await;

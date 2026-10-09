@@ -681,11 +681,15 @@ impl Http3Connector {
             body,
         )
         .map_err(Http3ConnectorError::transaction)?;
-        let connection = self.connect(route, server_name).await?;
-        connection
-            .send_prepared_request(request)
-            .await
-            .map_err(Http3ConnectorError::transaction)
+        poll_tokio_io(|| async {
+            let connection = self.connect(route, server_name).await?;
+            connection
+                .send_prepared_request(request)
+                .await
+                .map_err(Http3ConnectorError::transaction)
+        })
+        .await
+        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
     }
 
     /// Opens one reusable direct HTTP/3 connection.
@@ -1029,7 +1033,7 @@ impl Http3Connector {
     /// Opens one CONNECT-UDP connection over HTTP/3 with optional
     /// challenge-driven HTTP Basic proxy authentication.
     ///
-    /// This behaves like [`Self::connect_connect_udp`]. With `credentials`,
+    /// With `credentials`,
     /// the first request omits them; a 407 carrying a valid Basic challenge
     /// is retried exactly once on a fresh outer connection with a
     /// never-indexed `proxy-authorization` field after `headers`. A second

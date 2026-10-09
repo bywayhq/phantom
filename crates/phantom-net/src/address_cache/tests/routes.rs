@@ -254,13 +254,36 @@ async fn http3_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
     };
 
     let (recorder, h3) = connector()?;
-    let _ = tokio::time::timeout(QUIC_WAIT, h3.connect_direct(ORIGIN, peer.port, ORIGIN)).await;
+    let _ = tokio::time::timeout(
+        QUIC_WAIT,
+        h3.connect(
+            crate::route::DatagramRoute::Direct(crate::route::Endpoint {
+                host: ORIGIN,
+                port: peer.port,
+            }),
+            ORIGIN,
+        ),
+    )
+    .await;
     assert_eq!(names(&recorder), [ORIGIN], "direct QUIC");
 
     let (recorder, h3) = connector()?;
     let _ = tokio::time::timeout(
         QUIC_WAIT,
-        h3.connect_socks5_remote(PROXY, peer.port, ORIGIN, 443, ORIGIN),
+        h3.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            ORIGIN,
+        ),
     )
     .await;
     assert_eq!(names(&recorder), [PROXY], "SOCKS5 UDP remote DNS");
@@ -268,7 +291,20 @@ async fn http3_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
     let (recorder, h3) = connector()?;
     let _ = tokio::time::timeout(
         QUIC_WAIT,
-        h3.connect_socks5_local(PROXY, peer.port, ORIGIN, 443, ORIGIN),
+        h3.connect(
+            crate::route::DatagramRoute::Socks5 {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                },
+                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: 443,
+                }),
+                auth: crate::proxy::Socks5Auth::None,
+            },
+            ORIGIN,
+        ),
     )
     .await;
     assert_eq!(names(&recorder), [ORIGIN, PROXY], "SOCKS5 UDP local DNS");
@@ -286,15 +322,21 @@ async fn connect_udp_over_tcp_resolves_only_the_proxy() -> TestResult {
 
     let _ = tokio::time::timeout(
         QUIC_WAIT,
-        h3.connect_connect_udp_over_tcp(
-            &proxy,
-            HttpsProxyProtocol::Http1,
-            PROXY,
-            peer.port,
-            &authority,
-            OriginForm::parse("/.well-known/masque/udp/origin.phantom.test/443/")?,
-            Vec::new(),
-            None,
+        h3.connect(
+            crate::route::DatagramRoute::ConnectUdp(crate::route::ConnectUdpRoute {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: peer.port,
+                },
+                transport: crate::route::ConnectUdpTransport::Tls {
+                    connector: &proxy,
+                    protocol: HttpsProxyProtocol::Http1,
+                },
+                authority: &authority,
+                path: OriginForm::parse("/.well-known/masque/udp/origin.phantom.test/443/")?,
+                headers: Vec::new(),
+                credentials: None,
+            }),
             ORIGIN,
         ),
     )
@@ -332,13 +374,18 @@ async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
 
     let _ = tokio::time::timeout(
         QUIC_WAIT,
-        h3.connect_connect_udp(
-            &proxy,
-            PROXY,
-            port,
-            &authority,
-            OriginForm::parse("/.well-known/masque/udp/origin.phantom.test/443/")?,
-            Vec::new(),
+        h3.connect(
+            crate::route::DatagramRoute::ConnectUdp(crate::route::ConnectUdpRoute {
+                proxy: crate::route::Endpoint {
+                    host: PROXY,
+                    port: port,
+                },
+                transport: crate::route::ConnectUdpTransport::Http3(&proxy),
+                authority: &authority,
+                path: OriginForm::parse("/.well-known/masque/udp/origin.phantom.test/443/")?,
+                headers: Vec::new(),
+                credentials: None,
+            }),
             ORIGIN,
         ),
     )
