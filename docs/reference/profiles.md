@@ -157,6 +157,12 @@ without it, the setting still sends GREASE. Firefox recipes use `Grease`.
 sets the [trust anchor IDs](glossary.md#trust-anchor-ids) and when their
 order is chosen. Every variant sends the same IDs; only the order changes.
 
+`TrustAnchorOrder::new(ids)` checks ID lengths and the encoded size while
+keeping their order and duplicates. An empty order explicitly advertises
+no IDs. `TrustAnchorOrders::new(orders)` requires at least one order and
+checks that each contains the same multiset of IDs. Repeating an order
+keeps its weight in the draw. Both return `InvalidTlsSettings` on failure.
+
 | Variant | Order | Recipes |
 | --- | --- | --- |
 | `Fixed(ids)` | The listed order on every connection | Chrome 154 and Chrome 154 for Android, TCP and QUIC: 28 IDs in ascending byte order |

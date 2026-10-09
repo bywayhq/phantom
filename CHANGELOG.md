@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Check trust-anchor ID orders before configuring a profile. Migrate:
+  construct `TrustAnchorOrder::new(ids)?` for `TrustAnchorIds::Fixed`.
+  Construct `TrustAnchorOrders::new(orders)?` for `PerClient` and
+  `PerConnection`. Empty fixed orders remain distinct from an omitted
+  extension. Repeated IDs and weighted candidate orders keep their order.
+  Use `as_slice()` on the checked values to read their contents.
+
 - Separate client timeout policies from per-request overrides. Migrate:
   keep `RequestTimeouts` on `ClientBuilder::request_timeouts`; pass
   `RequestTimeoutOverrides` to `RequestBuilder::timeouts` and
