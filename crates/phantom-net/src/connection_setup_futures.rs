@@ -221,7 +221,7 @@ mod ech {
                 future_size(&http2),
             ),
             (
-                "Http2TlsConnector::send_extended_connect_via_with_ech",
+                "Http2TlsConnector::send_extended_connect_direct_with_ech",
                 future_size(&http2_extended),
             ),
             (

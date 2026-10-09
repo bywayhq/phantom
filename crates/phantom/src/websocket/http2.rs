@@ -55,8 +55,8 @@ async fn extended_connect_direct(
     connector
         .send_extended_connect_via(
             phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
-                host: host,
-                port: port,
+                host,
+                port,
             }),
             host,
             authority,
@@ -357,8 +357,8 @@ impl WebSocketRequestBuilder {
                                 },
                                 target: phantom_net::route::Socks5Target::LocalDns(
                                     phantom_net::route::Endpoint {
-                                        host: host,
-                                        port: port,
+                                        host,
+                                        port,
                                     },
                                 ),
                                 auth: proxy.auth(),
@@ -380,8 +380,8 @@ impl WebSocketRequestBuilder {
                                 },
                                 target: phantom_net::route::Socks5Target::RemoteDns(
                                     phantom_net::route::Endpoint {
-                                        host: host,
-                                        port: port,
+                                        host,
+                                        port,
                                     },
                                 ),
                                 auth: proxy.auth(),

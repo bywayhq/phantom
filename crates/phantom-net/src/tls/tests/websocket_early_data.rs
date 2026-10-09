@@ -263,7 +263,7 @@ async fn http2_openings(second: Second) -> TestResult<Openings<Http2TlsError>> {
         connector.send_extended_connect_via(
             crate::route::TcpRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
-                port: port,
+                port,
             }),
             TEST_SERVER_NAME,
             &authority,
