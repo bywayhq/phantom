@@ -1257,7 +1257,7 @@ impl PoolEntry {
                 };
                 let transport = if proxy.uses_tls() {
                     let base =
-                        https_proxy.ok_or_else(|| RequestError::unsupported_negotiated_route())?;
+                        https_proxy.ok_or_else(RequestError::unsupported_negotiated_route)?;
                     let proxy_connector = self
                         .https_proxy
                         .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));

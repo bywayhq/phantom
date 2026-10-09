@@ -363,7 +363,6 @@ impl Client {
     /// Until a builder method changes it, the client uses a direct route,
     /// verifies servers against the bundled public roots, and has no
     /// timeouts, redirects, retries, cookie jar, or Alt-Svc learning.
-    #[must_use]
     pub fn builder(profile: ClientProfile) -> ClientBuilder {
         ClientBuilder {
             profile,
@@ -753,7 +752,6 @@ impl ClientBuilder {
     /// [`Self::add_proxy_root_certificate_der`]. A certificate that cannot be
     /// loaded fails [`Self::build`] with
     /// [`BuildErrorKind::TrustStore`](crate::BuildErrorKind::TrustStore).
-    #[must_use]
     pub fn add_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.additional_roots.push(certificate.into());
         self
@@ -767,7 +765,6 @@ impl ClientBuilder {
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
     /// when disabled authentication is combined with additional roots or a
     /// profile that configures HTTP/3.
-    #[must_use]
     pub fn server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.server_authentication = policy;
         self
@@ -781,7 +778,6 @@ impl ClientBuilder {
     /// HTTP/3 connection of a [`Route::ConnectUdp`] route. A certificate that
     /// cannot be loaded fails [`Self::build`] with
     /// [`BuildErrorKind::TrustStore`](crate::BuildErrorKind::TrustStore).
-    #[must_use]
     pub fn add_proxy_root_certificate_der(mut self, certificate: impl Into<Box<[u8]>>) -> Self {
         self.proxy_additional_roots.push(certificate.into());
         self
@@ -796,7 +792,6 @@ impl ClientBuilder {
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
     /// when disabled proxy authentication is combined with proxy roots or a
     /// [`Route::ConnectUdp`] route, whose outer connection is HTTP/3.
-    #[must_use]
     pub fn proxy_server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.proxy_server_authentication = policy;
         self
@@ -817,7 +812,6 @@ impl ClientBuilder {
     /// when it offers early data (`CLIENT_EARLY_TRAFFIC_SECRET`). TLS 1.2
     /// handshakes are not logged.
     #[cfg(feature = "diagnostics")]
-    #[must_use]
     pub fn key_log(mut self, capacity: NonZeroUsize) -> Self {
         self.key_log_capacity = Some(capacity);
         self
@@ -834,7 +828,6 @@ impl ClientBuilder {
     /// [`RequestErrorKind::Http3`](crate::RequestErrorKind::Http3). Writes are
     /// buffered, so the file is complete only after the connection closes.
     #[cfg(feature = "diagnostics")]
-    #[must_use]
     pub fn qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
         self.qlog_dir = Some(dir.into());
         self
@@ -844,7 +837,6 @@ impl ClientBuilder {
     ///
     /// The default is [`Route::Direct`]. [`RequestBuilder::route`] overrides
     /// it for one request.
-    #[must_use]
     pub fn route(mut self, route: Route) -> Self {
         self.route = route;
         self
@@ -871,7 +863,6 @@ impl ClientBuilder {
     ///
     /// [`HttpProxy::with_basic_auth`]: crate::HttpProxy::with_basic_auth
     /// [`MAX_PROXY_CREDENTIAL_ENTRIES`]: phantom_net::proxy::MAX_PROXY_CREDENTIAL_ENTRIES
-    #[must_use]
     pub fn preemptive_proxy_authentication(mut self, enabled: bool) -> Self {
         self.preemptive_proxy_authentication = enabled;
         self
@@ -897,7 +888,6 @@ impl ClientBuilder {
     ///
     /// [`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`]: phantom_net::proxy::MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION
     /// [`HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING`]: phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING
-    #[must_use]
     pub fn max_http2_proxy_connections_per_route(mut self, maximum: NonZeroUsize) -> Self {
         self.http2_proxy_connections_per_route = maximum;
         self
@@ -925,7 +915,6 @@ impl ClientBuilder {
     /// Clones of this client share the cache; a separately built client has
     /// its own. The client does not watch for network changes as browsers do;
     /// [`Client::clear_dns_cache`] forgets every answer.
-    #[must_use]
     pub fn dns_cache(mut self, settings: DnsCacheSettings) -> Self {
         self.dns_cache = Some(Some(settings));
         self
@@ -933,7 +922,6 @@ impl ClientBuilder {
 
     /// Resolves the host of every new connection, even when the profile
     /// caches addresses.
-    #[must_use]
     pub fn no_dns_cache(mut self) -> Self {
         self.dns_cache = Some(None);
         self
@@ -986,7 +974,6 @@ impl ClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn resolve(mut self, host: &str, addresses: impl IntoIterator<Item = IpAddr>) -> Self {
         self.host_overrides
             .push((host.into(), addresses.into_iter().collect()));
@@ -1047,7 +1034,6 @@ impl ClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn dns_resolver(mut self, resolver: AddressResolver) -> Self {
         self.address_resolver = Some(resolver);
         self
@@ -1097,7 +1083,6 @@ impl ClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn local_address(mut self, address: IpAddr) -> Self {
         self.source_binding = self.source_binding.with_address(address);
         self
@@ -1131,7 +1116,6 @@ impl ClientBuilder {
     /// interface has it. Linux kernels before 5.7 let only a process with
     /// `CAP_NET_RAW` bind a socket to an interface; there each connection
     /// fails when its socket binds.
-    #[must_use]
     pub fn interface(mut self, name: &str) -> Self {
         self.source_binding = self.source_binding.with_interface(name);
         self
@@ -1186,7 +1170,6 @@ impl ClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn client_certificate(mut self, certificate: ClientCertificate) -> Self {
         self.client_certificate = Some(certificate);
         self
@@ -1247,7 +1230,6 @@ impl ClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     pub fn client_certificate_for(mut self, origin: &str, certificate: ClientCertificate) -> Self {
         self.origin_certificates.push((origin.into(), certificate));
         self
@@ -1330,7 +1312,6 @@ impl ClientBuilder {
     /// [`RequestErrorKind::Redirect`](crate::RequestErrorKind::Redirect), and a
     /// hop the request's protocol selection or route cannot carry fails with
     /// that combination's typed error before the hop is sent.
-    #[must_use]
     pub fn redirect_policy(mut self, policy: crate::RedirectPolicy) -> Self {
         self.options.redirect_policy = policy;
         self
@@ -1346,7 +1327,6 @@ impl ClientBuilder {
     /// replaces the policy for one request. A delay or `Retry-After` limit
     /// the runtime clock cannot represent fails [`Self::build`] with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
     pub fn retry_policy(mut self, policy: crate::RetryPolicy) -> Self {
         self.options.retry_policy = policy;
         self
@@ -1361,7 +1341,6 @@ impl ClientBuilder {
     /// explicitly present in `timeouts`. A duration the runtime clock cannot
     /// represent fails [`Self::build`] with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
     pub fn request_timeouts(mut self, timeouts: crate::RequestTimeouts) -> Self {
         self.options.request_timeouts = timeouts;
         self
@@ -1373,7 +1352,6 @@ impl ClientBuilder {
     /// when the limit is reached, the least recently used entry is evicted.
     /// The negotiated H1/H2 pool uses the lower of the configured H1 and H2
     /// retention limits so neither maximum is exceeded.
-    #[must_use]
     pub fn max_retained_http1_connections(mut self, maximum: std::num::NonZeroUsize) -> Self {
         self.options.max_retained_http1_connections = maximum;
         self
@@ -1389,7 +1367,6 @@ impl ClientBuilder {
     /// connection.
     ///
     /// [`Http1Settings`]: crate::profile::Http1Settings
-    #[must_use]
     pub fn max_concurrent_http1_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1403,7 +1380,6 @@ impl ClientBuilder {
     /// The default is 100. A pool key is the origin plus the complete route.
     /// A request beyond the limit fails with
     /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
-    #[must_use]
     pub fn max_pending_http1_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1417,7 +1393,6 @@ impl ClientBuilder {
     /// The default is 32. When the limit is reached, the least recently used
     /// entry is evicted. The negotiated H1/H2 pool uses the lower of the
     /// configured H1 and H2 retention limits so neither maximum is exceeded.
-    #[must_use]
     pub fn max_retained_http2_connections(mut self, maximum: std::num::NonZeroUsize) -> Self {
         self.options.max_retained_http2_connections = maximum;
         self
@@ -1428,7 +1403,6 @@ impl ClientBuilder {
     /// The default is 100. The peer's stream limit also caps active requests.
     /// The bound covers all of a pool key's connections when
     /// [`Self::max_http2_connections_per_origin`] allows more than one.
-    #[must_use]
     pub fn max_concurrent_http2_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1441,7 +1415,6 @@ impl ClientBuilder {
     ///
     /// The default is 100. A request beyond the limit fails with
     /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
-    #[must_use]
     pub fn max_pending_http2_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1470,7 +1443,6 @@ impl ClientBuilder {
     /// [`Self::max_concurrent_http2_requests_per_origin`]. A server can see
     /// several simultaneous connections from one client, which no browser
     /// opens to one origin.
-    #[must_use]
     pub fn max_http2_connections_per_origin(mut self, maximum: std::num::NonZeroUsize) -> Self {
         self.options.max_http2_connections_per_origin = maximum;
         self
@@ -1489,7 +1461,6 @@ impl ClientBuilder {
     ///
     /// A `limit` the runtime clock cannot represent fails [`Self::build`]
     /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
     pub fn negotiated_setup_wait_limit(mut self, limit: std::time::Duration) -> Self {
         self.options.negotiated_setup_wait_limit = Some(limit);
         self
@@ -1501,7 +1472,6 @@ impl ClientBuilder {
     /// entry is evicted. One entry keeps connections for up to four transport
     /// locations, so exact H3 and Alt-Svc H3 do not replace each other, and
     /// up to [`Self::max_http3_connections_per_origin`] to each location.
-    #[must_use]
     pub fn max_retained_http3_connections(mut self, maximum: std::num::NonZeroUsize) -> Self {
         self.options.max_retained_http3_connections = maximum;
         self
@@ -1512,7 +1482,6 @@ impl ClientBuilder {
     /// The default is 100. The peer's stream limit also caps active requests.
     /// The bound covers all of a pool key's connections when
     /// [`Self::max_http3_connections_per_origin`] allows more than one.
-    #[must_use]
     pub fn max_concurrent_http3_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1525,7 +1494,6 @@ impl ClientBuilder {
     ///
     /// The default is 100. A request beyond the limit fails with
     /// [`RequestErrorKind::Capacity`](crate::RequestErrorKind::Capacity).
-    #[must_use]
     pub fn max_pending_http3_requests_per_origin(
         mut self,
         maximum: std::num::NonZeroUsize,
@@ -1572,7 +1540,6 @@ impl ClientBuilder {
     /// [`Self::build`] fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
     /// when `maximum` is above 8.
-    #[must_use]
     pub fn max_http3_connections_per_origin(mut self, maximum: std::num::NonZeroUsize) -> Self {
         self.options.max_http3_connections_per_origin = maximum;
         self
@@ -1581,7 +1548,6 @@ impl ClientBuilder {
     /// Sets the number of origins that may retain `Accept-CH` state.
     ///
     /// The default is 64.
-    #[must_use]
     pub fn max_client_hint_origins(mut self, maximum: std::num::NonZeroUsize) -> Self {
         self.options.max_client_hint_origins = maximum;
         self
@@ -1606,7 +1572,6 @@ impl ClientBuilder {
     /// direct and SOCKS5 routes. An HTTP proxy route makes negotiated requests
     /// but stores no advertisement, because its CONNECT tunnel cannot carry
     /// QUIC; see [`Route`](crate::Route).
-    #[must_use]
     pub fn alt_svc(mut self, maximum_origins: std::num::NonZeroUsize) -> Self {
         self.options.max_alt_svc_origins = Some(maximum_origins);
         self
@@ -1618,7 +1583,6 @@ impl ClientBuilder {
     /// A racing policy requires [`Self::alt_svc`]; building without
     /// it, or with an origin delay the runtime clock cannot represent, fails
     /// with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
-    #[must_use]
     pub fn alt_svc_policy(mut self, policy: crate::AltSvcPolicy) -> Self {
         self.options.alt_svc_policy = policy;
         self
@@ -1658,7 +1622,6 @@ impl ClientBuilder {
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
     /// unless the profile has HTTP/3 settings whose TLS settings enable
     /// `session_tickets`, because early data needs a resumed session.
-    #[must_use]
     pub fn http3_early_data(mut self, enabled: bool) -> Self {
         self.options.http3_early_data = Some(enabled);
         self
@@ -1709,7 +1672,6 @@ impl ClientBuilder {
     ///
     /// Requires the `https-records` feature.
     #[cfg(feature = "https-records")]
-    #[must_use]
     pub fn https_record_discovery(mut self, resolver: crate::dns::HttpsRecordResolver) -> Self {
         self.options.https_record_resolver = Some(resolver);
         self
@@ -1720,7 +1682,6 @@ impl ClientBuilder {
     /// By default the client has no cookie jar. This jar uses the default
     /// [`CookieLimits`](crate::CookieLimits).
     #[cfg(feature = "cookies")]
-    #[must_use]
     pub fn cookies(mut self) -> Self {
         self.options.cookie_jar = Some(crate::CookieJar::default());
         self
@@ -1731,7 +1692,6 @@ impl ClientBuilder {
     /// By default the client has no cookie jar. Use this to set other
     /// [`CookieLimits`](crate::CookieLimits).
     #[cfg(feature = "cookies")]
-    #[must_use]
     pub fn cookie_jar(mut self, jar: crate::CookieJar) -> Self {
         self.options.cookie_jar = Some(jar);
         self
