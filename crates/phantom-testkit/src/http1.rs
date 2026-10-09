@@ -1,7 +1,7 @@
 //! Capture one HTTP/1 request head without consuming its body.
 //!
 //! You can compare the exact bytes with a retained request using
-//! [`expectation::RequestExpectation`]. These helpers do not parse bodies.
+//! [`crate::http1::expectation::RequestExpectation`]. These helpers do not parse bodies.
 
 pub mod expectation;
 
