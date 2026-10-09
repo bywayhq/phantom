@@ -17,7 +17,7 @@ use phantom_profile::{
     InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
 };
 
-use crate::{HttpProtocol, TimeoutPhase};
+use crate::{HttpProtocol, TimeoutPhase, authority::RequestOrigin};
 
 type BoxError = Box<dyn StdError + Send + Sync>;
 
@@ -368,9 +368,10 @@ pub enum RequestErrorKind {
 /// Error returned by a public client request or response body.
 ///
 /// Branch on [`Self::kind`], which is stable. [`Self::protocol`] and
-/// [`Self::timeout_phase`] add detail when they apply. The `Display` text and
-/// the [`source`](std::error::Error::source) chain describe the exact cause and may
-/// change between releases.
+/// [`Self::timeout_phase`] add detail when they apply. [`Self::origin`] omits
+/// sensitive URL fields. [`Self::replay_observation`] exposes the recorded
+/// attempt signal. Display and Debug omit the underlying cause; inspect
+/// [`source`](std::error::Error::source) for its original type and detail.
 ///
 /// # Examples
 ///
@@ -388,17 +389,38 @@ pub enum RequestErrorKind {
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug)]
 pub struct RequestError {
     kind: RequestErrorKind,
     protocol: Option<HttpProtocol>,
     timeout_phase: Option<TimeoutPhase>,
+    origin: Option<RequestOrigin>,
     retryability: RequestRetryability,
     /// Whether no HTTP/3 connection could be set up to carry the request,
     /// so an exact HTTP/3 request may fall back to HTTP/2.
     http3_setup_failed: bool,
     message: &'static str,
     source: Option<BoxError>,
+}
+
+/// What a failure reveals about the attempt, independently of retry policy.
+///
+/// These observations grant no permission to retry. They do not describe
+/// whether the request body can be rebuilt or whether a budget remains.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum RequestReplayObservation {
+    /// The failure provides no recorded replay signal.
+    Unknown,
+    /// Eligible connection setup failed before sending the origin request.
+    ConnectionSetupFailure,
+    /// A reused connection closed before any response byte, or a pooled
+    /// HTTP/2 connection had already closed before sending the request.
+    ReusedConnectionClosed,
+    /// The HTTP/2 or HTTP/3 peer reported that it did not process the request.
+    RequestUnprocessed,
+    /// An HTTP/2 connection closed after an unanswered PING, before the
+    /// response head. The request may already have reached the peer.
+    Http2PingFailed,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -1088,6 +1110,7 @@ impl RequestError {
             kind,
             protocol: None,
             timeout_phase: None,
+            origin: None,
             retryability: RequestRetryability::Never,
             http3_setup_failed: false,
             message,
@@ -1105,6 +1128,7 @@ impl RequestError {
             kind,
             protocol,
             timeout_phase: None,
+            origin: None,
             retryability: RequestRetryability::Never,
             http3_setup_failed: false,
             message,
@@ -1168,6 +1192,39 @@ impl RequestError {
     #[must_use]
     pub fn kind(&self) -> RequestErrorKind {
         self.kind
+    }
+
+    /// Returns the logical request origin, when it was successfully parsed.
+    ///
+    /// A failed redirect hop reports that hop's origin. Proxy and alternative
+    /// dial targets do not replace it. Invalid input can fail before an origin
+    /// is available. Paths and query fields are never included.
+    #[must_use]
+    pub fn origin(&self) -> Option<&RequestOrigin> {
+        self.origin.as_ref()
+    }
+
+    /// Returns the recorded replay signal without granting retry permission.
+    #[must_use]
+    pub fn replay_observation(&self) -> RequestReplayObservation {
+        match self.retryability {
+            RequestRetryability::Never => RequestReplayObservation::Unknown,
+            RequestRetryability::ConnectionSetup => {
+                RequestReplayObservation::ConnectionSetupFailure
+            }
+            RequestRetryability::ReusedConnectionClosed => {
+                RequestReplayObservation::ReusedConnectionClosed
+            }
+            RequestRetryability::Unprocessed => RequestReplayObservation::RequestUnprocessed,
+            RequestRetryability::Http2PingFailed => RequestReplayObservation::Http2PingFailed,
+        }
+    }
+
+    pub(crate) fn with_origin(mut self, origin: RequestOrigin) -> Self {
+        if self.origin.is_none() {
+            self.origin = Some(origin);
+        }
+        self
     }
 
     /// Returns the exact protocol involved in the failure, when applicable.
@@ -1369,11 +1426,21 @@ fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {
 
 impl fmt::Display for RequestError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(self.message)?;
-        if let Some(source) = &self.source {
-            write!(formatter, ": {source}")?;
-        }
-        Ok(())
+        formatter.write_str(self.message)
+    }
+}
+
+impl fmt::Debug for RequestError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestError")
+            .field("kind", &self.kind)
+            .field("protocol", &self.protocol)
+            .field("timeout_phase", &self.timeout_phase)
+            .field("origin", &self.origin)
+            .field("replay_observation", &self.replay_observation())
+            .field("message", &self.message)
+            .finish_non_exhaustive()
     }
 }
 
@@ -1404,6 +1471,29 @@ mod tests {
 
     fn io_error() -> std::io::Error {
         std::io::Error::other("test connection failure")
+    }
+
+    #[test]
+    fn request_formatting_omits_cause_but_preserves_its_type_and_detail() {
+        let sentinel = "private-source-path-query-and-body";
+        let error = RequestError::with_source(
+            RequestErrorKind::RequestBody,
+            Some(HttpProtocol::Http1),
+            "request body failed",
+            std::io::Error::other(sentinel),
+        );
+        assert_eq!(error.to_string(), "request body failed");
+        assert!(!format!("{error:?}").contains(sentinel));
+        let cause = std::error::Error::source(&error)
+            .and_then(|cause| cause.downcast_ref::<std::io::Error>());
+        assert_eq!(cause.map(ToString::to_string).as_deref(), Some(sentinel));
+        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http1));
+        assert!(error.origin().is_none());
+        assert_eq!(
+            error.replay_observation(),
+            super::RequestReplayObservation::Unknown
+        );
     }
 
     #[test]

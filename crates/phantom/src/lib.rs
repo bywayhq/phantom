@@ -184,12 +184,15 @@ mod timeout;
 #[cfg(feature = "websocket")]
 mod websocket;
 
+pub use authority::RequestOrigin;
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
 pub use content_coding::{ContentCoding, ContentDecoding};
 #[cfg(feature = "diagnostics")]
 pub use diagnostics::KeyLog;
-pub use error::{BuildError, BuildErrorKind, RequestError, RequestErrorKind};
+pub use error::{
+    BuildError, BuildErrorKind, RequestError, RequestErrorKind, RequestReplayObservation,
+};
 pub use redirect::RedirectPolicy;
 pub use request::{PreparedRequestTemplate, RequestBuilder};
 #[cfg(feature = "json")]

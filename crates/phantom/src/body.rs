@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     HttpProtocol, RequestError,
+    authority::RequestOrigin,
     content_coding::{ContentDecoder, Pump},
     timeout::{ResponseTimeouts, TimeoutBudget},
 };
@@ -66,6 +67,7 @@ pub struct ResponseBody {
     timeouts: Option<ResponseTimeouts>,
     content: Option<ContentState>,
     held_trailers: Option<HeaderMap>,
+    origin: Option<RequestOrigin>,
 }
 
 /// Opt-in content decoding applied above the wire body.
@@ -108,7 +110,7 @@ impl ResponseBody {
                 Ok(length) => length,
                 Err(error) => {
                     self.close();
-                    return Err(error);
+                    return Err(self.error_with_origin(error));
                 }
             };
             collected.extend_from_slice(&data);
@@ -123,6 +125,7 @@ impl ResponseBody {
             timeouts: None,
             content: None,
             held_trailers: None,
+            origin: None,
         }
     }
 
@@ -140,6 +143,7 @@ impl ResponseBody {
             timeouts: None,
             content: None,
             held_trailers: None,
+            origin: None,
         }
     }
 
@@ -157,6 +161,7 @@ impl ResponseBody {
             timeouts: None,
             content: None,
             held_trailers: None,
+            origin: None,
         }
     }
 
@@ -166,6 +171,18 @@ impl ResponseBody {
     {
         body.retain_until_stream_cleanup(guard);
         Self::http3(body)
+    }
+
+    pub(crate) fn with_origin(mut self, origin: RequestOrigin) -> Self {
+        self.origin = Some(origin);
+        self
+    }
+
+    fn error_with_origin(&self, error: RequestError) -> RequestError {
+        match &self.origin {
+            Some(origin) => error.with_origin(origin.clone()),
+            None => error,
+        }
     }
 
     /// Decodes the remaining wire body through `decoder`.
@@ -373,7 +390,7 @@ impl Body for ResponseBody {
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let this = self.get_mut();
-        match this.content.take() {
+        let frame = match this.content.take() {
             None => this.poll_wire_frame(context),
             Some(ContentState::Reject(error)) => {
                 this.close();
@@ -383,7 +400,8 @@ impl Body for ResponseBody {
                 this.content = Some(state);
                 this.poll_decoded_frame(context)
             }
-        }
+        };
+        frame.map(|frame| frame.map(|result| result.map_err(|error| this.error_with_origin(error))))
     }
 
     fn is_end_stream(&self) -> bool {

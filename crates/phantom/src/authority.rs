@@ -1,5 +1,44 @@
 use http::{Uri, uri::Authority};
 
+/// The HTTP origin of a failed request: scheme, canonical host, and port.
+///
+/// Paths, query fields, fragments, and user information are never retained.
+/// An omitted port has its effective value: 80 for HTTP or 443 for HTTPS.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RequestOrigin {
+    scheme: &'static str,
+    host: Box<str>,
+    port: u16,
+}
+
+impl RequestOrigin {
+    pub(crate) fn from_endpoint(https: bool, endpoint: &Endpoint) -> Self {
+        Self {
+            scheme: if https { "https" } else { "http" },
+            host: endpoint.host().into(),
+            port: endpoint.port(),
+        }
+    }
+
+    /// Returns `http` or `https`.
+    #[must_use]
+    pub const fn scheme(&self) -> &'static str {
+        self.scheme
+    }
+
+    /// Returns the canonical host, with IPv6 addresses unbracketed.
+    #[must_use]
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the effective port, including a scheme's default port.
+    #[must_use]
+    pub const fn port(&self) -> u16 {
+        self.port
+    }
+}
+
 pub(crate) fn parse_absolute_uri(value: &str) -> Result<Uri, ParseUriError> {
     if value.contains('#') {
         return Err(ParseUriError::Fragment);
@@ -191,7 +230,36 @@ fn parse_port_suffix(suffix: &str, default_port: u16) -> Result<u16, AuthorityEr
 
 #[cfg(test)]
 mod tests {
-    use super::{Endpoint, ParseUriError, parse_absolute_uri};
+    use super::{Endpoint, ParseUriError, RequestOrigin, parse_absolute_uri};
+
+    #[test]
+    fn origin_normalizes_hosts_and_default_ports_without_url_fields()
+    -> Result<(), Box<dyn std::error::Error>> {
+        fn origin(value: &str) -> Result<RequestOrigin, Box<dyn std::error::Error>> {
+            let uri = parse_absolute_uri(value)?;
+            let https = uri.scheme_str() == Some("https");
+            let endpoint = Endpoint::new(
+                uri.authority().ok_or("missing authority")?.clone(),
+                if https { 443 } else { 80 },
+            )?;
+            Ok(RequestOrigin::from_endpoint(https, &endpoint))
+        }
+        let first = origin("https://BÜCHER.Example/private?token=sentinel")?;
+        assert_eq!(first, origin("https://xn--bcher-kva.example:443/other")?);
+        assert_eq!(first.scheme(), "https");
+        assert_eq!(first.host(), "xn--bcher-kva.example");
+        assert_eq!(first.port(), 443);
+        assert_ne!(first, origin("http://xn--bcher-kva.example:443/")?);
+        assert_ne!(first, origin("https://xn--bcher-kva.example:8443/")?);
+        let ipv6 = origin("http://[0:0::1]/secret")?;
+        assert_eq!(ipv6.host(), "::1");
+        assert_eq!(ipv6.port(), 80);
+        assert_eq!(ipv6, origin("http://[::1]:80/")?);
+        for forbidden in ["private", "token", "sentinel", "other", "secret"] {
+            assert!(!format!("{first:?} {ipv6:?}").contains(forbidden));
+        }
+        Ok(())
+    }
 
     #[test]
     fn canonicalizes_url_hosts_without_reserializing_the_target()
