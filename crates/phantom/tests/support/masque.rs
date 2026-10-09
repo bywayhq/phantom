@@ -893,6 +893,7 @@ mod tests {
             let _proxy = proxy;
             pending::<()>().await;
         });
+
         owners.abort_all();
         assert!(
             owners
@@ -903,6 +904,7 @@ mod tests {
                 .ok_or("owner was not cancelled")?
                 .is_cancelled()
         );
+
         assert_peer_closed(&mut peer).await
     }
 
@@ -916,6 +918,7 @@ mod tests {
             StreamMode::Relay,
             Arc::new(Mutex::new(StreamLog::default())),
         ));
+
         let path = format!(
             "/.well-known/masque/udp/127.0.0.1/{}/",
             target.local_addr()?.port()
@@ -929,6 +932,7 @@ mod tests {
                 + encode_capsule(0, super::UNKNOWN_CONTEXT_PAYLOAD).len()
         ];
         timeout(DEADLINE, peer.read_exact(&mut preamble)).await??;
+
         peer.write_all(&encode_capsule(0, b"\0ready")).await?;
         let mut datagram = [0; 64];
         let (count, relay_address) = timeout(DEADLINE, target.recv_from(&mut datagram)).await??;
@@ -937,6 +941,7 @@ mod tests {
         let mut echo = [0; 8];
         timeout(DEADLINE, peer.read_exact(&mut echo)).await??;
         assert_eq!(&echo, &[0, 6, 0, b'r', b'e', b'p', b'l', b'y']);
+
         // A complete exchange proves relay readiness. Leave an incomplete
         // capsule length queued while cancelling its owner, with the peer live.
         peer.write_all(&[0, 0x40]).await?;
@@ -950,6 +955,7 @@ mod tests {
                 .ok_or("relay was not cancelled")?
                 .is_cancelled()
         );
+
         assert_peer_closed(&mut peer).await
     }
 
@@ -963,6 +969,7 @@ mod tests {
             StreamMode::Relay,
             Arc::new(Mutex::new(StreamLog::default())),
         ));
+
         let (client, connection) = timeout(DEADLINE, ::http2::client::handshake(peer)).await??;
         let mut drivers = JoinSet::new();
         drivers.spawn(connection);
@@ -973,6 +980,7 @@ mod tests {
             }
         })
         .await?;
+
         let uri = format!(
             "https://localhost/.well-known/masque/udp/127.0.0.1/{}/",
             target.local_addr()?.port()
@@ -991,6 +999,7 @@ mod tests {
             .await?
             .ok_or("missing relay preamble")??;
         body.flow_control().release_capacity(preamble.len())?;
+
         send.send_data(Bytes::from(encode_capsule(0, b"\0ready")), false)?;
         let mut datagram = [0; 64];
         let (count, relay_address) = timeout(DEADLINE, target.recv_from(&mut datagram)).await??;
@@ -1001,6 +1010,7 @@ mod tests {
             .ok_or("missing relayed reply")??;
         assert_eq!(echo.as_ref(), &[0, 6, 0, b'r', b'e', b'p', b'l', b'y']);
         body.flow_control().release_capacity(echo.len())?;
+
         send.send_data(Bytes::from_static(&[0, 0x40]), false)?;
         owners.abort_all();
         assert!(
@@ -1012,6 +1022,7 @@ mod tests {
                 .ok_or("relay was not cancelled")?
                 .is_cancelled()
         );
+
         // Keep both stream halves and the request handle live. Only release of
         // the server transport can finish the independently driven client.
         let closed = timeout(DEADLINE, drivers.join_next())
