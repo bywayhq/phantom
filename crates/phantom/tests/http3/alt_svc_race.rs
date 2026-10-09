@@ -1118,11 +1118,8 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
         drain(queued).await?;
 
         // The abandoned setup releases the permit at its 4 s limit.
-        let released = loop {
-            if let Ok(body) = send_exact(&client, &fixture, "/after-abandon").await {
-                break body;
-            }
-        };
+        let released =
+            after_admission_released(|| send_exact(&client, &fixture, "/after-abandon")).await?;
         assert_eq!(released, "after-abandon");
         let elapsed = started.elapsed();
         assert!(
@@ -1497,6 +1494,18 @@ async fn send_exact(
         .map_err(|error| error.to_string())
 }
 
+async fn after_admission_released<F, A>(mut attempt: F) -> Result<Bytes, String>
+where
+    F: FnMut() -> A,
+    A: Future<Output = Result<Bytes, String>>,
+{
+    loop {
+        if let Ok(body) = attempt().await {
+            return Ok(body);
+        }
+    }
+}
+
 fn fixture_port(observed: &http3_upgrade_support::UpgradeObservations) -> TestResult<u16> {
     observed
         .alternative_requests
@@ -1678,3 +1687,5 @@ impl Body for ChunkedBody {
         SizeHint::default()
     }
 }
+
+mod fixture_controls;
