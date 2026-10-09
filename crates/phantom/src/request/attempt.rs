@@ -167,6 +167,7 @@ async fn send_once_exact(
         let may_fall_back = protocol == HttpProtocol::Http3
             && request.alternative.is_none()
             && retries.falls_back_to_http2()
+            && retries.caller_retry_available()
             && body.can_replay()
             && !replays.performed(ReplayClass::Http2Fallback);
         let prepared = prepare_attempt(
@@ -565,6 +566,7 @@ fn begin_reused_connection_replay(
     replays: &mut ReplayState,
 ) -> bool {
     if !retries.replays_reused_connections()
+        || !retries.caller_retry_available()
         || !error.is_reused_connection_close()
         || !body.can_replay()
         || !replays.try_begin(ReplayClass::ReusedConnection, method)
@@ -611,6 +613,7 @@ fn begin_http2_fallback(
     replays: &mut ReplayState,
 ) -> bool {
     if !retries.falls_back_to_http2()
+        || !retries.caller_retry_available()
         || !error.is_http3_setup_failure()
         || !body.can_replay()
         || !replays.try_begin(ReplayClass::Http2Fallback, method)
@@ -630,8 +633,8 @@ fn begin_http2_fallback(
 /// HTTP/1.1 body retires its connection, and an H2 or H3 body cancels its
 /// stream. A body that cannot be sent again, one-shot or buffered past its
 /// limit, leaves the response returned instead.
-pub(super) fn begin_status_retry(
-    response: &Response<ResponseBody>,
+pub(super) fn begin_status_retry<B>(
+    response: &Response<B>,
     method: &Method,
     body: &RequestBodySource,
     timeout_budget: TimeoutBudget,
@@ -1200,5 +1203,198 @@ fn prepare_headers(
     match client_hints {
         Some(context) => context.prepare(headers),
         None => Ok(headers),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{begin_http2_fallback, begin_reused_connection_replay, begin_status_retry};
+    use crate::{
+        HttpProtocol, RequestError, RequestTimeouts, RetryPolicy, StatusRetry, TimeoutPhase,
+        request::{RequestBodySource, replay::ReplayState},
+        retry::ConnectionSetupRetryState,
+        timeout::TimeoutBudget,
+    };
+    use http::{Method, Response, StatusCode};
+    use phantom_net::http2::Http2Error;
+    use std::{num::NonZeroUsize, time::Duration};
+    use tracing::Span;
+
+    fn status_policy() -> Result<RetryPolicy, crate::StatusRetryError> {
+        Ok(RetryPolicy::none()
+            .with_status_retry(StatusRetry::new(
+                &[StatusCode::SERVICE_UNAVAILABLE],
+                NonZeroUsize::MIN,
+                Duration::from_secs(2),
+            )?)
+            .with_max_retries(Some(1)))
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn denied_status_attempts_preserve_permission_for_an_eligible_retry()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut retries = ConnectionSetupRetryState::new(status_policy()?, Span::none());
+        let mut replays = ReplayState::new(0);
+        let response = Response::builder()
+            .status(StatusCode::SERVICE_UNAVAILABLE)
+            .body(())?;
+        let budget = TimeoutBudget::new(RequestTimeouts::new())?;
+        assert_eq!(
+            begin_status_retry(
+                &response,
+                &Method::POST,
+                &RequestBodySource::Absent,
+                budget,
+                &mut retries,
+                &mut replays
+            ),
+            None
+        );
+        assert_eq!(
+            begin_status_retry(
+                &response,
+                &Method::GET,
+                &RequestBodySource::Streaming(None),
+                budget,
+                &mut retries,
+                &mut replays
+            ),
+            None
+        );
+        let short = TimeoutBudget::new(RequestTimeouts::new().total(Duration::from_secs(1)))?;
+        assert_eq!(
+            begin_status_retry(
+                &response,
+                &Method::GET,
+                &RequestBodySource::Absent,
+                short,
+                &mut retries,
+                &mut replays
+            ),
+            None
+        );
+        assert!(retries.caller_retry_available());
+        assert_eq!(
+            begin_status_retry(
+                &response,
+                &Method::GET,
+                &RequestBodySource::Absent,
+                budget,
+                &mut retries,
+                &mut replays
+            ),
+            Some(Duration::from_secs(2))
+        );
+        assert!(!retries.caller_retry_available());
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn denied_retry_after_does_not_spend_the_shared_cap()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let policy = RetryPolicy::none()
+            .with_status_retry(
+                StatusRetry::new(
+                    &[StatusCode::SERVICE_UNAVAILABLE],
+                    NonZeroUsize::MIN,
+                    Duration::ZERO,
+                )?
+                .honor_retry_after(Duration::from_secs(5)),
+            )
+            .with_max_retries(Some(1));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        let mut replays = ReplayState::new(0);
+        let response = Response::builder()
+            .status(StatusCode::SERVICE_UNAVAILABLE)
+            .header("retry-after", "30")
+            .body(())?;
+        let budget = TimeoutBudget::new(RequestTimeouts::new())?;
+        assert_eq!(
+            begin_status_retry(
+                &response,
+                &Method::GET,
+                &RequestBodySource::Absent,
+                budget,
+                &mut retries,
+                &mut replays
+            ),
+            None
+        );
+        let response = Response::builder()
+            .status(StatusCode::SERVICE_UNAVAILABLE)
+            .body(())?;
+        assert_eq!(
+            begin_status_retry(
+                &response,
+                &Method::GET,
+                &RequestBodySource::Absent,
+                budget,
+                &mut retries,
+                &mut replays
+            ),
+            Some(Duration::ZERO)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_reused_replay_exhausts_permission_for_http2_fallback() {
+        let policy = RetryPolicy::none()
+            .with_reused_connection_replay(true)
+            .with_http2_fallback(true)
+            .with_max_retries(Some(1));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        let mut replays = ReplayState::new(0);
+        let reused = RequestError::http2_stream(Http2Error::ReusedConnectionClosed);
+        assert!(!begin_reused_connection_replay(
+            &reused,
+            &Method::POST,
+            &RequestBodySource::Absent,
+            &mut retries,
+            &mut replays
+        ));
+        assert!(retries.caller_retry_available());
+        assert!(begin_reused_connection_replay(
+            &reused,
+            &Method::GET,
+            &RequestBodySource::Absent,
+            &mut retries,
+            &mut replays
+        ));
+        replays.start_hop();
+        let setup = RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3));
+        assert!(!begin_http2_fallback(
+            &setup,
+            &Method::GET,
+            &RequestBodySource::Absent,
+            &mut retries,
+            &mut replays
+        ));
+    }
+
+    #[test]
+    fn fallback_spends_one_token_and_cannot_replay_a_one_shot_body() {
+        let policy = RetryPolicy::none()
+            .with_http2_fallback(true)
+            .with_max_retries(Some(1));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        let mut replays = ReplayState::new(0);
+        let error = RequestError::timeout(TimeoutPhase::Connect, Some(HttpProtocol::Http3));
+        assert!(!begin_http2_fallback(
+            &error,
+            &Method::POST,
+            &RequestBodySource::Streaming(None),
+            &mut retries,
+            &mut replays
+        ));
+        assert!(retries.caller_retry_available());
+        assert!(begin_http2_fallback(
+            &error,
+            &Method::POST,
+            &RequestBodySource::Absent,
+            &mut retries,
+            &mut replays
+        ));
+        assert!(!retries.caller_retry_available());
     }
 }

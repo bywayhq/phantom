@@ -17,8 +17,8 @@ use bytes::Bytes;
 use http::{Method, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, ClientBuilder, HttpProtocol, RedirectPolicy, RequestTimeouts, ResponseInfo,
-    RetryPolicy, StatusRetry, profile::ClientProfile,
+    Client, ClientBuilder, HttpProtocol, RedirectPolicy, RequestTimeoutOverrides, ResponseInfo,
+    RetryPolicy, StatusRetry, TimeoutOverride, profile::ClientProfile,
 };
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -428,7 +428,10 @@ async fn status_retry_delay_observes_total_deadline() -> TestResult {
         // response is returned at once instead of becoming a timeout.
         let response = client
             .get(HttpProtocol::Http1, &server.url("http", "/"))?
-            .timeouts(RequestTimeouts::new().total(Duration::from_secs(10)))
+            .timeouts(
+                RequestTimeoutOverrides::disabled()
+                    .total(TimeoutOverride::Limit(Duration::from_secs(10))),
+            )
             .send()
             .with_subscriber(subscriber.dispatch())
             .await?;
@@ -448,7 +451,10 @@ async fn status_retry_delay_within_total_deadline_still_retries() -> TestResult 
 
     let response = client
         .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .timeouts(RequestTimeouts::new().total(Duration::from_secs(10)))
+        .timeouts(
+            RequestTimeoutOverrides::disabled()
+                .total(TimeoutOverride::Limit(Duration::from_secs(10))),
+        )
         .send()
         .await?;
 
@@ -622,4 +628,100 @@ fn imf_fixdate(time: SystemTime) -> TestResult<String> {
         of_day % 3_600 / 60,
         of_day % 60,
     ))
+}
+
+#[tokio::test]
+async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult {
+    let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
+    let client = retrying_client(status_retry(2, Duration::from_secs(30))?)?;
+    let response = client
+        .get(HttpProtocol::Http1, &server.url("http", "/"))?
+        .retry_policy(
+            RetryPolicy::none()
+                .with_status_retry(status_retry(2, Duration::from_secs(30))?)
+                .with_max_retries(Some(0)),
+        )
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(response.headers()["content-length"], "0");
+    assert!(response.into_body().collect().await?.to_bytes().is_empty());
+    assert_eq!(server.received().len(), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn reused_replay_and_status_retry_share_the_cap_across_a_redirect() -> TestResult {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            let (mut first, _) = listener.accept().await?;
+            let prime = read_request(&mut first).await?;
+            first.write_all(OK.as_bytes()).await?;
+            first.flush().await?;
+            let stale = read_request(&mut first).await?;
+            drop(first);
+            let (mut second, _) = listener.accept().await?;
+            let replayed = read_request(&mut second).await?;
+            second.write_all(UNAVAILABLE.as_bytes()).await?;
+            second.flush().await?;
+            let status_retried = read_request(&mut second).await?;
+            second
+                .write_all(b"HTTP/1.1 302 Found\r\nLocation: /final\r\nContent-Length: 0\r\n\r\n")
+                .await?;
+            second.flush().await?;
+            let redirected = read_request(&mut second).await?;
+            second.write_all(UNAVAILABLE.as_bytes()).await?;
+            second.flush().await?;
+            Ok::<_, Box<dyn Error + Send + Sync>>([
+                prime,
+                stale,
+                replayed,
+                status_retried,
+                redirected,
+            ])
+        });
+        let client = plain_builder()
+            .redirect_policy(RedirectPolicy::limited(
+                NonZeroUsize::new(5).ok_or("redirect limit is zero")?,
+            ))
+            .retry_policy(
+                RetryPolicy::none()
+                    .with_reused_connection_replay(true)
+                    .with_status_retry(status_retry(3, Duration::ZERO)?)
+                    .with_max_retries(Some(2)),
+            )
+            .build()?;
+        client
+            .get(HttpProtocol::Http1, &format!("http://{address}/prime"))?
+            .send()
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted metadata")?;
+        assert_eq!(info.retries_performed(), 0);
+        response.into_body().collect().await?;
+        assert_eq!(
+            request_lines(&server.await??),
+            [
+                "GET /prime HTTP/1.1",
+                "GET /start HTTP/1.1",
+                "GET /start HTTP/1.1",
+                "GET /start HTTP/1.1",
+                "GET /final HTTP/1.1",
+            ]
+        );
+        Ok(())
+    })
+    .await?
 }

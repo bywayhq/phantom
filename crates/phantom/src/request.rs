@@ -10,7 +10,7 @@ use phantom_net::{
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    Client, ContentCoding, ContentDecoding, HttpProtocol, RequestError, RequestTimeouts,
+    Client, ContentCoding, ContentDecoding, HttpProtocol, RequestError, RequestTimeoutOverrides,
     ResponseBody, ResponseInfo, RetryPolicy, Route,
     authority::{Endpoint, ParseUriError, parse_absolute_uri},
     content_coding::{self, AdvertisedContentCodings, ContentDecodingPlan},
@@ -47,14 +47,18 @@ use replay_buffer::{NoReplay, ReplayBuffer};
 /// ```no_run
 /// use std::time::Duration;
 ///
-/// use phantom::{Client, HttpProtocol, Method, RequestError, RequestHeader, RequestTimeouts};
+/// use phantom::{
+///     Client, HttpProtocol, Method, RequestError, RequestHeader,
+///     RequestTimeoutOverrides, TimeoutOverride,
+/// };
 ///
 /// async fn post(client: &Client) -> Result<(), RequestError> {
 ///     let response = client
 ///         .request(HttpProtocol::Http2, Method::POST, "https://example.com/api")?
 ///         .header(RequestHeader::new("content-type", "application/json"))
 ///         .body(r#"{"name":"phantom"}"#)
-///         .timeouts(RequestTimeouts::new().total(Duration::from_secs(30)))
+///         .timeouts(RequestTimeoutOverrides::new()
+///             .total(TimeoutOverride::Limit(Duration::from_secs(30))))
 ///         .send()
 ///         .await?;
 ///     let body = response.into_body().collect_with_limit(1 << 20).await?;
@@ -72,7 +76,7 @@ pub struct RequestBuilder {
     trailers: Vec<RequestHeader>,
     body: RequestBodySource,
     route: Option<Route>,
-    timeouts: Option<RequestTimeouts>,
+    timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
     content_decoding: ContentDecoding,
     response_body_timeouts: bool,
@@ -475,20 +479,21 @@ impl RequestBuilder {
         self
     }
 
-    /// Replaces the client's timeout policy for this operation.
+    /// Overrides individual client time limits for this operation.
     ///
     /// Without this call the request uses the policy set by
     /// [`ClientBuilder::request_timeouts`](crate::ClientBuilder::request_timeouts).
-    /// The whole policy is replaced, not merged: [`RequestTimeouts::default`]
-    /// explicitly disables every client default. A duration the runtime clock
-    /// cannot represent fails [`Self::send`] with
+    /// Fields left as [`TimeoutOverride::Inherit`](crate::TimeoutOverride::Inherit)
+    /// keep their client limits. [`RequestTimeoutOverrides::disabled`] disables
+    /// every limit. A duration the runtime clock cannot represent fails
+    /// [`Self::send`] with
     /// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
-    pub fn timeouts(mut self, timeouts: RequestTimeouts) -> Self {
+    pub fn timeouts(mut self, timeouts: RequestTimeoutOverrides) -> Self {
         self.timeouts = Some(timeouts);
         self
     }
 
-    /// Replaces the client's connection-establishment retry policy for this request.
+    /// Replaces the client's retry policy for this request.
     ///
     /// Without this call the request uses the policy set by
     /// [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).
@@ -497,7 +502,8 @@ impl RequestBuilder {
     /// before request dispatch. Negotiated TLS and ALPN failures are terminal.
     /// Any opt-in reused-connection replay, unprocessed-request replay, or
     /// [`StatusRetry`](crate::StatusRetry) in `policy` also replaces the
-    /// client's. A delay the runtime clock cannot represent fails
+    /// client's. The shared [`RetryPolicy::with_max_retries`] cap also
+    /// replaces the client's cap. A delay the runtime clock cannot represent fails
     /// [`Self::send`] with
     /// [`RequestErrorKind::InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout).
     pub fn retry_policy(mut self, policy: RetryPolicy) -> Self {
@@ -660,7 +666,9 @@ impl RequestBuilder {
 
     async fn send_inner(self, request_span: &Span) -> Result<Response<ResponseBody>, RequestError> {
         let timeout_budget = crate::timeout::TimeoutBudget::new(
-            self.timeouts.unwrap_or(self.client.state.request_timeouts),
+            self.timeouts
+                .unwrap_or_default()
+                .resolve(self.client.state.request_timeouts),
         )?;
         let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         if !retry_policy.validate() {
@@ -1243,6 +1251,7 @@ fn ensure_http2_fallback_supported(
     policy: RetryPolicy,
 ) -> Result<(), RequestError> {
     if !policy.http2_fallback()
+        || policy.max_retries() == Some(0)
         || !matches!(selection, ProtocolSelection::Exact(HttpProtocol::Http3))
     {
         return Ok(());

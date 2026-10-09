@@ -10,8 +10,9 @@ use http::{Response, StatusCode};
 use http_body::Body;
 use http_body_util::BodyExt;
 use phantom::{
-    BuildErrorKind, Client, HttpProtocol, RedirectPolicy, RequestErrorKind, RequestTimeouts,
-    TimeoutPhase, profile::ClientProfile,
+    BuildErrorKind, Client, HttpProtocol, RedirectPolicy, RequestErrorKind,
+    RequestTimeoutOverrides, RequestTimeouts, TimeoutOverride, TimeoutPhase,
+    profile::ClientProfile,
 };
 use tokio::{
     io::AsyncWriteExt,
@@ -72,7 +73,7 @@ async fn request_override_validation_precedes_network_io() -> TestResult {
 
     let error = client
         .get(HttpProtocol::Http1, &format!("https://{address}/"))?
-        .timeouts(RequestTimeouts::new().total(Duration::MAX))
+        .timeouts(RequestTimeoutOverrides::disabled().total(TimeoutOverride::Limit(Duration::MAX)))
         .send()
         .await
         .err()
@@ -196,7 +197,7 @@ async fn response_head_timeout_retires_http1_connection() -> TestResult {
             HttpProtocol::Http1,
             &format!("https://{address}/replacement"),
         )?
-        .timeouts(RequestTimeouts::default())
+        .timeouts(RequestTimeoutOverrides::disabled())
         .send()
         .await?
         .into_body()
@@ -245,6 +246,7 @@ async fn response_head_timeout_cancels_only_the_http2_stream() -> TestResult {
 
     let error = client
         .get(HttpProtocol::Http2, &format!("https://{address}/stalled"))?
+        .timeouts(RequestTimeoutOverrides::new().connect(TimeoutOverride::Disabled))
         .send()
         .await
         .err()
@@ -256,7 +258,7 @@ async fn response_head_timeout_cancels_only_the_http2_stream() -> TestResult {
     timeout(TEST_TIMEOUT, async {
         client
             .get(HttpProtocol::Http2, &format!("https://{address}/later"))?
-            .timeouts(RequestTimeouts::default())
+            .timeouts(RequestTimeoutOverrides::new().response_head(TimeoutOverride::Disabled))
             .send()
             .await?
             .into_body()
@@ -332,7 +334,10 @@ async fn response_head_timeout_cancels_only_the_http3_stream() -> TestResult {
 
     let request = client
         .get(HttpProtocol::Http3, &format!("https://{address}/stalled"))?
-        .timeouts(RequestTimeouts::new().response_head(Duration::from_millis(100)));
+        .timeouts(
+            RequestTimeoutOverrides::disabled()
+                .response_head(TimeoutOverride::Limit(Duration::from_millis(100))),
+        );
     let request = tokio::spawn(async move { request.send().await });
     request_received
         .await
@@ -359,7 +364,7 @@ async fn response_head_timeout_cancels_only_the_http3_stream() -> TestResult {
     timeout(TEST_TIMEOUT, async {
         client
             .get(HttpProtocol::Http3, &format!("https://{address}/later"))?
-            .timeouts(RequestTimeouts::default())
+            .timeouts(RequestTimeoutOverrides::disabled())
             .send()
             .await?
             .into_body()
@@ -436,7 +441,7 @@ async fn read_idle_timeout_retires_http1_connection() -> TestResult {
             HttpProtocol::Http1,
             &format!("https://{address}/replacement"),
         )?
-        .timeouts(RequestTimeouts::default())
+        .timeouts(RequestTimeoutOverrides::disabled())
         .send()
         .await?
         .into_body()

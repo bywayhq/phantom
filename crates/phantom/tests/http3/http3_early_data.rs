@@ -25,8 +25,8 @@ use http::{Method, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
-    BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo,
-    TimeoutPhase,
+    BuildErrorKind, Client, HttpProtocol, RequestErrorKind, RequestTimeoutOverrides, ResponseInfo,
+    TimeoutOverride, TimeoutPhase,
     profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -902,7 +902,10 @@ async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
                 &format!("https://{relay}/post"),
             )?
             .body(Bytes::from_static(b"body"))
-            .timeouts(RequestTimeouts::new().connect(Duration::from_millis(400)))
+            .timeouts(
+                RequestTimeoutOverrides::disabled()
+                    .connect(TimeoutOverride::Limit(Duration::from_millis(400))),
+            )
             .send()
             .await
         {

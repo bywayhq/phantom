@@ -12,7 +12,8 @@ use http::{HeaderMap, HeaderValue, Method, Response, StatusCode, header};
 use http_body_util::BodyExt;
 use phantom::{
     Client, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy, RequestErrorKind,
-    RequestHeader, RequestTimeouts, ResponseBody, ResponseInfo, profile::ClientProfile,
+    RequestHeader, RequestTimeoutOverrides, ResponseBody, ResponseInfo, TimeoutOverride,
+    profile::ClientProfile,
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
@@ -630,7 +631,10 @@ async fn total_timeout_interrupts_decoding_of_buffered_input() -> TestResult<()>
             .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
             .header(RequestHeader::new("accept-encoding", "zstd"))
             .content_decoding(ContentDecoding::advertised(u64::MAX))
-            .timeouts(RequestTimeouts::new().total(Duration::from_millis(500)))
+            .timeouts(
+                RequestTimeoutOverrides::disabled()
+                    .total(TimeoutOverride::Limit(Duration::from_millis(500))),
+            )
             .send()
             .await?;
         let mut body = response.into_body();

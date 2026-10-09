@@ -18,8 +18,8 @@ use bytes::Bytes;
 use http::{Method, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, ConnectUdpProxy, HttpProtocol, RequestErrorKind, RequestTimeouts, ResponseInfo,
-    RetryPolicy, Route,
+    Client, ConnectUdpProxy, HttpProtocol, RequestErrorKind, RequestTimeoutOverrides, ResponseInfo,
+    RetryPolicy, Route, TimeoutOverride,
     profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -350,7 +350,7 @@ async fn the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io() -> 
 /// Sends a GET that may fall back, while the origin's QUIC endpoint never
 /// accepts the handshake, and returns how long the request took.
 async fn fall_back_from_an_unanswered_handshake(
-    timeouts: Option<RequestTimeouts>,
+    timeouts: Option<RequestTimeoutOverrides>,
 ) -> TestResult<Duration> {
     let identity = TestIdentity::generate()?;
     let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
@@ -385,7 +385,8 @@ async fn fall_back_from_an_unanswered_handshake(
 async fn a_handshake_past_the_connect_timeout_falls_back() -> TestResult<()> {
     bounded(async {
         let elapsed = fall_back_from_an_unanswered_handshake(Some(
-            RequestTimeouts::new().connect(Duration::from_millis(300)),
+            RequestTimeoutOverrides::disabled()
+                .connect(TimeoutOverride::Limit(Duration::from_millis(300))),
         ))
         .await?;
         assert!(
@@ -633,6 +634,28 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
         assert_eq!(error.kind(), RequestErrorKind::Connect);
         refused.await??;
         Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile() -> TestResult<()> {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin = Origin::bind(&identity).await?;
+        let url = origin.url("/no-fallback");
+        let Origin { quic, tcp, .. } = origin;
+        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        let error = client(&identity, false)?
+            .get(HttpProtocol::Http3, &url)?
+            .retry_policy(fallback().with_max_retries(Some(0)))
+            .send()
+            .await
+            .err()
+            .ok_or("a refused handshake returned a response")?;
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+        refused.await??;
+        no_tcp_connection(&tcp).await
     })
     .await
 }

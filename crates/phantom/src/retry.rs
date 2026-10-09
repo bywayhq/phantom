@@ -35,6 +35,8 @@ mod retry_after;
 /// into replaying an HTTP/2 or HTTP/3 request that the peer reported as not
 /// processed. [`with_status_retry`](Self::with_status_retry) separately opts
 /// into repeating idempotent requests that received a caller-listed status.
+/// [`with_max_retries`](Self::with_max_retries) caps all these caller-enabled
+/// classes together across redirects. Their individual limits still apply.
 /// The replay and status-retry classes never resend a one-shot streaming
 /// body. Such a request returns the original error or response.
 ///
@@ -69,6 +71,10 @@ mod retry_after;
 ///   times per redirect hop, whatever its method, as Chromium resends after
 ///   `ERR_HTTP2_PING_FAILED`. The server may have processed it.
 ///
+/// Safe `Critical-CH` replays and proxy authentication exchanges also run
+/// independently of this policy. Address attempts, background discovery and
+/// connector-managed ECH retries do not consume the shared caller cap.
+///
 /// A delay or `Retry-After` limit must be small enough to add to the runtime
 /// clock. A client policy that exceeds it makes
 /// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
@@ -92,6 +98,7 @@ mod retry_after;
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct RetryPolicy {
+    maximum_retries: Option<usize>,
     maximum_connection_failures: Option<NonZeroUsize>,
     delay: Duration,
     reused_connection_replay: bool,
@@ -106,6 +113,7 @@ impl RetryPolicy {
     #[must_use]
     pub const fn none() -> Self {
         Self {
+            maximum_retries: None,
             maximum_connection_failures: None,
             delay: Duration::ZERO,
             reused_connection_replay: false,
@@ -124,6 +132,7 @@ impl RetryPolicy {
     #[must_use]
     pub const fn connection_failures(maximum: NonZeroUsize, delay: Duration) -> Self {
         Self {
+            maximum_retries: None,
             maximum_connection_failures: Some(maximum),
             delay,
             reused_connection_replay: false,
@@ -187,8 +196,9 @@ impl RetryPolicy {
     /// A replay is sent at once, without a delay, on a fresh or different
     /// connection with the same route and protocol, or the same negotiated
     /// selection rule. On an Alt-Svc alternative it stays on that
-    /// alternative. The budget is shared by every redirect hop and consumes
-    /// no other retry budget. HTTP/2 streams at or below a `GOAWAY`
+    /// alternative. The class budget is shared by every redirect hop. Each
+    /// replay also consumes the shared [`Self::with_max_retries`] cap.
+    /// HTTP/2 streams at or below a `GOAWAY`
     /// last-stream-id, HTTP/3 streams already open when a `GOAWAY` arrives,
     /// and any failure after a response head may have been processed and
     /// return the original error.
@@ -221,7 +231,7 @@ impl RetryPolicy {
     ///
     /// This is caller policy, never browser or profile behavior. A response is
     /// retried only when its status is listed, the method is idempotent (RFC
-    /// 9110, section 9.2.2), the request body is absent or owned bytes, and the
+    /// 9110, section 9.2.2), the request body can be replayed, and the
     /// request-scoped budget, shared by every redirect hop, is not exhausted.
     /// Otherwise the response is returned unchanged. Each intermediate response
     /// updates cookies, client hints, and Alt-Svc exactly as a returned
@@ -292,6 +302,30 @@ impl RetryPolicy {
             http2_fallback: enabled,
             ..self
         }
+    }
+
+    /// Caps all caller-enabled retries across every redirect hop.
+    ///
+    /// `None` adds no shared cap. `Some(0)` disables caller retries without
+    /// changing which classes are enabled. The cap covers connection setup,
+    /// reused connections, peer-unprocessed requests, listed statuses and
+    /// the explicit HTTP/3-to-HTTP/2 fallback. Each class keeps its own bounds.
+    /// A delay never grants permission to retry.
+    ///
+    /// Redirects and the automatic replays listed on [`RetryPolicy`] do not
+    /// consume this cap. Those replays keep their existing safety checks.
+    #[must_use]
+    pub const fn with_max_retries(self, maximum: Option<usize>) -> Self {
+        Self {
+            maximum_retries: maximum,
+            ..self
+        }
+    }
+
+    /// Returns the shared cap for caller-enabled retries.
+    #[must_use]
+    pub const fn max_retries(self) -> Option<usize> {
+        self.maximum_retries
     }
 
     /// Returns the maximum number of connection failures that may be retried.
@@ -527,6 +561,7 @@ impl StdError for StatusRetryError {}
 /// Request-scoped retry accounting that spans every redirect hop.
 pub(crate) struct ConnectionSetupRetryState {
     policy: RetryPolicy,
+    caller_retries: usize,
     performed: usize,
     reused_connection_replays: usize,
     unprocessed_replays: usize,
@@ -539,6 +574,7 @@ impl ConnectionSetupRetryState {
     pub(crate) fn new(policy: RetryPolicy, request_span: Span) -> Self {
         Self {
             policy,
+            caller_retries: 0,
             performed: 0,
             reused_connection_replays: 0,
             unprocessed_replays: 0,
@@ -546,6 +582,16 @@ impl ConnectionSetupRetryState {
             http2_fallbacks: 0,
             request_span,
         }
+    }
+
+    pub(crate) fn caller_retry_available(&self) -> bool {
+        self.policy
+            .maximum_retries
+            .is_none_or(|maximum| self.caller_retries < maximum)
+    }
+
+    fn record_caller_retry(&mut self) {
+        self.caller_retries = self.caller_retries.saturating_add(1);
     }
 
     /// Returns setup state for an Alt-Svc alternative: no setup retries, so a
@@ -568,13 +614,16 @@ impl ConnectionSetupRetryState {
 
     /// Returns whether the request-scoped unprocessed-replay budget has room.
     pub(crate) fn unprocessed_replay_available(&self) -> bool {
-        self.policy
-            .unprocessed_replays
-            .is_some_and(|maximum| self.unprocessed_replays < maximum.get())
+        self.caller_retry_available()
+            && self
+                .policy
+                .unprocessed_replays
+                .is_some_and(|maximum| self.unprocessed_replays < maximum.get())
     }
 
-    /// Counts one unprocessed-request replay against its own budget.
+    /// Counts one unprocessed replay against its class and shared budgets.
     pub(crate) fn record_unprocessed_replay(&mut self, protocol: Option<HttpProtocol>) {
+        self.record_caller_retry();
         self.unprocessed_replays += 1;
         self.request_span.record(
             "unprocessed_replays",
@@ -599,14 +648,15 @@ impl ConnectionSetupRetryState {
         headers: &HeaderMap,
     ) -> Option<Duration> {
         let status_retry = self.policy.status_retry?;
-        if self.status_retries >= status_retry.maximum.get() {
+        if !self.caller_retry_available() || self.status_retries >= status_retry.maximum.get() {
             return None;
         }
         status_retry.delay_for(status, headers)
     }
 
-    /// Counts one status retry against the request-scoped budget.
+    /// Counts one status retry against its class and shared budgets.
     pub(crate) fn record_status_retry(&mut self, status: StatusCode, delay: Duration) {
+        self.record_caller_retry();
         self.status_retries += 1;
         self.request_span.record(
             "status_retries",
@@ -632,8 +682,9 @@ impl ConnectionSetupRetryState {
         self.http2_fallbacks > 0
     }
 
-    /// Records the fallback of an exact HTTP/3 request to HTTP/2.
+    /// Counts one HTTP/3-to-HTTP/2 fallback against the shared budget.
     pub(crate) fn record_http2_fallback(&mut self, error: &RequestError) {
+        self.record_caller_retry();
         self.http2_fallbacks += 1;
         self.request_span.record(
             "http2_fallbacks",
@@ -658,6 +709,7 @@ impl ConnectionSetupRetryState {
 
     /// Counts one reused-connection replay without touching the setup budget.
     pub(crate) fn record_reused_connection_replay(&mut self) {
+        self.record_caller_retry();
         self.reused_connection_replays += 1;
         self.request_span.record(
             "reused_connection_replays",
@@ -679,7 +731,10 @@ impl ConnectionSetupRetryState {
         let Some(maximum) = self.policy.maximum_connection_failures else {
             return Ok(false);
         };
-        if !error.is_retryable_connection_setup() || self.performed >= maximum.get() {
+        if !self.caller_retry_available()
+            || !error.is_retryable_connection_setup()
+            || self.performed >= maximum.get()
+        {
             return Ok(false);
         }
 
@@ -690,6 +745,7 @@ impl ConnectionSetupRetryState {
             "waiting to retry request connection setup"
         );
         timeout_budget.delay(self.policy.delay, protocol).await?;
+        self.record_caller_retry();
         self.performed += 1;
         self.request_span.record(
             "retries_performed",
@@ -757,6 +813,108 @@ mod tests {
         RequestError::http1_connection_setup(Http1TlsError::Connect(std::io::Error::from(
             std::io::ErrorKind::ConnectionRefused,
         )))
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn setup_and_status_retries_share_one_cap() -> Result<(), Box<dyn std::error::Error>> {
+        let policy = RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::ZERO)
+            .with_status_retry(StatusRetry::new(
+                &[StatusCode::SERVICE_UNAVAILABLE],
+                NonZeroUsize::MIN,
+                Duration::ZERO,
+            )?)
+            .with_max_retries(Some(1));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        let budget = crate::timeout::TimeoutBudget::new(RequestTimeouts::new())?;
+        assert!(
+            retries
+                .retry_after(&refused_connection(), Some(HttpProtocol::Http1), budget)
+                .await?
+        );
+        assert_eq!(retries.performed(), 1);
+        assert_eq!(retries.caller_retries, 1);
+        assert_eq!(
+            retries.status_retry_delay(StatusCode::SERVICE_UNAVAILABLE, &HeaderMap::new()),
+            None
+        );
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        assert_eq!(
+            retries.status_retry_delay(StatusCode::SERVICE_UNAVAILABLE, &HeaderMap::new()),
+            Some(Duration::ZERO)
+        );
+        retries.record_status_retry(StatusCode::SERVICE_UNAVAILABLE, Duration::ZERO);
+        assert!(
+            !retries
+                .retry_after(&refused_connection(), Some(HttpProtocol::Http1), budget)
+                .await?
+        );
+        assert_eq!(retries.performed(), 0);
+        assert_eq!(retries.caller_retries, 1);
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn zero_cap_denies_setup_without_waiting_or_charging() -> Result<(), RequestError> {
+        let policy = RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::from_secs(30))
+            .with_max_retries(Some(0));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        let started = tokio::time::Instant::now();
+        let budget = crate::timeout::TimeoutBudget::new(RequestTimeouts::new())?;
+        assert!(
+            !retries
+                .retry_after(&refused_connection(), Some(HttpProtocol::Http1), budget)
+                .await?
+        );
+        assert_eq!(started.elapsed(), Duration::ZERO);
+        assert_eq!(retries.caller_retries, 0);
+        assert_eq!(retries.performed(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn cap_does_not_enable_classes_or_change_retirement_flags() {
+        assert_eq!(RetryPolicy::none().max_retries(), None);
+        let none = RetryPolicy::none().with_max_retries(Some(5));
+        let retries = ConnectionSetupRetryState::new(none, Span::none());
+        assert!(retries.caller_retry_available());
+        assert!(!retries.replays_reused_connections());
+        assert!(!retries.unprocessed_replay_available());
+        assert!(!retries.falls_back_to_http2());
+        assert_eq!(
+            retries.status_retry_delay(StatusCode::SERVICE_UNAVAILABLE, &HeaderMap::new()),
+            None
+        );
+        let enabled = none
+            .with_reused_connection_replay(true)
+            .with_unprocessed_replay(Some(NonZeroUsize::MIN))
+            .with_http2_fallback(true)
+            .with_max_retries(Some(0));
+        let retries = ConnectionSetupRetryState::new(enabled, Span::none());
+        assert!(retries.replays_reused_connections());
+        assert!(retries.replays_unprocessed_requests());
+        assert!(retries.falls_back_to_http2());
+        assert!(!retries.caller_retry_available());
+        assert!(!retries.unprocessed_replay_available());
+        assert!(
+            retries
+                .for_alternative_setup()
+                .replays_unprocessed_requests()
+        );
+    }
+
+    #[test]
+    fn replay_classes_spend_the_same_cap() {
+        let policy = RetryPolicy::none()
+            .with_unprocessed_replay(NonZeroUsize::new(3))
+            .with_max_retries(Some(2));
+        let mut retries = ConnectionSetupRetryState::new(policy, Span::none());
+        retries.record_reused_connection_replay();
+        assert!(retries.unprocessed_replay_available());
+        retries.record_unprocessed_replay(Some(HttpProtocol::Http2));
+        assert!(!retries.caller_retry_available());
+        assert!(!retries.unprocessed_replay_available());
+        assert_eq!(retries.performed(), 0);
+        assert_eq!(retries.caller_retries, 2);
     }
 
     #[test]
@@ -1152,6 +1310,7 @@ mod tests {
         assert_eq!(retries.performed(), 0);
         assert_eq!(error.kind(), RequestErrorKind::Timeout);
         assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
+        assert_eq!(retries.caller_retries, 0);
         Ok(())
     }
 }

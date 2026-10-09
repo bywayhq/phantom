@@ -680,6 +680,7 @@ async fn default_graceful_goaway_retry_is_unchanged_without_policy() -> TestResu
             let client = http2_client(&identity)?;
             let response = client
                 .get(HttpProtocol::Http2, &server.url("/graceful"))?
+                .retry_policy(phantom::RetryPolicy::none().with_max_retries(Some(0)))
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::NO_CONTENT);
@@ -935,6 +936,32 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
         assert!(
             !served_on_first,
             "a request ran on the connection that sent GOAWAY"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn zero_shared_cap_returns_refused_stream_without_a_replay() -> TestResult {
+    bounded(async {
+        let identity = TestIdentity::generate()?;
+        let server =
+            ScriptedHttp2Server::start(&identity, vec![Script::Serve(vec![Reply::Refuse])]).await?;
+        let client = http2_client(&identity)?;
+        let error = client
+            .request(HttpProtocol::Http2, Method::POST, &server.url("/capped"))?
+            .body(Bytes::from_static(b"payload"))
+            .retry_policy(replay_policy(1)?.with_max_retries(Some(0)))
+            .send()
+            .await
+            .err()
+            .ok_or("a refused stream returned a response")?;
+        assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
+        drop(client);
+        assert_eq!(
+            server.finish().await?,
+            [Observed::new(0, Method::POST, "/capped", b"")]
         );
         Ok(())
     })

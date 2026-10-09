@@ -291,6 +291,7 @@ async fn a_request_is_sent_again_at_most_twice_after_ping_failures() -> TestResu
                 Method::GET,
                 &format!("https://{address}/limited"),
             )?
+            .retry_policy(phantom::RetryPolicy::none().with_max_retries(Some(0)))
             .send()
             .await
         {

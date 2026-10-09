@@ -23,7 +23,7 @@ use http_body::{Body, Frame, SizeHint};
 use http_body_util::BodyExt;
 use phantom::{
     BuildErrorKind, Client, HttpProtocol, OrderedResponseHeaders, RedirectPolicy, RequestErrorKind,
-    RequestHeader, RequestTimeouts, RequestTrailerName, ResponseInfo,
+    RequestHeader, RequestTimeoutOverrides, RequestTrailerName, ResponseInfo, TimeoutOverride,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile, browser::chrome},
 };
 use tokio::{
@@ -987,7 +987,10 @@ fn polling_request_with_timeouts_without_tokio_returns_error() -> TestResult<()>
     let client = test_client(&identity, false)?;
     let request = client
         .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
-        .timeouts(RequestTimeouts::new().total(Duration::from_secs(1)));
+        .timeouts(
+            RequestTimeoutOverrides::disabled()
+                .total(TimeoutOverride::Limit(Duration::from_secs(1))),
+        );
     let mut future = std::pin::pin!(request.send());
     let mut context = Context::from_waker(Waker::noop());
 

@@ -170,6 +170,160 @@ impl RequestTimeouts {
     }
 }
 
+/// Choose whether one request inherits, disables, or replaces a client limit.
+///
+/// A zero duration is a finite limit. It does not disable the timer.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum TimeoutOverride {
+    /// Uses the corresponding client limit.
+    #[default]
+    Inherit,
+    /// Disables the corresponding limit for this request.
+    Disabled,
+    /// Replaces the corresponding limit with this duration.
+    Limit(Duration),
+}
+
+impl TimeoutOverride {
+    const fn resolve(self, inherited: Option<Duration>) -> Option<Duration> {
+        match self {
+            Self::Inherit => inherited,
+            Self::Disabled => None,
+            Self::Limit(duration) => Some(duration),
+        }
+    }
+}
+
+/// Override individual client time limits for one request.
+///
+/// Each field inherits its client limit by default. Use [`Self::disabled`]
+/// to disable every limit, or set individual fields to [`TimeoutOverride::Disabled`].
+/// The resolved total deadline still covers every redirect, retry and body read.
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+/// use phantom::{RequestTimeoutOverrides, RequestTimeouts, TimeoutOverride};
+///
+/// let defaults = RequestTimeouts::new().connect(Duration::from_secs(10));
+/// let overrides = RequestTimeoutOverrides::new()
+///     .total(TimeoutOverride::Limit(Duration::from_secs(60)));
+/// assert_eq!(overrides.resolve(defaults).connect_duration(), Some(Duration::from_secs(10)));
+/// ```
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RequestTimeoutOverrides {
+    pool_admission: TimeoutOverride,
+    connect: TimeoutOverride,
+    response_head: TimeoutOverride,
+    read_idle: TimeoutOverride,
+    total: TimeoutOverride,
+}
+
+impl RequestTimeoutOverrides {
+    /// Inherits every client limit.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            pool_admission: TimeoutOverride::Inherit,
+            connect: TimeoutOverride::Inherit,
+            response_head: TimeoutOverride::Inherit,
+            read_idle: TimeoutOverride::Inherit,
+            total: TimeoutOverride::Inherit,
+        }
+    }
+
+    /// Disables every limit for this request.
+    #[must_use]
+    pub const fn disabled() -> Self {
+        Self {
+            pool_admission: TimeoutOverride::Disabled,
+            connect: TimeoutOverride::Disabled,
+            response_head: TimeoutOverride::Disabled,
+            read_idle: TimeoutOverride::Disabled,
+            total: TimeoutOverride::Disabled,
+        }
+    }
+
+    /// Sets the pool-admission override.
+    #[must_use]
+    pub const fn pool_admission(mut self, timeout: TimeoutOverride) -> Self {
+        self.pool_admission = timeout;
+        self
+    }
+
+    /// Returns the pool-admission override.
+    #[must_use]
+    pub const fn pool_admission_override(self) -> TimeoutOverride {
+        self.pool_admission
+    }
+
+    /// Sets the connection setup override.
+    #[must_use]
+    pub const fn connect(mut self, timeout: TimeoutOverride) -> Self {
+        self.connect = timeout;
+        self
+    }
+
+    /// Returns the connection setup override.
+    #[must_use]
+    pub const fn connect_override(self) -> TimeoutOverride {
+        self.connect
+    }
+
+    /// Sets the response-head override.
+    #[must_use]
+    pub const fn response_head(mut self, timeout: TimeoutOverride) -> Self {
+        self.response_head = timeout;
+        self
+    }
+
+    /// Returns the response-head override.
+    #[must_use]
+    pub const fn response_head_override(self) -> TimeoutOverride {
+        self.response_head
+    }
+
+    /// Sets the body read-idle override.
+    #[must_use]
+    pub const fn read_idle(mut self, timeout: TimeoutOverride) -> Self {
+        self.read_idle = timeout;
+        self
+    }
+
+    /// Returns the body read-idle override.
+    #[must_use]
+    pub const fn read_idle_override(self) -> TimeoutOverride {
+        self.read_idle
+    }
+
+    /// Sets the total operation override.
+    #[must_use]
+    pub const fn total(mut self, timeout: TimeoutOverride) -> Self {
+        self.total = timeout;
+        self
+    }
+
+    /// Returns the total operation override.
+    #[must_use]
+    pub const fn total_override(self) -> TimeoutOverride {
+        self.total
+    }
+
+    /// Resolves each field against its corresponding client limit.
+    #[must_use]
+    pub const fn resolve(self, defaults: RequestTimeouts) -> RequestTimeouts {
+        RequestTimeouts {
+            pool_admission: self.pool_admission.resolve(defaults.pool_admission),
+            connect: self.connect.resolve(defaults.connect),
+            response_head: self.response_head.resolve(defaults.response_head),
+            read_idle: self.read_idle.resolve(defaults.read_idle),
+            total: self.total.resolve(defaults.total),
+        }
+    }
+}
+
 /// The request phase that reached its time limit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -567,8 +721,70 @@ fn time_driver_missing() -> bool {
 mod tests {
     use std::{future::pending, time::Duration};
 
-    use super::{RequestTimeouts, TimeoutBudget, TimeoutPhase};
+    use super::{
+        RequestTimeoutOverrides, RequestTimeouts, TimeoutBudget, TimeoutOverride, TimeoutPhase,
+    };
     use crate::RequestErrorKind;
+
+    #[test]
+    fn each_override_resolves_without_changing_other_phases() {
+        let duration = Duration::from_secs(7);
+        let defaults = RequestTimeouts::new()
+            .pool_admission(duration)
+            .connect(duration)
+            .response_head(duration)
+            .read_idle(duration)
+            .total(duration);
+        let setters: [fn(RequestTimeoutOverrides, TimeoutOverride) -> RequestTimeoutOverrides; 5] = [
+            RequestTimeoutOverrides::pool_admission,
+            RequestTimeoutOverrides::connect,
+            RequestTimeoutOverrides::response_head,
+            RequestTimeoutOverrides::read_idle,
+            RequestTimeoutOverrides::total,
+        ];
+        let getters: [fn(RequestTimeouts) -> Option<Duration>; 5] = [
+            RequestTimeouts::pool_admission_duration,
+            RequestTimeouts::connect_duration,
+            RequestTimeouts::response_head_duration,
+            RequestTimeouts::read_idle_duration,
+            RequestTimeouts::total_duration,
+        ];
+        for (index, setter) in setters.into_iter().enumerate() {
+            for (value, expected) in [
+                (TimeoutOverride::Inherit, Some(duration)),
+                (TimeoutOverride::Disabled, None),
+                (
+                    TimeoutOverride::Limit(Duration::from_secs(2)),
+                    Some(Duration::from_secs(2)),
+                ),
+                (TimeoutOverride::Limit(Duration::ZERO), Some(Duration::ZERO)),
+            ] {
+                let resolved = setter(RequestTimeoutOverrides::new(), value).resolve(defaults);
+                for (phase, getter) in getters.into_iter().enumerate() {
+                    assert_eq!(
+                        getter(resolved),
+                        if phase == index {
+                            expected
+                        } else {
+                            Some(duration)
+                        }
+                    );
+                }
+            }
+        }
+        assert_eq!(
+            RequestTimeoutOverrides::default().resolve(defaults),
+            defaults
+        );
+        assert_eq!(
+            RequestTimeoutOverrides::disabled().resolve(defaults),
+            RequestTimeouts::new()
+        );
+        assert_eq!(
+            RequestTimeoutOverrides::new().resolve(RequestTimeouts::new()),
+            RequestTimeouts::new()
+        );
+    }
 
     #[test]
     fn missing_time_driver_is_detected_without_reading_a_panic_message()

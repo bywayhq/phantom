@@ -13,7 +13,7 @@ use btls::ssl::{AlpnError, ExtensionType, SelectCertError, SslAcceptor, select_n
 use http::{Method, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol, RequestErrorKind, RequestTimeouts,
+    Client, HttpProtocol, RequestErrorKind, RequestTimeoutOverrides, TimeoutOverride,
     profile::{ClientProfile, browser::firefox},
 };
 use tokio::{
@@ -241,7 +241,10 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
             let response = session
                 .request_negotiated(Method::POST, &format!("https://{address}/post"))?
                 .body("payload")
-                .timeouts(RequestTimeouts::new().connect(CONNECT_LIMIT))
+                .timeouts(
+                    RequestTimeoutOverrides::disabled()
+                        .connect(TimeoutOverride::Limit(CONNECT_LIMIT)),
+                )
                 .send()
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);

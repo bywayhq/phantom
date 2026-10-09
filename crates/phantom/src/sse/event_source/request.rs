@@ -6,7 +6,8 @@ use tokio::time::Instant;
 use tracing::{Instrument, debug, debug_span, field};
 
 use crate::{
-    Client, HttpProtocol, RequestBuilder, RequestError, RequestTimeouts, ResponseBody, Route,
+    Client, HttpProtocol, RequestBuilder, RequestError, RequestTimeoutOverrides, ResponseBody,
+    Route,
 };
 
 use super::{ReconnectFuture, SseEventSource};
@@ -187,12 +188,13 @@ impl SseRequestBuilder {
         self
     }
 
-    /// Replaces the client's request timeout policy for every connection attempt.
+    /// Overrides individual client time limits for every connection attempt.
     ///
-    /// Pool, connection, and response-head limits apply to each attempt. The
+    /// Unchanged fields inherit the client limits. Pool, connection, and
+    /// response-head limits apply to each attempt. The
     /// generic body and total timers end after the response head; established
     /// streams use [`Self::idle_timeout`] and the finite reconnect budget.
-    pub fn request_timeouts(mut self, timeouts: RequestTimeouts) -> Self {
+    pub fn request_timeouts(mut self, timeouts: RequestTimeoutOverrides) -> Self {
         self.request.timeouts = Some(timeouts);
         self
     }
@@ -412,7 +414,7 @@ pub(super) struct SseRequest {
     uri: Box<str>,
     headers: Vec<SseHeader>,
     route: Option<Route>,
-    timeouts: Option<RequestTimeouts>,
+    timeouts: Option<RequestTimeoutOverrides>,
 }
 
 impl SseRequest {

@@ -15,8 +15,8 @@ use bytes::Bytes;
 use http::{Method, StatusCode};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTimeouts, Route,
-    TimeoutPhase,
+    Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, RequestTimeoutOverrides,
+    Route, TimeoutOverride, TimeoutPhase,
     profile::{ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile},
 };
 use phantom_testkit::tcp::ReservedPort;
@@ -947,7 +947,9 @@ async fn basic_authentication_retry_shares_the_total_deadline() -> TestResult<()
             .route(route)
             .build()?
             .get(HttpProtocol::Http1, "http://origin.test/deadline")?
-            .timeouts(RequestTimeouts::new().total(TOTAL_DEADLINE))
+            .timeouts(
+                RequestTimeoutOverrides::disabled().total(TimeoutOverride::Limit(TOTAL_DEADLINE)),
+            )
             .send()
             .await
             .err()
@@ -1840,15 +1842,18 @@ async fn post_replay_is_not_resent_when_the_proxy_closes_the_challenged_connecti
 async fn stalled_challenge_body_ends_with_the_configured_timeout() -> TestResult<()> {
     for (timeouts, phase) in [
         (
-            RequestTimeouts::new().read_idle(Duration::from_millis(200)),
+            RequestTimeoutOverrides::disabled()
+                .read_idle(TimeoutOverride::Limit(Duration::from_millis(200))),
             TimeoutPhase::ReadIdle,
         ),
         (
-            RequestTimeouts::new().total(Duration::from_millis(500)),
+            RequestTimeoutOverrides::disabled()
+                .total(TimeoutOverride::Limit(Duration::from_millis(500))),
             TimeoutPhase::Total,
         ),
         (
-            RequestTimeouts::new().response_head(Duration::from_millis(500)),
+            RequestTimeoutOverrides::disabled()
+                .response_head(TimeoutOverride::Limit(Duration::from_millis(500))),
             TimeoutPhase::ResponseHead,
         ),
     ] {

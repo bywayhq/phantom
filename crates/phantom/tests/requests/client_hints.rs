@@ -948,6 +948,7 @@ async fn critical_ch_retries_once_with_only_supported_requested_hints() -> TestR
 
         let response = client(&identity)?
             .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+            .retry_policy(phantom::RetryPolicy::none().with_max_retries(Some(0)))
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
