@@ -36,6 +36,19 @@ fn value<T: Clone + Debug + Eq + Send + Sync>() {}
 fn validator_error<T: Clone + Debug + Eq + Error + Send + Sync>() {}
 
 #[test]
+fn checked_selectors_and_cipher_conversion_keep_public_value_contracts() {
+    fn checked<T: Copy + Clone + Debug + Eq + Hash + Send + Sync>() {}
+    checked::<phantom_profile::UrlTrust>();
+    checked::<phantom_profile::ValidationErrorKind>();
+    checked::<phantom_profile::UnknownCipherSuite>();
+    validator_error::<phantom_profile::UnknownCipherSuite>();
+    fn conversion<T: TryFrom<u16, Error = phantom_profile::UnknownCipherSuite>>() {}
+    conversion::<CipherSuite>();
+    fn identifier<T: From<CipherSuite>>() {}
+    identifier::<u16>();
+}
+
+#[test]
 fn public_records_support_cloning_equality_and_thread_transfer() {
     value::<AlpsSettings>();
     value::<ClientHint>();

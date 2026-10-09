@@ -578,6 +578,20 @@ pub struct EchGreaseSettings {
 impl EchGreaseSettings {
     /// Checks payload sizing and AEAD choices.
     ///
+    /// ```
+    /// # fn main() -> Result<(), phantom_profile::InvalidTlsSettings> {
+    /// use phantom_profile::{EchGreaseAead, EchGreasePayloadLength,
+    ///     EchGreaseSettings, EchSettings, browser::chrome};
+    /// let mut tls = chrome::v154_tcp_tls();
+    /// let grease = EchGreaseSettings::new(
+    ///     EchGreasePayloadLength::Exact(128), vec![EchGreaseAead::Aes128Gcm],
+    /// )?;
+    /// tls.ech = EchSettings::Grease(grease);
+    /// tls.validate()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// Exact lengths must be between 1 and 65_493 bytes, leaving room for ECH
     /// framing in the TLS extension body. AEAD choices must not repeat. An
     /// empty list and `BackendDefault` keep the backend's choices.

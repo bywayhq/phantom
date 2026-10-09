@@ -44,7 +44,9 @@ pub use error::{Http1TlsError, Http1TlsErrorKind};
 /// use phantom_profile::browser::chrome;
 ///
 /// # async fn request() -> Result<(), Box<dyn std::error::Error>> {
-/// let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?;
+/// let settings = chrome::v154_tcp_tls()
+///     .with_alpn_protocols(&[Box::from(&b"http/1.1"[..])])?;
+/// let connector = Http1TlsConnector::new(&settings)?;
 /// let route = Http1Route::Origin(OriginRoute::Tls {
 ///     tcp: TcpRoute::Direct(Endpoint { host: "example.com", port: 443 }),
 ///     server_name: "example.com",
