@@ -17,7 +17,7 @@ use crate::{
         http_connect_tunnel, http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns,
         socks5_tunnel_remote_dns,
     },
-    route::{ProxyTransport, Socks5Target, TcpRoute},
+    route::{ConnectedStream, ProxyTransport, Socks5Target, TcpRoute},
     tcp::{ProfileTcpStream, TcpKeepaliveControl, TcpKeepaliveSource},
 };
 
@@ -27,6 +27,7 @@ pub(crate) enum ConnectionLeg {
     Tcp(ProfileTcpStream),
     HttpConnect(TunnelStream<ProfileTcpStream>),
     HttpsConnect(HttpsProxyTunnel),
+    Connected(ConnectedStream),
 }
 
 /// Failure before origin TLS or HTTP setup.
@@ -83,6 +84,7 @@ pub(crate) async fn connect(
     cache: Option<&ProxyCredentialCache>,
 ) -> Result<ConnectionLeg, ConnectionLegError> {
     match route {
+        TcpRoute::Connected(stream) => Ok(ConnectionLeg::Connected(stream)),
         TcpRoute::Direct(endpoint) => connect_tcp(endpoint.host, endpoint.port, dialer)
             .await
             .map(ConnectionLeg::Tcp)
@@ -198,6 +200,7 @@ impl AsyncRead for ConnectionLeg {
             Self::Tcp(stream) => Pin::new(stream).poll_read(context, buffer),
             Self::HttpConnect(stream) => Pin::new(stream).poll_read(context, buffer),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_read(context, buffer),
+            Self::Connected(stream) => Pin::new(stream).poll_read(context, buffer),
         }
     }
 }
@@ -212,6 +215,7 @@ impl AsyncWrite for ConnectionLeg {
             Self::Tcp(stream) => Pin::new(stream).poll_write(context, buffer),
             Self::HttpConnect(stream) => Pin::new(stream).poll_write(context, buffer),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_write(context, buffer),
+            Self::Connected(stream) => Pin::new(stream).poll_write(context, buffer),
         }
     }
 
@@ -220,6 +224,7 @@ impl AsyncWrite for ConnectionLeg {
             Self::Tcp(stream) => Pin::new(stream).poll_flush(context),
             Self::HttpConnect(stream) => Pin::new(stream).poll_flush(context),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_flush(context),
+            Self::Connected(stream) => Pin::new(stream).poll_flush(context),
         }
     }
 
@@ -228,6 +233,7 @@ impl AsyncWrite for ConnectionLeg {
             Self::Tcp(stream) => Pin::new(stream).poll_shutdown(context),
             Self::HttpConnect(stream) => Pin::new(stream).poll_shutdown(context),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_shutdown(context),
+            Self::Connected(stream) => Pin::new(stream).poll_shutdown(context),
         }
     }
 
@@ -240,6 +246,7 @@ impl AsyncWrite for ConnectionLeg {
             Self::Tcp(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
             Self::HttpConnect(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
             Self::HttpsConnect(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
+            Self::Connected(stream) => Pin::new(stream).poll_write_vectored(context, buffers),
         }
     }
 
@@ -248,6 +255,7 @@ impl AsyncWrite for ConnectionLeg {
             Self::Tcp(stream) => stream.is_write_vectored(),
             Self::HttpConnect(stream) => stream.is_write_vectored(),
             Self::HttpsConnect(stream) => stream.is_write_vectored(),
+            Self::Connected(stream) => stream.is_write_vectored(),
         }
     }
 }
@@ -258,6 +266,7 @@ impl TcpKeepaliveSource for ConnectionLeg {
             Self::Tcp(stream) => stream.tcp_keepalive(),
             Self::HttpConnect(stream) => stream.tcp_keepalive(),
             Self::HttpsConnect(stream) => stream.tcp_keepalive(),
+            Self::Connected(_) => None,
         }
     }
 }

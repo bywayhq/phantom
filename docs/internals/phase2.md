@@ -26,15 +26,15 @@ a passing focused test does not complete an item.
 The route lane has a shared TCP connection-leg owner and borrowed route
 values. HTTP/1.1, HTTP/2, and negotiated connectors use it for ordinary
 connections and proxy request/upgrade paths. This is an unmerged checkpoint:
-route-specific send/upgrade methods, ECH/slower setup, plaintext/forwarding, and datagram
-routes still need consolidation. No route item is complete yet.
+ECH/slower setup, plaintext/forwarding, and datagram routes still need
+consolidation. No route item is complete yet.
 
-Checkpoint `27022128` passed 145 focused tests, including the connection
-future-size budget, TCP settings/keepalive, TLS, ECH, route DNS ownership,
-source binding, and HTTP/3 WebSockets. The full workspace compile passed at
-`73164158`. Independent review approved both that refactor and the new
-source-binding/certificate tests after the probe fix. Later API migration
-commits require their own verification. Ordinary TCP connection methods are
+Checkpoint `0a513cdc` passed formatting, workspace Clippy with all targets
+and features, and 623 focused tests. The tests cover connection future size,
+TCP settings/keepalive, TLS, route DNS ownership, source binding, proxies,
+and WebSockets. Independent review approved the ordinary connection,
+request, and upgrade consolidation after the migration fixes. The full
+integration gate and CI remain required. Ordinary TCP connection methods are
 removed. HTTP/1.1 route-specific request and TLS Upgrade methods are removed
 in favor of route-taking operations. HTTP/2 requests and extended CONNECT
 openings use routes too. ECH/slower, plaintext/forwarding, and datagram

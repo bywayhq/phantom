@@ -1,6 +1,13 @@
 //! Borrowed routes used to open TCP connections to an origin.
 
 use crate::proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth};
+use crate::{
+    http1::{AbsoluteForm, OriginForm},
+    tcp::AddressFamilyMemory,
+};
+
+mod connected;
+pub use connected::ConnectedStream;
 
 /// A host and port to connect to or ask a proxy to reach.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -59,11 +66,13 @@ pub enum Socks5Target<'a> {
 ///
 /// Origin TLS and HTTP setup follow the route's connection setup. A proxy
 /// failure does not cause a direct connection or a change of route.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum TcpRoute<'a> {
     /// Connect directly to this host and port.
     Direct(Endpoint<'a>),
+    /// Use a stream already opened by the caller, without applying socket options.
+    Connected(ConnectedStream),
     /// Open an HTTP CONNECT tunnel through a plaintext or TLS proxy.
     HttpConnect(HttpConnectRoute<'a>),
     /// Open a SOCKS5 CONNECT tunnel with the selected DNS and auth policy.
@@ -75,6 +84,127 @@ pub enum TcpRoute<'a> {
         /// Authentication offered to the proxy.
         auth: Socks5Auth<'a>,
     },
+}
+
+/// Setup policy for a new direct origin TLS connection.
+///
+/// ECH and retaining a slower address attempt are separate policies. Both
+/// require a direct route. Retaining a slower attempt is supported only by
+/// HTTP/1.1 and negotiated connection openings.
+#[non_exhaustive]
+pub enum DirectTlsSetup<'a> {
+    /// Use the connector's normal TLS setup.
+    Default,
+    /// Overlap TCP setup with an HTTPS-record lookup, then apply its bounded wait.
+    #[cfg(feature = "https-records")]
+    Ech(
+        std::pin::Pin<
+            &'a mut (
+                        dyn std::future::Future<Output = Option<crate::dns::EchConfigList>>
+                            + Send
+                            + 'a
+                    ),
+        >,
+    ),
+    /// Retain the slower address attempt and update the origin's address family.
+    KeepSlower(&'a AddressFamilyMemory),
+}
+
+impl std::fmt::Debug for DirectTlsSetup<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Default => formatter.write_str("Default"),
+            #[cfg(feature = "https-records")]
+            Self::Ech(_) => formatter.write_str("Ech(..)"),
+            Self::KeepSlower(_) => formatter.write_str("KeepSlower(..)"),
+        }
+    }
+}
+
+/// Transport and authentication used to reach the origin through a TCP route.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum OriginRoute<'a> {
+    /// Plaintext HTTP/1.1, with optional family memory for a direct connection.
+    Plaintext {
+        /// Byte-stream route to the origin.
+        tcp: TcpRoute<'a>,
+        /// Retain the slower direct attempt for an HTTP/1.1 connection opening.
+        family: Option<&'a AddressFamilyMemory>,
+    },
+    /// Origin TLS, independent of any TLS used to reach a proxy.
+    Tls {
+        /// Byte-stream route to the origin.
+        tcp: TcpRoute<'a>,
+        /// Origin name used for TLS authentication.
+        server_name: &'a str,
+        /// Direct-connection setup policy.
+        setup: DirectTlsSetup<'a>,
+    },
+}
+
+impl OriginRoute<'_> {
+    /// Reject unsupported setup before lookup polling or connection I/O.
+    pub(crate) fn validate(&self, plaintext: bool, slower: bool) -> Result<(), std::io::Error> {
+        let invalid = |message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message);
+        match self {
+            Self::Plaintext { tcp, family } => {
+                if !plaintext {
+                    return Err(invalid("this protocol requires origin TLS"));
+                }
+                if family.is_some() && (!slower || !matches!(tcp, TcpRoute::Direct(_))) {
+                    return Err(invalid(
+                        "retaining a slower attempt requires a direct connection opening",
+                    ));
+                }
+            }
+            Self::Tls { tcp, setup, .. } => {
+                if !matches!(setup, DirectTlsSetup::Default) && !matches!(tcp, TcpRoute::Direct(_))
+                {
+                    return Err(invalid("direct TLS setup requires a direct TCP route"));
+                }
+                if matches!(setup, DirectTlsSetup::KeepSlower(_)) && !slower {
+                    return Err(invalid("this operation cannot retain a slower connection"));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// HTTP/1.1 origin transport or explicit forward-proxy transport.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum Http1Route<'a> {
+    /// Reach the origin directly or through a byte-stream tunnel.
+    Origin(OriginRoute<'a>),
+    /// Reach a forwarding proxy, with no origin TLS or CONNECT exchange.
+    Forward(ProxyTransport<'a>),
+}
+
+/// HTTP/2 origin transport or explicit TLS forward-proxy transport.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum Http2Route<'a> {
+    /// Reach an origin with TLS over a direct connection or a tunnel.
+    Origin(OriginRoute<'a>),
+    /// Use the supplied proxy connector's HTTP/2 connection and TLS policy.
+    Forward {
+        /// Requires TLS to a proxy configured for exact HTTP/2.
+        proxy: ProxyTransport<'a>,
+        /// Credential partition for the proxy connection pool.
+        credentials: Option<&'a HttpBasicCredentials>,
+    },
+}
+
+/// HTTP/1.1 request target, with forwarding selected explicitly.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum Http1Target {
+    /// Origin-form target for an origin route.
+    Origin(OriginForm),
+    /// Absolute-form target for a forwarding route.
+    Absolute(AbsoluteForm),
 }
 
 #[cfg(test)]
