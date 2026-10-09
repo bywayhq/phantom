@@ -19,7 +19,7 @@ fn tls_versions_round_trip_protocol_identifiers() {
 }
 
 #[test]
-fn cipher_suites_round_trip_iana_identifiers() {
+fn cipher_suites_round_trip_iana_identifiers() -> Result<(), Box<dyn Error>> {
     for suite in [
         CipherSuite::Aes128GcmSha256,
         CipherSuite::Aes256GcmSha384,
@@ -46,10 +46,13 @@ fn cipher_suites_round_trip_iana_identifiers() {
         assert_eq!(CipherSuite::try_from(u16::from(suite)), Ok(suite));
     }
     assert_eq!(CipherSuite::from_iana_id(0x0a0a), None);
-    let error = CipherSuite::try_from(0x0a0a).unwrap_err();
+    let error = CipherSuite::try_from(0x0a0a)
+        .err()
+        .ok_or("GREASE cipher suite was accepted")?;
     assert_eq!(error.iana_id(), 0x0a0a);
     assert_eq!(error.to_string(), "unknown TLS cipher suite 0x0a0a");
     assert!(error.source().is_none());
+    Ok(())
 }
 
 fn minimal_settings() -> TlsSettings {
