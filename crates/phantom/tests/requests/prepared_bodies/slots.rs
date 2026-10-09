@@ -170,21 +170,24 @@ async fn cross_origin_307_strips_slot_credentials_without_rerunning_hook() -> Te
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN)).build()?;
         let count = Arc::new(AtomicUsize::new(0));
+        let marker = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos();
+        let token = format!("{marker:032x}");
+        let authorization = format!("Bearer {token}");
         let body = PreparedRequestBody::form([("tag", "first"), ("tag", "last")], 128)?;
         let request = client.request(HttpProtocol::Http1, Method::POST, &first_url)?
             .template(&slots_template(true, true)?)
             .fill_slots(|slots| {
                 count.fetch_add(1, Ordering::SeqCst);
-                slots.fill(RequestHeader::new("Authorization", "Bearer PRIVATE_REDIRECT_TOKEN").sensitive())?;
+                slots.fill(RequestHeader::new("Authorization", authorization.clone()).sensitive())?;
                 slots.fill(RequestHeader::new("X-Token", "ordinary-value").sensitive())?;
                 Ok(())
             })?.prepared_body(body.clone());
         assert_eq!(count.load(Ordering::SeqCst), 1);
-        assert!(!format!("{request:?}").contains("PRIVATE_REDIRECT_TOKEN"));
+        assert!(!format!("{request:?}").contains(&token));
         assert_eq!(request.send().await?.status(), phantom::StatusCode::NO_CONTENT);
         let initial = first_peer.await??;
         let redirected = second_peer.await??;
-        assert_eq!(initial.value("authorization"), Some(&b"Bearer PRIVATE_REDIRECT_TOKEN"[..]));
+        assert_eq!(initial.value("authorization"), Some(authorization.as_bytes()));
         assert_eq!(redirected.value("authorization"), None);
         assert_eq!(redirected.value("x-token"), Some(&b"ordinary-value"[..]));
         for observed in [initial, redirected] {

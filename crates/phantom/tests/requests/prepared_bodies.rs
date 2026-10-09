@@ -18,7 +18,7 @@ use tokio::{
     time::{Instant, timeout},
 };
 
-type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const BUDGET: Duration = Duration::from_secs(10);
 
 fn profile() -> ClientProfile {
