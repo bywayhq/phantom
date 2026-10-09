@@ -32,6 +32,22 @@ absent in all four feature rows. Its intended public dependencies are
 the boundary. Remaining export and trait decisions are tracked in the
 [Phase 2 checklist](../../docs/internals/phase2.md).
 
+## Intended public dependencies
+
+| Library | Dependencies named by its API |
+| --- | --- |
+| `phantom-http` | `bytes`, `http`, `http-body`, `futures-core`, `futures-sink`, optional `serde`, `phantom-net`, `phantom-profile` |
+| `phantom-net` | `bytes`, `http`, `http-body`, Tokio I/O, `phantom-profile`, `phantom-quic-btls` |
+| `phantom-profile` | Standard library only |
+| `phantom-quic-btls` | `btls`, `quinn-proto`, `phantom-profile` |
+| `phantom-testkit` | Tokio I/O and timers |
+
+The client runs in Tokio. Backend error causes remain reachable through
+`std::error::Error::source`; their concrete types are not part of the
+client's signatures. See
+[downstream build limits](../../docs/guides/downstream.md#limits) for the
+BoringSSL linking restriction.
+
 ## Next
 
 - [Phase 2 checklist](../../docs/internals/phase2.md): outstanding API work.
