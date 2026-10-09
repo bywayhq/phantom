@@ -426,7 +426,9 @@ class TlsAnvilCleanupTests(unittest.TestCase):
             try:
                 status, summary, calls, stderr = self.exercise()
             except KeyboardInterrupt:
-                self.fail("log retention interruption escaped before failure aggregation")
+                self.fail(
+                    "log retention interruption escaped before failure aggregation"
+                )
 
         self.assertNotEqual(status, 0)
         self.assertEqual(summary["runner_exit_status"], 7)

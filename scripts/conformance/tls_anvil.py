@@ -314,7 +314,7 @@ def run(repository: Path, report_root: Path) -> Path:
         for log in (container_log, run_directory / "adapter.log"):
             try:
                 _bound_log(log)
-            except OSError as error:
+            except (OSError, KeyboardInterrupt) as error:
                 cleanup_errors.append((f"log retention of {log}", error))
 
     failures = []
@@ -343,7 +343,7 @@ def run(repository: Path, report_root: Path) -> Path:
             json.dumps(summary_document, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    except OSError as error:
+    except (OSError, KeyboardInterrupt) as error:
         if primary_error is None and not cleanup_errors:
             raise
         cleanup_errors.append(("summary retention", error))
