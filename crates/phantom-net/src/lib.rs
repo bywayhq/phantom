@@ -28,6 +28,7 @@
 
 mod accept_ch;
 pub mod address_cache;
+mod connection_leg;
 mod direct;
 #[cfg(feature = "https-records")]
 pub mod dns;
@@ -43,6 +44,7 @@ pub mod http3;
 pub mod proxy;
 pub mod request;
 mod response;
+pub mod route;
 mod shutdown_timer;
 // Raw libc, Winsock, IP Helper, and ntdll access is isolated here so safe code
 // cannot grow new unsafe operations without crossing an explicit, reviewable

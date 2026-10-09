@@ -23,6 +23,12 @@ a passing focused test does not complete an item.
 
 ### 1. Routes
 
+The route lane has a shared TCP connection-leg owner and borrowed route
+values. HTTP/1.1, HTTP/2, and negotiated connectors use it for ordinary
+connections and proxy request/upgrade paths. This is an unmerged checkpoint:
+old route methods, ECH/slower setup, plaintext/forwarding, and datagram
+routes still need consolidation. No route item is complete yet.
+
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
   are removed, with migration notes.

@@ -881,6 +881,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Typed TCP routes in `phantom-net::route` and `connect_via` on the
+  HTTP/1.1, HTTP/2, and negotiated TLS connectors. HTTP CONNECT and SOCKS5
+  connections share connection setup while keeping their authentication,
+  DNS ownership, and socket settings.
+
 - `ClientBuilder::client_certificate_for(origin, certificate)` presents
   `certificate` to one host and port, such as `"https://api.example:8443"`,
   in place of the certificate from `ClientBuilder::client_certificate`,

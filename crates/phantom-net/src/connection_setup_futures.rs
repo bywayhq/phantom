@@ -33,6 +33,10 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H1::connect::<TcpStream>),
         ),
         (
+            "Http1TlsConnector::connect_via",
+            future_size(&H1::connect_via),
+        ),
+        (
             "Http1TlsConnector::connect_direct",
             future_size(&H1::connect_direct),
         ),
@@ -93,6 +97,10 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H2::connect::<TcpStream>),
         ),
         (
+            "Http2TlsConnector::connect_via",
+            future_size(&H2::connect_via),
+        ),
+        (
             "Http2TlsConnector::connect_direct",
             future_size(&H2::connect_direct),
         ),
@@ -135,6 +143,10 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
         (
             "Http1Or2TlsConnector::connect",
             future_size(&H12::connect::<TcpStream>),
+        ),
+        (
+            "Http1Or2TlsConnector::connect_via",
+            future_size(&H12::connect_via),
         ),
         (
             "Http1Or2TlsConnector::connect_direct",

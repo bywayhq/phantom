@@ -28,6 +28,7 @@ pub use http2_pool::{
     HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING, Http2ProxyPool, MAX_HTTP2_PROXY_POOL_ROUTES,
     MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION,
 };
+pub(crate) use https_connect::HttpsProxyTunnel;
 pub use https_connect::{HttpsProxyConnector, HttpsProxyProtocol};
 pub use socks5::{
     Socks5Auth, Socks5Error, Socks5ErrorKind, connect_socks5_tunnel_direct,

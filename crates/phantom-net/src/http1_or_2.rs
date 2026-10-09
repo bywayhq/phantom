@@ -12,7 +12,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
-    direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
+    connection_leg::{self, ConnectionLegError},
+    direct::{Dialer, DirectConnectError, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
     http1::{Http1Connection, Http1Error, Http1TlsConnector, Http1TlsError},
     http2::{
@@ -21,9 +22,9 @@ use crate::{
     },
     proxy::{
         HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
-        ProxyCredentialCache, Socks5Auth, Socks5Error, http_connect_tunnel,
-        http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
+        ProxyCredentialCache, Socks5Auth, Socks5Error,
     },
+    route::{Endpoint, HttpConnectRoute, ProxyTransport, Socks5Target, TcpRoute},
     source_binding::SourceBinding,
     tcp::{
         AddressFamilyMemory, ForeignStream, SlowerAttempt, SlowerConnection, SlowerKeepalive,
@@ -93,6 +94,19 @@ pub enum Http1Or2TlsError {
     MissingHttp1Alpn,
     /// The TLS settings do not offer `h2`.
     MissingHttp2Alpn,
+}
+
+impl From<ConnectionLegError> for Http1Or2TlsError {
+    fn from(error: ConnectionLegError) -> Self {
+        match error {
+            ConnectionLegError::Direct(DirectConnectError::RuntimeUnavailable) => {
+                Self::RuntimeUnavailable
+            }
+            ConnectionLegError::Direct(DirectConnectError::Connect(error)) => Self::Connect(error),
+            ConnectionLegError::HttpProxy(error) => Self::Proxy(error),
+            ConnectionLegError::Socks5(error) => Self::Socks5Proxy(error),
+        }
+    }
 }
 
 impl Http1Or2TlsError {
@@ -568,6 +582,37 @@ impl Http1Or2TlsConnector {
         .await
     }
 
+    /// Opens a connection through `route` using this connector's origin TLS.
+    ///
+    /// Direct connections offer early data; tunneled connections perform the
+    /// ordinary origin handshake. Proxy TLS uses the route's proxy connector.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1Or2TlsError`] for route setup, TLS, or protocol failures.
+    pub async fn connect_via(
+        &self,
+        route: TcpRoute<'_>,
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(pin!(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let direct = matches!(route, TcpRoute::Direct(_));
+            let stream =
+                connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
+                    .await?;
+            let stream = if direct {
+                self.tls
+                    .connect_offering_early_data(server_name, stream)
+                    .await?
+            } else {
+                self.tls.connect(server_name, stream).await?
+            };
+            select_connection(stream, client).await
+        }))
+        .await
+    }
+
     /// Opens one direct TCP connection and selects HTTP/1.1 or HTTP/2 over TLS.
     ///
     /// HTTP/2 settings are prepared before DNS resolution or network I/O.
@@ -582,18 +627,8 @@ impl Http1Or2TlsConnector {
         port: u16,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = connect_tcp(host, port, self.dialer())
-                .await
-                .map_err(Http1Or2TlsError::from_direct)?;
-            let stream = self
-                .tls
-                .connect_offering_early_data(server_name, stream)
-                .await?;
-            select_connection(stream, client).await
-        }))
-        .await
+        self.connect_via(TcpRoute::Direct(Endpoint { host, port }), server_name)
+            .await
     }
 
     /// Opens one direct connection as [`Self::connect_direct`] does and,
@@ -739,19 +774,18 @@ impl Http1Or2TlsConnector {
         connect_headers: &[HttpConnectHeader],
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = http_connect_tunnel(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                connect_authority,
-                connect_headers,
-            )
-            .await?;
-            let stream = self.tls.connect(server_name, stream).await?;
-            select_connection(stream, client).await
-        }))
+        self.connect_via(
+            TcpRoute::HttpConnect(HttpConnectRoute {
+                proxy: ProxyTransport::Tcp(Endpoint {
+                    host: proxy_host,
+                    port: proxy_port,
+                }),
+                authority: connect_authority,
+                headers: connect_headers,
+                credentials: None,
+            }),
+            server_name,
+        )
         .await
     }
 
@@ -776,21 +810,18 @@ impl Http1Or2TlsConnector {
         credentials: &HttpBasicCredentials,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = http_connect_tunnel_with_basic_auth(
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-                proxy_host,
-                proxy_port,
-                connect_authority,
-                connect_headers,
-                credentials,
-            )
-            .await?;
-            let stream = self.tls.connect(server_name, stream).await?;
-            select_connection(stream, client).await
-        }))
+        self.connect_via(
+            TcpRoute::HttpConnect(HttpConnectRoute {
+                proxy: ProxyTransport::Tcp(Endpoint {
+                    host: proxy_host,
+                    port: proxy_port,
+                }),
+                authority: connect_authority,
+                headers: connect_headers,
+                credentials: Some(credentials),
+            }),
+            server_name,
+        )
         .await
     }
 
@@ -818,20 +849,22 @@ impl Http1Or2TlsConnector {
         connect_headers: &[HttpConnectHeader],
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = proxy_connector
-                .connect_tunnel(
-                    proxy_host,
-                    proxy_port,
-                    proxy_server_name,
-                    connect_authority,
-                    connect_headers,
-                )
-                .await?;
-            let stream = self.tls.connect(server_name, stream).await?;
-            select_connection(stream, client).await
-        }))
+        self.connect_via(
+            TcpRoute::HttpConnect(HttpConnectRoute {
+                proxy: ProxyTransport::Tls {
+                    endpoint: Endpoint {
+                        host: proxy_host,
+                        port: proxy_port,
+                    },
+                    server_name: proxy_server_name,
+                    connector: proxy_connector,
+                },
+                authority: connect_authority,
+                headers: connect_headers,
+                credentials: None,
+            }),
+            server_name,
+        )
         .await
     }
 
@@ -856,21 +889,22 @@ impl Http1Or2TlsConnector {
         credentials: &HttpBasicCredentials,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = proxy_connector
-                .connect_tunnel_with_basic_auth(
-                    proxy_host,
-                    proxy_port,
-                    proxy_server_name,
-                    connect_authority,
-                    connect_headers,
-                    credentials,
-                )
-                .await?;
-            let stream = self.tls.connect(server_name, stream).await?;
-            select_connection(stream, client).await
-        }))
+        self.connect_via(
+            TcpRoute::HttpConnect(HttpConnectRoute {
+                proxy: ProxyTransport::Tls {
+                    endpoint: Endpoint {
+                        host: proxy_host,
+                        port: proxy_port,
+                    },
+                    server_name: proxy_server_name,
+                    connector: proxy_connector,
+                },
+                authority: connect_authority,
+                headers: connect_headers,
+                credentials: Some(credentials),
+            }),
+            server_name,
+        )
         .await
     }
 
@@ -896,20 +930,20 @@ impl Http1Or2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = socks5_tunnel_remote_dns(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                target_host,
-                target_port,
+        self.connect_via(
+            TcpRoute::Socks5 {
+                proxy: Endpoint {
+                    host: proxy_host,
+                    port: proxy_port,
+                },
+                target: Socks5Target::RemoteDns(Endpoint {
+                    host: target_host,
+                    port: target_port,
+                }),
                 auth,
-            )
-            .await?;
-            let stream = self.tls.connect(server_name, stream).await?;
-            select_connection(stream, client).await
-        }))
+            },
+            server_name,
+        )
         .await
     }
 
@@ -934,20 +968,20 @@ impl Http1Or2TlsConnector {
         target_port: u16,
         server_name: &str,
     ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = socks5_tunnel_local_dns(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                target_host,
-                target_port,
+        self.connect_via(
+            TcpRoute::Socks5 {
+                proxy: Endpoint {
+                    host: proxy_host,
+                    port: proxy_port,
+                },
+                target: Socks5Target::LocalDns(Endpoint {
+                    host: target_host,
+                    port: target_port,
+                }),
                 auth,
-            )
-            .await?;
-            let stream = self.tls.connect(server_name, stream).await?;
-            select_connection(stream, client).await
-        }))
+            },
+            server_name,
+        )
         .await
     }
 
