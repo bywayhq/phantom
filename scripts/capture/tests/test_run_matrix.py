@@ -826,6 +826,90 @@ class CleanupFailureTests(unittest.TestCase):
             self.assertEqual(results[0].attempts[0].detail, "stopped")
             self.assertEqual([len(result.attempts) for result in results], [1, 1])
 
+    def test_completed_owner_keeps_success_when_active_owner_cleanup_fails(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            items = expand_manifest(
+                manifest(
+                    fake_capture(
+                        args=["--fixture-prefix", "done"], output_dir="out/done"
+                    ),
+                    fake_capture(
+                        args=["--fixture-prefix", "running"], output_dir="out/running"
+                    ),
+                ),
+                base=root,
+                tools=FAKE_TOOLS,
+            )
+            completed, registered, release = (
+                threading.Event(),
+                threading.Event(),
+                threading.Event(),
+            )
+            attempts = Attempts()
+            container = mock.Mock()
+            container.close.side_effect = release.set
+            join = threading.Thread.join
+            interrupted = False
+            owned_threads = []
+
+            def attempt(item, _number):
+                if item is items[0]:
+                    item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
+                    item.outputs[0].write_bytes(b"format=fake\n")
+                    return Attempt(True, 1.0)
+                attempts.add(slug(item.id) + ".1", container, root / "owned")
+                registered.set()
+                release.wait(10)
+                return Attempt(False, 2.0, "stopped")
+
+            def report(line):
+                if f"ok {items[0].id}" in line:
+                    completed.set()
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    self.assertTrue(completed.wait(10))
+                    self.assertTrue(registered.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                return join(thread, *args, **kwargs)
+
+            try:
+                with (
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=OSError("active owner's discovery failed"),
+                    ),
+                ):
+                    results, _wall = run_manifest(
+                        items,
+                        work_dir=root / "work",
+                        limit=2,
+                        retries=0,
+                        force=False,
+                        attempt=attempt,
+                        attempts=attempts,
+                        log=report,
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual([result.status for result in results], ["ok", "failed"])
+            self.assertEqual(results[0].attempts[0].detail, "")
+            self.assertTrue(results[0].attempts[0].ok)
+            records = CompletionRecords(root / "work" / "completed")
+            self.assertIsNone(records.mismatch(items[0]))
+            self.assertEqual(records.mismatch(items[1]), "no completion record")
+
     def test_second_interrupt_during_cleanup_still_ends_every_owner(self) -> None:
         releases = [threading.Event(), threading.Event()]
         registered = [threading.Event(), threading.Event()]
