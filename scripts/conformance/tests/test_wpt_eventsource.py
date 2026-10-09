@@ -2,6 +2,9 @@ import contextlib
 import io
 import json
 import logging.handlers
+import multiprocessing
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -85,9 +88,115 @@ class ServerFixture:
         self.started = False
 
 
-class WptLifecycleTests(unittest.TestCase):
+class PipeFixture:
+    def __init__(self, *, child=False, messages=None):
+        self.child = child
+        self.messages = messages if messages is not None else []
+        self.closed = False
+        self.sent = []
+        self.waits = []
+
+    def poll(self, timeout):
+        self.waits.append(timeout)
+        return bool(self.messages)
+
+    def recv(self):
+        return "stop" if self.child else self.messages.pop(0)
+
+    def send(self, message):
+        self.sent.append(message)
+        if self.child:
+            self.messages.append(message)
+
+    def close(self):
+        self.closed = True
+
+
+class ProcessFixture:
+    def __init__(
+        self,
+        target,
+        args,
+        *,
+        execute=True,
+        terminate_reaps=True,
+        kill_reaps=True,
+        start_error=None,
+    ):
+        self.target = target
+        self.args = args
+        self.execute = execute
+        self.terminate_reaps = terminate_reaps
+        self.kill_reaps = kill_reaps
+        self.start_error = start_error
+        self.pid = None
+        self.exitcode = None
+        self.alive = False
+        self.closed = False
+        self.events = []
+
+    def start(self):
+        self.events.append("start")
+        if self.start_error is not None:
+            raise self.start_error
+        self.pid = 123
+        self.alive = True
+        if self.execute:
+            self.target(*self.args)
+
+    def join(self, timeout):
+        self.events.append(("join", timeout))
+        if self.execute:
+            self.alive = False
+            self.exitcode = 0
+
+    def is_alive(self):
+        return self.alive
+
+    def terminate(self):
+        self.events.append("terminate")
+        if self.terminate_reaps:
+            self.alive = False
+            self.exitcode = -15
+
+    def kill(self):
+        self.events.append("kill")
+        if self.kill_reaps:
+            self.alive = False
+            self.exitcode = -9
+
+    def close(self):
+        if self.alive:
+            raise AssertionError("closed an unreaped process")
+        self.events.append("close")
+        self.closed = True
+
+
+class SpawnFixture:
+    def __init__(self, **process_options):
+        messages = []
+        self.parent = PipeFixture(messages=messages)
+        self.child = PipeFixture(child=True, messages=messages)
+        self.options = process_options
+        self.process = None
+
+    def Pipe(self):
+        return self.parent, self.child
+
+    def Process(self, *, target, args):
+        self.process = ProcessFixture(target, args, **self.options)
+        return self.process
+
+
+class WptRunFixture(unittest.TestCase):
     def exercise(
-        self, *, server=None, scenario_failure=False, adapter_error=None, log_error=None
+        self,
+        *,
+        server=None,
+        scenario_failure=False,
+        adapter_error=None,
+        log_error=None,
+        spawn=None,
     ):
         server = server or ServerFixture()
         repository = Path(__file__).resolve().parents[3]
@@ -143,7 +252,13 @@ class WptLifecycleTests(unittest.TestCase):
             stdout = io.StringIO()
             stderr = io.StringIO()
             observed_error = None
+            spawn = spawn or SpawnFixture()
             with contextlib.ExitStack() as stack:
+                stack.enter_context(
+                    patch.object(
+                        runner.multiprocessing, "get_context", return_value=spawn
+                    )
+                )
                 stack.enter_context(patch.object(runner, "_checkout_wpt", checkout))
                 stack.enter_context(
                     patch.object(runner, "generate_loopback_certificate", certificate)
@@ -221,6 +336,7 @@ class WptLifecycleTests(unittest.TestCase):
                 server=server,
                 log_observations=log_observations,
                 handler_count=len(handlers),
+                spawn=spawn,
             )
 
     def assert_case_results(self, result, *, failures=0):
@@ -236,6 +352,8 @@ class WptLifecycleTests(unittest.TestCase):
             list(FULL_CASES[:failures]),
         )
 
+
+class WptLifecycleTests(WptRunFixture):
     def test_complete_full_case_set_passes(self):
         result = self.exercise()
 
@@ -334,7 +452,9 @@ class WptLifecycleTests(unittest.TestCase):
         interrupt = KeyboardInterrupt("stop interrupt marker")
         result = self.exercise(server=ServerFixture(stop_error=interrupt))
 
-        self.assertIs(result.error, interrupt)
+        # A child exception is reported across IPC; parent interrupt identity
+        # is covered separately by the adapter interruption control.
+        self.assertIsInstance(result.error, SystemExit)
         self.assertEqual(result.log_observations, [1])
         self.assertFalse(result.server.source.exists())
         self.assert_case_results(result)
@@ -343,6 +463,231 @@ class WptLifecycleTests(unittest.TestCase):
             "stop interrupt marker",
             " ".join(result.summary.get("infrastructure_failures", [])),
         )
+
+    def test_unreaped_owner_retains_and_reports_temporary_files(self):
+        spawn = SpawnFixture(execute=False, terminate_reaps=False, kill_reaps=False)
+        spawn.parent.messages.append(("ready", 49123))
+        result = self.exercise(spawn=spawn)
+        source = spawn.process.args[0]
+        temporary_root = source.parent.resolve()
+        temporary_root.relative_to(Path(tempfile.gettempdir()).resolve())
+        self.addCleanup(shutil.rmtree, temporary_root)
+
+        self.assert_case_results(result)
+        self.assertTrue(result.summary["run_failed"])
+        self.assertTrue(source.exists())
+        self.assertTrue(spawn.process.args[1].certificate_pem.exists())
+        self.assertIn(
+            str(temporary_root), " ".join(result.summary["infrastructure_failures"])
+        )
+        self.assertFalse(spawn.process.closed)
+
+    def test_child_exit_failure_preserves_observed_case_results(self):
+        original_join = ProcessFixture.join
+
+        def abnormal_exit(process, timeout):
+            original_join(process, timeout)
+            process.exitcode = 17
+
+        with patch.object(ProcessFixture, "join", abnormal_exit):
+            result = self.exercise()
+
+        self.assert_case_results(result)
+        self.assertTrue(result.summary["run_failed"])
+        self.assertIn("exited with status 17", result.stderr)
+        self.assertIn(
+            "exited with status 17", " ".join(result.summary["infrastructure_failures"])
+        )
+
+    def test_adapter_failure_and_cleanup_error_retain_both_causes(self):
+        result = self.exercise(
+            server=ServerFixture(stop_error=OSError("stop marker")),
+            adapter_error=subprocess.TimeoutExpired(["controlled adapter"], 420),
+        )
+
+        self.assertEqual(result.summary["case_count"], 0)
+        self.assertEqual(result.summary["failure_count"], 0)
+        self.assertEqual(result.summary["cases"], {})
+        self.assertIn("TimeoutExpired", result.stderr)
+        self.assertIn("stop marker", result.stderr)
+        self.assertEqual(len(result.summary["infrastructure_failures"]), 2)
+
+    def test_repeated_sigint_during_file_cleanup_preserves_summary(self):
+        original_rmtree = shutil.rmtree
+        previous = signal.getsignal(signal.SIGINT)
+
+        def interrupted_cleanup(path, *args, **kwargs):
+            if Path(path).name.startswith("phantom-wpt-eventsource-"):
+                signal.raise_signal(signal.SIGINT)
+                signal.raise_signal(signal.SIGINT)
+            return original_rmtree(path, *args, **kwargs)
+
+        with patch.object(runner.shutil, "rmtree", interrupted_cleanup):
+            result = self.exercise()
+
+        self.assert_case_results(result)
+        self.assertIsInstance(result.error, KeyboardInterrupt)
+        self.assertTrue(result.summary["run_failed"])
+        self.assertTrue(result.server.closed)
+        self.assertFalse(result.server.source.exists())
+        self.assertIs(signal.getsignal(signal.SIGINT), previous)
+
+
+class WptProcessOwnershipTests(WptRunFixture):
+    def owner(self, spawn):
+        with patch.object(runner.multiprocessing, "get_context", return_value=spawn):
+            return runner._ServerOwner(Path("source"), None, Path("server.log"))
+
+    def test_startup_timeout_reaps_process_and_closes_connections(self):
+        spawn = SpawnFixture(execute=False)
+        result = self.exercise(spawn=spawn)
+
+        self.assertIsInstance(result.error, SystemExit)
+        self.assertIn("server startup exceeded", result.stderr)
+        self.assertIn("server shutdown exceeded", result.stderr)
+        self.assertFalse(spawn.process.alive)
+        self.assertTrue(spawn.process.closed)
+        self.assertTrue(spawn.parent.closed)
+        self.assertTrue(spawn.child.closed)
+        self.assertIn("terminate", spawn.process.events)
+        self.assertTrue(all(0 < timeout <= 10 for timeout in spawn.parent.waits))
+
+    def test_shutdown_timeout_escalates_to_kill_and_observes_reaping(self):
+        spawn = SpawnFixture(execute=False, terminate_reaps=False)
+        owner = self.owner(spawn)
+        owner.start()
+        spawn.parent.messages.append(("ready", 49123))
+        owner.wait_ready()
+
+        with self.assertRaisesRegex(RuntimeError, "shutdown exceeded"):
+            owner.stop()
+
+        self.assertFalse(spawn.process.alive)
+        self.assertTrue(spawn.process.closed)
+        self.assertEqual(
+            [event for event in spawn.process.events if isinstance(event, str)],
+            ["start", "terminate", "kill", "close"],
+        )
+        joins = [event[1] for event in spawn.process.events if isinstance(event, tuple)]
+        self.assertEqual(len(joins), 2)
+        self.assertTrue(all(0 < timeout <= 5 for timeout in joins))
+
+    def test_unreaped_process_is_reported_and_not_closed(self):
+        spawn = SpawnFixture(execute=False, terminate_reaps=False, kill_reaps=False)
+        owner = self.owner(spawn)
+        owner.start()
+        spawn.parent.messages.append(("ready", 49123))
+        owner.wait_ready()
+
+        with self.assertRaises(runner._ServerFailure) as raised:
+            owner.stop()
+
+        self.assertTrue(raised.exception.unreaped)
+        self.assertTrue(spawn.process.alive)
+        self.assertFalse(spawn.process.closed)
+        self.assertTrue(spawn.parent.closed)
+
+    def test_native_spawn_import_and_reaping_keep_files_alive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary)
+            certificate_path = source / "leaf.pem"
+            certificate_path.write_text("file lifetime marker")
+            certificate = SimpleNamespace(
+                certificate_pem=certificate_path, private_key_pem=certificate_path
+            )
+            tools = source / "tools"
+            package = tools / "wptserve"
+            package.mkdir(parents=True)
+            (tools / "localpaths.py").touch()
+            (package / "__init__.py").touch()
+            (package / "config.py").write_text("class Config(dict):\n    pass\n")
+            # An independent public server interface exercises the actual child
+            # target and Windows spawn imports without a TLS/WPT handshake.
+            (package / "server.py").write_text(
+                """import json
+import logging
+from pathlib import Path
+from types import SimpleNamespace
+from scripts.conformance import wpt_eventsource
+
+class WebTestHttpd:
+    def __init__(self, **kwargs):
+        self.source = Path(kwargs['doc_root'])
+        self.certificate = Path(kwargs['certificate'])
+        self.port = 49123
+        self.started = False
+        self.httpd = SimpleNamespace(server_close=lambda: None)
+
+    def start(self):
+        self.started = True
+        logging.getLogger('fixture').warning('fixture server started')
+
+    def stop(self):
+        marker = {
+            'module': wpt_eventsource.__name__,
+            'source_alive': self.source.exists(),
+            'certificate_alive': self.certificate.exists(),
+            'started': self.started,
+        }
+        (self.source / 'child-status.json').write_text(json.dumps(marker))
+        self.started = False
+        self.httpd = None
+"""
+            )
+            owner = runner._ServerOwner(source, certificate, source / "server.log")
+            process = owner.process
+            try:
+                owner.start()
+                owner.wait_ready()
+                self.assertIsNotNone(process.pid)
+            finally:
+                owner.stop()
+
+            marker = json.loads((source / "child-status.json").read_text())
+            self.assertEqual(marker["module"], "scripts.conformance.wpt_eventsource")
+            self.assertTrue(marker["started"])
+            self.assertTrue(marker["source_alive"])
+            self.assertTrue(marker["certificate_alive"])
+            self.assertIn("fixture server started", (source / "server.log").read_text())
+            self.assertNotIn(process, multiprocessing.active_children())
+
+    def test_process_start_error_closes_unstarted_owner_and_keeps_cause(self):
+        error = OSError("process start marker")
+        spawn = SpawnFixture(start_error=error)
+        result = self.exercise(spawn=spawn)
+
+        self.assertIsInstance(result.error, SystemExit)
+        self.assertIn("process start marker", result.stderr)
+        self.assertTrue(result.summary["run_failed"])
+        self.assertTrue(spawn.process.closed)
+        self.assertTrue(spawn.parent.closed)
+        self.assertTrue(spawn.child.closed)
+        self.assertFalse(
+            any(isinstance(event, tuple) for event in spawn.process.events)
+        )
+
+    def test_repeated_sigint_during_shutdown_still_reaps_and_restores_handler(self):
+        spawn = SpawnFixture(execute=False)
+        owner = self.owner(spawn)
+        owner.start()
+        previous = signal.getsignal(signal.SIGINT)
+
+        def interrupted_poll(timeout):
+            signal.raise_signal(signal.SIGINT)
+            signal.raise_signal(signal.SIGINT)
+            return False
+
+        with (
+            patch.object(spawn.parent, "poll", side_effect=interrupted_poll),
+            self.assertRaises(KeyboardInterrupt) as raised,
+        ):
+            owner.stop()
+
+        self.assertIn("interrupted during shutdown", str(raised.exception))
+        self.assertTrue(spawn.process.closed)
+        self.assertFalse(spawn.process.alive)
+        self.assertIs(signal.getsignal(signal.SIGINT), previous)
+        self.assertIn("shutdown exceeded", " ".join(raised.exception.shutdown_failures))
 
 
 class WptEventSourceTests(unittest.TestCase):
