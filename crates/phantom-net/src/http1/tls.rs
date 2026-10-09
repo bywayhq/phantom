@@ -12,24 +12,20 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    AbsoluteForm, Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome,
-    OriginForm, PreparedGet, PreparedRequest, RequestHeader, connection::early_data_error,
-    send_prepared_upgrade,
+    Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome, PreparedGet,
+    PreparedRequest, RequestHeader, connection::early_data_error, send_prepared_upgrade,
 };
 use crate::{
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
-    proxy::{
-        HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, ProxyCredentialCache,
-        Socks5Auth,
+    proxy::ProxyCredentialCache,
+    route::{
+        DirectTlsSetup, Http1Route, Http1Target, OriginRoute, ProxyTransport, Socks5Target,
+        TcpRoute,
     },
-    route::{Endpoint, HttpConnectRoute, ProxyTransport, Socks5Target, TcpRoute},
     source_binding::SourceBinding,
-    tcp::{
-        AddressFamilyMemory, ForeignStream, SlowerAttempt, SlowerConnection, SlowerKeepalive,
-        TcpKeepaliveSource,
-    },
+    tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
@@ -303,275 +299,285 @@ impl Http1TlsConnector {
         self.tls.key_log().attach(sender);
     }
 
-    /// Sends one empty-body HTTP/1.1 GET over a connected byte stream.
+    /// Opens one HTTP/1.1 connection over the selected origin or proxy transport.
     ///
-    /// The target and complete ordered header list are prepared before the
-    /// supplied stream is touched. A server-selected ALPN protocol other than
-    /// `http/1.1` is rejected before any HTTP bytes are written. No negotiated
-    /// ALPN is accepted because HTTP/1.1 remains the TLS default when ALPN is
-    /// absent.
-    pub async fn send_get<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http1Body>, Http1TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        self.send_request(stream, server_name, Method::GET, target, headers, None)
-            .await
-    }
-
-    /// Sends one HTTP/1.1 request over a connected byte stream.
-    ///
-    /// The request is validated before the stream is touched. TLS and ALPN
-    /// behavior is identical to [`Self::send_get`].
-    pub async fn send_request<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let connection = self
-                    .connect_prepared(ForeignStream(stream), server_name)
-                    .await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one absolute-form HTTP/1.1 request to a plaintext forward proxy.
-    ///
-    /// Request validation completes before DNS resolution or proxy I/O. The
-    /// proxy connection is plaintext and no direct-origin fallback is used.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_forward_proxy(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        method: Method,
-        target: AbsoluteForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new_forward(method, target, headers, body)?;
-                let connection = self.connect_forward_proxy(proxy_host, proxy_port).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Establishes HTTP/1.1 over TLS on an already-connected byte stream.
+    /// Direct TLS openings offer early data. Tunnels and caller-owned streams
+    /// use ordinary TLS. A direct route can retain its slower address attempt.
     ///
     /// # Errors
     ///
-    /// Returns [`Http1TlsError`] when TLS negotiation, ALPN selection, or the
-    /// HTTP/1.1 handshake fails.
-    pub async fn connect<S>(
+    /// Returns an input, route, TLS, ALPN, or HTTP/1.1 setup error.
+    pub async fn connect(
         &self,
-        stream: S,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        self.trace_connect(pin!(
-            self.connect_prepared(ForeignStream(stream), server_name)
-        ))
-        .await
-    }
-
-    /// Sends an empty-body GET through `route` with origin TLS.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] for invalid fields, route, TLS, or HTTP failures.
-    pub async fn send_get_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_via(route, server_name, Method::GET, target, headers, None)
-            .await
-    }
-
-    /// Sends one request through `route` with origin TLS.
-    ///
-    /// Request fields are validated before DNS or socket I/O. This one-shot
-    /// operation performs an ordinary TLS handshake on every route.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] for invalid fields, route, TLS, or HTTP failures.
-    pub async fn send_request_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream =
-                    connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
-                        .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Opens an HTTP/1.1 Upgrade through `route` with origin TLS.
-    ///
-    /// The complete GET is validated before DNS or socket I/O. Direct routes
-    /// offer early data and replay a rejected opening on the same connection.
-    /// Proxy tunnels use an ordinary origin TLS handshake. A response other
-    /// than `101` retains its streaming body.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] for invalid fields, route, TLS, or HTTP failures.
-    pub async fn upgrade_get_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let direct = matches!(route, TcpRoute::Direct(_));
-            let stream =
-                connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
-                    .await?;
-            if direct {
-                debug!("HTTP/1 Upgrade request prepared");
-                let stream = self
-                    .tls
-                    .connect_offering_early_data(server_name, stream)
-                    .await?;
-                upgrade_over_tls(stream, prepared).await
-            } else {
-                self.send_prepared_upgrade(stream, server_name, prepared)
-                    .await
-            }
-        }))
-        .await
-    }
-
-    /// Opens a connection through `route` using this connector's origin TLS.
-    ///
-    /// Direct connections offer early data; tunneled connections perform the
-    /// ordinary origin handshake. Proxy TLS uses the route's proxy connector.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] for route setup, TLS, or protocol failures.
-    pub async fn connect_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.trace_connect(pin!(async {
-            let direct = matches!(route, TcpRoute::Direct(_));
-            let stream =
-                connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
-                    .await?;
-            let stream = if direct {
-                self.tls
-                    .connect_offering_early_data(server_name, stream)
-                    .await?
-            } else {
-                self.tls.connect(server_name, stream).await?
-            };
-            connect_over_tls(stream).await
-        }))
-        .await
-    }
-
-    /// Opens one direct TLS connection as [`Self::connect_via`] does and,
-    /// when the TCP settings select a
-    /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
-    /// and updates `family`, the origin's address family, and returns the
-    /// slower attempt when the backup started and that attempt is still
-    /// connecting.
-    ///
-    /// The slower attempt keeps connecting while the first connection's
-    /// handshake runs. Once the returned [`SlowerConnection`] is polled, it
-    /// makes the same TLS handshake with no request, waits for the server to
-    /// answer any early data, and comes back idle, its keepalive started
-    /// before the handshake. A failure of the first connection closes it.
-    ///
-    /// This is a seam for the facade's pools, not supported API.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when TCP setup, TLS negotiation, ALPN
-    /// selection, or the HTTP/1.1 handshake of the first connection fails.
-    #[doc(hidden)]
-    pub async fn connect_direct_keeping_slower(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        family: &AddressFamilyMemory,
+        route: Http1Route<'_>,
     ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        let span = connection_span(&route);
+        let server_name = match &route {
+            Http1Route::Origin(OriginRoute::Tls { server_name, .. }) => Some(*server_name),
+            _ => None,
+        };
         let mut slower = None;
         let connection = self
-            .trace_connect(pin!(async {
+            .trace_connect(
+                span,
+                pin!(async {
+                    validate_route(&route, true)?;
+                    self.open_connection(route, true, &mut slower).await
+                }),
+            )
+            .await?;
+        let slower = slower.map(|attempt| match server_name {
+            Some(server_name) => self.slower_tls(attempt, server_name),
+            None => slower_plaintext(attempt),
+        });
+        Ok((connection, slower))
+    }
+
+    /// Sends one request over an explicit origin or forwarding route.
+    ///
+    /// Origin routes require an origin-form target. Forwarding requires an
+    /// absolute-form target. Every TLS handshake is ordinary TLS. Request and
+    /// route validation finish before lookup polling or connection I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns an input, request, route, TLS, ALPN, or HTTP/1.1 error.
+    pub async fn send(
+        &self,
+        route: Http1Route<'_>,
+        method: Method,
+        target: Http1Target,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                validate_route(&route, false)?;
+                let prepared = match (&route, target) {
+                    (Http1Route::Origin(_), Http1Target::Origin(target)) => {
+                        PreparedRequest::new(method, target, headers, body)?
+                    }
+                    (Http1Route::Forward(_), Http1Target::Absolute(target)) => {
+                        PreparedRequest::new_forward(method, target, headers, body)?
+                    }
+                    _ => return Err(invalid_route("request target does not match its route")),
+                };
+                let connection = if matches!(route, Http1Route::Forward(_)) {
+                    self.connect(route).await?.0
+                } else {
+                    self.open_connection(route, false, &mut None).await?
+                };
+                self.send_prepared_request(&connection, prepared).await
+            }),
+        )
+        .await
+    }
+
+    /// Opens one Upgrade GET over an explicit origin or forwarding route.
+    ///
+    /// Origin routes require an origin-form target. Forwarding requires an
+    /// absolute-form target. Direct TLS openings offer early data. Retaining
+    /// a slower connection is rejected before lookup polling or I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns an input, request, route, TLS, ALPN, or HTTP/1.1 exchange error.
+    pub async fn upgrade(
+        &self,
+        route: Http1Route<'_>,
+        target: Http1Target,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        let span = upgrade_span(&route);
+        self.trace_upgrade(
+            span,
+            pin!(async {
+                validate_route(&route, false)?;
+                let prepared = match (&route, target) {
+                    (Http1Route::Origin(_), Http1Target::Origin(target)) => {
+                        PreparedGet::new(target, headers)?
+                    }
+                    (Http1Route::Forward(_), Http1Target::Absolute(target)) => {
+                        PreparedGet::new_forward(target, headers)?
+                    }
+                    _ => return Err(invalid_route("Upgrade target does not match its route")),
+                };
+                match route {
+                    Http1Route::Forward(ProxyTransport::Tcp(endpoint)) => {
+                        let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
+                            .await
+                            .map_err(forward_connect_error)?;
+                        send_plaintext_tunnel_upgrade(stream, prepared).await
+                    }
+                    Http1Route::Forward(ProxyTransport::Tls {
+                        endpoint,
+                        server_name,
+                        connector,
+                    }) => {
+                        let stream = connector
+                            .connect_forward(endpoint.host, endpoint.port, server_name)
+                            .await?;
+                        send_plaintext_tunnel_upgrade(stream, prepared).await
+                    }
+                    Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
+                        let stream = connection_leg::connect(
+                            tcp,
+                            self.dialer(),
+                            self.proxy_credentials.as_ref(),
+                        )
+                        .await?;
+                        send_plaintext_tunnel_upgrade(stream, prepared).await
+                    }
+                    Http1Route::Origin(OriginRoute::Tls {
+                        tcp,
+                        server_name,
+                        setup,
+                    }) => match (tcp, setup) {
+                        #[cfg(feature = "https-records")]
+                        (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
+                            let stream = crate::direct::connect_tls_with_ech(
+                                &self.tls,
+                                self.dialer(),
+                                endpoint.host,
+                                endpoint.port,
+                                server_name,
+                                ech,
+                                true,
+                            )
+                            .await?;
+                            upgrade_over_tls(stream, prepared).await
+                        }
+                        (tcp, DirectTlsSetup::Default) => {
+                            let direct = matches!(tcp, TcpRoute::Direct(_));
+                            let stream = connection_leg::connect(
+                                tcp,
+                                self.dialer(),
+                                self.proxy_credentials.as_ref(),
+                            )
+                            .await?;
+                            let stream = if direct {
+                                self.tls
+                                    .connect_offering_early_data(server_name, stream)
+                                    .await?
+                            } else {
+                                self.tls.connect(server_name, stream).await?
+                            };
+                            upgrade_over_tls(stream, prepared).await
+                        }
+                        _ => Err(invalid_route("Upgrade cannot retain a slower connection")),
+                    },
+                }
+            }),
+        )
+        .await
+    }
+
+    /// Opens the transport and finishes protocol setup within the caller's span.
+    async fn open_connection(
+        &self,
+        route: Http1Route<'_>,
+        offer_early_data: bool,
+        slower: &mut Option<SlowerAttempt>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        match route {
+            Http1Route::Forward(ProxyTransport::Tcp(endpoint)) => {
+                let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
+                    .await
+                    .map_err(forward_connect_error)?;
+                connect_plaintext(stream).await.map_err(Into::into)
+            }
+            Http1Route::Forward(ProxyTransport::Tls {
+                endpoint,
+                server_name,
+                connector,
+            }) => {
+                let stream = connector
+                    .connect_forward(endpoint.host, endpoint.port, server_name)
+                    .await?;
+                connect_plaintext(stream).await.map_err(Into::into)
+            }
+            Http1Route::Origin(OriginRoute::Plaintext {
+                tcp: TcpRoute::Direct(endpoint),
+                family,
+            }) => {
                 let (stream, attempt) =
-                    connect_tcp_keeping_slower(host, port, self.dialer(), Some(family))
+                    connect_tcp_keeping_slower(endpoint.host, endpoint.port, self.dialer(), family)
                         .await
                         .map_err(Http1TlsError::from_direct)?;
-                slower = attempt;
-                let handshake = async {
-                    let stream = self
-                        .tls
-                        .connect_offering_early_data(server_name, stream)
+                *slower = attempt;
+                connect_plaintext(stream).await.map_err(Into::into)
+            }
+            Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
+                let stream =
+                    connection_leg::connect(tcp, self.dialer(), self.proxy_credentials.as_ref())
                         .await?;
-                    connect_over_tls(stream).await
-                };
-                match slower.as_mut() {
-                    Some(attempt) => attempt.alongside(handshake).await,
-                    None => handshake.await,
+                connect_plaintext(stream).await.map_err(Into::into)
+            }
+            Http1Route::Origin(OriginRoute::Tls {
+                tcp,
+                server_name,
+                setup,
+            }) => match (tcp, setup) {
+                (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
+                    let (stream, attempt) = connect_tcp_keeping_slower(
+                        endpoint.host,
+                        endpoint.port,
+                        self.dialer(),
+                        Some(family),
+                    )
+                    .await
+                    .map_err(Http1TlsError::from_direct)?;
+                    *slower = attempt;
+                    let handshake = async {
+                        let stream = self
+                            .tls
+                            .connect_offering_early_data(server_name, stream)
+                            .await?;
+                        connect_over_tls(stream).await
+                    };
+                    match slower.as_mut() {
+                        Some(attempt) => attempt.alongside(handshake).await,
+                        None => handshake.await,
+                    }
                 }
-            }))
-            .await?;
-        let slower = slower.map(|attempt| self.slower_tls(attempt, server_name));
-        Ok((connection, slower))
+                #[cfg(feature = "https-records")]
+                (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
+                    let stream = crate::direct::connect_tls_with_ech(
+                        &self.tls,
+                        self.dialer(),
+                        endpoint.host,
+                        endpoint.port,
+                        server_name,
+                        ech,
+                        offer_early_data,
+                    )
+                    .await?;
+                    connect_over_tls(stream).await
+                }
+                (tcp, DirectTlsSetup::Default) => {
+                    let direct = matches!(tcp, TcpRoute::Direct(_));
+                    let stream = connection_leg::connect(
+                        tcp,
+                        self.dialer(),
+                        self.proxy_credentials.as_ref(),
+                    )
+                    .await?;
+                    let stream = if direct && offer_early_data {
+                        self.tls
+                            .connect_offering_early_data(server_name, stream)
+                            .await?
+                    } else {
+                        self.tls.connect(server_name, stream).await?
+                    };
+                    connect_over_tls(stream).await
+                }
+                _ => Err(invalid_route("direct TLS setup requires a direct route")),
+            },
+        }
     }
 
     /// Finishes the TLS handshake of a slower attempt's connection.
@@ -612,776 +618,6 @@ impl Http1TlsConnector {
         })
     }
 
-    /// Opens one direct TLS connection for sequential HTTP/1.1 requests,
-    /// offering Encrypted Client Hello with the `ECHConfigList` that `ech`
-    /// yields, as Chrome 154 does for an origin's HTTPS record.
-    ///
-    /// The bounded wait for `ech`, the check of the list, and the one retry
-    /// after a rejection are those of
-    /// [`Http1Or2TlsConnector::connect_direct_with_ech`](crate::http1_or_2::Http1Or2TlsConnector::connect_direct_with_ech).
-    /// With `None` the handshake is the one [`Self::connect_via`] makes.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when TCP setup, TLS negotiation, ECH, ALPN
-    /// selection, or the HTTP/1.1 handshake fails.
-    #[cfg(feature = "https-records")]
-    pub async fn connect_direct_with_ech(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.trace_connect(pin!(async {
-            let stream = crate::direct::connect_tls_with_ech(
-                &self.tls,
-                self.dialer(),
-                host,
-                port,
-                server_name,
-                ech,
-                true,
-            )
-            .await?;
-            connect_over_tls(stream).await
-        }))
-        .await
-    }
-
-    /// Opens one direct plaintext TCP connection for sequential HTTP/1.1 requests.
-    ///
-    /// This method performs no TLS handshake and never routes through a proxy.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, TCP
-    /// setup fails, or the HTTP/1.1 handshake fails.
-    pub async fn connect_plaintext_direct(
-        &self,
-        host: &str,
-        port: u16,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.connect_plaintext_direct_with(host, port, None)
-            .await
-            .map(|(connection, _)| connection)
-    }
-
-    /// Opens one direct plaintext TCP connection as
-    /// [`Self::connect_plaintext_direct`] does and, when the TCP settings
-    /// select a
-    /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
-    /// and updates `family`, the origin's address family, and returns the
-    /// slower attempt when the backup started and that attempt is still
-    /// connecting.
-    ///
-    /// Once the returned [`SlowerConnection`] is polled and connects, it
-    /// comes back idle with no keepalive set until its first request.
-    ///
-    /// This is a seam for the facade's pools, not supported API.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, TCP
-    /// setup fails, or the HTTP/1.1 handshake fails.
-    #[doc(hidden)]
-    pub async fn connect_plaintext_direct_keeping_slower(
-        &self,
-        host: &str,
-        port: u16,
-        family: &AddressFamilyMemory,
-    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
-        self.connect_plaintext_direct_with(host, port, Some(family))
-            .await
-    }
-
-    async fn connect_plaintext_direct_with(
-        &self,
-        host: &str,
-        port: u16,
-        family: Option<&AddressFamilyMemory>,
-    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
-        let span = debug_span!(
-            "http1.direct.connect",
-            transport = "tcp",
-            route = "direct",
-            outcome = field::Empty,
-        );
-        let outcome = OperationOutcome::new(&span);
-        let result = async {
-            let (stream, slower) = connect_tcp_keeping_slower(host, port, self.dialer(), family)
-                .await
-                .map_err(Http1TlsError::from_direct)?;
-            let connection = connect_plaintext(stream).await?;
-            Ok((connection, slower.map(slower_plaintext)))
-        }
-        .instrument(span.clone())
-        .await;
-        outcome.finish(connection_outcome(&result));
-        result
-    }
-
-    /// Opens one plaintext HTTP/1.1 connection through a remote-DNS SOCKS5 proxy.
-    ///
-    /// The configured authentication applies only to the SOCKS5 negotiation.
-    /// The tunnel stays plaintext: this method performs no origin TLS
-    /// handshake. Proxy failure never falls back to a direct connection.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, proxy
-    /// authentication or negotiation fails, or the HTTP/1.1 handshake fails.
-    pub async fn connect_plaintext_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.trace_plaintext_socks5_connect(
-            "socks5_remote_dns",
-            pin!(async {
-                let stream = connection_leg::connect(
-                    TcpRoute::Socks5 {
-                        proxy: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        target: Socks5Target::RemoteDns(Endpoint {
-                            host: target_host,
-                            port: target_port,
-                        }),
-                        auth,
-                    },
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                connect_plaintext(stream).await.map_err(Into::into)
-            }),
-        )
-        .await
-    }
-
-    /// Opens one plaintext HTTP/1.1 connection through a local-DNS SOCKS5 proxy.
-    ///
-    /// The configured authentication applies only to the SOCKS5 negotiation.
-    /// The tunnel stays plaintext: this method performs no origin TLS
-    /// handshake. Proxy failure never falls back to a direct connection.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when the Tokio runtime is unavailable, target
-    /// resolution fails, proxy authentication or negotiation fails, or the
-    /// HTTP/1.1 handshake fails.
-    pub async fn connect_plaintext_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        self.trace_plaintext_socks5_connect(
-            "socks5_local_dns",
-            pin!(async {
-                let stream = connection_leg::connect(
-                    TcpRoute::Socks5 {
-                        proxy: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        target: Socks5Target::LocalDns(Endpoint {
-                            host: target_host,
-                            port: target_port,
-                        }),
-                        auth,
-                    },
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                connect_plaintext(stream).await.map_err(Into::into)
-            }),
-        )
-        .await
-    }
-
-    /// Opens one plaintext HTTP/1.1 connection to a forward proxy.
-    ///
-    /// This method performs no TLS handshake and never connects directly to
-    /// the origin.
-    pub async fn connect_forward_proxy(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        let span = debug_span!(
-            "http1.proxy.connect",
-            transport = "tcp",
-            proxy_kind = "forward",
-            outcome = field::Empty,
-        );
-        let outcome = OperationOutcome::new(&span);
-        let result = async {
-            let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::ForwardProxyConnect(error),
-                })?;
-            connect_plaintext(stream).await.map_err(Into::into)
-        }
-        .instrument(span.clone())
-        .await;
-        outcome.finish(connection_outcome(&result));
-        result
-    }
-
-    /// Opens one HTTP/1.1 connection to a forward proxy over TLS.
-    ///
-    /// The proxy connector's independent authentication policy applies to the
-    /// TLS handshake. TLS terminates at the proxy. This method does not issue
-    /// CONNECT, perform origin TLS, connect directly to the origin, or fall back
-    /// to another route.
-    pub async fn connect_https_forward_proxy(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        let span = debug_span!(
-            "http1.proxy.connect",
-            transport = "tls",
-            proxy_kind = "forward",
-            outcome = field::Empty,
-        );
-        let outcome = OperationOutcome::new(&span);
-        let result = async {
-            let stream = proxy_connector
-                .connect_forward(proxy_host, proxy_port, proxy_server_name)
-                .await?;
-            connect_plaintext(stream).await.map_err(Into::into)
-        }
-        .instrument(span.clone())
-        .await;
-        outcome.finish(connection_outcome(&result));
-        result
-    }
-
-    /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS
-    /// connection that offers Encrypted Client Hello with the
-    /// `ECHConfigList` that `ech` yields, as Chrome 154 does when it opens a
-    /// `wss://` connection to an origin with an HTTPS record.
-    ///
-    /// The connection is set up as [`Self::connect_direct_with_ech`] sets it
-    /// up, and the request is sent as [`Self::upgrade_get_via`] sends it.
-    /// The complete request is validated before DNS resolution or TCP I/O.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when request validation, TCP setup, TLS
-    /// negotiation, ECH, ALPN selection, or the HTTP/1.1 exchange fails.
-    #[cfg(feature = "https-records")]
-    pub async fn upgrade_get_direct_with_ech(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            debug!("HTTP/1 Upgrade request prepared");
-            let stream = crate::direct::connect_tls_with_ech(
-                &self.tls,
-                self.dialer(),
-                host,
-                port,
-                server_name,
-                ech,
-                true,
-            )
-            .await?;
-            upgrade_over_tls(stream, prepared).await
-        }))
-        .await
-    }
-
-    /// Sends one HTTP/1.1 Upgrade GET over a new direct plaintext TCP connection.
-    ///
-    /// A `101 Switching Protocols` response yields the upgraded byte stream.
-    /// Any other status remains an ordinary streaming HTTP response. The
-    /// complete request is validated before DNS resolution or TCP I/O. This
-    /// method performs no TLS handshake and never routes through a proxy.
-    pub async fn upgrade_get_plaintext_direct(
-        &self,
-        host: &str,
-        port: u16,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        let span = debug_span!(
-            "http1.direct.upgrade_response_head",
-            method = "GET",
-            transport = "tcp",
-            route = "direct",
-            status = field::Empty,
-            outcome = field::Empty,
-        );
-        let outcome_guard = OperationOutcome::new(&span);
-        let result = async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream =
-                connect_tcp(host, port, self.dialer())
-                    .await
-                    .map_err(|error| match error {
-                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                    })?;
-            debug!("HTTP/1 plaintext Upgrade request prepared");
-            let outcome = send_profiled_upgrade(stream, prepared).await?;
-            let status = match &outcome {
-                Http1UpgradeOutcome::Upgraded(response) => response.status(),
-                Http1UpgradeOutcome::Rejected(response) => response.status(),
-            };
-            Span::current().record("status", status.as_u16());
-            Ok(outcome)
-        }
-        .instrument(span.clone())
-        .await;
-        outcome_guard.finish(upgrade_outcome(&result));
-        result
-    }
-
-    /// Sends one absolute-form HTTP/1.1 Upgrade GET to a plaintext forward proxy.
-    ///
-    /// A `101 Switching Protocols` response yields the upgraded proxy byte
-    /// stream. Request validation completes before DNS resolution or proxy I/O.
-    /// This method does not issue CONNECT, negotiate origin TLS, connect directly
-    /// to the origin, or fall back to another route.
-    pub async fn upgrade_get_forward_proxy(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target: AbsoluteForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        let span = debug_span!(
-            "http1.proxy.forward.upgrade_response_head",
-            method = "GET",
-            transport = "tcp",
-            route = "forward_proxy",
-            status = field::Empty,
-            outcome = field::Empty,
-        );
-        let outcome_guard = OperationOutcome::new(&span);
-        let result = async {
-            let prepared = PreparedGet::new_forward(target, headers)?;
-            let stream = connect_tcp(proxy_host, proxy_port, self.dialer())
-                .await
-                .map_err(|error| match error {
-                    DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                    DirectConnectError::Connect(error) => Http1TlsError::ForwardProxyConnect(error),
-                })?;
-            debug!("HTTP/1 plaintext forward-proxy Upgrade request prepared");
-            let outcome = send_profiled_upgrade(stream, prepared).await?;
-            let status = match &outcome {
-                Http1UpgradeOutcome::Upgraded(response) => response.status(),
-                Http1UpgradeOutcome::Rejected(response) => response.status(),
-            };
-            Span::current().record("status", status.as_u16());
-            Ok(outcome)
-        }
-        .instrument(span.clone())
-        .await;
-        outcome_guard.finish(upgrade_outcome(&result));
-        result
-    }
-
-    /// Sends one absolute-form HTTP/1.1 Upgrade GET to a forward proxy over TLS.
-    ///
-    /// TLS terminates at the proxy and uses the proxy connector's authentication
-    /// policy. A `101 Switching Protocols` response yields the upgraded proxy byte
-    /// stream. This method does not issue CONNECT, negotiate origin TLS, connect
-    /// directly to the origin, or fall back to another route.
-    pub async fn upgrade_get_https_forward_proxy(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        target: AbsoluteForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        let span = debug_span!(
-            "http1.proxy.forward.upgrade_response_head",
-            method = "GET",
-            transport = "tls",
-            route = "forward_proxy",
-            status = field::Empty,
-            outcome = field::Empty,
-        );
-        let outcome_guard = OperationOutcome::new(&span);
-        let result = async {
-            let prepared = PreparedGet::new_forward(target, headers)?;
-            let stream = proxy_connector
-                .connect_forward(proxy_host, proxy_port, proxy_server_name)
-                .await?;
-            debug!("HTTP/1 HTTPS forward-proxy Upgrade request prepared");
-            let outcome = send_profiled_upgrade(stream, prepared).await?;
-            let status = match &outcome {
-                Http1UpgradeOutcome::Upgraded(response) => response.status(),
-                Http1UpgradeOutcome::Rejected(response) => response.status(),
-            };
-            Span::current().record("status", status.as_u16());
-            Ok(outcome)
-        }
-        .instrument(span.clone())
-        .await;
-        outcome_guard.finish(upgrade_outcome(&result));
-        result
-    }
-
-    /// Sends one plaintext HTTP/1.1 Upgrade GET through a CONNECT tunnel on a
-    /// plaintext HTTP proxy.
-    ///
-    /// The origin-form Upgrade is sent inside the tunnel exactly as on a direct
-    /// connection. Origin and CONNECT requests are validated before proxy I/O.
-    /// This method performs no origin TLS handshake, never sends an
-    /// absolute-form request, and never falls back to a direct connection.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_plaintext_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_plaintext_tunnel_upgrade(
-            "http_connect",
-            pin!(async {
-                let prepared = PreparedGet::new(target, headers)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tcp(Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        }),
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: None,
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                send_plaintext_tunnel_upgrade(stream, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends a plaintext Upgrade GET through a CONNECT tunnel on a plaintext
-    /// HTTP proxy, using challenge-driven Basic authentication for CONNECT.
-    ///
-    /// Credentials go only to the proxy on the CONNECT request, never on the
-    /// Upgrade inside the tunnel.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_plaintext_http_connect_with_basic_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_plaintext_tunnel_upgrade(
-            "http_connect",
-            pin!(async {
-                let prepared = PreparedGet::new(target, headers)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tcp(Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        }),
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: Some(credentials),
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                send_plaintext_tunnel_upgrade(stream, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one plaintext HTTP/1.1 Upgrade GET through a CONNECT tunnel on
-    /// an HTTPS proxy.
-    ///
-    /// The proxy connector's protocol selects an HTTP/1.1 CONNECT tunnel or an
-    /// RFC 9113 section 8.5 CONNECT stream on an HTTP/2 connection, shared
-    /// when the connector has an [`Http2ProxyPool`](crate::proxy::Http2ProxyPool).
-    /// The origin-form Upgrade is sent inside it exactly as on a direct
-    /// connection, with no origin TLS handshake. Origin and CONNECT requests
-    /// are validated before proxy I/O.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_plaintext_https_connect(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_plaintext_tunnel_upgrade(
-            "https_connect",
-            pin!(async {
-                let prepared = PreparedGet::new(target, headers)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tls {
-                            endpoint: Endpoint {
-                                host: proxy_host,
-                                port: proxy_port,
-                            },
-                            server_name: proxy_server_name,
-                            connector: proxy_connector,
-                        },
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: None,
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                send_plaintext_tunnel_upgrade(stream, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends a plaintext Upgrade GET through a CONNECT tunnel on an HTTPS
-    /// proxy, using challenge-driven Basic authentication for CONNECT.
-    ///
-    /// Credentials go only to the proxy on the CONNECT request, never on the
-    /// Upgrade inside the tunnel.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_plaintext_https_connect_with_basic_auth(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_plaintext_tunnel_upgrade(
-            "https_connect",
-            pin!(async {
-                let prepared = PreparedGet::new(target, headers)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tls {
-                            endpoint: Endpoint {
-                                host: proxy_host,
-                                port: proxy_port,
-                            },
-                            server_name: proxy_server_name,
-                            connector: proxy_connector,
-                        },
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: Some(credentials),
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                send_plaintext_tunnel_upgrade(stream, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one plaintext HTTP/1.1 Upgrade GET through a remote-DNS SOCKS5 proxy.
-    ///
-    /// The origin request is validated before proxy I/O. The established tunnel
-    /// remains plaintext: this method performs no origin TLS handshake. Proxy
-    /// failure never falls back to a direct connection.
-    pub async fn upgrade_get_plaintext_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.upgrade_get_plaintext_socks5_remote_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            target,
-            headers,
-        )
-        .await
-    }
-
-    /// Sends one plaintext Upgrade GET through a remote-DNS SOCKS5 proxy.
-    ///
-    /// The configured authentication is applied only to the SOCKS5 negotiation.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_plaintext_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_plaintext_socks5_upgrade(
-            "socks5_remote_dns",
-            pin!(async {
-                let prepared = PreparedGet::new(target, headers)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::Socks5 {
-                        proxy: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        target: Socks5Target::RemoteDns(Endpoint {
-                            host: target_host,
-                            port: target_port,
-                        }),
-                        auth,
-                    },
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                debug!("HTTP/1 plaintext SOCKS5 Upgrade request prepared");
-                let outcome = send_profiled_upgrade(stream, prepared).await?;
-                let status = match &outcome {
-                    Http1UpgradeOutcome::Upgraded(response) => response.status(),
-                    Http1UpgradeOutcome::Rejected(response) => response.status(),
-                };
-                Span::current().record("status", status.as_u16());
-                Ok(outcome)
-            }),
-        )
-        .await
-    }
-
-    /// Sends one plaintext HTTP/1.1 Upgrade GET through a local-DNS SOCKS5 proxy.
-    ///
-    /// The origin request is validated before target DNS resolution or proxy
-    /// I/O. The established tunnel remains plaintext: this method performs no
-    /// origin TLS handshake. Proxy failure never falls back to a direct
-    /// connection.
-    pub async fn upgrade_get_plaintext_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.upgrade_get_plaintext_socks5_local_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            target,
-            headers,
-        )
-        .await
-    }
-
-    /// Sends one plaintext Upgrade GET through a local-DNS SOCKS5 proxy.
-    ///
-    /// The configured authentication is applied only to the SOCKS5 negotiation.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_plaintext_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_plaintext_socks5_upgrade(
-            "socks5_local_dns",
-            pin!(async {
-                let prepared = PreparedGet::new(target, headers)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::Socks5 {
-                        proxy: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        target: Socks5Target::LocalDns(Endpoint {
-                            host: target_host,
-                            port: target_port,
-                        }),
-                        auth,
-                    },
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                debug!("HTTP/1 plaintext SOCKS5 Upgrade request prepared");
-                let outcome = send_profiled_upgrade(stream, prepared).await?;
-                let status = match &outcome {
-                    Http1UpgradeOutcome::Upgraded(response) => response.status(),
-                    Http1UpgradeOutcome::Rejected(response) => response.status(),
-                };
-                Span::current().record("status", status.as_u16());
-                Ok(outcome)
-            }),
-        )
-        .await
-    }
-
-    async fn connect_prepared<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        let stream = self.tls.connect(server_name, stream).await?;
-        connect_over_tls(stream).await
-    }
-
     /// Runs `operation` in the connection span and records its outcome.
     ///
     /// The caller pins `operation` in its own future: an async function holds
@@ -1392,17 +628,12 @@ impl Http1TlsConnector {
     /// future, so outside the span and after the span records cancellation.
     async fn trace_connect<F>(
         &self,
+        span: Span,
         operation: Pin<&mut F>,
     ) -> Result<Http1Connection, Http1TlsError>
     where
         F: Future<Output = Result<Http1Connection, Http1TlsError>>,
     {
-        let span = debug_span!(
-            "http1.tls.connect",
-            transport = "tls",
-            negotiated_alpn = field::Empty,
-            outcome = field::Empty,
-        );
         let outcome_guard = OperationOutcome::new(&span);
         let result = operation.instrument(span.clone()).await;
         outcome_guard.finish(connection_outcome(&result));
@@ -1418,21 +649,6 @@ impl Http1TlsConnector {
         let response = connection.send_prepared_request(prepared).await?;
         Span::current().record("status", response.status().as_u16());
         Ok(response)
-    }
-
-    async fn send_prepared_upgrade<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-        prepared: PreparedGet,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
-    {
-        debug!("HTTP/1 Upgrade request prepared");
-
-        let stream = self.tls.connect(server_name, stream).await?;
-        upgrade_over_tls(stream, prepared).await
     }
 
     /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives,
@@ -1494,89 +710,12 @@ impl Http1TlsConnector {
     /// and drops a cancelled one in the same order.
     async fn trace_upgrade<F>(
         &self,
+        span: Span,
         operation: Pin<&mut F>,
     ) -> Result<Http1UpgradeOutcome, Http1TlsError>
     where
         F: Future<Output = Result<Http1UpgradeOutcome, Http1TlsError>>,
     {
-        let span = debug_span!(
-            "http1.tls.upgrade_response_head",
-            method = "GET",
-            transport = "tls",
-            negotiated_alpn = field::Empty,
-            status = field::Empty,
-            outcome = field::Empty,
-        );
-        let outcome_guard = OperationOutcome::new(&span);
-        let result = operation.instrument(span.clone()).await;
-        outcome_guard.finish(upgrade_outcome(&result));
-        result
-    }
-
-    /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives,
-    /// and drops a cancelled one in the same order.
-    async fn trace_plaintext_socks5_connect<F>(
-        &self,
-        route: &'static str,
-        operation: Pin<&mut F>,
-    ) -> Result<Http1Connection, Http1TlsError>
-    where
-        F: Future<Output = Result<Http1Connection, Http1TlsError>>,
-    {
-        let span = debug_span!(
-            "http1.proxy.connect",
-            transport = "tcp",
-            proxy_kind = route,
-            outcome = field::Empty,
-        );
-        let outcome_guard = OperationOutcome::new(&span);
-        let result = operation.instrument(span.clone()).await;
-        outcome_guard.finish(connection_outcome(&result));
-        result
-    }
-
-    /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives,
-    /// and drops a cancelled one in the same order.
-    async fn trace_plaintext_tunnel_upgrade<F>(
-        &self,
-        route: &'static str,
-        operation: Pin<&mut F>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError>
-    where
-        F: Future<Output = Result<Http1UpgradeOutcome, Http1TlsError>>,
-    {
-        let span = debug_span!(
-            "http1.proxy.connect.upgrade_response_head",
-            method = "GET",
-            transport = "tcp",
-            route,
-            status = field::Empty,
-            outcome = field::Empty,
-        );
-        let outcome_guard = OperationOutcome::new(&span);
-        let result = operation.instrument(span.clone()).await;
-        outcome_guard.finish(upgrade_outcome(&result));
-        result
-    }
-
-    /// Takes `operation` pinned, for the reason [`Self::trace_connect`] gives,
-    /// and drops a cancelled one in the same order.
-    async fn trace_plaintext_socks5_upgrade<F>(
-        &self,
-        route: &'static str,
-        operation: Pin<&mut F>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError>
-    where
-        F: Future<Output = Result<Http1UpgradeOutcome, Http1TlsError>>,
-    {
-        let span = debug_span!(
-            "http1.proxy.socks5.upgrade_response_head",
-            method = "GET",
-            transport = "tcp",
-            route,
-            status = field::Empty,
-            outcome = field::Empty,
-        );
         let outcome_guard = OperationOutcome::new(&span);
         let result = operation.instrument(span.clone()).await;
         outcome_guard.finish(upgrade_outcome(&result));
@@ -1584,7 +723,142 @@ impl Http1TlsConnector {
     }
 }
 
-/// Sends a prepared plaintext Upgrade on an established proxy tunnel and
+fn invalid_route(message: &'static str) -> Http1TlsError {
+    Http1TlsError::Connect(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        message,
+    ))
+}
+
+fn validate_route(route: &Http1Route<'_>, slower: bool) -> Result<(), Http1TlsError> {
+    if let Http1Route::Origin(origin) = route {
+        origin
+            .validate(true, slower)
+            .map_err(Http1TlsError::Connect)?;
+    }
+    Ok(())
+}
+
+fn forward_connect_error(error: DirectConnectError) -> Http1TlsError {
+    match error {
+        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
+        DirectConnectError::Connect(error) => Http1TlsError::ForwardProxyConnect(error),
+    }
+}
+
+fn plaintext_route(tcp: &TcpRoute<'_>) -> &'static str {
+    match tcp {
+        TcpRoute::Socks5 {
+            target: Socks5Target::LocalDns(_),
+            ..
+        } => "socks5_local_dns",
+        TcpRoute::Socks5 { .. } => "socks5_remote_dns",
+        TcpRoute::HttpConnect(route) => match route.proxy {
+            ProxyTransport::Tcp(_) => "http_connect",
+            ProxyTransport::Tls { .. } => "https_connect",
+        },
+        _ => "direct",
+    }
+}
+
+fn connection_span(route: &Http1Route<'_>) -> Span {
+    match route {
+        Http1Route::Origin(OriginRoute::Tls { .. }) => debug_span!(
+            "http1.tls.connect",
+            transport = "tls",
+            negotiated_alpn = field::Empty,
+            outcome = field::Empty,
+        ),
+        Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
+            let route = plaintext_route(tcp);
+            if route == "direct" {
+                debug_span!(
+                    "http1.direct.connect",
+                    transport = "tcp",
+                    route,
+                    outcome = field::Empty
+                )
+            } else {
+                debug_span!(
+                    "http1.proxy.connect",
+                    transport = "tcp",
+                    proxy_kind = route,
+                    outcome = field::Empty
+                )
+            }
+        }
+        Http1Route::Forward(proxy) => {
+            let transport = match proxy {
+                ProxyTransport::Tcp(_) => "tcp",
+                _ => "tls",
+            };
+            debug_span!(
+                "http1.proxy.connect",
+                transport,
+                proxy_kind = "forward",
+                outcome = field::Empty
+            )
+        }
+    }
+}
+
+fn upgrade_span(route: &Http1Route<'_>) -> Span {
+    match route {
+        Http1Route::Origin(OriginRoute::Tls { .. }) => debug_span!(
+            "http1.tls.upgrade_response_head",
+            method = "GET",
+            transport = "tls",
+            negotiated_alpn = field::Empty,
+            status = field::Empty,
+            outcome = field::Empty,
+        ),
+        Http1Route::Forward(proxy) => {
+            let transport = match proxy {
+                ProxyTransport::Tcp(_) => "tcp",
+                _ => "tls",
+            };
+            debug_span!(
+                "http1.proxy.forward.upgrade_response_head",
+                method = "GET",
+                transport,
+                route = "forward_proxy",
+                status = field::Empty,
+                outcome = field::Empty
+            )
+        }
+        Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
+            let route = plaintext_route(tcp);
+            match tcp {
+                TcpRoute::Socks5 { .. } => debug_span!(
+                    "http1.proxy.socks5.upgrade_response_head",
+                    method = "GET",
+                    transport = "tcp",
+                    route,
+                    status = field::Empty,
+                    outcome = field::Empty
+                ),
+                TcpRoute::HttpConnect(_) => debug_span!(
+                    "http1.proxy.connect.upgrade_response_head",
+                    method = "GET",
+                    transport = "tcp",
+                    route,
+                    status = field::Empty,
+                    outcome = field::Empty
+                ),
+                _ => debug_span!(
+                    "http1.direct.upgrade_response_head",
+                    method = "GET",
+                    transport = "tcp",
+                    route,
+                    status = field::Empty,
+                    outcome = field::Empty
+                ),
+            }
+        }
+    }
+}
+
+/// Sends a prepared plaintext Upgrade on an established connection and
 /// records the response status on the current span.
 async fn send_plaintext_tunnel_upgrade<S>(
     stream: S,
@@ -1593,7 +867,7 @@ async fn send_plaintext_tunnel_upgrade<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {
-    debug!("HTTP/1 plaintext Upgrade request prepared for a CONNECT tunnel");
+    debug!("HTTP/1 plaintext Upgrade request prepared");
     let outcome = send_profiled_upgrade(stream, prepared).await?;
     let status = match &outcome {
         Http1UpgradeOutcome::Upgraded(response) => response.status(),

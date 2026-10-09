@@ -19,6 +19,10 @@ use phantom_net::http1::{
 };
 use phantom_net::proxy::{HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES};
 use phantom_net::request::RequestBody;
+use phantom_net::route::{
+    DirectTlsSetup, Http1Route, HttpConnectRoute, OriginRoute, ProxyTransport, Socks5Target,
+    TcpRoute,
+};
 use phantom_net::tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress};
 use tokio::{
     sync::{Mutex, oneshot},
@@ -586,23 +590,31 @@ impl PoolEntry {
         connector: &Http1TlsConnector,
         endpoint: &Endpoint,
     ) -> Result<Opened, Http1TlsError> {
+        let tcp = || {
+            TcpRoute::Direct(phantom_net::route::Endpoint {
+                host: endpoint.host(),
+                port: endpoint.port(),
+            })
+        };
         #[cfg(feature = "https-records")]
         if connector.ech_from_https_records()
             && let Some(discovery) = &self.https_records
         {
-            let ech = discovery.tcp_ech(endpoint, connector.alpn_protocols());
+            let mut ech = std::pin::pin!(discovery.tcp_ech(endpoint, connector.alpn_protocols()));
             return connector
-                .connect_direct_with_ech(endpoint.host(), endpoint.port(), endpoint.host(), ech)
-                .await
-                .map(|connection| (connection, None));
+                .connect(Http1Route::Origin(OriginRoute::Tls {
+                    tcp: tcp(),
+                    server_name: endpoint.host(),
+                    setup: DirectTlsSetup::Ech(ech.as_mut()),
+                }))
+                .await;
         }
         connector
-            .connect_direct_keeping_slower(
-                endpoint.host(),
-                endpoint.port(),
-                endpoint.host(),
-                &self.connections.family,
-            )
+            .connect(Http1Route::Origin(OriginRoute::Tls {
+                tcp: tcp(),
+                server_name: endpoint.host(),
+                setup: DirectTlsSetup::KeepSlower(&self.connections.family),
+            }))
             .await
     }
 
@@ -661,228 +673,98 @@ impl PoolEntry {
         route: &Route,
         mode: Http1ConnectionMode,
     ) -> Result<Opened, RequestError> {
-        let connection = match mode {
-            Http1ConnectionMode::Forward => {
-                let Route::HttpProxy(proxy) = route else {
+        let connector = if mode == Http1ConnectionMode::TlsOrigin {
+            self.connector
+                .get_or_init(|| connector.with_isolated_session_cache())
+        } else {
+            connector
+        };
+        if mode == Http1ConnectionMode::TlsOrigin && matches!(route, Route::Direct) {
+            return self
+                .connect_direct(connector, endpoint)
+                .await
+                .map_err(RequestError::http1_connection_setup);
+        }
+        let authority = endpoint.tunnel_authority();
+        let endpoint_route = phantom_net::route::Endpoint {
+            host: endpoint.host(),
+            port: endpoint.port(),
+        };
+        let tcp = match route {
+            Route::Direct => TcpRoute::Direct(endpoint_route),
+            Route::Socks5(proxy) => TcpRoute::Socks5 {
+                proxy: phantom_net::route::Endpoint {
+                    host: proxy.host(),
+                    port: proxy.port(),
+                },
+                target: match proxy.dns_mode() {
+                    crate::Socks5DnsMode::Local => Socks5Target::LocalDns(endpoint_route),
+                    crate::Socks5DnsMode::Remote => Socks5Target::RemoteDns(endpoint_route),
+                },
+                auth: proxy.auth(),
+            },
+            Route::HttpProxy(proxy) => {
+                if mode == Http1ConnectionMode::PlaintextOrigin {
                     return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+                }
+                let endpoint = phantom_net::route::Endpoint {
+                    host: proxy.host(),
+                    port: proxy.port(),
                 };
-                if proxy.uses_tls() {
+                let transport = if proxy.uses_tls() {
                     let base = https_proxy
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
                     let proxy_connector = self
                         .https_proxy
                         .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
-                    connector
-                        .connect_https_forward_proxy(
-                            proxy_connector,
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.host(),
-                        )
-                        .await
-                        .map_err(RequestError::http1_connection_setup)?
+                    ProxyTransport::Tls {
+                        endpoint,
+                        server_name: proxy.host(),
+                        connector: proxy_connector,
+                    }
                 } else {
-                    connector
-                        .connect_forward_proxy(proxy.host(), proxy.port())
-                        .await
-                        .map_err(RequestError::http1_connection_setup)?
-                }
-            }
-            Http1ConnectionMode::PlaintextOrigin => match route {
-                Route::Direct => {
+                    ProxyTransport::Tcp(endpoint)
+                };
+                if mode == Http1ConnectionMode::Forward {
                     return connector
-                        .connect_plaintext_direct_keeping_slower(
-                            endpoint.host(),
-                            endpoint.port(),
-                            &self.connections.family,
-                        )
+                        .connect(Http1Route::Forward(transport))
                         .await
                         .map_err(RequestError::http1_connection_setup);
                 }
-                Route::Socks5(proxy) => match proxy.dns_mode() {
-                    crate::Socks5DnsMode::Local => connector
-                        .connect_plaintext_socks5_local_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            endpoint.host(),
-                            endpoint.port(),
-                        )
-                        .await
-                        .map_err(RequestError::http1_connection_setup)?,
-                    crate::Socks5DnsMode::Remote => connector
-                        .connect_plaintext_socks5_remote_with_auth(
-                            proxy.host(),
-                            proxy.port(),
-                            proxy.auth(),
-                            endpoint.host(),
-                            endpoint.port(),
-                        )
-                        .await
-                        .map_err(RequestError::http1_connection_setup)?,
-                },
-                // Forwarding owns HTTP proxies; CONNECT-UDP carries only QUIC.
-                Route::HttpProxy(_) | Route::ConnectUdp(_) => {
-                    return Err(RequestError::unsupported_route(HttpProtocol::Http1));
-                }
-            },
-            Http1ConnectionMode::TlsOrigin => {
-                let connector = self
-                    .connector
-                    .get_or_init(|| connector.with_isolated_session_cache());
-                match route {
-                    // Rejected before admission; never reinterpreted as TCP.
-                    Route::ConnectUdp(_) => {
-                        return Err(RequestError::unsupported_route(HttpProtocol::Http1));
-                    }
-                    Route::Direct => {
-                        return self
-                            .connect_direct(connector, endpoint)
-                            .await
-                            .map_err(RequestError::http1_connection_setup);
-                    }
-                    Route::HttpProxy(proxy) => {
-                        let connect_authority = endpoint.tunnel_authority();
-                        if proxy.uses_tls() {
-                            let base = https_proxy.ok_or_else(|| {
-                                RequestError::unsupported_route(HttpProtocol::Http1)
-                            })?;
-                            let proxy_connector = self.https_proxy.get_or_init(|| {
-                                proxy.https_connector(&base.with_isolated_session_cache())
-                            });
-                            if let Some(credentials) = proxy.basic_credentials() {
-                                // Bound the challenge/retry state machine without
-                                // adding allocation to unauthenticated connections.
-                                super::box_send(connector.connect_via(
-                                    phantom_net::route::TcpRoute::HttpConnect(
-                                        phantom_net::route::HttpConnectRoute {
-                                            proxy: phantom_net::route::ProxyTransport::Tls {
-                                                endpoint: phantom_net::route::Endpoint {
-                                                    host: proxy.host(),
-                                                    port: proxy.port(),
-                                                },
-                                                server_name: proxy.host(),
-                                                connector: proxy_connector,
-                                            },
-                                            authority: &connect_authority,
-                                            headers: proxy.ordered_connect_headers(),
-                                            credentials: Some(credentials),
-                                        },
-                                    ),
-                                    endpoint.host(),
-                                ))
-                                .await
-                                .map_err(RequestError::http1_connection_setup)?
-                            } else {
-                                connector
-                                    .connect_via(
-                                        phantom_net::route::TcpRoute::HttpConnect(
-                                            phantom_net::route::HttpConnectRoute {
-                                                proxy: phantom_net::route::ProxyTransport::Tls {
-                                                    endpoint: phantom_net::route::Endpoint {
-                                                        host: proxy.host(),
-                                                        port: proxy.port(),
-                                                    },
-                                                    server_name: proxy.host(),
-                                                    connector: proxy_connector,
-                                                },
-                                                authority: &connect_authority,
-                                                headers: proxy.ordered_connect_headers(),
-                                                credentials: None,
-                                            },
-                                        ),
-                                        endpoint.host(),
-                                    )
-                                    .await
-                                    .map_err(RequestError::http1_connection_setup)?
-                            }
-                        } else {
-                            if let Some(credentials) = proxy.basic_credentials() {
-                                super::box_send(connector.connect_via(
-                                    phantom_net::route::TcpRoute::HttpConnect(
-                                        phantom_net::route::HttpConnectRoute {
-                                            proxy: phantom_net::route::ProxyTransport::Tcp(
-                                                phantom_net::route::Endpoint {
-                                                    host: proxy.host(),
-                                                    port: proxy.port(),
-                                                },
-                                            ),
-                                            authority: &connect_authority,
-                                            headers: proxy.ordered_connect_headers(),
-                                            credentials: Some(credentials),
-                                        },
-                                    ),
-                                    endpoint.host(),
-                                ))
-                                .await
-                                .map_err(RequestError::http1_connection_setup)?
-                            } else {
-                                connector
-                                    .connect_via(
-                                        phantom_net::route::TcpRoute::HttpConnect(
-                                            phantom_net::route::HttpConnectRoute {
-                                                proxy: phantom_net::route::ProxyTransport::Tcp(
-                                                    phantom_net::route::Endpoint {
-                                                        host: proxy.host(),
-                                                        port: proxy.port(),
-                                                    },
-                                                ),
-                                                authority: &connect_authority,
-                                                headers: proxy.ordered_connect_headers(),
-                                                credentials: None,
-                                            },
-                                        ),
-                                        endpoint.host(),
-                                    )
-                                    .await
-                                    .map_err(RequestError::http1_connection_setup)?
-                            }
-                        }
-                    }
-                    Route::Socks5(proxy) => match proxy.dns_mode() {
-                        crate::Socks5DnsMode::Local => connector
-                            .connect_via(
-                                phantom_net::route::TcpRoute::Socks5 {
-                                    proxy: phantom_net::route::Endpoint {
-                                        host: proxy.host(),
-                                        port: proxy.port(),
-                                    },
-                                    target: phantom_net::route::Socks5Target::LocalDns(
-                                        phantom_net::route::Endpoint {
-                                            host: endpoint.host(),
-                                            port: endpoint.port(),
-                                        },
-                                    ),
-                                    auth: proxy.auth(),
-                                },
-                                endpoint.host(),
-                            )
-                            .await
-                            .map_err(RequestError::http1_connection_setup)?,
-                        crate::Socks5DnsMode::Remote => connector
-                            .connect_via(
-                                phantom_net::route::TcpRoute::Socks5 {
-                                    proxy: phantom_net::route::Endpoint {
-                                        host: proxy.host(),
-                                        port: proxy.port(),
-                                    },
-                                    target: phantom_net::route::Socks5Target::RemoteDns(
-                                        phantom_net::route::Endpoint {
-                                            host: endpoint.host(),
-                                            port: endpoint.port(),
-                                        },
-                                    ),
-                                    auth: proxy.auth(),
-                                },
-                                endpoint.host(),
-                            )
-                            .await
-                            .map_err(RequestError::http1_connection_setup)?,
-                    },
-                }
+                TcpRoute::HttpConnect(HttpConnectRoute {
+                    proxy: transport,
+                    authority: &authority,
+                    headers: proxy.ordered_connect_headers(),
+                    credentials: proxy.basic_credentials(),
+                })
+            }
+            Route::ConnectUdp(_) => {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http1));
             }
         };
-        Ok((connection, None))
+        let origin = match mode {
+            Http1ConnectionMode::TlsOrigin => OriginRoute::Tls {
+                tcp,
+                server_name: endpoint.host(),
+                setup: DirectTlsSetup::Default,
+            },
+            Http1ConnectionMode::PlaintextOrigin => OriginRoute::Plaintext {
+                tcp,
+                family: matches!(route, Route::Direct).then_some(&self.connections.family),
+            },
+            Http1ConnectionMode::Forward => {
+                return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+            }
+        };
+        let operation = connector.connect(Http1Route::Origin(origin));
+        // Bound the challenge/retry future only for authenticated proxies.
+        let opened = if matches!(route, Route::HttpProxy(proxy) if proxy.basic_credentials().is_some())
+        {
+            super::box_send(operation).await
+        } else {
+            operation.await
+        };
+        opened.map_err(RequestError::http1_connection_setup)
     }
 }
 

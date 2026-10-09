@@ -21,12 +21,9 @@ use crate::{
         translate_settings, validate_http2,
     },
     proxy::{HttpConnectError, ProxyCredentialCache, Socks5Error},
-    route::TcpRoute,
+    route::{DirectTlsSetup, OriginRoute, TcpRoute},
     source_binding::SourceBinding,
-    tcp::{
-        AddressFamilyMemory, ForeignStream, SlowerAttempt, SlowerConnection, SlowerKeepalive,
-        TcpKeepaliveSource,
-    },
+    tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
     tls::{ClientCertificate, TlsConnector, TlsError, trace_alpn},
 };
 
@@ -507,142 +504,18 @@ impl Http1Or2TlsConnector {
         self.tls.alpn_protocols()
     }
 
-    /// Opens one direct TCP connection and selects HTTP/1.1 or HTTP/2 over
-    /// TLS, offering Encrypted Client Hello with the `ECHConfigList` that
-    /// `ech` yields, as Chrome 154 does for an origin's HTTPS record.
+    /// Opens one origin TLS connection and selects HTTP/1.1 or HTTP/2.
     ///
-    /// The host is resolved first; the TCP connect then runs while `ech`
-    /// finishes. The ClientHello waits for `ech` at most 20% of the address
-    /// resolution time, clamped to 5-50 ms, counted from when the addresses
-    /// arrived; `ech` still pending then counts as `None`. With `None` the
-    /// handshake is the one [`Self::connect_via`] makes.
-    ///
-    /// A list the TLS client rejects fails with
-    /// [`EchFailure::InvalidConfigList`] before any TLS byte is sent. When
-    /// the server rejects ECH and authenticates as the public name, this
-    /// connects once more to the same address, offering the server's retry
-    /// configurations, or ECH GREASE and the true server name when it sent
-    /// none. A second rejection fails with [`EchFailure::Rejected`].
+    /// Direct openings offer early data. Tunnels and caller-owned streams use
+    /// ordinary TLS. A direct route can retain its slower address attempt.
+    /// Plaintext origins are rejected before lookup polling or connection I/O.
     ///
     /// # Errors
     ///
-    /// Returns [`Http1Or2TlsError`] for runtime, connection, TLS, ECH, ALPN,
-    /// ALPS, or protocol setup failures.
-    #[cfg(feature = "https-records")]
-    pub async fn connect_direct_with_ech(
+    /// Returns an input, route, TLS, ALPN, ALPS, or protocol setup error.
+    pub async fn connect(
         &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        ech: impl Future<Output = Option<crate::dns::EchConfigList>>,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = crate::direct::connect_tls_with_ech(
-                &self.tls,
-                self.dialer(),
-                host,
-                port,
-                server_name,
-                ech,
-                true,
-            )
-            .await?;
-            select_connection(stream, client).await
-        }))
-        .await
-    }
-
-    /// Selects HTTP/1.1 or HTTP/2 over an already-connected stream.
-    ///
-    /// This performs exactly one TLS handshake. `h2` enters HTTP/2;
-    /// `http/1.1` or absent ALPN enters HTTP/1.1. No protocol retry or fallback
-    /// is attempted after selection.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for TLS, ALPN, ALPS, or protocol setup
-    /// failures.
-    pub async fn connect<S>(
-        &self,
-        stream: S,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError>
-    where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-    {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let stream = self.tls.connect(server_name, ForeignStream(stream)).await?;
-            select_connection(stream, client).await
-        }))
-        .await
-    }
-
-    /// Opens a connection through `route` using this connector's origin TLS.
-    ///
-    /// Direct connections offer early data; tunneled connections perform the
-    /// ordinary origin handshake. Proxy TLS uses the route's proxy connector.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for route setup, TLS, or protocol failures.
-    pub async fn connect_via(
-        &self,
-        route: TcpRoute<'_>,
-        server_name: &str,
-    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-            let direct = matches!(route, TcpRoute::Direct(_));
-            let stream =
-                connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
-                    .await?;
-            let stream = if direct {
-                self.tls
-                    .connect_offering_early_data(server_name, stream)
-                    .await?
-            } else {
-                self.tls.connect(server_name, stream).await?
-            };
-            select_connection(stream, client).await
-        }))
-        .await
-    }
-
-    /// Opens one direct connection as [`Self::connect_via`] does and,
-    /// when the TCP settings select a
-    /// [`TcpBackupConnection`](phantom_profile::TcpBackupConnection), uses
-    /// and updates `family`, the origin's address family, and returns the
-    /// slower attempt when the backup started and that attempt is still
-    /// connecting.
-    ///
-    /// The slower attempt keeps connecting while the first connection's
-    /// handshake runs. When the first connection selects HTTP/2 and the
-    /// slower attempt has not connected by then, it is closed, as Firefox
-    /// closes its other connection attempts to the origin once a connection
-    /// reports HTTP/2 (`nsHttpConnectionMgr::ReportSpdyConnection` and
-    /// `ConnectionEntry::MakeAllDontReuseExcept`,
-    /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:997`, `:1033`;
-    /// `netwerk/protocol/http/ConnectionEntry.cpp:643-649` at tag
-    /// `FIREFOX_157_0_RELEASE`). Otherwise, once the returned
-    /// [`SlowerConnection`] is polled, it makes the same TLS handshake with
-    /// no request, enters the protocol ALPN selects, and waits for the server
-    /// to answer any early data.
-    ///
-    /// This is a seam for the facade's pools, not supported API.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1Or2TlsError`] for runtime, connection, TLS, ALPN, ALPS,
-    /// or protocol setup failures of the first connection.
-    #[doc(hidden)]
-    pub async fn connect_direct_keeping_slower(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        family: &AddressFamilyMemory,
+        route: OriginRoute<'_>,
     ) -> Result<
         (
             Http1Or2Connection,
@@ -650,25 +523,90 @@ impl Http1Or2TlsConnector {
         ),
         Http1Or2TlsError,
     > {
+        let server_name = match &route {
+            OriginRoute::Tls { server_name, .. } => *server_name,
+            OriginRoute::Plaintext { .. } => "",
+        };
         let mut slower = None;
         let connection = self
             .trace_connect(pin!(async {
+                route.validate(false, true).map_err(|error| {
+                    Http1Or2TlsError::from_direct(DirectConnectError::Connect(error))
+                })?;
                 let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
-                let (stream, attempt) =
-                    connect_tcp_keeping_slower(host, port, self.dialer(), Some(family))
+                let OriginRoute::Tls {
+                    tcp,
+                    server_name,
+                    setup,
+                } = route
+                else {
+                    return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            "negotiation requires origin TLS",
+                        ),
+                    )));
+                };
+                match (tcp, setup) {
+                    (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
+                        let (stream, attempt) = connect_tcp_keeping_slower(
+                            endpoint.host,
+                            endpoint.port,
+                            self.dialer(),
+                            Some(family),
+                        )
                         .await
                         .map_err(Http1Or2TlsError::from_direct)?;
-                slower = attempt;
-                let handshake = async {
-                    let stream = self
-                        .tls
-                        .connect_offering_early_data(server_name, stream)
+                        slower = attempt;
+                        let handshake = async {
+                            let stream = self
+                                .tls
+                                .connect_offering_early_data(server_name, stream)
+                                .await?;
+                            select_connection(stream, client).await
+                        };
+                        match slower.as_mut() {
+                            Some(attempt) => attempt.alongside(handshake).await,
+                            None => handshake.await,
+                        }
+                    }
+                    #[cfg(feature = "https-records")]
+                    (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
+                        let stream = crate::direct::connect_tls_with_ech(
+                            &self.tls,
+                            self.dialer(),
+                            endpoint.host,
+                            endpoint.port,
+                            server_name,
+                            ech,
+                            true,
+                        )
                         .await?;
-                    select_connection(stream, client).await
-                };
-                match slower.as_mut() {
-                    Some(attempt) => attempt.alongside(handshake).await,
-                    None => handshake.await,
+                        select_connection(stream, client).await
+                    }
+                    (tcp, DirectTlsSetup::Default) => {
+                        let direct = matches!(tcp, TcpRoute::Direct(_));
+                        let stream = connection_leg::connect(
+                            tcp,
+                            self.dialer(),
+                            self.proxy_credentials.as_ref(),
+                        )
+                        .await?;
+                        let stream = if direct {
+                            self.tls
+                                .connect_offering_early_data(server_name, stream)
+                                .await?
+                        } else {
+                            self.tls.connect(server_name, stream).await?
+                        };
+                        select_connection(stream, client).await
+                    }
+                    _ => Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            "direct TLS setup requires a direct route",
+                        ),
+                    ))),
                 }
             }))
             .await?;
