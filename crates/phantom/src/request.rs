@@ -1209,7 +1209,7 @@ impl RequestBuilder {
                 }
                 RedirectAction::Follow { same_origin } => {
                     if !same_origin && let Some(settings) = client.inner.client_hints.as_ref() {
-                        redirect.strip_client_hints(settings);
+                        redirect.strip_client_hints(settings, resolved.managed_headers);
                     }
                     debug!(
                         hop = redirect.followed(),

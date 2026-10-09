@@ -199,7 +199,7 @@ fn configured_client_hints_are_stripped_before_cross_origin_rebuild() -> TestRes
         )?)?,
         RedirectAction::Follow { same_origin: false }
     ));
-    state.strip_client_hints(&settings);
+    state.strip_client_hints(&settings, &[]);
 
     assert_eq!(
         state
