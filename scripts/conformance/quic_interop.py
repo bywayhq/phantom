@@ -83,6 +83,23 @@ def verify_runner_checkout(runner: Path) -> None:
             raise ValueError(f"runner checkout is missing {relative}")
 
 
+def _require_shell_safe_image(image: str, role: str) -> None:
+    # The pinned runner interpolates images into POSIX shell assignments.
+    # Docker validates reference syntax; this boundary excludes shell syntax.
+    if (
+        not image
+        or image.startswith("-")
+        or any(
+            not (
+                character.isascii()
+                and (character.isalnum() or character in "._:/@+[]-")
+            )
+            for character in image
+        )
+    ):
+        raise ValueError(f"{role} image contains unsupported shell characters")
+
+
 def register_client(path: Path, image: str) -> bytes:
     """Adds the local client to a fresh runner checkout and returns its original file."""
 
@@ -92,8 +109,7 @@ def register_client(path: Path, image: str) -> bytes:
         raise ValueError("runner implementation registry must be an object")
     if CLIENT_NAME in document:
         raise ValueError(f"runner registry already contains {CLIENT_NAME}")
-    if not image or any(character.isspace() for character in image):
-        raise ValueError("client image must be one nonempty argument")
+    _require_shell_safe_image(image, "client")
     document[CLIENT_NAME] = {
         "image": image,
         "url": "https://github.com/bywayhq/phantom",
@@ -133,8 +149,7 @@ def validate_server(path: Path, server: str) -> None:
 def pin_runner_images(path: Path, server: str, server_image: str) -> None:
     """Pins the selected server in the temporary upstream registry."""
 
-    if not server_image or any(character.isspace() for character in server_image):
-        raise ValueError("server image must be one nonempty argument")
+    _require_shell_safe_image(server_image, "server")
     document = _load_json(path)
     implementation = document.get(server) if isinstance(document, dict) else None
     if not isinstance(implementation, dict):

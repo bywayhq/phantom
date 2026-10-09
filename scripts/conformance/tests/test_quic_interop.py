@@ -14,6 +14,32 @@ from scripts.conformance.quic_interop import (
 
 
 class QuicInteropTests(unittest.TestCase):
+    def test_empty_whitespace_and_non_reference_image_characters_are_rejected(
+        self,
+    ) -> None:
+        images = [
+            "",
+            "client:two words",
+            "client:\nlocal",
+            "client:\x00local",
+            "--help",
+            "client:é",
+        ]
+        original = b'{"server": {"image": "server:pin", "role": "server"}}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "implementations_quic.json"
+            for image in images:
+                for role in ["client", "server"]:
+                    with self.subTest(image=image, role=role):
+                        path.write_bytes(original)
+
+                        with self.assertRaises(ValueError):
+                            if role == "client":
+                                register_client(path, image)
+                            else:
+                                pin_runner_images(path, "server", image)
+                        self.assertEqual(path.read_bytes(), original)
+
     def test_client_image_shell_syntax_is_rejected_without_registry_changes(
         self,
     ) -> None:
