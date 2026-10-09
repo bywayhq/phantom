@@ -431,7 +431,7 @@ pub struct Http2Settings {
     /// A client that must not send a request twice clears it:
     ///
     /// ```
-    /// use phantom_profile::chrome;
+    /// use phantom_profile::browser::chrome;
     ///
     /// let mut http2 = chrome::v154_http2();
     /// http2.ping_failure_retries = 0;
