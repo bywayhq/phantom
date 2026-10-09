@@ -59,7 +59,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Private staging and added two-owner test independently approved; eighteen tests pass on Windows and Linux; Linux Rust 1.88 check passes |
 | A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Zero baseline reproduced; count controls and actual default/one-request peers pass; independent source review approved |
 | A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Initial repair approved; report-interruption follow-up has two intended baseline failures; corrected composition independently approved and 88 Windows/Linux methods pass |
-| A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Corrected composition passes applicable controls in 143-method Windows/Linux suites; actual Linux descendant control passes; independent review pending |
+| A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Recovery corrections independently approved; applicable controls pass in 145-method Windows/Linux suites; actual Linux descendant control passes; final gates pending |
 | A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Repair independently approved; composed 51-method suite passes on Windows and Linux; actual loopback output and scratch controls pass |
 | A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent source review approved |
 | A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Acquisition and interruption repairs independently approved; composed 122-method Windows/Linux suites pass with explicit platform skips; final gates pending |
@@ -666,8 +666,13 @@ conformance controls on Windows and Linux, including an actual Linux
 descendant-exit observation. Independent review then reproduces two omitted
 recovery contracts. A denied log existence check bypasses restores and loses
 the primary timeout. A failed automatic-checkout removal drops previously
-retained scratch paths from the summary. These require additional repair;
-passing the earlier controls does not approve the composition.
+retained scratch paths from the summary. The signed test-only checkpoint at
+`9fd7b1a7` passes eighteen controls and fails those two contracts. The repair
+at `de146f12` guards the log probe and combines recovery paths after checkout
+cleanup failure. Independent review approves that source and repeats both
+recovery controls. The composed 145-method suites pass all applicable checks
+on Windows and Linux, including actual Linux descendant exit before restore.
+Final gates and live Docker verification remain separate.
 
 A54 executes the version-report Python runner with controlled certificate
 and server boundaries and actual filesystem publication. A normal run

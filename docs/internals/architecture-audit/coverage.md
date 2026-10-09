@@ -38,6 +38,22 @@ design. A new crate needs an actual consumer, dependency isolation, or a
 compilation boundary. Repeated names, file sizes and passing lints alone
 do not establish that need.
 
+## Vendor evidence reconciliation
+
+The [retained records](vendor-reviewed-records.json) preserve 288 validated
+historical review scopes across 152 inventory paths. Repeated records are
+distinct from files. Complete patch reads and partial upstream reads remain
+separate. These records do not approve subsequent changes or establish current
+compiler selection.
+
+The [reconciliation](vendor-source-reconciliation.md) resolves historical
+Git identities, declared Windows line endings and two reconstructed instruction
+states. The original reports remain retained. Two invalid ranges remain
+excluded: H3 client connection ended at line 794, and the native ECH source
+ended at line 1364. Fresh bounded reads are recorded separately. The HTTP/2
+lock-refresh wording reported in the historical index was corrected at
+`01574f2e`; it is no longer an outstanding source defect.
+
 ## First pass evidence
 
 Client review traced request preparation, body deadlines, redirects, replay,
@@ -352,12 +368,24 @@ Two selected-daemon regressions fail before that addition and pass afterward.
 The combined suite runs 143 methods: Windows has two explicit platform skips;
 Linux has one. The actual Linux descendant control observes child exit before
 restoration. Controlled resource fixtures do not establish real Docker cleanup.
-Independent review of this composition remains pending.
+The [initial independent review](a53-composed-independent-review.md) requires
+two further recovery corrections.
 
 The reviewer reproduces two further recovery failures at `cb935f2f`. A log
 inspection error escapes before file restoration and reporting. A later
 automatic-checkout cleanup error omits previously retained scratch paths.
-Both require regression tests and correction before source approval.
+The signed regression-only checkpoint at `9fd7b1a7` passes eighteen controls
+and fails the two added recovery contracts. The correction at `de146f12`
+preserves cleanup after log inspection failure and all retained recovery
+paths. The [follow-up review](a53-composed-followup-independent-review.md)
+approves that source. Thirty-four first-party and sixteen bounded upstream
+records passed source, range and evidence validation before import.
+
+The corrected composition runs 145 methods on each host. Windows passes 143
+with two platform skips. Linux passes 144 with one Windows skip, including
+the actual descendant-exit control. The independent Windows snapshot runs
+43 methods, passing 42 with one Linux skip. Final gates, live Docker cleanup
+and CI remain separate verification.
 
 ## Limits of the record
 

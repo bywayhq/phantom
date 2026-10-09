@@ -1,0 +1,2688 @@
+{
+  "scope": "Canonical first-party vendor deltas and bounded resolved source/callers; no exhaustive upstream or cryptographic audit.",
+  "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+  "groups": [
+    {
+      "group": 1,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/tokio-btls/Cargo.toml",
+          "sha256": "b07433ef30e191e8198ca8815293b0e65f42ddd2f98f626a7dcef2b66f13a4c7",
+          "lines": 48,
+          "blob_oid_at_basis": "634220fcdc921949425c577e702619513eb01d94",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              48
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+        },
+        {
+          "path": "vendor/tokio-btls/PHANTOM.md",
+          "sha256": "b43265dcd580de123e6518252059fb75ed7d9902d2924742a416012db33b6ffc",
+          "lines": 58,
+          "blob_oid_at_basis": "6d5d17ffd1f11ba19fa98edbe3f6de6552003d8b",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              58
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+        },
+        {
+          "path": "vendor/tokio-btls/patches/early-data-reset.patch",
+          "sha256": "822a41a1221f784443ca001758e19f7e04dfdc85f2f8dac107fa50ad460be247",
+          "lines": 17,
+          "blob_oid_at_basis": "64c37cd05ae97bce3e0f0a6f268f3637e642fb94",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              17
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+        },
+        {
+          "path": "vendor/tokio-btls/patches/publish-identity.patch",
+          "sha256": "834bd9c339b72fd8f3873b5d57ac4d02c6fa809e5ed7ec175f7ce5a1cfa32020",
+          "lines": 50,
+          "blob_oid_at_basis": "0b0bc62f4f6b86349313e691f1a49467ff526e87",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              50
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+        },
+        {
+          "path": "vendor/tokio-btls/patches/series",
+          "sha256": "90555c2a72fbcd2877510704ed978f3f8d488369dd8720ed69183c3b0195522b",
+          "lines": 3,
+          "blob_oid_at_basis": "8c14592f535ee58dce3e7e79c9ba852ca7be8236",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              3
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+        },
+        {
+          "path": "vendor/tokio-btls/patches/standalone-manifest.patch",
+          "sha256": "0e9a1cf46a453ad682a56aa98eb19f5ef8c1b6cfde2ca443fdee6a50f0000fe0",
+          "lines": 36,
+          "blob_oid_at_basis": "db3b5e5bab502c32360bd2d20286a799cfa4962d",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              36
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+        },
+        {
+          "path": "vendor/tokio-tungstenite/Cargo.toml",
+          "sha256": "f9432df0858f62e96b13fac17d8e0f48dd6551430128edce4a2e6f130a9e2309",
+          "lines": 230,
+          "blob_oid_at_basis": "8457c1018cec440f74fa719e7ae253b0693f25a1",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              230
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+        },
+        {
+          "path": "vendor/tokio-tungstenite/Cargo.toml.orig",
+          "sha256": "38f845507abfdb2e904396563ee08779d1b3dc4ff609e4f2344f0ee1d2597cbd",
+          "lines": 109,
+          "blob_oid_at_basis": "8b1ac7bbf051ec35aa0082af4518d5383c0e1baf",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              109
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+        },
+        {
+          "path": "vendor/tokio-tungstenite/PHANTOM.md",
+          "sha256": "695534d6226972337676f01a5aeafebfb8560bdc1fdcc6968f533cf9948e5072",
+          "lines": 54,
+          "blob_oid_at_basis": "ab81f76d3d017f187d829fa35368a9b36e1f776c",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              54
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+        },
+        {
+          "path": "vendor/tokio-tungstenite/patches/handshake-set-waker.patch",
+          "sha256": "cc55f10293efde8fac40bfb748193084688f311aaa6f809f3ca9c5a0801de752",
+          "lines": 17,
+          "blob_oid_at_basis": "8f8c362b6d35b9e2c5b85838f12aee889d37f115",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              17
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+        },
+        {
+          "path": "vendor/tokio-tungstenite/patches/publish-identity.patch",
+          "sha256": "748b0cd73945da766f200b4ed54bd384298523ad615da06937e54019da5f9e84",
+          "lines": 59,
+          "blob_oid_at_basis": "0191c4ebabbfeb3ddc0de4b4cd9d48b3d2940f0a",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              59
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+        },
+        {
+          "path": "vendor/tokio-tungstenite/patches/series",
+          "sha256": "795242ed90b3ce921e87a112b39d484558746e3cd5c05bfb42417b146a737653",
+          "lines": 2,
+          "blob_oid_at_basis": "3f8bdd39d5282e9e5c9b1505ad0f11a2ddfe5c43",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              2
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+        },
+        {
+          "path": "vendor/tungstenite/PHANTOM.md",
+          "sha256": "12ecedb9eb0e27817ac56518f30ca5669f2635da2b1468d958ddf286c0e723ef",
+          "lines": 59,
+          "blob_oid_at_basis": "adf6f08e1edc1defc33f23c0facefe26a07d1036",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              59
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full local provenance/order note read before engine patch audit; behavior assertions require following groups."
+        },
+        {
+          "path": "vendor/tungstenite/patches/series",
+          "sha256": "bc9d3e33748c01e88bb32940c93edd9bf8fe4e395c9d2106d1b07f2195c52f93",
+          "lines": 6,
+          "blob_oid_at_basis": "ed9828f7aac9d3fd861c50d95cf28177aa03bc6a",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              6
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full local provenance/order note read before engine patch audit; behavior assertions require following groups."
+        }
+      ],
+      "contracts": {
+        "tls": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend.",
+        "websocket": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier.",
+        "limits": "No new supported defect in these canonical patches. No entropy/decompression engine inspection completed in this group. Unsafe adapter pin/context machinery is existing upstream code, not proof of full native safety. Sink cancellation ambiguity is documented, not automatically replayed. No own runtime/compiler execution."
+      },
+      "verdict": "No newly supported runtime defect in this bounded group."
+    },
+    {
+      "group": 2,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/btls/patches/alps-settings.patch",
+          "sha256": "7f0a73df3219dc0cf5639c28ef46672289cc1c67099ad8197f404413c99617cd",
+          "lines": 205,
+          "blob_oid_at_basis": "563804a457fb180f7c3c18b695aa090e055412b9",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              205
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Owned native copy of input protocol/settings; borrowed output tied to SSL/session; zero-length distinct from absent; copy taken before transport owns metadata. Native null-plus-nonzero is outside pinned guarantee and defensively returns None. Positive absent/empty/nonempty peer tests read."
+        },
+        {
+          "path": "vendor/btls/patches/concurrent-aead.patch",
+          "sha256": "90bcfe2e51f8200799849dcfd25b112266e794c2d5c2acabfe2e3068f2d614f4",
+          "lines": 159,
+          "blob_oid_at_basis": "129632c53e7d870ced8fcfd3c93176a160e9bdde",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              159
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Private newtype only constructs AES128/256-GCM or ChaCha20Poly1305, full tags, finite checked key sizes; no arbitrary TLS algorithm admission or mutable interior exposure. Native permits concurrent generic seal/open; output alias is exact in-place, disjoint mutable tag, failure status returns ErrorStack. Concurrency test read but not run; no stock crypto proof."
+        },
+        {
+          "path": "vendor/btls/patches/delegated-credentials.patch",
+          "sha256": "4f9cc0e94f0b7f9e3acaeb73c9db5279a5c3edd185fe9d0ae7a580b9ee1c1606",
+          "lines": 66,
+          "blob_oid_at_basis": "ab1cb5d68b9411f5f9d23e4dac437810c12d0113",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              66
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Prose and tests require exact ordered ECDSA plus SHA1 wire advertisement while rejecting RSAE. Actual Phantom maps supported enum to known names and propagates native errors. Native verification implementation and certificate algorithms are not audited in full here."
+        },
+        {
+          "path": "vendor/btls/patches/ech-grease-aead.patch",
+          "sha256": "15ba48dde342d0feacdc84ab3617a7cc5ed760173b261899b3d9b16e927d7c38",
+          "lines": 126,
+          "blob_oid_at_basis": "603e95c5d5298bfa51cae122b9b454099507e514",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              126
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Pointer/count live during setter; native checks <=3 supported unique IDs before committing. Empty restores default; one/multiple/invalid-list test controls read; randomized distribution not measured by this review."
+        },
+        {
+          "path": "vendor/btls/patches/ech-grease-payload-from-client-hello.patch",
+          "sha256": "bb128f76625538d6c0a3ea9e5eb56f06c50593b869322fa9562a1e5c9c96db2a",
+          "lines": 152,
+          "blob_oid_at_basis": "32e067c61007d98e436cd55d28f83be9939d7645",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              152
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Host optional pointer/count used only to retain scalar byte length; native never retains Rust host pointer. DTLS/config prechecks, mutually replacing exact/sized modes, bounded u8 maximum-name length; wrapper tests read. Full inner serialization implementation remains outside this slice."
+        },
+        {
+          "path": "vendor/btls/patches/ech-grease-payload-length.patch",
+          "sha256": "e9b6e9f491b7a6157b303aedc93533c15fb20c73f7db717d657d9dba75266d55",
+          "lines": 118,
+          "blob_oid_at_basis": "7fc9d2a434a30b489c08395a40500027f39e9a3f",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              118
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Checked usize native setter validates nonzero and UINT16_MAX minus42 before narrowing; failure retains previous state. Exact payload oracle and default/invalid controls read."
+        },
+        {
+          "path": "vendor/btls/patches/ech-server-keys.patch",
+          "sha256": "4aecedb2957ad5efdec6d9e454bb16b64f3e057b968040de449dc0f9d86103f1",
+          "lines": 61,
+          "blob_oid_at_basis": "87c53d289afc889d48e4c8bc9b8d0983ec86f798",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              61
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Public safe owned builder consumes HpkeKey only after native Init copies key; unique unsafe raw-pointer constructor requires owned valid native allocation; native config owns copied key and context retains key collection by UpRef. Reexport test use read, not executed."
+        },
+        {
+          "path": "vendor/btls/patches/extension-order-tail.patch",
+          "sha256": "ea48c3c9587511e32f803c3711f198b44926b8591772333307b7e3f540728ae2",
+          "lines": 170,
+          "blob_oid_at_basis": "d089b749ee120a00c73cf5e155fb6da78621c14a",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              170
+            ]
+          ],
+          "status": "complete",
+          "disposition": "reprtransparent ExtensionType(u16) matches native uint16 pointer/count. Native copies then overlap-validates before assigning. Tail preserves ordered settings and prior state on invalid overlap; wire-tail/shuffle/overlap tests read. Full extension-emission/HRR implementation not proved here."
+        },
+        {
+          "path": "vendor/btls/patches/publish-identity.patch",
+          "sha256": "89573cecc99da62485c12e8f2afd2309ff41ee785df27a18cb61b8f2d0d92bd9",
+          "lines": 42,
+          "blob_oid_at_basis": "ca772ea23810971b5821dd1b8f8fe9446926cf24",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              42
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Renamed local phantom-btls .5 exact active manifest matches identity-last patch; reviewed native sys Git pin remains separate. No Rust behavior delta."
+        },
+        {
+          "path": "vendor/btls/patches/record-size-limit-quic.patch",
+          "sha256": "fe75f489b4d303b27ec1f570495035d6abc90deacd1c6596c4796a5d5402c4e9",
+          "lines": 15,
+          "blob_oid_at_basis": "92939041ffa3d8582e2d96468711855053b9b26a",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              15
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Prose correction only: QUIC negotiation carries no TLS record bound; native setter accepts QUIC and still rejects DTLS/handoff; no protocol fallback."
+        },
+        {
+          "path": "vendor/btls/patches/record-size-limit.patch",
+          "sha256": "e24f5466c46e799c5ea911c6511b475863e6de90dba4dc4d34dd4e5de6e9ef9a",
+          "lines": 124,
+          "blob_oid_at_basis": "93bd4f57d3ae379af112cb5a2c3b54d7e524e596",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              124
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Fallible context/connection setters propagate status; native validates0 or64..16385 and method/config before assigning. Boundary and actual bidirectional TLS1.2/1.3 transfer tests read. Full native record epoch enforcement not re-audited in this group."
+        },
+        {
+          "path": "vendor/btls/patches/scoped-client-sessions.patch",
+          "sha256": "d51b75c7f5b484092f3c5259a692b965072918951fe1df5b2368a6922728035a",
+          "lines": 498,
+          "blob_oid_at_basis": "0f1e4b7e508c3cef3c7c6f1c981c0f9d05b28576",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              498
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Owned context and opaque Arc scope enforce pointer identity; hostnames ASCII-case equal or canonical IP equal; private new-session construction and per-SSL exdata bind before set_session. Phantom separately enables cache only under verified authentication and defers commit until authenticated. Domain/context/scope/no-hostname-verify/early stripping controls read. Raw wrapper allows callers to configure verify mode; not a Phantom authentication bypass."
+        },
+        {
+          "path": "vendor/btls/patches/scoped-session-early-data.patch",
+          "sha256": "cc4a2f2abfb98d780f34cc283fdc3e3997836db32ac34645982179fa15886fb5",
+          "lines": 314,
+          "blob_oid_at_basis": "fc8a846be751015c23e5c21e08224df8cc05616f",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              314
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Explicit connector keep-capability opt-in plus explicit SSL early enable; guarded reset requires native rejection wait; declined ticket is never automatically retried by wrapper. Caller finishes/resends ordered bytes with unchanged ALPN. Actual accepted/rejected/reset-once/no-enable controls read."
+        },
+        {
+          "path": "vendor/btls/patches/tls-key-update.patch",
+          "sha256": "67f279c3e119f11ad36797bc431ab004e004be80916a84fc7cc61d9731f4ec18",
+          "lines": 260,
+          "blob_oid_at_basis": "98a096c02f97a7d2450285feaff48bd4140ffde9",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              260
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Typed native update failures propagate; message bytes borrowed for callback lifetime through higher-ranked closure. Two supported gaps: callback resolves current instead of original retained context and Debug exposes message bytes. Actual keyupdate request/answer test lacks context-switch coverage."
+        },
+        {
+          "path": "vendor/btls/patches/tls13-legacy-extensions.patch",
+          "sha256": "89638bf08b7bd42c998187bdfb84efa1ba9443dea58833349dcc29fcec9c801d",
+          "lines": 110,
+          "blob_oid_at_basis": "81f512b08b05fd3980de535c5d5675e70312e909",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "reviewed_ranges": [
+            [
+              1,
+              110
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Void boolean setters only toggle existing config, no unsafe ownership change; context/connection enable/disable override and exact wire empty/zero bodies checked by canonical tests. Native default off; emitted inner/outer ordering implementation not proved fully here."
+        }
+      ],
+      "contracts": {
+        "alps-settings.patch": "Owned native copy of input protocol/settings; borrowed output tied to SSL/session; zero-length distinct from absent; copy taken before transport owns metadata. Native null-plus-nonzero is outside pinned guarantee and defensively returns None. Positive absent/empty/nonempty peer tests read.",
+        "concurrent-aead.patch": "Private newtype only constructs AES128/256-GCM or ChaCha20Poly1305, full tags, finite checked key sizes; no arbitrary TLS algorithm admission or mutable interior exposure. Native permits concurrent generic seal/open; output alias is exact in-place, disjoint mutable tag, failure status returns ErrorStack. Concurrency test read but not run; no stock crypto proof.",
+        "delegated-credentials.patch": "Prose and tests require exact ordered ECDSA plus SHA1 wire advertisement while rejecting RSAE. Actual Phantom maps supported enum to known names and propagates native errors. Native verification implementation and certificate algorithms are not audited in full here.",
+        "ech-grease-aead.patch": "Pointer/count live during setter; native checks <=3 supported unique IDs before committing. Empty restores default; one/multiple/invalid-list test controls read; randomized distribution not measured by this review.",
+        "ech-grease-payload-from-client-hello.patch": "Host optional pointer/count used only to retain scalar byte length; native never retains Rust host pointer. DTLS/config prechecks, mutually replacing exact/sized modes, bounded u8 maximum-name length; wrapper tests read. Full inner serialization implementation remains outside this slice.",
+        "ech-grease-payload-length.patch": "Checked usize native setter validates nonzero and UINT16_MAX minus42 before narrowing; failure retains previous state. Exact payload oracle and default/invalid controls read.",
+        "ech-server-keys.patch": "Public safe owned builder consumes HpkeKey only after native Init copies key; unique unsafe raw-pointer constructor requires owned valid native allocation; native config owns copied key and context retains key collection by UpRef. Reexport test use read, not executed.",
+        "extension-order-tail.patch": "reprtransparent ExtensionType(u16) matches native uint16 pointer/count. Native copies then overlap-validates before assigning. Tail preserves ordered settings and prior state on invalid overlap; wire-tail/shuffle/overlap tests read. Full extension-emission/HRR implementation not proved here.",
+        "publish-identity.patch": "Renamed local phantom-btls .5 exact active manifest matches identity-last patch; reviewed native sys Git pin remains separate. No Rust behavior delta.",
+        "record-size-limit-quic.patch": "Prose correction only: QUIC negotiation carries no TLS record bound; native setter accepts QUIC and still rejects DTLS/handoff; no protocol fallback.",
+        "record-size-limit.patch": "Fallible context/connection setters propagate status; native validates0 or64..16385 and method/config before assigning. Boundary and actual bidirectional TLS1.2/1.3 transfer tests read. Full native record epoch enforcement not re-audited in this group.",
+        "scoped-client-sessions.patch": "Owned context and opaque Arc scope enforce pointer identity; hostnames ASCII-case equal or canonical IP equal; private new-session construction and per-SSL exdata bind before set_session. Phantom separately enables cache only under verified authentication and defers commit until authenticated. Domain/context/scope/no-hostname-verify/early stripping controls read. Raw wrapper allows callers to configure verify mode; not a Phantom authentication bypass.",
+        "scoped-session-early-data.patch": "Explicit connector keep-capability opt-in plus explicit SSL early enable; guarded reset requires native rejection wait; declined ticket is never automatically retried by wrapper. Caller finishes/resends ordered bytes with unchanged ALPN. Actual accepted/rejected/reset-once/no-enable controls read.",
+        "tls-key-update.patch": "Typed native update failures propagate; message bytes borrowed for callback lifetime through higher-ranked closure. Two supported gaps: callback resolves current instead of original retained context and Debug exposes message bytes. Actual keyupdate request/answer test lacks context-switch coverage.",
+        "tls13-legacy-extensions.patch": "Void boolean setters only toggle existing config, no unsafe ownership change; context/connection enable/disable override and exact wire empty/zero bodies checked by canonical tests. Native default off; emitted inner/outer ordering implementation not proved fully here."
+      },
+      "verdict": "Two supported canonical callback/Debug findings; runtime reproduction delegated to integration owner."
+    },
+    {
+      "group": 3,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/wreq-proto/Cargo.toml",
+          "sha256": "e778b7bceb730a0799cda530227b044c836e4631dd96c7c22e84e7f6e97d63ed",
+          "blob_oid_at_basis": "79373bfcd6996322d07da6db3e5fa464dc5efaff",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 178,
+          "reviewed_ranges": [
+            [
+              1,
+              178
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full normalized active .10 manifest; exact local phantom-http2 .10 dependency with unstable feature; source library name retained and default feature set empty."
+        },
+        {
+          "path": "vendor/wreq-proto/Cargo.toml.orig",
+          "sha256": "51ca13f58160bf1362809c60ebf41682bd968f43d566df324eab833c2a9b8928",
+          "blob_oid_at_basis": "fffd44dedb701aecd6eccae1864200a70f727efc",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 90,
+          "reviewed_ranges": [
+            [
+              1,
+              90
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full retained upstream workspace input; not the selected package manifest. Published normalized manifest and identity patch select the standalone fork."
+        },
+        {
+          "path": "vendor/wreq-proto/PHANTOM.md",
+          "sha256": "953c4060816e85e6c68ac39c8a5365cdcf1164af4954d45cdf67cd06550f0dad",
+          "blob_oid_at_basis": "4857507a510a60e405d3fed8bbcc9c410c374546",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "working tree bytes; differs from basis Git blob",
+          "lines": 141,
+          "reviewed_ranges": [
+            [
+              1,
+              141
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full current provenance and replay instructions read. Chunk-size line is opt-in in low-level fork, all metadata through CRLF counts, cumulative extension budget remains separate. Trailer callback trusts validated caller names, values and multiplicity; Phantom caller traced separately. Current package-specific formatter command agrees with A42."
+        },
+        {
+          "path": "vendor/wreq-proto/patches/chunk-size-line-limit.patch",
+          "sha256": "8dcc4fb052d287187f5a982a7a946c775eb0767e8af18b974e14b6b5f8b164c0",
+          "blob_oid_at_basis": "2fdd73d489782c974c350450e885c5ed5080a598",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 643,
+          "reviewed_ranges": [
+            [
+              1,
+              643
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full runtime/options/error/test patch read. Count advances only for a received byte, checked increment rejects overflow and limit+1, every chunk-size state uses the same counter, Start resets only before first digit, CRLF counts, body/trailer states retain independent budgets. Error source is typed and can be discriminated through body/io wrappers. Inclusive, opt-out, reset and metadata tests read but not executed."
+        },
+        {
+          "path": "vendor/wreq-proto/patches/ordered-request-trailers.patch",
+          "sha256": "a244f29c89a7e8261b326e43216b832d1fa43f227c3843505aca86805f9955cb",
+          "blob_oid_at_basis": "d8266cc453254723ee1e3c4f3784c394bba39064",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 246,
+          "reviewed_ranges": [
+            [
+              1,
+              246
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full callback/encoder/caller/filter patch read. Callback is attached only to a declared chunked trailer encoder; ordered field bytes and duplicates bypass HeaderMap iteration, retaining caller responsibility for validation. Phantom static and dynamic plans validate names/forbidden fields/count/bytes and dynamic body values/multiplicity before emission. Default encoder filters forbidden connection fields; metadata-only callback Debug."
+        },
+        {
+          "path": "vendor/wreq-proto/patches/publish-identity.patch",
+          "sha256": "5088e1d6d58698e0241e634fdb1462d85b82fdf88f044d9a897751bab0a58537",
+          "blob_oid_at_basis": "15c953f407e6f9762b60019f3ac69bd547dbd943",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 61,
+          "reviewed_ranges": [
+            [
+              1,
+              61
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full metadata-only .10 rename and local exact phantom-http2 .10 dependency patch read; no source changes; last in series."
+        },
+        {
+          "path": "vendor/wreq-proto/patches/series",
+          "sha256": "cac1af50246a5a5b01279ed503a90d620fbadb4898b914469923eff3970e886a",
+          "blob_oid_at_basis": "a3556c1130113967ee28b9e0fe59e01b3a1b5e4d",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 3,
+          "reviewed_ranges": [
+            [
+              1,
+              3
+            ]
+          ],
+          "status": "complete",
+          "disposition": "All three canonical entries read in order; source changes precede final identity."
+        },
+        {
+          "path": "vendor/tungstenite/Cargo.toml",
+          "sha256": "0a248e8d586102af7b75253d6d96530ed4490107bec5baa8b783f59f3563b0c5",
+          "blob_oid_at_basis": "1db6764e58cd5907b83aed78f445af57411c2ff9",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 229,
+          "reviewed_ranges": [
+            [
+              1,
+              229
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full normalized active .2 manifest read; deflate is optional zlib-rs, default handshake remains in backend but first-party caller disables defaults and configures raw engine itself. Library name retained."
+        },
+        {
+          "path": "vendor/tungstenite/Cargo.toml.orig",
+          "sha256": "1187402fbe245f2f53b7616c95d6f0ebf7d82f41003ec958304dd6e647bdff44",
+          "blob_oid_at_basis": "eeb8104da343a57d56de61e1ca41acf0d344c552",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 120,
+          "reviewed_ranges": [
+            [
+              1,
+              120
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full retained upstream input read; not active selection. Runtime/feature values agree with normalized manifest before identity rename."
+        },
+        {
+          "path": "vendor/tungstenite/patches/deprecated-max-value.patch",
+          "sha256": "a1136263aa44728160a803a0ddde5a8449cf07940926698d9d7b5bb5cdb55d76",
+          "blob_oid_at_basis": "20dd54ca23512a38be1927cd326db043120bf880",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 28,
+          "reviewed_ranges": [
+            [
+              1,
+              28
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full two-hunk mechanical usize::MAX replacement read; preserves unset frame/message limit and existing overflow handling."
+        },
+        {
+          "path": "vendor/tungstenite/patches/message-fragment-limit.patch",
+          "sha256": "b8ca24dde41950dc8c3f0fa27e64fed3604757aed78845d77cef363f7d418f34",
+          "blob_oid_at_basis": "5110bffefdd39c4d825066e415fbabd1d0606d38",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 202,
+          "reviewed_ranges": [
+            [
+              1,
+              202
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full config/counter/parser/test patch read. Counts initial data plus continuations, excludes controls, checks before inflation or retained-message assembly, resets after successful FIN and terminates/clears compression state on overlimit. Phantom supplies nonzero fixed default/configured bound. Empty fragment and interleaved Ping controls read, not run."
+        },
+        {
+          "path": "vendor/tungstenite/patches/publish-identity.patch",
+          "sha256": "cb1b421c7486c748c1a7559edeee4b0277209c54fa6b8831d15d88f32d573761",
+          "blob_oid_at_basis": "af5fcb4bd34c46c49bfb10695217ededde7626f0",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 48,
+          "reviewed_ranges": [
+            [
+              1,
+              48
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full metadata-only .2 rename patch read; package/library distinction and archive provenance preserved; final series member."
+        },
+        {
+          "path": "vendor/tungstenite/patches/redacted-fallible-masking.patch",
+          "sha256": "845b59b41a0ba6f1df99847879c8358eb32fe4469a2e6366d5d62db6c9aa48a4",
+          "blob_oid_at_basis": "db7194b70e024cf535eaf44f5c455c78d515dd77",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "lines": 278,
+          "reviewed_ranges": [
+            [
+              1,
+              278
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full mask/result/typed error, payload-log redaction, UTF-8 error and invalid close-code patch read. OS entropy failures propagate before wire formatting, including compressed-state invalidation in later applied patch. First-party Error::Random maps to Random. No forced OS entropy failure was executed; large integration/compression patches remain separate pending reads."
+        }
+      ],
+      "contracts": [
+        "HTTP/1 complete per-chunk size metadata is bounded at 16 KiB by Phantom, while low-level unset configuration remains upstream-compatible.",
+        "Ordered request trailer callback receives validated plans; dynamic body terminal frame must match declared names and multiplicity, preserve HeaderValue safety and fit count/byte limits.",
+        "WebSocket fragment count covers empty data fragments before decompression, preserves interleaved controls, and terminates overlimit streams.",
+        "Fallible OS mask generation returns a typed error; diagnostics no longer log frame/message/close payloads or malformed UTF-8 bytes in the modified sites."
+      ],
+      "verdict": "No new supported defect in these canonical deltas and bounded active callers. Test execution, full upstream behavior, full compression/integration patches and provider failure injection are not proved by this source read."
+    },
+    {
+      "group": 4,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/http2/PHANTOM.md",
+          "sha256": "ff111a26d625520572cdfa5ad6696936c1253ad658a1eefba3c00834c3dd12f4",
+          "lines": 924,
+          "blob_oid_at_basis": "ed66fc98ff2dea8013d1ae0ba2a8bca3d00a23cf",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "working tree bytes; differs from basis Git blob",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              924
+            ]
+          ],
+          "disposition": "Full current 924-line provenance, each local delta rationale, evidence limits, error/resource contracts and refresh instructions read. Current A42 package/pins/lock wording verified in working bytes. Runtime claims were read, not independently rerun. Sensitive-field sentence482\u2013486 needs ordinary-field/exception qualifier; code and public first-party docs explicitly permit split-cookie and proxy FieldRule exceptions."
+        },
+        {
+          "path": "vendor/http2/Cargo.toml",
+          "sha256": "9b444a0d4caeb2553edda869fe476a5a965fa6ab3e9640a51ea01de172b5f401",
+          "lines": 187,
+          "blob_oid_at_basis": "4b7fa5a5236351689d0bd24c3a37ec702946bc8b",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              187
+            ]
+          ],
+          "disposition": "Full normalized active .10 package manifest read; stable upstream library name, Rust1.68 metadata, Tokio test-only time feature, separate unstable/tracing/stream options; no selected-source execution."
+        },
+        {
+          "path": "vendor/http2/Cargo.toml.orig",
+          "sha256": "2a41cd9a6323f569b8fd3b40cd9007bcfaa90e83ea9c4a7afcccf56b4b4e745a",
+          "lines": 100,
+          "blob_oid_at_basis": "2f13e18cbbd135d1063a976862f757f624cd5082",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              100
+            ]
+          ],
+          "disposition": "Full retained original source manifest including upstream workspace and original unstable warning; not the active standalone manifest. Source patch materializes test-only time and identity patch renames active package only."
+        },
+        {
+          "path": "vendor/http2/patches/series",
+          "sha256": "0c9936213bb1bbb1b48e3a9b234a35efeae9eab9f7185b5c6991a3eed5bc1df3",
+          "lines": 21,
+          "blob_oid_at_basis": "92fc1b0bea3cee148414ce738c30bae2abf0a5e6",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              21
+            ]
+          ],
+          "disposition": "Full 21-entry order read; source changes then final identity. Larger unread members remain explicitly pending."
+        },
+        {
+          "path": "vendor/http2/patches/publish-identity.patch",
+          "sha256": "905789d5368edb3266604a2edc9a21cb88318439262bdd8e3e6dd679539fa02a",
+          "lines": 48,
+          "blob_oid_at_basis": "f23b044f9730236213360e7dad430673f2303b85",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              48
+            ]
+          ],
+          "disposition": "Full metadata-only .10 rename/provenance patch read; upstream lib name retained, archive-only reserved files excluded; last member."
+        },
+        {
+          "path": "vendor/http2/patches/rfc-error-codes.patch",
+          "sha256": "246d6a61f03187c8d6236f1cc7b4aa6899a5d3d06bbc6bd39d22c71c7427a56c",
+          "lines": 60,
+          "blob_oid_at_basis": "c8f88c2812dfea5efa089570df78ec71ff668291",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              60
+            ]
+          ],
+          "disposition": "Full mapping patch read; malformed SETTINGS payload lengths and PING8-byte length failure receive FrameSize, HPACK failure receives Compression in initial and continuation paths; semantic malformed header errors remain stream Protocol. Applied loaders/error mappings read, not executed."
+        },
+        {
+          "path": "vendor/http2/patches/ordered-header-table-updates.patch",
+          "sha256": "e8acd1256109290e311065a259d598a21929c6574d1e52f473a042f2de77f152",
+          "lines": 78,
+          "blob_oid_at_basis": "4daf2ed08ad00805664a565c0962ac54dcf316fe",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              78
+            ]
+          ],
+          "disposition": "Full loader/minimum-final setter/application/unit-test patch read. Repeated table settings retain lowest and final; application sends minimum first and distinct final second, preserving encoder table transition. Unit fixture includes unknown setting between0 and4096; not run."
+        },
+        {
+          "path": "vendor/http2/patches/headers-frame-overrides.patch",
+          "sha256": "1f80f936724868e02bd34c6a019eed9f7756dff91b55c6f626abc3a50a7a2381",
+          "lines": 235,
+          "blob_oid_at_basis": "e8c9df2ba64a783f8f56396a7bd1ffa0fe1569e8",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              235
+            ]
+          ],
+          "disposition": "Full public per-request extension, exact extraction before extension clearing, connection-default fallback and peer-priority suppression delta read. Control sends overridden first/default second request and compares actual pseudo names/priority bytes using retained decoder state; not run."
+        },
+        {
+          "path": "vendor/http2/patches/stream-limit-cap.patch",
+          "sha256": "52dcbb85ad401061a2567da99d5060251bb552d2e5e5e1270e23d2dd1257af6c",
+          "lines": 219,
+          "blob_oid_at_basis": "3726d25bac3cf885f4ea26d58eeaf1db74a9e8c0",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              219
+            ]
+          ],
+          "disposition": "Full builder/config/counts/server default and raw-peer tests read. Peer-stated limit is min(value,cap); unretained initial omission lifts to cap; retained initial limit is preserved by prior contract. Initial local limit is intentionally uncapped as documented. Defaults/server leave old behavior unchanged. Tests retain responses and use SETTINGS acknowledgement/PING ordering; not run."
+        },
+        {
+          "path": "vendor/http2/patches/informational-response-limit.patch",
+          "sha256": "ef69da6f4a3988286a44081799e7d23061351caf76cf5a10800cd1bcbe8ac449",
+          "lines": 273,
+          "blob_oid_at_basis": "760c82b5aa60a6d0caea316457d1124330d865ef",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              273
+            ]
+          ],
+          "disposition": "Full config/receive counter/typed local error and real in-memory peer tests read. Count advances on informational arrival before enqueue, excludes final heads, resets overlimit stream with typed EnhanceYourCalm discriminator. Client caller sets8. Tests2 accepted/3 rejected with max2; not run. Existing ignored server result is explained by allowed client reset and client outcome oracle."
+        }
+      ],
+      "contracts": [
+        "Per-request HEADERS overrides do not change the next request or connection-wide HPACK context; peer priority suppression remains authoritative.",
+        "Incoming informational heads are bounded before queue insertion, and typed local error reaches first-party response classification.",
+        "Peer stream limit cap and retained initial limit compose without changing any outgoing settings bytes.",
+        "Repeated header table size settings preserve minimum/final transitions; raw frame syntax errors retain proper error categories."
+      ],
+      "verdict": "No new supported runtime defect in selected canonical deltas and bounded caller reads. One narrow PHANTOM sensitivity sentence qualifier sent to integration owner; larger canonical HTTP/2 patch/resource/runtime paths remain pending."
+    },
+    {
+      "group": 5,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/http2/patches/continuation-bounds.patch",
+          "sha256": "73662117e0d099d486d57ebc8401aa8ac151856955dfdae0c09e774c7207d0d4",
+          "lines": 469,
+          "blob_oid_at_basis": "b67cee86815414707c91b99965dfbc740ec9b776",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              469
+            ]
+          ],
+          "disposition": "Full canonical delta including encoded and fragment/empty-continuation bounds and cumulative decoded abuse accounting read. Checks precede retained append/decode; final fragments count too. Cumulative decoded_size tracks rejected/unstored fields across continuations instead of recomputing only retained semantic fields. Saturating arithmetic preserves bounded errors. Existing codec/header regression oracles read; not executed by this pass."
+        },
+        {
+          "path": "vendor/http2/patches/local-header-list-limit.patch",
+          "sha256": "05f6bdcb8ef539aa59af5231f3448daf199934d9ef6cd0bda43cbc1912a629a5",
+          "lines": 318,
+          "blob_oid_at_basis": "db902ca0b3a39b718a42d79b9cb6328ffd32cc24",
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              318
+            ]
+          ],
+          "disposition": "Full canonical delta read. Private local limit composes as min(advertised,local) and recomputes all continuation/encoded budgets; no SETTINGS wire change. Stream-local discriminator attaches only library Reset and propagates through response/informational error wrappers; peer reset/control errors cannot be relabeled local. First-party builder/error caller bounded reads were recorded in group4. Tests/builds not run by this pass."
+        }
+      ],
+      "contracts": [
+        "Retained and cumulatively decoded header work is bounded across complete HEADERS/CONTINUATION chains.",
+        "An unadvertised local receive ceiling can only narrow the peer-advertised ceiling and retains a typed local error."
+      ],
+      "verdict": "Source checkpoint only; fifteen original canonical patch rows remain pending. No new runtime defect proved in these two deltas."
+    },
+    {
+      "group": 6,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/http2/patches/ordered-request-trailers.patch",
+          "sha256": "ee744b6545e674ab40623d865f29156c2c99ff047feb8ef57f531c2ac61b133b",
+          "lines": 183,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "1adff4f5b8665f3780c6bfe8de8678f8eae45cd3",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              183
+            ]
+          ],
+          "disposition": "Full183 lines read. Ordered multimap agreement is checked before state mutation; existing send_trailers state transition preserves END_STREAM. In-memory peer test preserves duplicate global order and never-indexed sensitivity, using retained HPACK decoder between initial and trailing HEADERS."
+        },
+        {
+          "path": "vendor/http2/patches/extended-connect-readiness.patch",
+          "sha256": "b13fdb8292245d729de3e06c7dda317aaaaf2eda96ae67613e5eedacc5c6f5aa",
+          "lines": 274,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "21e150b3013d45dabcb80a97e8583f19f2a0f74b",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              274
+            ]
+          ],
+          "disposition": "Full274 lines read. Initial seeded or wire settings are observed only after successful application; peer failure and EOF wake all waiters. Readiness first checks connection error. Distinct caller wakers are retained until initial settings/error; cancelled callers are not deregistered, an explicit caller-lifecycle limitation rather than a proved peer-input exploit here."
+        },
+        {
+          "path": "vendor/http2/patches/retained-stream-limit.patch",
+          "sha256": "3c3c27e7fa8e8f9ce44a080d011739bc5d5ff68d3671305295f6117db5e03f41",
+          "lines": 346,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "b4d1f702adc9c056085de787359f9ee4cf76d49f",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              346
+            ]
+          ],
+          "disposition": "Full346 lines read. Initial omission retains optional initial cap, seeded settings count initial, later explicit value changes limit; default omission lifts unlimited. Real peer tests retain response futures and use ACK/PING frame barriers to detect premature requests."
+        },
+        {
+          "path": "vendor/http2/patches/sensitive-proxy-authorization.patch",
+          "sha256": "0eea2c182e738b40c4e27f7d158bd83e9b6b91387095b1e45e0d387facfc0d96",
+          "lines": 318,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "06e73f0b0b35de84243c9c45d1cf5d60e4f61e68",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              318
+            ]
+          ],
+          "disposition": "Full318 lines read. Explicit FieldRule temporarily unmarks wire value then remarks inserted cache entry after encoding; ordinary fields remain sensitive. First-party restricts rule to proxy peer. Fuzz profile generation includes both choices; exact wire/Debug controls read, not run."
+        },
+        {
+          "path": "vendor/http2/patches/cookie-crumbs.patch",
+          "sha256": "927dccc2347632472ca86778718ffbd712e3f1e24174b46df2d497c0d757d298",
+          "lines": 460,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "75ac834417b7733e2124549694f1c891465f7d80",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              460
+            ]
+          ],
+          "disposition": "Full460 lines read. Chromium semicolon trimming and Firefox semicolon-space/20-byte policy preserve ordered repeated values and intended wire index choices. A46: input diagnostic sensitivity is replaced by crumb wire policy, exposing newly inserted sensitive cookie values in Encoder/Table Debug. Existing wire sensitivity exception is intentional and must be preserved."
+        },
+        {
+          "path": "vendor/http2/patches/idle-ping.patch",
+          "sha256": "ff563c825b1780dcfcb6e98fbf38d917daaa2e902b1e8bff693564bce4552d6e",
+          "lines": 711,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "dd68c57ed77da912ea1b71a6566c3b1f4a41ae39",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              711
+            ]
+          ],
+          "disposition": "Full711 lines read. Idle timer clears outstanding read deadline on every frame, consumes only own zero ACK, restores pending write on backpressure, checks timeout only once send completion permits read progress. Immediate-expiring custom sleeps yield after one rearm. Unit clock and actual peer/error/blocked-write tests read, not run."
+        },
+        {
+          "path": "vendor/http2/patches/empty-data-frame-budget.patch",
+          "sha256": "5ce560d8ea8cd31a9b244477ec88ec7fabe5d6b9be6f43be373083666dd2e6fa",
+          "lines": 697,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "a38fa669240e6d82f04deb1a2940225fcee269aa",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              697
+            ]
+          ],
+          "disposition": "Full697 lines read. Nonfinal tiny-frame charges are released when popped or cleared/dropped; empty nonfinal events are not queued and have independent lifetime100 cap. Final frame is exempt, bounded to one per stream. Checked counters and saturating bounded replenishment prevent arithmetic wrap. Actual peer200-stream liveness and drop controls read."
+        },
+        {
+          "path": "vendor/http2/patches/preface-ping.patch",
+          "sha256": "54e43b64d32289ce3e6d86465751a8d3ddfa2db6c7e09ba2ca432de528f91c78",
+          "lines": 582,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "cdfe900b5975e9f5f57d20b30d7e36cdbf322e2b",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              582
+            ]
+          ],
+          "disposition": "Full582 lines read. Nonempty request DATA or initial request HEADERS queues ordered immediate PING after strict idle time; every send path checks due PING before other frames. Only matching payload clears in-flight ACK; read restarts idle time. Seed/profile/default/server wiring read."
+        },
+        {
+          "path": "vendor/http2/patches/altsvc-frames.patch",
+          "sha256": "90ec400c804bec2883ce7e077d6ade98e04ea26ebccda45f229fa91dcf88e1a5",
+          "lines": 663,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "f1d629a27b4bd34f01e69321ce77c60b729a9c4b",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              663
+            ]
+          ],
+          "disposition": "Full663 lines read. Scoped origin rules and16KiB part limits discard malformed optional frames; queue16 drops oldest, attaches each once to next matching final response, ignores servers and irrelevant finished streams. Stream0 origin remains raw bytes until first-party canonical origin comparison; no parsing trust inferred from successful load."
+        },
+        {
+          "path": "vendor/http2/patches/ping-timeout.patch",
+          "sha256": "9b0501afc6e936c094b65f9653a5c22314312e2ec6acdc2e312eca812c5c1348",
+          "lines": 813,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "blob_oid_at_basis": "dd2ee046fd048af934a34ea8677fde3370e4d73e",
+          "basis_kind": "exact Git bytes",
+          "status": "complete",
+          "reviewed_ranges": [
+            [
+              1,
+              813
+            ]
+          ],
+          "disposition": "Full813 lines read. Injected monotonic clock measures later of queue/read plus timeout; ACK disarms, immediate-ending sleeps rearm once then yield. Connection drains ready inbound frames and send paths before checking; exact local GOAWAY signature maps timeout to first-party typed error. Actual wire, controlled clock, and blocked-write tests read, not run."
+        }
+      ],
+      "contracts": [
+        "Settings readiness and trailer ordering preserve real request lifecycle.",
+        "Receive queues and tiny-frame accounting preserve explicit bounded resources and cancellation releases.",
+        "Timer policies preserve exact PING ordering/GOAWAY signatures under write backpressure."
+      ],
+      "verdict": "A46 sensitive-cookie diagnostic disclosure source confirmed; regression-only stage delegated. Five original canonical patch rows remain pending."
+    },
+    {
+      "group": 7,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/http2/patches/hpack-encoder-profile.patch",
+          "sha256": "6bd98b2258d04fbd15f86f7efd599159e655caf5fb8ea724a05eea753843bf65",
+          "lines": 867,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "blob_oid_at_basis": "0e2dfde85d67e6a78ed5eb199af61c126d01cfc3",
+          "reviewed_ranges": [
+            [
+              1,
+              867
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full builder-before-first-block/profile enums/static-name selection/Huffman routing/encoder-table delta and tests read. Actual first-party profile conversion recorded group6. Tests check literal pseudo semantics, static full matches, equal-size Huffman boundary and first public wire block. Default-vs-profile test uses same current encoder with default identity configuration, not an independently compiled upstream oracle. No new browser or runtime execution."
+        },
+        {
+          "path": "vendor/http2/patches/hpack-indexing-rules.patch",
+          "sha256": "183bcdaa5f873863c0a67cd0f526023d96546bee9397d3c247795d546b32b3bf",
+          "lines": 1313,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "blob_oid_at_basis": "4c8bc624e291581ee94ebe24364b3ed92cbeb6b8",
+          "reviewed_ranges": [
+            [
+              1,
+              740
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Partial1\u2013740: enums/configuration, size update minimum/final, authorization nameless propagation, Oversized wire fallback, and boundary/unit test start read. Remaining table production/rule helpers/fuzzer integration are unread; cannot conclude full patch correctness from tests."
+        }
+      ],
+      "verdict": "One canonical row completed; one remains partial. Other ordered-header/WebSocket rows remain unread in this pass."
+    },
+    {
+      "group": 8,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/http2/patches/hpack-indexing-rules.patch",
+          "sha256": "183bcdaa5f873863c0a67cd0f526023d96546bee9397d3c247795d546b32b3bf",
+          "lines": 1313,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "blob_oid_at_basis": "4c8bc624e291581ee94ebe24364b3ed92cbeb6b8",
+          "reviewed_ranges": [
+            [
+              1,
+              1313
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Completed remaining741\u20131313 after historical group7 partial1\u2013740. Full delta now read: before-insertion dynamic references, oldest/newest/full matching, size/field policy, oversized eviction, boundary oracles and profile fuzzer. Fuzzer expected crumb semantics uses production split, so not independent splitter proof. A48: ThreeQuarters usize multiplication retains legal u32 peer-size overflow on32bit; current64bit execution does not settle target contract."
+        },
+        {
+          "path": "vendor/http2/patches/ordered-headers.patch",
+          "sha256": "0cf747682ce78db403296c460a6a83736912281fc9ff7d47b7e8bb8ad22eb279",
+          "lines": 1339,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "blob_oid_at_basis": "ce3e015ad6d93c98fa6cb2dcb964c7d6d693814d",
+          "reviewed_ranges": [
+            [
+              1,
+              1339
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full canonical delta read: semantic map agreement before wire output, inbound ordering sidecar, ordered iterators, initial peer seeds, settings stickiness, initial frame validation, and open/idle-close polling with queued-reset preservation. Wire and lifecycle tests read, not executed. This is patch coverage, not complete stock module review."
+        }
+      ],
+      "verdict": "Two HPACK/ordered header canonical rows completed. Two large WebSocket canonical patches remain unread; stock/native gaps remain separate."
+    },
+    {
+      "group": 9,
+      "metadata_or_patch_files": [
+        {
+          "path": "vendor/tungstenite/patches/permessage-deflate.patch",
+          "sha256": "efbb5bf14279512751e453ea5f57893ca3788fe7d095bf21c2cb8e6684eeef33",
+          "lines": 3262,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "blob_oid_at_basis": "fe5dff8017a856085ef4025f229c031d6a3a4558",
+          "reviewed_ranges": [
+            [
+              1,
+              3262
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full canonical delta and all tests read in bounded chunks1\u20133262. Built-in sole-extension negotiation, peer/own window direction, per-message inflate byte bounds, progress guard, RSV/fragment ownership, discarded compressed bytes terminal latch, transactional write admission, role-mask accounting, history reset on expansion, and queued flush/close controls. Intermediate rejection of encoder8 and StreamEnd reset are superseded by later integration patch, not reported as current defects. No new execution or exhaustive backend proof."
+        },
+        {
+          "path": "vendor/tungstenite/patches/phantom-integration.patch",
+          "sha256": "602d5f10e630c608e5759b626290f4b58b7013de25a620a3a66edbf526d18491",
+          "lines": 2947,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact Git bytes",
+          "blob_oid_at_basis": "b64aa5b2210b8e01b42c8c861e87752deed05ab4",
+          "reviewed_ranges": [
+            [
+              1,
+              2947
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Full canonical delta and relocated/removed test sections read1\u20132947. Feature decoupling, exact ordered offer max4 uniqueness/range validation, selected-response matching, custom handshake configuration, effective negotiated metadata, encoder8\u21929 construction, terminal raw-DEFLATE rejection, masking-entropy error latching, test relocation and local benchmark. Applied first-party configuration and H1/H2/H3 negotiation callers separately traced. Unicode parameter trim candidate remains pending runtime reproduction; no whole upstream or compression-library audit claim."
+        }
+      ],
+      "applied_source_files": [
+        {
+          "path": "vendor/tungstenite/PHANTOM.md",
+          "sha256": "12ecedb9eb0e27817ac56518f30ca5669f2635da2b1468d958ddf286c0e723ef",
+          "lines": 59,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact unchanged Git bytes at source basis",
+          "reviewed_ranges": [
+            [
+              1,
+              59
+            ]
+          ],
+          "status": "complete",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "vendor/tungstenite/src/protocol/deflate/codec.rs",
+          "sha256": "4d3d201638e68d2e8d43cdfdb84bc7c8a1972bda5455bbea194d0f5480e1d277",
+          "lines": 378,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact unchanged Git bytes at source basis",
+          "reviewed_ranges": [
+            [
+              1,
+              210
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "vendor/tungstenite/src/protocol/deflate/negotiate.rs",
+          "sha256": "4e670488fef5d1b71c85f83c591973ef456c5a2cb57cfe278e1695edd2776b02",
+          "lines": 328,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact unchanged Git bytes at source basis",
+          "reviewed_ranges": [
+            [
+              151,
+              245
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "crates/phantom/src/websocket/compression.rs",
+          "sha256": "3077c1fe6a8a7d249b377da0b8b0fe858eebd900e8064a272355e4dbe84a7c6a",
+          "lines": 457,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "current working bytes; source basis differs",
+          "reviewed_ranges": [
+            [
+              1,
+              332
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "crates/phantom/src/websocket/handshake/response.rs",
+          "sha256": "9f71e0578f138c465757639b62270d9c011a496a45870cb2f17bdad9d9ec4f6b",
+          "lines": 231,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "current working bytes; source basis differs",
+          "reviewed_ranges": [
+            [
+              1,
+              225
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "crates/phantom/src/websocket/http1.rs",
+          "sha256": "9ded0fb49018b56d5088a0749d1b87370e507749282b35ed5da2efff6f0da010",
+          "lines": 344,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "current working bytes; source basis differs",
+          "reviewed_ranges": [
+            [
+              1,
+              45
+            ],
+            [
+              286,
+              342
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "crates/phantom/src/websocket/http2.rs",
+          "sha256": "537d57531bc8a7a605816f3b527748601f9a798c1cd2edf9c0f42cf015827c02",
+          "lines": 521,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "current working bytes; source basis differs",
+          "reviewed_ranges": [
+            [
+              467,
+              518
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "crates/phantom/src/websocket/http3.rs",
+          "sha256": "523535372dc01dd74f520ba06a61f3a12ac3b7168dd9d43dc4446bc07e6f40a0",
+          "lines": 240,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "current working bytes; source basis differs",
+          "reviewed_ranges": [
+            [
+              193,
+              240
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "crates/phantom/src/websocket/connection.rs",
+          "sha256": "aaaaf69e8c01b29dfeb29be615252a7d0287ca25bae91b585ea34d4de6c41e55",
+          "lines": 727,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "exact unchanged Git bytes at source basis",
+          "reviewed_ranges": [
+            [
+              154,
+              229
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "vendor/http2/src/hpack/table.rs",
+          "sha256": "09c4eb8882e40bf9ec00c0cd0ad520e07a3b7bb82a3f2b3f4b791d6f81cf915f",
+          "lines": 1021,
+          "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+          "basis_kind": "current working bytes; source basis differs",
+          "reviewed_ranges": [
+            [
+              153,
+              342
+            ],
+            [
+              586,
+              675
+            ],
+            [
+              686,
+              750
+            ]
+          ],
+          "status": "partial",
+          "disposition": "Bounded applied caller/source trace; no completeness inferred from patch coverage or root tests."
+        },
+        {
+          "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\zlib-rs-0.6.8\\src\\deflate.rs",
+          "sha256": "b0f9f7a61e89ce66eb7f5fdb03164f985f8e4d0f1c54890d56bf57d03c299cb5",
+          "lines": 4331,
+          "basis": "Resolved Cargo.lock zlib-rs0.6.8 checksum b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112",
+          "basis_kind": "local resolved registry source bytes; no full archive proof this pass",
+          "reviewed_ranges": [
+            [
+              1418,
+              1429
+            ],
+            [
+              1765,
+              1776
+            ]
+          ],
+          "status": "partial",
+          "disposition": "max_dist and MIN_LOOKAHEAD only; backend matching/complete compression proof remains unreviewed."
+        }
+      ],
+      "verdict": "Both remaining original canonical patches fully read. Applied stock/native/crypto gaps and newer fork identities remain explicit."
+    }
+  ],
+  "source_reads": [
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "lines": 253,
+      "blob_oid_at_basis": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          253
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend."
+    },
+    {
+      "path": "vendor/tokio-tungstenite/src/compat.rs",
+      "sha256": "4a0743417ce76a3d406e126a577dc017afed66c114b8d1956ebec1eb0e0a84d4",
+      "lines": 205,
+      "blob_oid_at_basis": "9d2219aa4d78b11d6a8679550b2d156b97643b53",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          205
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+    },
+    {
+      "path": "vendor/tokio-tungstenite/src/lib.rs",
+      "sha256": "26ead2ccaceae8c45e225d46391ee3ac598791753c8cc1668f07cddc114f75d7",
+      "lines": 457,
+      "blob_oid_at_basis": "3091627a08b9a729fe209d934d18ba76664ebb24",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          457
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Local .2 exact adapter/engine identity. SetWaker trait and impl share feature gate of every trait caller; normal Stream/Sink uses inherent two-slot atomic waker registration independently. Phantom installs raw engine only after its own HTTP opening, applies frame/message/write/fragment bounds. WouldBlock remains Pending; terminal receive error fuses adapter; parent-owned WebSocket guard cleanup reviewed separately earlier."
+    },
+    {
+      "path": "vendor/tokio-tungstenite/src/handshake.rs",
+      "sha256": "2030d6e704a97606cd88c3cf16404e9fded9beef9b9f661c9ddb988528e1873d",
+      "lines": 179,
+      "blob_oid_at_basis": "aa51276960a061f2769e958317977399c6c78325",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          179
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Full feature gates, initial and interrupted handshake ownership, skipped-handshake Ready-only construction; no re-poll after completion in Phantom from_raw_socket await."
+    },
+    {
+      "path": "crates/phantom-net/src/tls/early_data.rs",
+      "sha256": "bd0eafdf0b62789a7bbcdffebdc8fda155d5d4203d0180243824b21a3644cb4a",
+      "lines": 410,
+      "blob_oid_at_basis": "b78f419837b4dc95a99eb2fb50b1648156eaf6e1",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "explicit CRLF Git rendering",
+      "reviewed_ranges": [
+        [
+          1,
+          410
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Local .5 exact wrapper/adapter identity; standalone materialization then source API then identity-last order. ssl_mut retains exclusive borrow of owned Ssl; native early-data reset stays guarded. Adapter polls install live context synchronously and clear it after normal return; early-data caller resets only Unanswered typed rejection and preserves ALPN before ordered resend. Retained sent bytes cleared on settle/fail; native ticket maximum and peer stalled-handshake memory bound not proven by this group."
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "sha256": "d2ba14fc1342d58ffae47dba0885435c44f64d0c6f6a54bc8f185ca5ccb5e2d9",
+      "lines": 5437,
+      "blob_oid_at_basis": "b7dceeebd493056804fa0c7ae2eccd5bbbf4d77c",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          4302,
+          4355
+        ],
+        [
+          5080,
+          5110
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Mutable adapter reference maps to owned SSL field; wrapper reset checks both in_early_data and native EARLY_DATA_REJECTED before abort-prone native reset. Native guard evidence previously recorded separately."
+    },
+    {
+      "path": "crates/phantom/src/websocket/connection.rs",
+      "sha256": "aaaaf69e8c01b29dfeb29be615252a7d0287ca25bae91b585ea34d4de6c41e55",
+      "lines": 727,
+      "blob_oid_at_basis": "3d495e0f38f23dfab11f7adbffdd557847dba003",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          240
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual H1/H2/H3 engine constructors, admission ownership, raw-client role, finite configured engine bounds and payload-free Debug reviewed."
+    },
+    {
+      "path": "vendor/btls/src/aead.rs",
+      "sha256": "796b0f69dac412e3a1986f697d5177cf19a6dc7052dfc83c402a7d6d6f225ac3",
+      "lines": 971,
+      "blob_oid_at_basis": "7bce4c5de869aca3aa25495462278dae7d812781",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          200,
+          628
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Private newtype only constructs AES128/256-GCM or ChaCha20Poly1305, full tags, finite checked key sizes; no arbitrary TLS algorithm admission or mutable interior exposure. Native permits concurrent generic seal/open; output alias is exact in-place, disjoint mutable tag, failure status returns ErrorStack. Concurrency test read but not run; no stock crypto proof."
+    },
+    {
+      "path": "vendor/btls/src/ssl/ech.rs",
+      "sha256": "8bb12d4e46979c9ce1c092f769e73d5cb0a012b6f17d4828f4133cd1d3f54617",
+      "lines": 70,
+      "blob_oid_at_basis": "bc35d0cf3ce1d5077adb8759b682efcf53c75a24",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Public safe owned builder consumes HpkeKey only after native Init copies key; unique unsafe raw-pointer constructor requires owned valid native allocation; native config owns copied key and context retains key collection by UpRef. Reexport test use read, not executed."
+    },
+    {
+      "path": "vendor/btls/src/ssl/connector.rs",
+      "sha256": "475d588e3ee1f466352df2f8ce49c145fc070b118aa0440062be461ea3f7b913",
+      "lines": 509,
+      "blob_oid_at_basis": "1e1b2272cb9cd72ac693c05df53c17df5c51cda8",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          315
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Owned context and opaque Arc scope enforce pointer identity; hostnames ASCII-case equal or canonical IP equal; private new-session construction and per-SSL exdata bind before set_session. Phantom separately enables cache only under verified authentication and defers commit until authenticated. Domain/context/scope/no-hostname-verify/early stripping controls read. Raw wrapper allows callers to configure verify mode; not a Phantom authentication bypass."
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "sha256": "d2ba14fc1342d58ffae47dba0885435c44f64d0c6f6a54bc8f185ca5ccb5e2d9",
+      "lines": 5437,
+      "blob_oid_at_basis": "b7dceeebd493056804fa0c7ae2eccd5bbbf4d77c",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          572,
+          590
+        ],
+        [
+          935,
+          970
+        ],
+        [
+          3040,
+          3147
+        ],
+        [
+          3300,
+          3380
+        ],
+        [
+          4035,
+          4061
+        ]
+      ],
+      "status": "partial",
+      "disposition": "ABI representation; derived message Debug; scoped identity storage and lookup; original context captured in SESSION_CTX_INDEX; safe context switch wrapper."
+    },
+    {
+      "path": "vendor/btls/src/ssl/callbacks.rs",
+      "sha256": "0de8daae216c7e24cfcd2d5ddd6d68ced4072bf93cad07552d1a0f5fa9d1b3ce",
+      "lines": 829,
+      "blob_oid_at_basis": "5729138238ae174ff18117277398def060d6271b",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          390,
+          453
+        ],
+        [
+          630,
+          700
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Raw message callback current-context lookup versus raw_new_session original retained context invariant."
+    },
+    {
+      "path": "vendor/btls/src/ssl/test/mod.rs",
+      "sha256": "c8a0f59fcd8d737d0bab5adf4b29be02964b68be343316a75f2742dd35197bab",
+      "lines": 1511,
+      "blob_oid_at_basis": "40f942fdf2a29d3c3d15b662548ca684a5ed8fec",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          602,
+          646
+        ],
+        [
+          1024,
+          1067
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Existing refcount/context-switch positive harness and SNI callback expectations, no message callback context-switch control."
+    },
+    {
+      "path": "vendor/btls/src/ssl/test/server.rs",
+      "sha256": "5e03a3e5a0668cffae417acb6907c870f3c8fe3351a56de54585feea65caca3e",
+      "lines": 220,
+      "blob_oid_at_basis": "5436469d7921ab398c908a50930ee9c7a5613311",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "reviewed_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Loopback owned server harness used by canonical tests; existing std thread join/accepted SSL ownership and swap before handshake; remaining client helper unread."
+    },
+    {
+      "path": "crates/phantom-net/src/tls/configuration.rs",
+      "sha256": "dd4717884787e8df38568f788d984aec423f1b06e887fb0e83cba1fb9c9c8b2c",
+      "lines": 341,
+      "blob_oid_at_basis": "3072be32132c4e608c6f47049dc5a19201e11fe9",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "explicit CRLF Git rendering",
+      "reviewed_ranges": [
+        [
+          1,
+          162
+        ],
+        [
+          227,
+          281
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual profile->checked native setter calls/order/error propagation; fixed/permuted/tail settings preserve profile order."
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "sha256": "1cc7e579ec39876648688149b92cb2764f2fe07e942f4505678d5733805f1a01",
+      "lines": 1360,
+      "blob_oid_at_basis": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "explicit CRLF Git rendering",
+      "reviewed_ranges": [
+        [
+          252,
+          452
+        ],
+        [
+          620,
+          715
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual verified-only scoped session enable plus per-origin isolated certificate policy; matched ticket capture and explicit early enable."
+    },
+    {
+      "path": "crates/phantom-net/src/tls/session_cache.rs",
+      "sha256": "47118b6ca4cbc4cdb9c45cefdc771322a4e9a76ad31da2667a5dd5c325bdb545",
+      "lines": 319,
+      "blob_oid_at_basis": "1a585e450ab7dab3c0780cfc1e790a0d4746d5a7",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "explicit CRLF Git rendering",
+      "reviewed_ranges": [
+        [
+          1,
+          319
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Deferred authentication, stored ticket bound10, configured take/evict order and finite failure propagation. Pending-ticket pre-auth native scheduling not proven as independent bounded resource claim."
+    },
+    {
+      "path": "crates/phantom-quic-btls/src/backend/client_session.rs",
+      "sha256": "eebb714aa7a23ddec8e33c534924cc9d51c2d4786ccd29a360f18ed54fb1b1e7",
+      "lines": 813,
+      "blob_oid_at_basis": "23e54b73eee771a1f61bd28160a324c54215c7c3",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "explicit CRLF Git rendering",
+      "reviewed_ranges": [
+        [
+          346,
+          367
+        ],
+        [
+          652,
+          714
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual checked native call mappings and copy/handshake guard; prior full source record remains separate."
+    },
+    {
+      "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/ssl_lib.cc",
+      "sha256": "37c7d872761df269b081bdf610216c45bfcc14273be7de9dd92d9dae897f17c7",
+      "lines": 4136,
+      "blob_oid_at_basis": null,
+      "basis": null,
+      "basis_kind": "retained native artifact only",
+      "reviewed_ranges": [
+        [
+          210,
+          234
+        ],
+        [
+          463,
+          502
+        ],
+        [
+          2335,
+          2405
+        ],
+        [
+          2610,
+          2652
+        ],
+        [
+          2839,
+          2885
+        ],
+        [
+          3400,
+          3508
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Native callback snapshot/current-context switch; checked setter copy/status/scalar limits and ownership. Retained artifact identity only; no current-build selection claim."
+    },
+    {
+      "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/include/openssl/ssl.h",
+      "sha256": "026105df5a72e6ae80fc72e90705459d9d148a1a3e37cb75aca7e4166de46bd4",
+      "lines": 7352,
+      "blob_oid_at_basis": null,
+      "basis": null,
+      "basis_kind": "retained native artifact only",
+      "reviewed_ranges": [
+        [
+          3445,
+          3459
+        ],
+        [
+          5200,
+          5238
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Documented valid SNI context switch and plaintext inner/handshake message callback contract."
+    },
+    {
+      "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/ssl/encrypted_client_hello.cc",
+      "sha256": "9f07cdd7008e319309a57ca128cfd1b02805177f5c943fd3fc7df5e5198d5ddc",
+      "lines": 1364,
+      "blob_oid_at_basis": null,
+      "basis": null,
+      "basis_kind": "retained native artifact only",
+      "reviewed_ranges": [
+        [
+          503,
+          565
+        ],
+        [
+          1090,
+          1195
+        ],
+        [
+          1270,
+          1365
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual key copy/collection UpRef and payload/aead setter bounds before state mutation. Full ECH parser/state machine remains unreviewed."
+    },
+    {
+      "path": "C:/code/phantom/target/gate/boringssl/debug/build/btls-sys-7b3c4c9e0bcdaabc/out/boringssl/include/openssl/aead.h",
+      "sha256": "fa6121031cf982a78d92a97076fba12560da328102ce10f739b54cdca2f1a3ac",
+      "lines": 664,
+      "blob_oid_at_basis": null,
+      "basis": null,
+      "basis_kind": "retained native artifact only",
+      "reviewed_ranges": [
+        [
+          345,
+          409
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Generic concurrent detached seal/open guarantee, disjoint/exact in-place alias and checked output length/failure wipe contract."
+    },
+    {
+      "path": "crates/phantom-net/src/http1/limits.rs",
+      "sha256": "30f0d6f7a84252a8648d8da2d558f68487e107393833d0a8b846f22f3464e9af",
+      "blob_oid_at_basis": "f17deed6a23edeb91f5af5dd869d0224dc5906ed",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "lines": 19,
+      "reviewed_ranges": [
+        [
+          1,
+          19
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Full fixed response limit builder; applies 16 KiB chunk metadata ceiling on every connection built through this caller.",
+      "group": 3
+    },
+    {
+      "path": "crates/phantom-net/src/http1/request.rs",
+      "sha256": "12d6c760ea8d1b3aa490861090f1da7aa320babc97035b02b1b88687b0c6159b",
+      "blob_oid_at_basis": "47d69dff42fc28cbd5e1237cb6cc9f983d057fd3",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "lines": 972,
+      "reviewed_ranges": [
+        [
+          110,
+          187
+        ],
+        [
+          285,
+          337
+        ],
+        [
+          380,
+          464
+        ],
+        [
+          699,
+          949
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Static and dynamic trailer validation, attachment, marker path, forbidden fields and exact ordinal callback read. Remaining request preparation/header parser and tests excluded.",
+      "group": 3
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "sha256": "0b55f8a13e7043acd3bc7dae8986a5d6c9468ed503e9c72dd0756024d545074c",
+      "blob_oid_at_basis": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "lines": 1038,
+      "reviewed_ranges": [
+        [
+          350,
+          525
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Body terminal trailer validation checks exact declared map cardinality and duplicate ordinal mapping, size/count, fixed length and one terminal frame. Other public request/body APIs and tests excluded.",
+      "group": 3
+    },
+    {
+      "path": "vendor/wreq-proto/src/ext/preserve_trailer.rs",
+      "sha256": "9ee1e276899d04fc3b617e72918f5741469a1bb4753991a70bee228627140a44",
+      "blob_oid_at_basis": "17339e6d4473c8199d80db57c7079a426afa0523",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 36,
+      "reviewed_ranges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Full callback Arc ownership and borrowed visitor contract.",
+      "group": 3
+    },
+    {
+      "path": "vendor/wreq-proto/src/proto/http1/decode.rs",
+      "sha256": "69a6a6775fc03c514c092b5d88a2abbbd3f6502173117a24c9aab4e8a8d54aba",
+      "blob_oid_at_basis": "b79badd1ecf629eeab3b32086c838a23949bfbcd",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 1314,
+      "reviewed_ranges": [
+        [
+          176,
+          638
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Applied decoder polling/byte macro, per-line state transitions and body states read; original constructors, trailer decoder remainder and full test module excluded.",
+      "group": 3
+    },
+    {
+      "path": "vendor/wreq-proto/src/proto/http1/encode.rs",
+      "sha256": "2aef6210f5e4d8eedc91656e65c05994478d13c732ed30b8f342badca798b2c1",
+      "blob_oid_at_basis": "de70e1c6631dd444d5c648120dcdc0209662286b",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 646,
+      "reviewed_ranges": [
+        [
+          74,
+          213
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Applied chunked declaration/callback attachment and trailer serializer read; other encoders and full tests excluded.",
+      "group": 3
+    },
+    {
+      "path": "vendor/wreq-proto/src/proto/http1/role.rs",
+      "sha256": "2557d963e9ab5aaad6d53b8f3a8f6fdd7ff492eb9baf53c625fbfba2dc30d0bb",
+      "blob_oid_at_basis": "40f8241da671b450a60f85e50213c0ee6f4f9879",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 681,
+      "reviewed_ranges": [
+        [
+          474,
+          515
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual extension attached only for nonempty declaration on chunked encoder; remaining parser/request encoder excluded.",
+      "group": 3
+    },
+    {
+      "path": "vendor/tungstenite/src/protocol/mod.rs",
+      "sha256": "920734fa44a2043952a9e280cb1ed94b30c12fad8dfe103ed71e5493f809ea49",
+      "blob_oid_at_basis": "15be11e8243688a38b1482ceb457ec7173f7e2a0",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 1547,
+      "reviewed_ranges": [
+        [
+          1011,
+          1245
+        ],
+        [
+          1260,
+          1333
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Applied fragment check before inflation/assembly and post-FIN count reset; close-code and fallible mask path; compression/runtime remainder excluded.",
+      "group": 3
+    },
+    {
+      "path": "vendor/tungstenite/src/protocol/frame/mask.rs",
+      "sha256": "1a0d7218b273bd18ff941440fa00dcbc577f1f49babb09d570439ae1f7fe5681",
+      "blob_oid_at_basis": "8ca0f085388f30c8a3e6b76129987185eac6481c",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 81,
+      "reviewed_ranges": [
+        [
+          1,
+          81
+        ]
+      ],
+      "status": "complete",
+      "disposition": "Full OS mask result and upstream u32 alignment/XOR implementation/test read. align_to_mut is within exclusive initialized byte slice and all u32 bit patterns are valid; no exhaustive platform/crypto proof or entropy failure execution.",
+      "group": 3
+    },
+    {
+      "path": "crates/phantom/src/websocket/error.rs",
+      "sha256": "9571679fee3d1a311acc890a2eddcd402e24354ad68de4a2235fd797818f615d",
+      "blob_oid_at_basis": "beba07ac71e1e6895e2b774ab0aa6b813c26bfe1",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "lines": 399,
+      "reviewed_ranges": [
+        [
+          178,
+          232
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual typed random mapping and WriteBufferFull payload source stripping; rest of diagnostics/caller contract covered elsewhere, not newly reread here.",
+      "group": 3
+    },
+    {
+      "path": "crates/phantom/src/websocket/connection.rs",
+      "sha256": "aaaaf69e8c01b29dfeb29be615252a7d0287ca25bae91b585ea34d4de6c41e55",
+      "blob_oid_at_basis": "3d495e0f38f23dfab11f7adbffdd557847dba003",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "lines": 727,
+      "reviewed_ranges": [
+        [
+          170,
+          198
+        ]
+      ],
+      "status": "partial",
+      "disposition": "Actual engine config supplies all configured frame/message/fragment/write buffer bounds; opening and runtime remainder excluded here.",
+      "group": 3
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "sha256": "cb1094f80c3ab22d600e6cec138965aafeedbbde91b4da8892977377a78ccff0",
+      "lines": 756,
+      "blob_oid_at_basis": "4fe3e81e62ddc06df58bec42394f7d0222b7e926",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          374,
+          427
+        ],
+        [
+          586,
+          642
+        ]
+      ],
+      "disposition": "Actual extended/ordinary priority override validation and connection builder applies local header limit, interim response8 and configured peer cap; remaining translation body/runtime excluded.",
+      "group": 4
+    },
+    {
+      "path": "crates/phantom-net/src/http2/limits.rs",
+      "sha256": "f65f1882d79f15696e3bfdf44fae709a8372bca7cac46a31cedeb77a74f5e415",
+      "lines": 34,
+      "blob_oid_at_basis": "21a3da5e27cdd3e550852dea81c8bf3204738a86",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "status": "complete",
+      "reviewed_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "disposition": "Full fixed local header-list and interim-response limit constants/docs read; distinct browser size measurements are explicitly qualified.",
+      "group": 4
+    },
+    {
+      "path": "crates/phantom-net/src/http2/error.rs",
+      "sha256": "320941815c50e38d3e5c115a9c729587b392d1ca16ae82e7524bb13a2dfb2b41",
+      "lines": 603,
+      "blob_oid_at_basis": "b08876c3eba150ed0d8db10e811acab01e78e7e1",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          494,
+          526
+        ]
+      ],
+      "disposition": "Actual typed informational/local-header/ping error classification; remaining public errors/diagnostics excluded here.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "lines": 1970,
+      "blob_oid_at_basis": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          243,
+          276
+        ],
+        [
+          277,
+          398
+        ]
+      ],
+      "disposition": "Applied setting-count/peer-priority update and request extension extraction/default/suppression order read; larger stream ownership methods remain excluded.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/counts.rs",
+      "sha256": "1e4e80a65602ad819351a2354f9cdc207ee45967f297c3db946856b339346696",
+      "lines": 478,
+      "blob_oid_at_basis": "0595c6f23142ec74e379b8df0f3aa64f8d3409a4",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          238,
+          295
+        ]
+      ],
+      "disposition": "Applied cap/initial retention and adjacent reset counts/transition entry; remaining counters and release paths excluded.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "lines": 1366,
+      "blob_oid_at_basis": "960731581dce948219f6648898b1e125f5d88db0",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          271,
+          386
+        ]
+      ],
+      "disposition": "Applied final versus informational classification and pre-enqueue count; remaining header parser/content-length/trailer/reset ownership excluded.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/proto/settings.rs",
+      "sha256": "4b1367ff777629b44bbd41f79a7e3902588043cd50aa07bc8d865e092cd99c4f",
+      "lines": 256,
+      "blob_oid_at_basis": "cdd7a75c2b910408b5292c3eddac56e2ff6655fc",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          186,
+          235
+        ]
+      ],
+      "disposition": "Applied min/final codec size transition after peer settings, plus adjacent validation start; complete ACK/seed lifecycle excluded.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/frame/settings.rs",
+      "sha256": "c99ae48f80cb40ebad06f38b477ad7879eff234c363fd6d86709b62eccf17084",
+      "lines": 769,
+      "blob_oid_at_basis": "a18f8574f31925c1f2834df049af75ecbff4179f",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          377,
+          441
+        ]
+      ],
+      "disposition": "Applied length validation and repeated minimum/final header table setting decode; truncated tiny minimum hunk independently reread392\u2013419. Rest of options/encoding excluded.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/frame/ping.rs",
+      "sha256": "7b687bc6e1481f0f118f8c7d02cf5c417d04377ba0a079f54e68f672da4e5f3e",
+      "lines": 103,
+      "blob_oid_at_basis": "9a7c5d10e19bb239945f68075f349608106a86b6",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          58,
+          90
+        ]
+      ],
+      "disposition": "Applied stream-zero and exact8 payload loader; remaining frame APIs excluded.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/codec/framed_read.rs",
+      "sha256": "babd24770099cf143784ebea4a28832f5cffb8943680ee27a6c6c03e4de87a7c",
+      "lines": 626,
+      "blob_oid_at_basis": "aaa512943a6580c4de142118423002907d5810dc",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          217,
+          292
+        ],
+        [
+          407,
+          461
+        ]
+      ],
+      "disposition": "Applied initial/continuation HPACK error and SETTINGS/PING mapping; larger continuation/resource decoder excluded here.",
+      "group": 4
+    },
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "sha256": "b61efe68f9f77ace416922d9174342d407c192e89ea22b49f2cbaec0c9bb3931",
+      "lines": 1790,
+      "blob_oid_at_basis": "766760b7e9b5d46e0ad0cae114dd0e69274212bd",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          101,
+          213
+        ],
+        [
+          1079,
+          1099
+        ]
+      ],
+      "disposition": "Confirmed cookie/proxy sensitivity exceptions and explicit sensitive-cookie wire oracle; full profile/index/size-update encoder remains pending.",
+      "group": 4
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "sha256": "0b55f8a13e7043acd3bc7dae8986a5d6c9468ed503e9c72dd0756024d545074c",
+      "lines": 1038,
+      "blob_oid_at_basis": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "basis_kind": "working tree bytes; differs from basis Git blob",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          688,
+          731
+        ]
+      ],
+      "disposition": "Public sensitive-field rustdoc explicitly documents both configured split-cookie and proxy FieldIndexing exceptions; no runtime defect inferred.",
+      "group": 4
+    },
+    {
+      "path": "crates/phantom-net/src/http2/upload.rs",
+      "sha256": "d0e1575bb52c7b9829eb186e22fa5207ee71acaabd8cdc2d7590315fd2d414f1",
+      "lines": 133,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "605271223f33a96727464f33883fd27efbbdb49e",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "complete",
+      "reviewed_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "disposition": "Whole133-line pull-driven body/trailer/reset upload read. Prepared ordered trailers enter exact checked vendor method; flow-control and reset guards preserve close semantics.",
+      "group": 6
+    },
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "sha256": "875410edb2c6bb2c62e0d8734d596f3399d43265032fd60b0e99bf09ce7cb446",
+      "lines": 1199,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          346,
+          450
+        ]
+      ],
+      "disposition": "Actual readiness callers clone shared sender, wait settings before request readiness and I/O, and map failures through typed HTTP2 errors. Response sidecars translated to normalized ordered/AltSvc fields.",
+      "group": 6
+    },
+    {
+      "path": "crates/phantom-net/src/http2.rs",
+      "sha256": "cb1094f80c3ab22d600e6cec138965aafeedbbde91b4da8892977377a78ccff0",
+      "lines": 756,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "4fe3e81e62ddc06df58bec42394f7d0222b7e926",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          428,
+          542
+        ]
+      ],
+      "disposition": "Actual HPACK profile conversion checks supported enums and restricts proxy FieldRule to proxy peer; cookie crumb policies pass through unchanged.",
+      "group": 6
+    },
+    {
+      "path": "crates/phantom-net/src/http2/request.rs",
+      "sha256": "725b6dabefbddf67132263af6424263a079550d568fc3c0eca94bb4427bd6e85",
+      "lines": 437,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "ed93560926e87625f8e924695b2e5f921610d848",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          281,
+          340
+        ]
+      ],
+      "disposition": "Preparation validates bytes/name/size and copies caller sensitivity into HeaderValue before ordered headers.",
+      "group": 6
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "sha256": "cfa9f39e7b1f7a9b38e0928cba78d7a5e838f9c7eef337574271bb0d8be8cbd1",
+      "lines": 1409,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "fad10d7f056af2dab30e360dd533807399a91901",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          876,
+          900
+        ]
+      ],
+      "disposition": "Actual cookie-jar generated header insertion marks its value sensitive before protocol-specific preparation.",
+      "group": 6
+    },
+    {
+      "path": "crates/phantom-net/src/http2/alt_svc.rs",
+      "sha256": "bdfa9c301184e4bb381f30974751ff9d6590343024ad365a1812d00605ccc02c",
+      "lines": 86,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "169922b2f730363d23928fc256f0a30c044e3e1f",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "complete",
+      "reviewed_ranges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "disposition": "Full normalized frame sidecar conversion read; raw scope remains explicit and value bytes copied, Debug metadata only.",
+      "group": 6
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc.rs",
+      "sha256": "629b4c9a7a8ccfcb67c96a7e9f12db022a93cdc717776fc3c92240a7d7593823",
+      "lines": 1181,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "91d1666d290683de7ee6f73c7ca8b5b0614261fa",
+      "basis_kind": "working bytes differ from Git basis",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          281,
+          340
+        ]
+      ],
+      "disposition": "Actual normalized frame learning compares explicit stream0 origin against canonical ASCII origin before reusing ordinary AltSvc parsing/cache path.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/proto/connection.rs",
+      "sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "lines": 817,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          233,
+          299
+        ],
+        [
+          344,
+          473
+        ]
+      ],
+      "disposition": "Applied PING send precedence, pending-write restoration, timer and shutdown/error/first-settings dispatch read; complete remaining connection lifecycle excluded.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "lines": 1970,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          1149,
+          1181
+        ],
+        [
+          1326,
+          1362
+        ]
+      ],
+      "disposition": "Applied initial-settings waiters and exact agreement-before-trailer mutation read.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "sha256": "b61efe68f9f77ace416922d9174342d407c192e89ea22b49f2cbaec0c9bb3931",
+      "lines": 1790,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "766760b7e9b5d46e0ad0cae114dd0e69274212bd",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          181,
+          250
+        ],
+        [
+          1091,
+          1155
+        ]
+      ],
+      "disposition": "Applied crumbs discard diagnostic input sensitivity, actual encode path uses table index/cache; existing split boundary controls read. Larger encoder remains partial.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/hpack/table.rs",
+      "sha256": "f5891167e6af521b96016d81e8ceb08a44ed6a95355fb89c199c8b433d65bf20",
+      "lines": 1018,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "d3e17c7ccf63bc78a2b07c41c4a6d01550ed560e",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          1,
+          155
+        ],
+        [
+          351,
+          535
+        ]
+      ],
+      "disposition": "Actual derive Debug chain, inserted-sensitive helper and index/cache insertion/exact-match paths read. Existing unmarked entry reused by sensitive crumb also needs deliberate diagnostic marking.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/hpack/header.rs",
+      "sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d",
+      "lines": 308,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "fa467ac36db0eb3e5114382f80bf7786bd8f3c60",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "disposition": "Actual Header derives Debug over HeaderValue, direct field validation/reification paths read.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/client.rs",
+      "sha256": "ac843c22552f28d8cd632951383c23ada72381044ead24dcfdfcb0c75adfa272",
+      "lines": 2124,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "d0f7bef26c31b9c422e222d8e30a7229bb3ffb43",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          1839,
+          1866
+        ]
+      ],
+      "disposition": "Public Connection Debug delegates through inner connection; does not independently redact encoder/table diagnostics. Separate encoded write-buffer diagnostics remain outside narrow table fix.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/codec/framed_write.rs",
+      "sha256": "7de4b1391c3cebfb38cedc96de56e486a42e763791b6f6c71a64e4272b873276",
+      "lines": 382,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "0a27cbccda3c7e31de625cceb9b683c8407e2f63",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "disposition": "Derived FramedWrite/Encoder Debug includes HPACK encoder and encoded write buffer; no complete connection redaction claim.",
+      "group": 6
+    },
+    {
+      "path": "vendor/http2/src/codec/mod.rs",
+      "sha256": "8994f1a4250e9a9f04fb7adef36addd9782604133eaa3fb3fdf44b7a3c9ad520",
+      "lines": 224,
+      "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+      "blob_oid_at_basis": "8c9f42881d44b09f34368ec40573b7e9657b9673",
+      "basis_kind": "exact Git bytes",
+      "status": "partial",
+      "reviewed_ranges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "disposition": "Derived Codec Debug includes framed read/write path; larger codec ownership excluded.",
+      "group": 6
+    }
+  ],
+  "findings": [
+    {
+      "path": "vendor/btls/src/ssl/callbacks.rs",
+      "lines": [
+        671,
+        674
+      ],
+      "severity": "P1",
+      "contract": "Safe SSL context replacement retains message observer and must not abort",
+      "cause": "SSL copies the callback pointer from original context at construction; set_SSL_CTX changes current context without changing callback pointer. Trampoline looks up original F in current context and expects it.",
+      "reproduction": "Create cert-bearing context B without observer, create SSL from A with message observer, switch to B before or during valid SNI handshake, then complete real peer handshake. First callback lookup in B panics in extern C and aborts.",
+      "remedy": "Resolve message F through existing owned original context retained in SESSION_CTX_INDEX, preserving current-context SslRef inspection; no silent skip.",
+      "controls": "Observe actual valid handshake messages before/after context switch; retain ordinary observer/keyupdate control and verify original context remains live after caller drops it.",
+      "status": "source-supported, sent to integration owner; no runtime execution",
+      "id": "A44",
+      "regression": "Real safe server-name callback switches from context A with observer to keyed B without observer during a TLS 1.3 handshake; independent atomic records messages after successful switch, and client/server exchange full request/response application bytes. Isolated baseline process abort is pending integration-owner execution."
+    },
+    {
+      "path": "vendor/btls/src/ssl/mod.rs",
+      "lines": [
+        957,
+        966
+      ],
+      "severity": "P2",
+      "contract": "Debug must not reveal arbitrary protocol message bytes",
+      "cause": "SslMessage derives Debug over data &[u8]. Native callback can include ticket messages and plaintext ECH ClientHelloInner, so formatting exposes opaque session material and private handshake names.",
+      "reproduction": "Construct public SslMessage with runtime-derived canary bytes and format normal/pretty Debug; numeric byte sequence is present.",
+      "remedy": "Custom Debug preserving direction/version/content type/data length or redacted marker without printing bytes; retain explicit raw data API for intentional observers.",
+      "controls": "Runtime-derived canary normal/pretty Debug and shape; optionally real message callback confirming type uses same formatter.",
+      "status": "source-supported, sent to integration owner; no runtime execution",
+      "id": "A45",
+      "regression": "Actual callback on a real ClientHello captures a freshly generated SNI canary in public data; compact and pretty Debug must omit raw/decimal bytes and preserve direction, version, content_type and data_len. Baseline assertion run pending integration-owner execution."
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "lines": [
+        482,
+        486
+      ],
+      "severity": "minor",
+      "kind": "prose qualifier",
+      "contract": "Do not overstate sensitivity handling across independently configured cookie/proxy encoding choices",
+      "cause": "Sentence says caller sensitive field never-indexed under every rule, while same page and real encoder explicitly override sensitivity for configured cookie crumbs and proxy FieldRule.",
+      "remedy": "Narrow to ordinary sensitive fields or explicitly name both configured exceptions; preserve intended runtime/wire behavior.",
+      "status": "sent to integration owner; no runtime defect or source edit"
+    },
+    {
+      "id": "A46",
+      "severity": "P2",
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "lines": [
+        185,
+        211
+      ],
+      "status": "source confirmed; runtime regression delegated, no production edit",
+      "cause": "encode_crumbs replaces original sensitivity with only wire indexing policy; table stores sensitive caller cookie unmarked and derived Debug prints it.",
+      "caller": "cookie jar insertion attempt.rs893, HTTP2 prepare request.rs310; Chrome IndexAll and Firefox NeverIndexShort recipes activate the path.",
+      "remedy": "Retain diagnostic sensitivity after wire encoding without changing intended crumb splitting/indexing; exercise fresh/repeated/nameless and preexisting unmarked-entry transitions.",
+      "limits": "Does not establish complete Connection Debug redaction; stock encoded buffers also carry raw wire bytes."
+    }
+  ],
+  "limits": [
+    "No Cargo, builds, network probes, canonical replay or runtime tests performed in this pass.",
+    "Full patch source coverage is separate from bounded applied upstream source coverage.",
+    "Each dirty instruction file is attributed to its working-tree hash, not the basis Git revision."
+  ],
+  "remaining_original_snapshot_rows": [],
+  "a44_a45_test_only_handoff": {
+    "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+    "upstream": "129887582a538b8f4dcf371d15c953335312ca37",
+    "archive_sha256": "e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767",
+    "patch_sha256": "0705359581d4296049ce78b5d903eeb0d6393dbab3fb90a97c96c6f24f889377",
+    "applied_test_sha256": "89ff9799462b7fec4bf2b23591d53a7463f7196e675bb0995929159c0be7a271",
+    "series_count": 16,
+    "canonical_archive_replay": "PASS exact checks and applications",
+    "archive_vs_git_staging": "PASS byte equality for complete wrapper tree",
+    "archive_vs_owned_vendor": "PASS byte equality excluding lock, attribution, notes, patch metadata",
+    "builds_and_execution": "not performed; integration owner captures baseline",
+    "test_only_commit": "bfc497f795e1bce97602be3276cd3688326fab02",
+    "signature": "G",
+    "static_checks": [
+      "with-cargo-lock rustfmt --edition 2021 --check vendor/btls/src/ssl/test/key_update.rs: PASS",
+      "git diff --cached --check: PASS"
+    ],
+    "tests": [
+      "ssl::test::key_update::message_callback_survives_sni_context_switch",
+      "ssl::test::key_update::message_debug_hides_runtime_client_hello_bytes"
+    ],
+    "runtime_execution": "Not performed by lane; expected red baseline is integration-owned",
+    "owned_paths": [
+      "vendor/btls/src/ssl/test/key_update.rs",
+      "vendor/btls/patches/message-callback-tests.patch",
+      "vendor/btls/patches/series"
+    ]
+  },
+  "a44_a45_production_handoff": {
+    "basis": "779f28ea9ebd13195a45edcdcd6ba9af7d612192",
+    "upstream": "129887582a538b8f4dcf371d15c953335312ca37",
+    "archive_sha256": "e77c9cafe8158b8c6e8f7979a461e122e06379285a9f0ab4d68797293dfd9767",
+    "patch_sha256": "c3420e6ea22c75e869e5aa3845792a74350672a0ff5170173f4665be52c9acc7",
+    "applied_source_sha256": {
+      "src/ssl/callbacks.rs": "dfb00376286fdb067b055344a9da3b691aa3afbc4a195860eb07a74dcd497c8d",
+      "src/ssl/mod.rs": "8fd234911f7451cbbc04200f8edd8037bf36be8fdc1319b06064ee2f225215f6"
+    },
+    "series_count": 17,
+    "canonical_archive_replay": "PASS exact checks and applications",
+    "archive_vs_git_staging": "PASS byte equality for complete wrapper tree",
+    "archive_vs_owned_vendor": "PASS byte equality excluding lock, attribution, notes, patch metadata",
+    "builds_and_execution": "not performed; integration owner captured Windows abort and disclosure baselines, fixed execution pending",
+    "commit": "cf5962cb28064d158e3eaf0a9155d69389b2d6d8"
+  },
+  "a46_test_handoff": {
+    "basis": "df2ae9b7d87567907a2f273068220349dcd4750b",
+    "upstream": "http2-0.5.20",
+    "archive_sha256": "92d3114be2f413b2e491e686b93a28cda30c355cffc8d091a57f8be4b1342896",
+    "series_count": 22,
+    "patch_sha256": "22d632eaad9f1f538f5b7dee5180796d049df158f47a0cdeb9428122f37197e0",
+    "applied_encoder_sha256": "314cc7ff82eeff6ad7b01870f11dc8ba7b8c19fe12f63f51c34b4a94a3277f2f",
+    "canonical_replay": "PASS all patch checks/applications; ordered-headers uses documented unidiff-zero",
+    "archive_vs_edited_candidate": "PASS whole upstream package bytes",
+    "archive_vs_owned_vendor": "PASS all package bytes excluding Cargo.lock, PHANTOM.md, patches and target",
+    "production_bytes": "unchanged through test-only boundary; no identity/manifests edits",
+    "builds_and_execution": "not performed; actual red baseline is integration-owned",
+    "commit": "0fddd577276284963f1ac61291becb71ae91cbbc",
+    "signature": "G",
+    "contract_limits": "No explicit public cookie Encoder/Table Debug promise found; RequestHeader cookie caveat limits redaction to Debug of this value. Derived cache disclosure is a scoped engineering-standard repair; no complete Connection redaction claim."
+  },
+  "a46_production_handoff": {
+    "baseline_test_head": "0fddd577276284963f1ac61291becb71ae91cbbc",
+    "upstream": "http2-0.5.20",
+    "archive_sha256": "92d3114be2f413b2e491e686b93a28cda30c355cffc8d091a57f8be4b1342896",
+    "series_count": 23,
+    "patch_sha256": "d770b49294e51a8447d2561b0a18f37f56c4a94f7a51d78cb6f32112028805f2",
+    "applied_source_sha256": {
+      "src/hpack/encoder.rs": "9e9a274100b8db754d28ea3d79d86e88f16769098623392c44231e2456efbc3a",
+      "src/hpack/table.rs": "09c4eb8882e40bf9ec00c0cd0ad520e07a3b7bb82a3f2b3f4b791d6f81cf915f"
+    },
+    "canonical_replay": "PASS all patch checks/applications; ordered-headers uses documented unidiff-zero",
+    "archive_vs_edited_candidate": "PASS whole upstream package bytes",
+    "archive_vs_owned_vendor": "PASS all package bytes excluding Cargo.lock, PHANTOM.md, patches and target",
+    "static_rustfmt": "PASS edition 2021 through current integration lock helper before patch generation",
+    "runtime": "not executed in lane; root four diagnostic baseline reds confirmed",
+    "identity_and_manifests": "unchanged; root owns final publication suffix and dependent pins",
+    "commits": [
+      "0dd8ce24c920dcfa7298dedf16a929637a1d634f",
+      "ddd8cf8989ebc481ba821a184d09906abf7a78aa"
+    ],
+    "signature": "G both; human author and committer"
+  },
+  "websocket_unicode_parameter_candidate": {
+    "source": "vendor/tungstenite/src/protocol/deflate/negotiate.rs198\u2013200",
+    "behavior": "Unicode str::trim accepts NBSP around known parameter names/values and installs negotiated settings.",
+    "example_bytes": [
+      "permessage-deflate;\\xC2\\xA0server_no_context_takeover",
+      "permessage-deflate; server_max_window_bits=\\xC2\\xA010"
+    ],
+    "contract": "RFC6455\u00a79.1 extension-param token/quoted-string with implied HTTP LWS; malformed negotiation requires failure.",
+    "primary_source": "https://www.rfc-editor.org/rfc/rfc6455.html#section-9.1",
+    "status": "Source supported; root notified; no runtime or production change yet.",
+    "regression": "Actual WebSocketConfig.accept_deflate_response bytes via HeaderValue; require InvalidHeader for NBSP around names/numbers, retain SP/HTAB/quoted-digit positives; optionally controlled opening.",
+    "remedy_scope": "SP/HTAB-only trimming at local parser boundaries; do not broadly reject unrelated extension obs-text."
+  }
+}
