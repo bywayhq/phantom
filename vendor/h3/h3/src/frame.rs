@@ -911,6 +911,122 @@ mod tests {
         );
     }
 
+    /// A peer that pauses instead of reporting EOF when its chunks run out.
+    /// Tests add chunks between direct polls of the real frame decoder.
+    struct PausedControlRecv {
+        chunks: Rc<std::cell::RefCell<VecDeque<Bytes>>>,
+    }
+
+    impl RecvStream for PausedControlRecv {
+        type Buf = Bytes;
+
+        fn poll_data(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<Result<Option<Bytes>, StreamErrorIncoming>> {
+            match self.chunks.borrow_mut().pop_front() {
+                Some(bytes) => Poll::Ready(Ok(Some(bytes))),
+                None => Poll::Pending,
+            }
+        }
+
+        fn stop_sending(&mut self, _code: u64) {}
+
+        fn recv_id(&self) -> StreamId {
+            StreamId(3)
+        }
+    }
+
+    const CONTROL_PAYLOAD_LEN: u32 = 2 * 1024 * 1024;
+    const CONTROL_CHUNK_LEN: usize = 16 * 1024;
+
+    fn unknown_control_prefix(length: u32) -> Bytes {
+        let mut prefix = BytesMut::new();
+        // SETTINGS is first on the actual control stream, followed by a
+        // reserved frame whose payload has no HTTP/3 meaning.
+        prefix.extend_from_slice(&[0x04, 0x00]);
+        VarInt::from(0x21_u32).encode(&mut prefix);
+        VarInt::from(length).encode(&mut prefix);
+        prefix.freeze()
+    }
+
+    #[test]
+    fn partial_unknown_control_frame_does_not_retain_payload() {
+        let chunks = Rc::new(std::cell::RefCell::new(VecDeque::new()));
+        chunks
+            .borrow_mut()
+            .push_back(unknown_control_prefix(CONTROL_PAYLOAD_LEN));
+        let recv = PausedControlRecv {
+            chunks: Rc::clone(&chunks),
+        };
+        let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+        let mut cx = Context::from_waker(noop_waker_ref());
+        assert_matches!(
+            stream.poll_next(&mut cx),
+            Poll::Ready(Ok(Some(Frame::Settings(_))))
+        );
+
+        // Only half the announced payload arrives. Each chunk owns its own
+        // allocation, so retained BufList bytes correspond to retained data.
+        for _ in 0..CONTROL_PAYLOAD_LEN as usize / CONTROL_CHUNK_LEN / 2 {
+            chunks
+                .borrow_mut()
+                .push_back(Bytes::from(vec![0; CONTROL_CHUNK_LEN]));
+            assert!(stream.poll_next(&mut cx).is_pending());
+            assert_eq!(
+                stream.stream.buf().remaining(),
+                0,
+                "unknown payload was retained"
+            );
+        }
+    }
+
+    #[test]
+    fn fragmented_unknown_control_frame_preserves_following_goaway() {
+        let chunks = Rc::new(std::cell::RefCell::new(VecDeque::new()));
+        chunks
+            .borrow_mut()
+            .push_back(unknown_control_prefix(CONTROL_PAYLOAD_LEN));
+        let recv = PausedControlRecv {
+            chunks: Rc::clone(&chunks),
+        };
+        let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+        let mut cx = Context::from_waker(noop_waker_ref());
+        assert_matches!(
+            stream.poll_next(&mut cx),
+            Poll::Ready(Ok(Some(Frame::Settings(_))))
+        );
+
+        for _ in 0..CONTROL_PAYLOAD_LEN as usize / CONTROL_CHUNK_LEN - 1 {
+            chunks
+                .borrow_mut()
+                .push_back(Bytes::from(vec![0; CONTROL_CHUNK_LEN]));
+            assert!(stream.poll_next(&mut cx).is_pending());
+        }
+        // Final unknown payload bytes and the next frame share one chunk.
+        let mut final_chunk = vec![0; CONTROL_CHUNK_LEN];
+        final_chunk.extend_from_slice(&[0x07, 0x01, 0x00]);
+        chunks.borrow_mut().push_back(Bytes::from(final_chunk));
+        assert_matches!(stream.poll_next(&mut cx), Poll::Ready(Ok(Some(Frame::Goaway(id)))) if id.into_inner() == 0);
+        assert!(stream.poll_next(&mut cx).is_pending());
+        assert_eq!(stream.stream.buf().remaining(), 0);
+    }
+
+    #[test]
+    fn oversized_settings_payload_is_rejected_before_buffering() {
+        let mut prefix = BytesMut::new();
+        FrameType::SETTINGS.encode(&mut prefix);
+        VarInt::from(CONTROL_PAYLOAD_LEN).encode(&mut prefix);
+        let chunks = Rc::new(std::cell::RefCell::new(VecDeque::from([prefix.freeze()])));
+        let recv = PausedControlRecv { chunks };
+        let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+        let mut cx = Context::from_waker(noop_waker_ref());
+        assert_matches!(
+            stream.poll_next(&mut cx),
+            Poll::Ready(Err(FrameStreamError::ExcessiveLoad(_)))
+        );
+    }
+
     // Helpers
 
     #[derive(Default)]
