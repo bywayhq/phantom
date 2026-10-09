@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, time::Duration};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use super::{
     WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -6,11 +9,58 @@ use super::{
     WebSocketSettings,
 };
 use crate::{
-    AlpsSettings, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings, browser::chrome,
-    browser::firefox,
+    AlpsSettings, ClientProfile, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings,
+    browser::chrome, browser::firefox,
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+#[test]
+fn debug_redacts_websocket_values_through_nested_profiles() -> TestResult {
+    let canary = format!(
+        "websocket-field-{}-{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos(),
+    );
+    let fields = [
+        WebSocketField::literal("x-api-key", format!("{canary}-literal")),
+        WebSocketField::by_trust(
+            "x-trust-value",
+            format!("{canary}-trustworthy"),
+            format!("{canary}-untrustworthy"),
+        ),
+        WebSocketField::trustworthy_only("x-trust-only", format!("{canary}-trust-only")),
+    ];
+    let mut settings = chrome::v154_websocket();
+    settings.http1_fields.extend(fields.clone());
+    settings.http2_fields.extend(fields.clone());
+    settings.validate()?;
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_websocket(settings.clone());
+
+    for debug in [
+        format!("{fields:?}"),
+        format!("{settings:#?}"),
+        format!("{profile:?}"),
+    ] {
+        assert!(!debug.contains(&canary));
+        assert!(debug.contains("x-api-key"));
+        assert!(debug.contains("<redacted>"));
+        assert!(debug.contains("ByTrust"));
+    }
+
+    let optional = format!("{:?}", fields[2]);
+    assert!(optional.contains("trustworthy: Some(\"<redacted>\")"));
+    assert!(optional.contains("untrustworthy: None"));
+    assert_eq!(
+        format!("{:?}", WebSocketField::key("Sec-WebSocket-Key")),
+        "Key { name: \"Sec-WebSocket-Key\" }",
+    );
+    assert_eq!(
+        fields[1].default_value(crate::UrlTrust::PotentiallyTrustworthy),
+        Some(format!("{canary}-trustworthy").as_str()),
+    );
+    Ok(())
+}
 
 const SCENARIOS: [&str; 9] = [
     "accept",
