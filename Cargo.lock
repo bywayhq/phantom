@@ -1412,7 +1412,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http2"
-version = "0.5.20-phantom.11"
+version = "0.5.20-phantom.12"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1542,7 +1542,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-tokio-tungstenite"
-version = "0.30.0-phantom.2"
+version = "0.30.0-phantom.3"
 dependencies = [
  "futures-util",
  "log",
@@ -1552,7 +1552,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-tungstenite"
-version = "0.30.0-phantom.2"
+version = "0.30.0-phantom.3"
 dependencies = [
  "bytes",
  "flate2",
@@ -1564,7 +1564,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-wreq-proto"
-version = "0.2.5-phantom.11"
+version = "0.2.5-phantom.12"
 dependencies = [
  "bytes",
  "futures-channel",

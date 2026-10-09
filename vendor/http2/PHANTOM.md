@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.11`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.12`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -240,6 +240,13 @@ body's charges, exhausts the budget and fails the corresponding test with
 `GOAWAY(ENHANCE_YOUR_CALM)`.
 
 ## Local receive limits
+
+`hpack-size-arithmetic.patch` preserves the encoder's three-quarter indexing
+threshold without multiplying peer-controlled table sizes. Legal u32 table
+limits therefore work on 32-bit targets in debug and release builds.
+`hpack-size-arithmetic-tests.patch` checks the emitted HPACK bytes at the
+large-size overflow boundaries and around all four remainder cases of the
+threshold. The paired patches leave the table policy unchanged.
 
 Upstream decodes up to 16 MiB of response header list when the local SETTINGS
 omit `SETTINGS_MAX_HEADER_LIST_SIZE`, which browser profiles such as Firefox
