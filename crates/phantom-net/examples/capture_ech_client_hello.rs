@@ -12,7 +12,10 @@
 //!
 //! The DNS-over-HTTPS server listens on the origin's address, on the port
 //! `--doh-port` names or on an ephemeral one. A fixed port lets a browser
-//! policy name the template before the capture starts.
+//! policy name the template before the capture starts. At most eight DNS
+//! connections run together. The capture keeps at most 256 query descriptions
+//! and 64 KiB of query text. TLS handshakes and complete HTTP exchanges each
+//! have a ten-second deadline. Exceeding a limit fails the capture.
 //!
 //! With `--quic`, the record lists `h3` before `h2`, and the origin also
 //! serves HTTP/3 on the same address and UDP port through a BoringSSL QUIC
@@ -23,14 +26,16 @@
 //! Standard error gets one `ready doh_template=<url> origin=<address>` line
 //! once the listeners are bound, ending in ` spki=<base64>` with `--quic`:
 //! the SHA-256 of the certificate's public key, for
-//! `--ignore-certificate-errors-spki-list`. It gets one line for each
-//! DNS-over-HTTPS connection that fails. Standard output gets the fixture
+//! `--ignore-certificate-errors-spki-list`. Standard error also reports
+//! capture failures. A DNS-over-HTTPS failure stops the capture.
+//! Standard output gets the fixture
 //! after the page request has been answered and no connection has arrived
 //! for the grace period.
 
 use std::{
     env,
     error::Error,
+    fmt,
     io::{self, Write as _},
     net::{IpAddr, SocketAddr},
     pin::Pin,
@@ -43,7 +48,7 @@ use btls::{
     hpke::HpkeKey,
     pkey::PKey,
     ssl::{
-        AlpnError, NameType, Ssl, SslAcceptor, SslContextBuilder, SslEchKeys, SslMethod,
+        AlpnError, ErrorCode, NameType, Ssl, SslAcceptor, SslContextBuilder, SslEchKeys, SslMethod,
         SslVersion, select_next_proto,
     },
     x509::X509,
@@ -58,7 +63,8 @@ use rcgen::{CertificateParams, ExtendedKeyUsagePurpose, KeyPair, KeyUsagePurpose
 use tokio::{
     io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _, ReadBuf},
     net::{TcpListener, TcpStream},
-    sync::Notify,
+    sync::{Notify, oneshot},
+    task::{JoinError, JoinHandle, JoinSet},
     time::{Instant, sleep_until, timeout},
 };
 use tokio_btls::SslStream;
@@ -72,6 +78,8 @@ const ACCEPT_TIMEOUT: Duration = Duration::from_secs(60);
 const GRACE_PERIOD: Duration = Duration::from_secs(3);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_CONNECTIONS: usize = 8;
+const MAX_DOH_QUERIES: usize = 256;
+const MAX_DOH_QUERY_BYTES: usize = 64 * 1024;
 const MAX_REQUEST_HEAD: usize = 64 * 1024;
 const CAPTURE_LIMITS: CaptureLimits = CaptureLimits::new(128 * 1024, 128 * 1024, 16);
 const DNS_TYPE_A: u16 = 1;
@@ -105,18 +113,6 @@ async fn main() -> CaptureResult<()> {
 
     let queries = Arc::new(Mutex::new(Vec::new()));
     let doh_acceptor = identity.acceptor(None)?;
-    let doh_task = tokio::spawn(serve_doh(
-        doh,
-        doh_acceptor,
-        Arc::clone(&queries),
-        DnsAnswers {
-            address: origin_address.ip(),
-            port: origin_address.port(),
-            ech_config_list: published_list.clone(),
-            quic: arguments.quic,
-        },
-    ));
-
     let mut keys = SslEchKeys::builder()?;
     keys.add_key(
         true,
@@ -133,68 +129,77 @@ async fn main() -> CaptureResult<()> {
         None
     };
 
-    match &quic {
-        Some(_) => eprintln!(
-            "ready doh_template={doh_template} origin={origin_address} spki={}",
-            identity.spki_sha256()?
-        ),
+    let spki = quic.as_ref().map(|_| identity.spki_sha256()).transpose()?;
+    let mut doh_capture = DohCapture::start(
+        doh,
+        doh_acceptor,
+        Arc::clone(&queries),
+        DnsAnswers {
+            address: origin_address.ip(),
+            port: origin_address.port(),
+            ech_config_list: published_list.clone(),
+            quic: arguments.quic,
+        },
+    );
+    match &spki {
+        Some(spki) => {
+            eprintln!("ready doh_template={doh_template} origin={origin_address} spki={spki}")
+        }
         None => eprintln!("ready doh_template={doh_template} origin={origin_address}"),
     }
     let captured = Arc::new(Captured::default());
-    let mut tasks = Vec::new();
+    let mut tasks = JoinSet::new();
     let started = Instant::now();
     let mut last_event = started;
     let mut arrivals = 0;
-    while arrivals < MAX_CONNECTIONS {
-        let deadline = if captured.page_served() {
-            last_event + GRACE_PERIOD
-        } else {
-            started + ACCEPT_TIMEOUT
-        };
-        tokio::select! {
-            accepted = origin.accept() => {
-                let (tcp, peer) = accepted?;
-                require_loopback(peer.ip(), "origin peer")?;
-                let slot = captured.reserve_tcp();
-                let (acceptor, captured) = (origin_acceptor.clone(), Arc::clone(&captured));
-                tasks.push(tokio::spawn(async move {
-                    if let Err(error) = record_tcp(tcp, acceptor, captured, slot).await {
-                        eprintln!("TCP connection from {peer} failed: {error}");
-                    }
-                }));
-                arrivals += 1;
-                last_event = Instant::now();
-            }
-            incoming = accept_quic(quic.as_ref()) => {
-                let Some(incoming) = incoming else { break };
-                if !incoming.remote_address().ip().is_loopback() {
-                    incoming.refuse();
-                    continue;
+    let capture_result: CaptureResult<()> = async {
+        while arrivals < MAX_CONNECTIONS {
+            let deadline = if captured.page_served() {
+                last_event + GRACE_PERIOD
+            } else {
+                started + ACCEPT_TIMEOUT
+            };
+            tokio::select! {
+                result = doh_capture.wait() => {
+                    result?;
+                    return Err("DNS-over-HTTPS listener stopped during capture".into());
                 }
-                let slot = captured.reserve_quic();
-                tasks.push(tokio::spawn(record_quic(incoming, Arc::clone(&captured), slot)));
-                arrivals += 1;
-                last_event = Instant::now();
+                accepted = origin.accept() => {
+                    let (tcp, peer) = accepted?;
+                    require_loopback(peer.ip(), "origin peer")?;
+                    let slot = captured.reserve_tcp();
+                    let (acceptor, captured) = (origin_acceptor.clone(), Arc::clone(&captured));
+                    tasks.spawn(async move {
+                        if let Err(error) = record_tcp(tcp, acceptor, captured, slot).await {
+                            eprintln!("TCP connection from {peer} failed: {error}");
+                        }
+                    });
+                    arrivals += 1;
+                    last_event = Instant::now();
+                }
+                incoming = accept_quic(quic.as_ref()) => {
+                    let Some(incoming) = incoming else { break };
+                    if !incoming.remote_address().ip().is_loopback() {
+                        incoming.refuse();
+                        continue;
+                    }
+                    let slot = captured.reserve_quic();
+                    tasks.spawn(record_quic(incoming, Arc::clone(&captured), slot));
+                    arrivals += 1;
+                    last_event = Instant::now();
+                }
+                () = captured.served.notified() => last_event = Instant::now(),
+                () = sleep_until(deadline) => break,
             }
-            () = captured.served.notified() => last_event = Instant::now(),
-            () = sleep_until(deadline) => break,
         }
+        Ok(())
     }
-    // Let handshakes already under way finish; an idle preconnect that never
-    // sends a request is recorded as it stands.
-    let _ = timeout(GRACE_PERIOD, async {
-        for task in &mut tasks {
-            let _ = task.await;
-        }
-    })
     .await;
-    for task in &tasks {
-        task.abort();
-    }
-    doh_task.abort();
+    let finish_result = finish_capture(capture_result, tasks, doh_capture).await;
     if let Some(endpoint) = &quic {
         endpoint.close(0_u32.into(), b"capture finished");
     }
+    finish_result?;
     let queries = queries
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
@@ -250,6 +255,55 @@ async fn main() -> CaptureResult<()> {
     }
     output.flush()?;
     Ok(())
+}
+
+async fn finish_capture(
+    capture_result: CaptureResult<()>,
+    mut tasks: JoinSet<()>,
+    mut doh_capture: DohCapture,
+) -> CaptureResult<()> {
+    let mut errors = Vec::new();
+    if let Err(error) = capture_result {
+        errors.push(error);
+    }
+    // Let handshakes already under way finish; an idle preconnect that never
+    // sends a request is recorded as it stands.
+    if errors.is_empty() {
+        let grace_result = timeout(GRACE_PERIOD, async {
+            while !tasks.is_empty() {
+                tokio::select! {
+                    result = doh_capture.wait() => {
+                        result?;
+                        return Err("DNS-over-HTTPS listener stopped during capture grace".into());
+                    }
+                    result = tasks.join_next() => {
+                        if let Some(result) = result {
+                            result?;
+                        }
+                    }
+                }
+            }
+            Ok::<(), Box<dyn Error + Send + Sync>>(())
+        })
+        .await;
+        // Idle origin preconnects may use the entire grace period.
+        if let Ok(Err(error)) = grace_result {
+            errors.push(error);
+        }
+    }
+    tasks.abort_all();
+    while let Some(result) = tasks.join_next().await {
+        if let Err(error) = result {
+            // These tasks were deliberately stopped after the grace period.
+            if !error.is_cancelled() {
+                errors.push(error.into());
+            }
+        }
+    }
+    if let Err(error) = doh_capture.stop().await {
+        errors.push(error);
+    }
+    capture_errors(errors)
 }
 
 async fn accept_quic(endpoint: Option<&quinn::Endpoint>) -> Option<quinn::Incoming> {
@@ -853,28 +907,182 @@ struct DnsAnswers {
     quic: bool,
 }
 
+struct DohCapture {
+    shutdown: Option<oneshot::Sender<()>>,
+    task: Option<JoinHandle<CaptureResult<()>>>,
+}
+
+impl DohCapture {
+    fn start(
+        listener: TcpListener,
+        acceptor: SslAcceptor,
+        queries: Arc<Mutex<Vec<String>>>,
+        answers: DnsAnswers,
+    ) -> Self {
+        let (shutdown, stopped) = oneshot::channel();
+        Self {
+            shutdown: Some(shutdown),
+            task: Some(tokio::spawn(serve_doh(
+                listener, acceptor, queries, answers, stopped,
+            ))),
+        }
+    }
+
+    async fn wait(&mut self) -> CaptureResult<()> {
+        let Some(task) = &mut self.task else {
+            return std::future::pending().await;
+        };
+        let result = task.await;
+        self.task.take();
+        result?
+    }
+
+    async fn stop(mut self) -> CaptureResult<()> {
+        if let Some(shutdown) = self.shutdown.take() {
+            // A closed receiver means the listener has already finished.
+            let _ = shutdown.send(());
+        }
+        if self.task.is_some() {
+            self.wait().await
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Drop for DohCapture {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            // Cancellation drops the listener's JoinSet, which aborts its children.
+            task.abort();
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CaptureFailures(Vec<Box<dyn Error + Send + Sync>>);
+
+impl fmt::Display for CaptureFailures {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, error) in self.0.iter().enumerate() {
+            if index != 0 {
+                write!(formatter, "; additionally: ")?;
+            }
+            write!(formatter, "{error}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for CaptureFailures {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.0
+            .first()
+            .map(|error| &**error as &(dyn Error + 'static))
+    }
+}
+
+fn capture_errors(mut errors: Vec<Box<dyn Error + Send + Sync>>) -> CaptureResult<()> {
+    match errors.len() {
+        0 => Ok(()),
+        1 => Err(errors.remove(0)),
+        _ => Err(Box::new(CaptureFailures(errors))),
+    }
+}
+
+fn doh_child_result(result: Result<CaptureResult<()>, JoinError>) -> CaptureResult<()> {
+    match result {
+        Ok(Err(error)) if is_peer_close(&*error) => Ok(()),
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn is_peer_close(mut error: &(dyn Error + 'static)) -> bool {
+    loop {
+        if let Some(error) = error.downcast_ref::<io::Error>() {
+            return matches!(
+                error.kind(),
+                io::ErrorKind::UnexpectedEof
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+                    | io::ErrorKind::BrokenPipe
+            );
+        }
+        if let Some(error) = error.downcast_ref::<btls::ssl::Error>() {
+            if error.code() == ErrorCode::ZERO_RETURN {
+                return true;
+            }
+            if error.code() == ErrorCode::SYSCALL
+                && error.io_error().is_none()
+                && error.ssl_error().is_none()
+            {
+                return true;
+            }
+        }
+        match error.source() {
+            Some(cause) => error = cause,
+            None => return false,
+        }
+    }
+}
+
 async fn serve_doh(
     listener: TcpListener,
     acceptor: SslAcceptor,
     queries: Arc<Mutex<Vec<String>>>,
     answers: DnsAnswers,
+    mut shutdown: oneshot::Receiver<()>,
 ) -> CaptureResult<()> {
-    loop {
-        let Ok((tcp, peer)) = listener.accept().await else {
-            continue;
-        };
-        if !peer.ip().is_loopback() {
+    let mut children = JoinSet::new();
+    let result: CaptureResult<()> = async {
+        loop {
+            tokio::select! {
+                biased;
+                _ = &mut shutdown => return Ok(()),
+                result = children.join_next(), if !children.is_empty() => {
+                    if let Some(result) = result {
+                        doh_child_result(result)?;
+                    }
+                }
+                accepted = listener.accept() => {
+                    let (tcp, peer) = accepted?;
+                    if !peer.ip().is_loopback() {
+                        continue;
+                    }
+                    // Completed children no longer consume a live connection slot.
+                    while let Some(result) = children.try_join_next() {
+                        doh_child_result(result)?;
+                    }
+                    if children.len() == MAX_CONNECTIONS {
+                        return Err("DNS-over-HTTPS connection limit exceeded".into());
+                    }
+                    let acceptor = acceptor.clone();
+                    let queries = Arc::clone(&queries);
+                    let answers = answers.clone();
+                    children.spawn(async move {
+                        serve_doh_connection(tcp, &acceptor, &queries, &answers).await
+                    });
+                }
+            }
+        }
+    }
+    .await;
+    let mut errors = Vec::new();
+    if let Err(error) = result {
+        errors.push(error);
+    }
+    children.abort_all();
+    while let Some(result) = children.join_next().await {
+        // Cancellation is expected only for children stopped by this owner.
+        if matches!(&result, Err(error) if error.is_cancelled()) {
             continue;
         }
-        let acceptor = acceptor.clone();
-        let queries = Arc::clone(&queries);
-        let answers = answers.clone();
-        tokio::spawn(async move {
-            if let Err(error) = serve_doh_connection(tcp, &acceptor, &queries, &answers).await {
-                eprintln!("doh connection from {peer} failed: {error}");
-            }
-        });
+        if let Err(error) = doh_child_result(result) {
+            errors.push(error);
+        }
     }
+    capture_errors(errors)
 }
 
 async fn serve_doh_connection(
@@ -884,48 +1092,78 @@ async fn serve_doh_connection(
     answers: &DnsAnswers,
 ) -> CaptureResult<()> {
     let mut tls = SslStream::new(Ssl::new(acceptor.context())?, tcp)?;
-    Pin::new(&mut tls).accept().await?;
+    timeout(HANDSHAKE_TIMEOUT, Pin::new(&mut tls).accept())
+        .await
+        .map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::TimedOut,
+                "DNS-over-HTTPS TLS handshake timed out",
+            )
+        })??;
     loop {
-        let Some(head) = read_request_head(&mut tls).await? else {
+        // One deadline covers the header, body, response and flush together.
+        let keep_alive = timeout(HANDSHAKE_TIMEOUT, doh_exchange(&mut tls, queries, answers))
+            .await
+            .map_err(|_| {
+                io::Error::new(io::ErrorKind::TimedOut, "DNS-over-HTTPS request timed out")
+            })??;
+        if !keep_alive {
             return Ok(());
-        };
-        let head = String::from_utf8_lossy(&head).into_owned();
-        let mut lines = head.split("\r\n");
-        let request_line = lines.next().unwrap_or_default();
-        let content_length = lines
-            .filter_map(|line| line.split_once(':'))
-            .find(|(name, _)| name.trim().eq_ignore_ascii_case("content-length"))
-            .and_then(|(_, value)| value.trim().parse::<usize>().ok())
-            .unwrap_or(0);
-        let message = if request_line.starts_with("POST ") {
-            if content_length > 65_535 {
-                return Err("DNS message too long".into());
-            }
-            let mut body = vec![0; content_length];
-            tls.read_exact(&mut body).await?;
-            body
-        } else {
-            let target = request_line.split(' ').nth(1).unwrap_or_default();
-            let encoded = target
-                .split_once("dns=")
-                .map(|(_, value)| value.split('&').next().unwrap_or_default())
-                .unwrap_or_default();
-            base64url_decode(encoded).ok_or("malformed dns parameter")?
-        };
-        let (response, description) =
-            dns_response(&message, answers).ok_or("malformed DNS query")?;
-        queries
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(description);
-        let head = format!(
-            "HTTP/1.1 200 OK\r\ncontent-type: application/dns-message\r\ncontent-length: {}\r\ncache-control: max-age={DNS_TTL}\r\n\r\n",
-            response.len()
-        );
-        tls.write_all(head.as_bytes()).await?;
-        tls.write_all(&response).await?;
-        tls.flush().await?;
+        }
     }
+}
+
+async fn doh_exchange(
+    tls: &mut SslStream<TcpStream>,
+    queries: &Mutex<Vec<String>>,
+    answers: &DnsAnswers,
+) -> CaptureResult<bool> {
+    let Some(head) = read_request_head(tls).await? else {
+        return Ok(false);
+    };
+    let head = String::from_utf8_lossy(&head).into_owned();
+    let mut lines = head.split("\r\n");
+    let request_line = lines.next().unwrap_or_default();
+    let content_length = lines
+        .filter_map(|line| line.split_once(':'))
+        .find(|(name, _)| name.trim().eq_ignore_ascii_case("content-length"))
+        .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+        .unwrap_or(0);
+    let message = if request_line.starts_with("POST ") {
+        if content_length > 65_535 {
+            return Err("DNS message too long".into());
+        }
+        let mut body = vec![0; content_length];
+        tls.read_exact(&mut body).await?;
+        body
+    } else {
+        let target = request_line.split(' ').nth(1).unwrap_or_default();
+        let encoded = target
+            .split_once("dns=")
+            .map(|(_, value)| value.split('&').next().unwrap_or_default())
+            .unwrap_or_default();
+        base64url_decode(encoded).ok_or("malformed dns parameter")?
+    };
+    let (response, description) = dns_response(&message, answers).ok_or("malformed DNS query")?;
+    {
+        let mut queries = queries.lock().unwrap_or_else(PoisonError::into_inner);
+        if queries.len() == MAX_DOH_QUERIES {
+            return Err("DNS-over-HTTPS query count limit exceeded".into());
+        }
+        let retained_bytes: usize = queries.iter().map(String::len).sum();
+        if description.len() > MAX_DOH_QUERY_BYTES - retained_bytes {
+            return Err("DNS-over-HTTPS query metadata byte limit exceeded".into());
+        }
+        queries.push(description);
+    }
+    let head = format!(
+        "HTTP/1.1 200 OK\r\ncontent-type: application/dns-message\r\ncontent-length: {}\r\ncache-control: max-age={DNS_TTL}\r\n\r\n",
+        response.len()
+    );
+    tls.write_all(head.as_bytes()).await?;
+    tls.write_all(&response).await?;
+    tls.flush().await?;
+    Ok(true)
 }
 
 /// Answers one DNS query and describes it as `<type> <name>`.

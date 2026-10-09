@@ -16,12 +16,16 @@ use rcgen::{
 use tokio::{
     io::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _, BufReader},
     net::{TcpListener, TcpStream},
-    task::JoinHandle,
+    sync::oneshot,
+    task::{JoinHandle, JoinSet},
     time::timeout,
 };
 use tokio_btls::SslStream;
 
-use super::{CaptureResult, DnsAnswers, HOSTNAME, Identity, serve_doh, serve_doh_connection};
+use super::{
+    CaptureResult, DnsAnswers, DohCapture, HOSTNAME, Identity, finish_capture, serve_doh,
+    serve_doh_connection,
+};
 
 const IO_TIMEOUT: Duration = Duration::from_secs(3);
 const DEADLINE_TEST_TIMEOUT: Duration = Duration::from_secs(12);
@@ -37,7 +41,8 @@ struct Server {
     address: SocketAddr,
     trust_root: Vec<u8>,
     queries: Arc<Mutex<Vec<String>>>,
-    task: JoinHandle<CaptureResult<()>>,
+    task: Option<JoinHandle<CaptureResult<()>>>,
+    shutdown: Option<oneshot::Sender<()>>,
 }
 
 impl Server {
@@ -55,6 +60,7 @@ impl Server {
             quic: false,
         };
 
+        let (shutdown, stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
             match mode {
                 ServerMode::Connection => {
@@ -63,7 +69,9 @@ impl Server {
                     tcp.set_nodelay(true)?;
                     serve_doh_connection(tcp, &acceptor, &recorded, &answers).await
                 }
-                ServerMode::Capture => serve_doh(listener, acceptor, recorded, answers).await,
+                ServerMode::Capture => {
+                    serve_doh(listener, acceptor, recorded, answers, stopped).await
+                }
             }
         });
 
@@ -71,7 +79,8 @@ impl Server {
             address,
             trust_root,
             queries,
-            task,
+            task: Some(task),
+            shutdown: Some(shutdown),
         })
     }
 
@@ -97,7 +106,26 @@ impl Server {
     }
 
     async fn finish(&mut self, deadline: Duration) -> CaptureResult<()> {
-        timeout(deadline, &mut self.task).await??
+        let task = self.task.as_mut().ok_or("DNS listener already joined")?;
+        let result = timeout(deadline, task).await?;
+        self.task.take();
+        result?
+    }
+
+    async fn stop(&mut self) -> CaptureResult<()> {
+        if let Some(shutdown) = self.shutdown.take() {
+            shutdown
+                .send(())
+                .map_err(|()| "DNS listener already stopped")?;
+        }
+        self.finish(IO_TIMEOUT).await
+    }
+
+    fn take_capture(&mut self) -> CaptureResult<DohCapture> {
+        Ok(DohCapture {
+            shutdown: self.shutdown.take(),
+            task: Some(self.task.take().ok_or("DNS listener already joined")?),
+        })
     }
 
     fn descriptions(&self) -> Vec<String> {
@@ -111,7 +139,9 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         // A failed assertion must not leave the listener running.
-        self.task.abort();
+        if let Some(task) = &self.task {
+            task.abort();
+        }
     }
 }
 
@@ -408,8 +438,10 @@ async fn aborting_doh_listener_closes_every_acknowledged_child() -> TestResult {
     }
     assert_eq!(server.descriptions().len(), 3);
 
-    server.task.abort();
-    let joined = timeout(IO_TIMEOUT, &mut server.task).await?;
+    let task = server.task.as_mut().ok_or("DNS listener already joined")?;
+    task.abort();
+    let joined = timeout(IO_TIMEOUT, task).await?;
+    server.task.take();
     assert!(joined.is_err_and(|error| error.is_cancelled()));
     for peer in &mut peers {
         assert_closed(peer).await?;
@@ -489,5 +521,211 @@ async fn doh_fixture_rejects_a_leaf_signed_by_an_untrusted_ca() -> TestResult {
             .iter()
             .any(|error| error.reason() == Some("CERTIFICATE_VERIFY_FAILED"))
     }));
+    Ok(())
+}
+
+#[tokio::test]
+async fn graceful_doh_shutdown_closes_every_acknowledged_child() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peers = Vec::new();
+    for _ in 0..3 {
+        let mut peer = server.client().await?;
+        exchange(&mut peer, HOSTNAME, 1).await?;
+        peers.push(peer);
+    }
+
+    server.stop().await?;
+    for peer in &mut peers {
+        assert_closed(peer).await?;
+    }
+    assert_eq!(server.descriptions(), vec![format!("A {HOSTNAME}"); 3]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn speculative_tcp_eof_does_not_fail_the_dns_capture() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut speculative = TcpStream::connect(server.address).await?;
+    speculative.shutdown().await?;
+    drop(speculative);
+
+    let mut peer = server.client().await?;
+    exchange(&mut peer, HOSTNAME, 1).await?;
+    server.stop().await?;
+    assert_closed(&mut peer).await?;
+    assert_eq!(server.descriptions(), [format!("A {HOSTNAME}")]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn corrupted_tls_input_fails_the_dns_capture() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peer = TcpStream::connect(server.address).await?;
+    peer.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await?;
+    peer.flush().await?;
+
+    let failure = server
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("corrupt TLS was accepted")?;
+    let tls = failure
+        .downcast_ref::<btls::ssl::Error>()
+        .ok_or("corrupt input did not reach TLS")?;
+    assert_eq!(tls.code(), ErrorCode::SSL);
+    assert!(tls.ssl_error().is_some());
+    assert!(server.descriptions().is_empty());
+    Ok(())
+}
+
+struct DropSignal(Option<oneshot::Sender<()>>);
+
+impl Drop for DropSignal {
+    fn drop(&mut self) {
+        if let Some(sender) = self.0.take() {
+            // A missing receiver means the test has already failed.
+            let _ = sender.send(());
+        }
+    }
+}
+
+async fn pending_origin() -> CaptureResult<(JoinSet<()>, oneshot::Receiver<()>)> {
+    let (started, running) = oneshot::channel();
+    let (dropped, stopped) = oneshot::channel();
+    let mut tasks = JoinSet::new();
+    tasks.spawn(async move {
+        let _drop_signal = DropSignal(Some(dropped));
+        if started.send(()).is_ok() {
+            std::future::pending::<()>().await;
+        }
+    });
+    timeout(IO_TIMEOUT, running).await??;
+    Ok((tasks, stopped))
+}
+
+#[tokio::test]
+async fn origin_failure_joins_origin_and_dns_children_before_returning() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peer = server.client().await?;
+    exchange(&mut peer, HOSTNAME, 1).await?;
+    let (tasks, stopped) = pending_origin().await?;
+    let capture = server.take_capture()?;
+
+    let failure = timeout(
+        IO_TIMEOUT,
+        finish_capture(Err("controlled origin failure".into()), tasks, capture),
+    )
+    .await?
+    .err()
+    .ok_or("origin failure was discarded")?;
+    assert_eq!(failure.to_string(), "controlled origin failure");
+    timeout(IO_TIMEOUT, stopped).await??;
+    assert_closed(&mut peer).await?;
+    assert_eq!(server.descriptions(), [format!("A {HOSTNAME}")]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn dns_failure_during_origin_grace_joins_all_owned_work() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peer = server.client().await?;
+    exchange(&mut peer, HOSTNAME, 1).await?;
+    let (tasks, stopped) = pending_origin().await?;
+    let capture = server.take_capture()?;
+    peer.write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 1\r\n\r\nx")
+        .await?;
+    peer.flush().await?;
+
+    let failure = timeout(IO_TIMEOUT, finish_capture(Ok(()), tasks, capture))
+        .await?
+        .err()
+        .ok_or("DNS failure during origin grace was discarded")?;
+    assert!(failure.to_string().contains("malformed DNS query"));
+    timeout(IO_TIMEOUT, stopped).await??;
+    assert_closed(&mut peer).await?;
+    assert_eq!(server.descriptions(), [format!("A {HOSTNAME}")]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn consumed_dns_failure_can_be_followed_by_owner_shutdown() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peer = server.client().await?;
+    exchange(&mut peer, HOSTNAME, 1).await?;
+    let mut capture = server.take_capture()?;
+    peer.write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 1\r\n\r\nx")
+        .await?;
+    peer.flush().await?;
+
+    let failure = timeout(IO_TIMEOUT, capture.wait())
+        .await?
+        .err()
+        .ok_or("DNS failure was discarded")?;
+    assert!(failure.to_string().contains("malformed DNS query"));
+    timeout(IO_TIMEOUT, capture.stop()).await??;
+    assert_closed(&mut peer).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn shutdown_keeps_a_completed_dns_child_failure() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peer = server.client().await?;
+    exchange(&mut peer, HOSTNAME, 1).await?;
+    let capture = server.take_capture()?;
+    peer.write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 1\r\n\r\nx")
+        .await?;
+    peer.flush().await?;
+    assert_closed(&mut peer).await?;
+
+    let failure = timeout(IO_TIMEOUT, capture.stop())
+        .await?
+        .err()
+        .ok_or("shutdown discarded a DNS child failure")?;
+    assert!(failure.to_string().contains("malformed DNS query"));
+    assert_eq!(server.descriptions(), [format!("A {HOSTNAME}")]);
+    Ok(())
+}
+
+#[tokio::test]
+async fn dripping_request_bytes_do_not_extend_the_exchange_deadline() -> TestResult {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let mut peer = server.client().await?;
+    peer.write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 32\r\n\r\nx")
+        .await?;
+    peer.flush().await?;
+    let written = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&written);
+    let mut writer = JoinSet::new();
+    writer.spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            if peer.write_all(b"x").await.is_err() || peer.flush().await.is_err() {
+                return;
+            }
+            written.fetch_add(1, Ordering::SeqCst);
+        }
+    });
+
+    let result = server.finish(DEADLINE_TEST_TIMEOUT).await;
+    writer.abort_all();
+    while let Some(result) = writer.join_next().await {
+        if let Err(error) = result {
+            if !error.is_cancelled() {
+                return Err(error.into());
+            }
+        }
+    }
+    assert!(
+        observed.load(Ordering::SeqCst) >= 2,
+        "no sustained request drip reached the peer"
+    );
+    let failure = result
+        .err()
+        .ok_or("dripping request completed without a deadline failure")?;
+    assert!(failure.to_string().contains("request") && failure.to_string().contains("timed out"));
+    assert!(server.descriptions().is_empty());
     Ok(())
 }
