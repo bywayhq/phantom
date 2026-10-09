@@ -120,7 +120,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
     "crates/phantom-profile": {
         "public_api": (
             "profile construction through the public API",
-            ["http3_public_api", "quic_public_api"],
+            ["browser_profiles", "http3_public_api", "quic_public_api"],
         ),
     },
 }
