@@ -305,6 +305,53 @@ class _ServerFailure(RuntimeError):
         self.unreaped = unreaped
 
 
+class _ServerProcess(multiprocessing.context.SpawnProcess):
+    """Retain the native constructor if CPython spawn raises after acquisition."""
+
+    def __init__(self, *, target, args):
+        super().__init__(target=target, args=args)
+        self._native_constructor = None
+        self.acquisition_uncertain = False
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # The native constructor and finalizer belong only to the parent.
+        state["_native_constructor"] = None
+        return state
+
+    @staticmethod
+    def _Popen(process):
+        if sys.platform == "win32":
+            from multiprocessing.popen_spawn_win32 import Popen
+        else:
+            from multiprocessing.popen_spawn_posix import Popen
+
+        native = Popen.__new__(Popen)
+        process._native_constructor = native
+        Popen.__init__(native, process)
+        return native
+
+    def recover_start_failure(self):
+        if self._popen is not None or self._native_constructor is None:
+            return
+
+        native = self._native_constructor
+        fields = ("pid", "sentinel", "returncode", "finalizer")
+        if sys.platform == "win32":
+            fields += ("_handle",)
+        # CPython 3.10: Windows installs these before serialization. POSIX
+        # installs them and its finalizer before a post-spawn write can escape.
+        # BaseProcess.start otherwise loses the constructor on that exception.
+        if (
+            all(hasattr(native, field) for field in fields)
+            and native.finalizer is not None
+        ):
+            self._popen = native
+            self._sentinel = native.sentinel
+        else:
+            self.acquisition_uncertain = True
+
+
 class _ServerOwner:
     """Own one spawned WPT server until its exit has been observed."""
 
@@ -312,7 +359,7 @@ class _ServerOwner:
         context = multiprocessing.get_context("spawn")
         self.connection, child_connection = context.Pipe()
         try:
-            self.process = context.Process(
+            self.process = _ServerProcess(
                 target=_server_process,
                 args=(source, certificate, log_path, child_connection),
             )
@@ -333,25 +380,35 @@ class _ServerOwner:
 
     def start(self) -> None:
         primary = None
-        try:
-            self.process.start()
-            self.started = True
-        except (Exception, KeyboardInterrupt) as error:
-            primary = error
-        finally:
-            self.started = self.process.pid is not None
+        failures = []
+        with _start_signals() as interrupts:
             try:
-                self.child_connection.close()
-            except (Exception, KeyboardInterrupt) as cleanup:
-                if primary is not None:
-                    raise _ServerFailure(
-                        [
-                            f"server process start: {_failure_detail(primary)}",
-                            f"server child control close: {_failure_detail(cleanup)}",
-                        ]
-                    ) from primary
+                self.process.start()
+            except (Exception, KeyboardInterrupt) as error:
+                primary = error
+                failures.append(f"server process start: {_failure_detail(error)}")
+                self.process.recover_start_failure()
+            finally:
+                self.started = self.process.pid is not None
+                try:
+                    self.child_connection.close()
+                except (Exception, KeyboardInterrupt) as error:
+                    if primary is None:
+                        primary = error
+                    failures.append(
+                        f"server child control close: {_failure_detail(error)}"
+                    )
+
+        if interrupts:
+            handler, signum, frame = interrupts[0]
+            try:
+                handler(signum, frame)
+            except KeyboardInterrupt as interrupt:
+                interrupt.shutdown_failures = failures
                 raise
         if primary is not None:
+            if len(failures) > 1:
+                raise _ServerFailure(failures) from primary
             raise primary
 
     def wait_ready(self) -> None:
@@ -380,6 +437,11 @@ class _ServerOwner:
                 if not self.connection.poll(max(0, deadline - time.monotonic())):
                     raise TimeoutError("server shutdown exceeded 10 seconds")
                 status, value = self.connection.recv()
+                if status == "ready" and type(value) is int and 1 <= value <= 65535:
+                    # Start can be interrupted before the parent consumes readiness.
+                    if not self.connection.poll(max(0, deadline - time.monotonic())):
+                        raise TimeoutError("server shutdown exceeded 10 seconds")
+                    status, value = self.connection.recv()
                 if status != "stopped" or not _valid_failures(value):
                     raise RuntimeError("server omitted its final shutdown status")
                 self.final_status = value
@@ -406,12 +468,19 @@ class _ServerOwner:
                     if isinstance(error, KeyboardInterrupt) and interrupt is None:
                         interrupt = error
 
-            unreaped = self.started and self.process.is_alive()
-            if unreaped:
-                failures.append("server process remains alive after terminate and kill")
-            elif self.started and not forced and self.process.exitcode != 0:
+            unreaped = self.process.acquisition_uncertain or (
+                self.started and self.process.is_alive()
+            )
+            if self.process.acquisition_uncertain:
                 failures.append(
-                    f"server process exited with status {self.process.exitcode}"
+                    "server acquisition left an incomplete native handle; child exit is unobserved"
+                )
+            elif unreaped:
+                failures.append("server process remains alive after terminate and kill")
+            elif self.started and self.process.exitcode != 0:
+                context = " after forced shutdown" if forced else ""
+                failures.append(
+                    f"server process exited with status {self.process.exitcode}{context}"
                 )
             try:
                 self.connection.close()
@@ -438,6 +507,30 @@ class _ServerOwner:
 
 def _valid_failures(value: Any) -> bool:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+@contextlib.contextmanager
+def _start_signals():
+    """Delay SIGINT until native acquisition has installed its owned handle."""
+    interrupts = []
+    if threading.current_thread() is not threading.main_thread():
+        yield interrupts
+        return
+
+    previous = signal.getsignal(signal.SIGINT)
+    if not callable(previous):
+        yield interrupts
+        return
+
+    def interrupted(signum, frame):
+        if not interrupts:
+            interrupts.append((previous, signum, frame))
+
+    signal.signal(signal.SIGINT, interrupted)
+    try:
+        yield interrupts
+    finally:
+        signal.signal(signal.SIGINT, previous)
 
 
 @contextlib.contextmanager

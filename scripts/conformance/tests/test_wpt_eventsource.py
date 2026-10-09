@@ -135,6 +135,7 @@ class ProcessFixture:
         self.alive = False
         self.closed = False
         self.events = []
+        self.acquisition_uncertain = False
 
     def start(self):
         self.events.append("start")
@@ -150,6 +151,10 @@ class ProcessFixture:
         if self.execute:
             self.alive = False
             self.exitcode = 0
+
+    def recover_start_failure(self):
+        # This fixture's start_error occurs before its simulated acquisition.
+        pass
 
     def is_alive(self):
         return self.alive
@@ -259,6 +264,9 @@ class WptRunFixture(unittest.TestCase):
                     patch.object(
                         runner.multiprocessing, "get_context", return_value=spawn
                     )
+                )
+                stack.enter_context(
+                    patch.object(runner, "_ServerProcess", spawn.Process)
                 )
                 stack.enter_context(patch.object(runner, "_checkout_wpt", checkout))
                 stack.enter_context(
@@ -536,7 +544,10 @@ class WptLifecycleTests(WptRunFixture):
 
 class WptProcessOwnershipTests(WptRunFixture):
     def owner(self, spawn):
-        with patch.object(runner.multiprocessing, "get_context", return_value=spawn):
+        with (
+            patch.object(runner.multiprocessing, "get_context", return_value=spawn),
+            patch.object(runner, "_ServerProcess", spawn.Process),
+        ):
             return runner._ServerOwner(Path("source"), None, Path("server.log"))
 
     def test_startup_timeout_reaps_process_and_closes_connections(self):
@@ -692,6 +703,57 @@ class WebTestHttpd:
 
 
 class WptAcquisitionTests(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "win32", "POSIX writes bootstrap data after spawn")
+    def test_native_bootstrap_write_failure_observes_child_exit_before_cleanup(self):
+        from multiprocessing import popen_spawn_posix
+
+        constructor = popen_spawn_posix.Popen
+        initialize = constructor.__init__
+        native = []
+        failure = OSError("native bootstrap write marker")
+        open_file = open
+
+        def captured_constructor(popen, process):
+            native.append(popen)
+            initialize(popen, process)
+
+        @contextlib.contextmanager
+        def failed_writer(*args, **kwargs):
+            with open_file(*args, **kwargs):
+                self.assertIsNotNone(native[0].pid)
+
+                def write(data):
+                    raise failure
+
+                yield SimpleNamespace(write=write)
+
+        try:
+            with (
+                patch.object(constructor, "__init__", captured_constructor),
+                patch.object(popen_spawn_posix, "open", failed_writer, create=True),
+            ):
+                context = multiprocessing.get_context("spawn")
+                spawn = SimpleNamespace(
+                    Pipe=context.Pipe, Process=runner._ServerProcess
+                )
+                result = WptRunFixture().exercise(spawn=spawn)
+
+            self.assertIsNotNone(
+                native[0].returncode, "owner did not observe child exit"
+            )
+            self.assertNotEqual(native[0].returncode, 0)
+            self.assertTrue(result.summary["run_failed"])
+            self.assertIn("native bootstrap write marker", result.stderr)
+            self.assertIn("exited with status", result.stderr)
+        finally:
+            for popen in native:
+                if popen.poll() is None:
+                    popen.terminate()
+                self.assertIsNotNone(
+                    popen.wait(8), "native fixture child was not reaped"
+                )
+                popen.close()
+
     @unittest.skipUnless(
         sys.platform == "win32", "Windows serializes after native spawn"
     )
@@ -699,15 +761,14 @@ class WptAcquisitionTests(unittest.TestCase):
         from multiprocessing import popen_spawn_win32, reduction
 
         constructor = popen_spawn_win32.Popen
+        initialize = constructor.__init__
         dump = reduction.dump
         native = []
         failure = OSError("native serialization write marker")
 
-        def captured_constructor(process):
-            popen = constructor.__new__(constructor)
+        def captured_constructor(popen, process):
             native.append(popen)
-            constructor.__init__(popen, process)
-            return popen
+            initialize(popen, process)
 
         def failed_dump(value, destination, protocol=None):
             if isinstance(value, multiprocessing.process.BaseProcess):
@@ -719,10 +780,13 @@ class WptAcquisitionTests(unittest.TestCase):
             # The child is real; only the serialization write after CreateProcess
             # fails. Its EOF exit must be observed by the production owner.
             with (
-                patch.object(popen_spawn_win32, "Popen", captured_constructor),
+                patch.object(constructor, "__init__", captured_constructor),
                 patch.object(reduction, "dump", failed_dump),
             ):
-                spawn = multiprocessing.get_context("spawn")
+                context = multiprocessing.get_context("spawn")
+                spawn = SimpleNamespace(
+                    Pipe=context.Pipe, Process=runner._ServerProcess
+                )
                 result = WptRunFixture().exercise(spawn=spawn)
 
             observed_exit = native[0].returncode
@@ -743,8 +807,8 @@ class WptAcquisitionTests(unittest.TestCase):
                 popen.close()
 
     def exercise_native_acquisition(self, *, interrupt=None, start_error=None):
-        context = multiprocessing.get_context("spawn")
-        original_popen = context.Process._Popen
+        process_type = runner._ServerProcess
+        original_popen = process_type._Popen
         native = []
         resources = []
         repository = Path(__file__).resolve().parents[3]
@@ -831,7 +895,7 @@ class WebTestHttpd:
                 if interrupt is not None:
                     signal.signal(signal.SIGINT, interrupted)
                 with (
-                    patch.object(context.Process, "_Popen", staticmethod(acquire)),
+                    patch.object(process_type, "_Popen", staticmethod(acquire)),
                     patch.object(runner, "_checkout_wpt", checkout),
                     patch.object(runner, "generate_loopback_certificate", certificate),
                     patch.object(
@@ -910,12 +974,14 @@ class WebTestHttpd:
             " ".join(result.summary["infrastructure_failures"]),
         )
 
-    def test_uncertain_native_start_failure_retains_and_reports_scratch(self):
+    def test_native_start_failure_reaps_child_and_reports_cause(self):
         result = self.exercise_native_acquisition(
             start_error=OSError("acquisition error marker")
         )
 
-        self.assertTrue(result.scratch, "pid None does not prove there was no child")
+        self.assertFalse(result.alive)
+        self.assertFalse(result.scratch)
+        self.assertEqual(result.exitcode, 0)
         self.assertEqual(
             result.lifetime, {"source_alive": True, "certificate_alive": True}
         )
@@ -923,6 +989,26 @@ class WebTestHttpd:
         failures = " ".join(result.summary["infrastructure_failures"])
         self.assertIn("acquisition error marker", failures)
         self.assertIn("acquisition", failures)
+
+    def test_incomplete_native_acquisition_retains_and_reports_scratch(self):
+        spawn = SpawnFixture(start_error=OSError("incomplete acquisition marker"))
+        original_start = ProcessFixture.start
+
+        def incomplete_start(process):
+            process.acquisition_uncertain = True
+            original_start(process)
+
+        with patch.object(ProcessFixture, "start", incomplete_start):
+            result = WptRunFixture().exercise(spawn=spawn)
+        root = spawn.process.args[0].parent.resolve()
+        root.relative_to(Path(tempfile.gettempdir()).resolve())
+        self.addCleanup(shutil.rmtree, root)
+
+        self.assertTrue(root.exists())
+        self.assertFalse(spawn.process.closed)
+        self.assertTrue(result.summary["run_failed"])
+        failures = " ".join(result.summary["infrastructure_failures"])
+        self.assertIn("incomplete native handle", failures)
         self.assertIn("files retained", failures)
 
 
