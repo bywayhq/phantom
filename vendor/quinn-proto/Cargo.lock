@@ -758,7 +758,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-quinn-proto"
-version = "0.11.18-phantom.3"
+version = "0.11.18-phantom.4"
 dependencies = [
  "arbitrary",
  "assert_matches",

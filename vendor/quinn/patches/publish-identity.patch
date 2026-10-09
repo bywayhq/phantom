@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 4f87fd3..0975e27 100644
+index 4f87fd3..c3d5c6b 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -12,15 +12,20 @@
@@ -9,7 +9,7 @@ index 4f87fd3..0975e27 100644
 -name = "quinn"
 -version = "0.11.12"
 +name = "phantom-quinn"
-+version = "0.11.12-phantom.3"
++version = "0.11.12-phantom.4"
  build = "build.rs"
 +exclude = [
 +    ".cargo_vcs_info.json",
@@ -45,7 +45,7 @@ index 4f87fd3..0975e27 100644
  
  [dependencies.proto]
 -version = "0.11.18"
-+version = "=0.11.18-phantom.3"
++version = "=0.11.18-phantom.4"
 +package = "phantom-quinn-proto"
 +path = "../quinn-proto"
  default-features = false

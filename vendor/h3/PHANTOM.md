@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.8`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.8`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.8`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.9`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.9`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.9`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream

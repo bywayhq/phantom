@@ -25,7 +25,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: handle `quinn_proto::ConnectError::CryptoProvider` when matching
   startup errors. Invalid names, versions and local transport parameters
   keep their dedicated categories. The renamed Quinn forks move to
-  `-phantom.3`, and their H3 dependents move to `-phantom.8`.
+  `-phantom.4`, and their H3 dependents move to `-phantom.9`.
 
 - Validate custom Android model hints. Migrate: handle the `Result` from
   `chrome::v154_android_client_hints_for_model`,
@@ -2449,6 +2449,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
+
+- Reject malformed ACK_FREQUENCY flags in the Firefox QUIC format. Read
+  exactly one flag byte, accepting only zero or one, so a malformed flag
+  cannot consume the following frame. Modern varint thresholds keep their
+  existing format.
 
 - Keep HTTPS-record lookup work within its origin limit for each runtime.
   Cancelling waiters and replacing completed cache entries no longer start
