@@ -86,9 +86,14 @@ impl PerMessageDeflate {
     ///
     /// Returns [`WebSocketError`] with kind
     /// [`WebSocketErrorKind::InvalidRequest`](crate::WebSocketErrorKind::InvalidRequest)
-    /// when the profile offer is invalid or contains a parameter or
-    /// empty-message rule this client does not support.
+    /// when the profile offer has more than four parameters, is invalid, or
+    /// contains a parameter or empty-message rule this client does not support.
     pub fn from_profile(settings: &WebSocketSettings) -> Result<Self, WebSocketError> {
+        if settings.permessage_deflate_offer.len() > 4 {
+            return Err(WebSocketError::invalid_request(
+                "permessage-deflate accepts at most four offer parameters",
+            ));
+        }
         let mut parameters = Vec::with_capacity(settings.permessage_deflate_offer.len());
         for parameter in &settings.permessage_deflate_offer {
             parameters.push(match *parameter {
@@ -147,7 +152,8 @@ impl PerMessageDeflate {
     /// Replaces the complete ordered parameter sequence in the offer.
     ///
     /// An empty sequence emits only `permessage-deflate`. Each parameter may
-    /// occur once, and window widths must be between 8 and 15.
+    /// occur once, and window widths must be between 8 and 15. At most five
+    /// parameters are read before an oversized sequence is rejected.
     ///
     /// # Errors
     ///
@@ -159,7 +165,7 @@ impl PerMessageDeflate {
         mut self,
         parameters: impl IntoIterator<Item = PerMessageDeflateOfferParameter>,
     ) -> Result<Self, WebSocketError> {
-        let parameters = parameters.into_iter().collect::<Vec<_>>();
+        let parameters = parameters.into_iter().take(5).collect::<Vec<_>>();
         validate_offer_parameters(&parameters)?;
         self.offer_parameters = parameters;
         Ok(self)
@@ -486,6 +492,43 @@ mod tests {
                 ClientNoContextTakeover,
                 ServerNoContextTakeover,
             ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn profile_offer_accepts_four_and_rejects_five_parameters() -> Result<(), crate::WebSocketError>
+    {
+        use phantom_profile::WebSocketDeflateParameter;
+
+        use crate::profile::browser::chrome;
+
+        let mut settings = chrome::v154_websocket();
+        settings.permessage_deflate_offer = vec![
+            WebSocketDeflateParameter::ClientMaxWindowBits(Some(10)),
+            WebSocketDeflateParameter::ServerMaxWindowBits(12),
+            WebSocketDeflateParameter::ClientNoContextTakeover,
+            WebSocketDeflateParameter::ServerNoContextTakeover,
+        ];
+
+        let policy = PerMessageDeflate::from_profile(&settings)?;
+        assert_eq!(
+            policy.parameters(),
+            &[
+                PerMessageDeflateOfferParameter::ClientMaxWindowBits(Some(10)),
+                PerMessageDeflateOfferParameter::ServerMaxWindowBits(12),
+                PerMessageDeflateOfferParameter::ClientNoContextTakeover,
+                PerMessageDeflateOfferParameter::ServerNoContextTakeover,
+            ]
+        );
+
+        settings
+            .permessage_deflate_offer
+            .push(WebSocketDeflateParameter::ClientMaxWindowBits(None));
+        let oversized = PerMessageDeflate::from_profile(&settings);
+        assert_eq!(
+            oversized.as_ref().err().map(crate::WebSocketError::kind),
+            Some(WebSocketErrorKind::InvalidRequest)
         );
         Ok(())
     }
