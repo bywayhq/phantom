@@ -1,9 +1,10 @@
 //! Sends Firefox 157 HTTP/3 requests on fresh connections to a loopback server.
 //!
 //! Pair it with `scripts/conformance/aioquic_versions.py`, which reports the
-//! QUIC version of each connection. The first connection starts in QUIC v1 and
-//! follows the server to v2; later connections present the session ticket the
-//! previous one received and so start in v2, with early data.
+//! QUIC version, resumption and early-data acceptance for each connection.
+//! After each request, the client waits for a ticket available to a later
+//! connection. That ticket can come from any earlier connection kept open by
+//! this run.
 //!
 //! Usage: `quic_version_interop <port> <root-der> [<requests>]`
 
@@ -65,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             String::from_utf8_lossy(&body),
             connection.session_resumed()
         );
-        // The next connection resumes only once this one holds a ticket.
+        // Wait until the cache has a ticket to offer on a later connection.
         let waited = timeout(TIMEOUT, async {
             while !connector.has_ticket_for(SERVER_NAME) {
                 sleep(Duration::from_millis(10)).await;
