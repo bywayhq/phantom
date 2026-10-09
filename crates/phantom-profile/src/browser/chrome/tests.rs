@@ -531,12 +531,13 @@ fn required<'a>(
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    if !value.len().is_multiple_of(2) {
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
     }
-    (0..value.len())
-        .step_by(2)
-        .map(|index| Ok(u8::from_str_radix(&value[index..index + 2], 16)?))
+    pairs
+        .iter()
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
         .collect()
 }
 
@@ -602,4 +603,14 @@ fn cookie_precedes_the_validators_of_a_revalidation() {
         super::v154_cookie_placement().insertion_index(["accept-language", "if-modified-since"]),
         Some(1)
     );
+}
+
+#[test]
+fn client_hello_hex_rejects_malformed_text() -> Result<(), Box<dyn std::error::Error>> {
+    for malformed in ["0", "410", "gg", "0\u{e9}0"] {
+        assert!(decode_hex(malformed).is_err(), "{malformed:?}");
+    }
+    assert_eq!(decode_hex("4a4A")?, b"JJ");
+    assert!(decode_hex("")?.is_empty());
+    Ok(())
 }

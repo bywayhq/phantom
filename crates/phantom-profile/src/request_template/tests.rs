@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::{
     RequestField, RequestTemplate,
-    capture::{Capture, CaptureResult, Fields},
+    capture::{Capture, CaptureResult, Fields, decode_hex},
     client_hint_placement, restart_client_hint_placement,
 };
 use crate::{
@@ -2317,11 +2317,7 @@ fn assert_direct_pages_match(
                 let mut observed = Vec::new();
                 for header in 0..value(&format!("{prefix}_header_count"))?.parse::<usize>()? {
                     let raw = value(&format!("{prefix}_header_{header}"))?;
-                    let bytes = (0..raw.len())
-                        .step_by(2)
-                        .map(|at| u8::from_str_radix(&raw[at..at + 2], 16))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    let line = String::from_utf8(bytes)?;
+                    let line = decode_hex(raw)?;
                     let (name, field) = line.split_once(": ").ok_or("H1 field has no `: `")?;
                     observed.push((name.to_owned(), field.to_owned()));
                 }

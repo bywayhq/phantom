@@ -750,13 +750,14 @@ fn attribute<'a>(record: &'a str, name: &str) -> TestResult<&'a str> {
 }
 
 fn decode_hex(value: &str) -> TestResult<String> {
-    if !value.len().is_multiple_of(2) {
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
     }
-    let bytes = (0..value.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&value[index..index + 2], 16))
-        .collect::<Result<Vec<_>, _>>()?;
+    let bytes = pairs
+        .iter()
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
+        .collect::<Result<Vec<u8>, Box<dyn std::error::Error>>>()?;
     Ok(String::from_utf8(bytes)?)
 }
 
@@ -963,4 +964,14 @@ fn both_recipes_reuse_a_proxied_http2_session() {
             WebSocketProxiedSession::Reuse
         );
     }
+}
+
+#[test]
+fn websocket_field_hex_rejects_malformed_text() -> TestResult {
+    for malformed in ["0", "410", "gg", "0\u{e9}0", "ff"] {
+        assert!(decode_hex(malformed).is_err(), "{malformed:?}");
+    }
+    assert_eq!(decode_hex("4a4A")?, "JJ");
+    assert_eq!(decode_hex("")?, "");
+    Ok(())
 }

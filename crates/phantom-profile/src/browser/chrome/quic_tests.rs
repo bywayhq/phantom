@@ -396,12 +396,13 @@ fn parse_quic_width(value: &str) -> Result<QuicVarIntWidth, Box<dyn std::error::
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    if !value.len().is_multiple_of(2) {
-        return Err("hex value has odd length".into());
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
+        return Err("odd-length hexadecimal value".into());
     }
-    (0..value.len())
-        .step_by(2)
-        .map(|offset| Ok(u8::from_str_radix(&value[offset..offset + 2], 16)?))
+    pairs
+        .iter()
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
         .collect()
 }
 
@@ -713,5 +714,15 @@ fn chromium_family_macos_quic_captures_match_the_chromium_recipe()
         assert!(fixture.contains("\noperating_system=macOS 15.5 (24F74) arm64\n"));
         assert_quic_settings_match_startup(fixture, &v154_quic())?;
     }
+    Ok(())
+}
+
+#[test]
+fn transport_parameter_hex_rejects_malformed_text() -> Result<(), Box<dyn std::error::Error>> {
+    for malformed in ["0", "410", "gg", "0\u{e9}0"] {
+        assert!(decode_hex(malformed).is_err(), "{malformed:?}");
+    }
+    assert_eq!(decode_hex("4a4A")?, b"JJ");
+    assert!(decode_hex("")?.is_empty());
     Ok(())
 }
