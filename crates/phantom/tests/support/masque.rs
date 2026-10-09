@@ -815,3 +815,191 @@ fn decode_capsule(input: &[u8]) -> Option<(u64, Vec<u8>, usize)> {
     let end = header.checked_add(length)?;
     (input.len() >= end).then(|| (capsule_type, input[header..end].to_vec(), end))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        future::pending,
+        sync::{Arc, Mutex},
+        time::Duration,
+    };
+
+    use bytes::Bytes;
+    use tokio::{
+        io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
+        net::TcpStream,
+        task::JoinSet,
+        time::timeout,
+    };
+
+    use super::{
+        MasqueStreamProxy, StreamLeg, StreamLog, StreamMode, TestIdentity, TestResult,
+        encode_capsule, serve_http1, serve_http2,
+    };
+    use crate::support::tls::{is_peer_gone, read_head};
+
+    const DEADLINE: Duration = Duration::from_secs(5);
+
+    async fn accepted_proxy() -> TestResult<(MasqueStreamProxy, TcpStream)> {
+        let identity = TestIdentity::generate()?;
+        let proxy =
+            MasqueStreamProxy::spawn(&identity, StreamLeg::Http1, StreamMode::Relay).await?;
+        let peer = TcpStream::connect(proxy.address).await?;
+        timeout(DEADLINE, async {
+            while proxy.connections() != 1 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        Ok((proxy, peer))
+    }
+
+    async fn assert_peer_closed(peer: &mut (impl AsyncRead + Unpin)) -> TestResult<()> {
+        let mut byte = [0];
+        match timeout(DEADLINE, peer.read(&mut byte)).await? {
+            Ok(0) => Ok(()),
+            Err(error) if is_peer_gone(&error) => Ok(()),
+            Ok(_) => Err("peer sent unexpected bytes instead of closing".into()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    #[tokio::test]
+    async fn dropping_proxy_closes_an_accepted_stalled_tls_peer() -> TestResult<()> {
+        let (proxy, mut peer) = accepted_proxy().await?;
+        drop(proxy);
+        assert_peer_closed(&mut peer).await
+    }
+
+    #[tokio::test]
+    async fn cancelling_proxy_owner_closes_an_accepted_stalled_tls_peer() -> TestResult<()> {
+        let (proxy, mut peer) = accepted_proxy().await?;
+        let mut owners = JoinSet::new();
+        owners.spawn(async move {
+            let _proxy = proxy;
+            pending::<()>().await;
+        });
+        owners.abort_all();
+        assert!(
+            owners
+                .join_next()
+                .await
+                .expect("owner task")
+                .expect_err("cancelled owner")
+                .is_cancelled()
+        );
+        assert_peer_closed(&mut peer).await
+    }
+
+    #[tokio::test]
+    async fn cancelling_h1_relay_closes_peer_after_a_partial_capsule() -> TestResult<()> {
+        let target = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
+        let (mut peer, stream) = tokio::io::duplex(4096);
+        let mut owners = JoinSet::new();
+        owners.spawn(serve_http1(
+            stream,
+            StreamMode::Relay,
+            Arc::new(Mutex::new(StreamLog::default())),
+        ));
+        let path = format!(
+            "/.well-known/masque/udp/127.0.0.1/{}/",
+            target.local_addr()?.port()
+        );
+        peer.write_all(format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: connect-udp\r\n\r\n").as_bytes()).await?;
+        let response = timeout(DEADLINE, read_head(&mut peer)).await??;
+        assert!(response.starts_with(b"HTTP/1.1 101 "));
+        let mut preamble = vec![
+            0;
+            super::UNKNOWN_CAPSULE.len()
+                + encode_capsule(0, super::UNKNOWN_CONTEXT_PAYLOAD).len()
+        ];
+        timeout(DEADLINE, peer.read_exact(&mut preamble)).await??;
+        peer.write_all(&encode_capsule(0, b"\0ready")).await?;
+        let mut datagram = [0; 64];
+        let (count, relay_address) = timeout(DEADLINE, target.recv_from(&mut datagram)).await??;
+        assert_eq!(&datagram[..count], b"ready");
+        target.send_to(b"reply", relay_address).await?;
+        let mut echo = [0; 8];
+        timeout(DEADLINE, peer.read_exact(&mut echo)).await??;
+        assert_eq!(&echo, &[0, 6, 0, b'r', b'e', b'p', b'l', b'y']);
+        // A complete exchange proves relay readiness. Leave an incomplete
+        // capsule length queued while cancelling its owner, with the peer live.
+        peer.write_all(&[0, 0x40]).await?;
+        owners.abort_all();
+        assert!(
+            owners
+                .join_next()
+                .await
+                .expect("relay task")
+                .expect_err("cancelled relay")
+                .is_cancelled()
+        );
+        assert_peer_closed(&mut peer).await
+    }
+
+    #[tokio::test]
+    async fn cancelling_h2_relay_closes_connection_after_a_partial_capsule() -> TestResult<()> {
+        let target = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
+        let (peer, stream) = tokio::io::duplex(4096);
+        let mut owners = JoinSet::new();
+        owners.spawn(serve_http2(
+            stream,
+            StreamMode::Relay,
+            Arc::new(Mutex::new(StreamLog::default())),
+        ));
+        let (mut client, connection) = ::http2::client::handshake(peer).await?;
+        let mut drivers = JoinSet::new();
+        drivers.spawn(connection);
+        timeout(DEADLINE, async {
+            while !client.is_extended_connect_protocol_enabled() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        let uri = format!(
+            "https://localhost/.well-known/masque/udp/127.0.0.1/{}/",
+            target.local_addr()?.port()
+        );
+        let mut request = http::Request::builder()
+            .method("CONNECT")
+            .uri(uri)
+            .body(())?;
+        request
+            .extensions_mut()
+            .insert(::http2::ext::Protocol::from_static("connect-udp"));
+        let (response, mut send) = client.send_request(request, false)?;
+        let mut body = timeout(DEADLINE, response).await??.into_body();
+        let preamble = timeout(DEADLINE, body.data())
+            .await?
+            .ok_or("missing relay preamble")??;
+        body.flow_control().release_capacity(preamble.len())?;
+        send.send_data(Bytes::from(encode_capsule(0, b"\0ready")), false)?;
+        let mut datagram = [0; 64];
+        let (count, relay_address) = timeout(DEADLINE, target.recv_from(&mut datagram)).await??;
+        assert_eq!(&datagram[..count], b"ready");
+        target.send_to(b"reply", relay_address).await?;
+        let echo = timeout(DEADLINE, body.data())
+            .await?
+            .ok_or("missing relayed reply")??;
+        assert_eq!(echo.as_ref(), &[0, 6, 0, b'r', b'e', b'p', b'l', b'y']);
+        body.flow_control().release_capacity(echo.len())?;
+        send.send_data(Bytes::from_static(&[0, 0x40]), false)?;
+        owners.abort_all();
+        assert!(
+            owners
+                .join_next()
+                .await
+                .expect("relay task")
+                .expect_err("cancelled relay")
+                .is_cancelled()
+        );
+        // Keep both stream halves and the request handle live. Only release of
+        // the server transport can finish the independently driven client.
+        let closed = timeout(DEADLINE, drivers.join_next())
+            .await?
+            .ok_or("missing client driver")?;
+        // A transport error or EOF is expected; a driver panic is not.
+        let _transport_result = closed?;
+        Ok(())
+    }
+}

@@ -137,16 +137,23 @@ pub(crate) async fn forward_one_https_connect(
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     downstream.flush().await?;
-    match copy_bidirectional(&mut downstream, &mut upstream).await {
-        Ok(_) => {}
+    accept_relay_result(copy_bidirectional(&mut downstream, &mut upstream).await)?;
+    Ok(request)
+}
+
+fn accept_relay_result(result: io::Result<(u64, u64)>) -> io::Result<()> {
+    match result {
+        Ok(_) => Ok(()),
         Err(error)
             if matches!(
                 error.kind(),
                 io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe
-            ) => {}
-        Err(error) => return Err(error.into()),
+            ) =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error),
     }
-    Ok(request)
 }
 
 pub(crate) async fn bounded<F>(future: F) -> TestResult<()>
@@ -156,4 +163,37 @@ where
     timeout(TEST_TIMEOUT, future)
         .await
         .map_err(|_| "WebSocket integration test exceeded its deadline")?
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::accept_relay_result;
+
+    #[test]
+    fn https_relay_accepts_all_normal_peer_teardown_errors() {
+        for kind in [
+            io::ErrorKind::ConnectionReset,
+            io::ErrorKind::ConnectionAborted,
+            io::ErrorKind::BrokenPipe,
+        ] {
+            assert!(
+                accept_relay_result(Err(io::Error::new(kind, "peer closed"))).is_ok(),
+                "{kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn https_relay_preserves_unrelated_failure() {
+        let error = accept_relay_result(Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "denied",
+        )))
+        .expect_err("unrelated failure must propagate");
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(error.to_string(), "denied");
+        assert!(accept_relay_result(Ok((3, 5))).is_ok());
+    }
 }

@@ -105,6 +105,16 @@ pub(crate) async fn serve_h2_without_connect_protocol(
     client_done: oneshot::Receiver<()>,
 ) -> TestResult<bool> {
     let stream = accept_tls(listener, acceptor).await?;
+    observe_h2_without_connect_protocol(stream, client_done).await
+}
+
+async fn observe_h2_without_connect_protocol<S>(
+    stream: S,
+    client_done: oneshot::Receiver<()>,
+) -> TestResult<bool>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let mut connection = ::http2::server::handshake(stream).await?;
     tokio::select! {
         accepted = connection.accept() => Ok(matches!(accepted, Some(Ok(_)))),
@@ -275,4 +285,127 @@ fn append_server_frame(output: &mut Vec<u8>, opcode: u8, payload: &[u8]) {
     assert!(length < 126, "test server frames stay below 126 bytes");
     output.push(length);
     output.extend_from_slice(payload);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        sync::oneshot,
+        task::JoinSet,
+        time::timeout,
+    };
+
+    use super::{TestResult, echo_h1, observe_h2_without_connect_protocol};
+
+    async fn observed_h2_frames(frames: &[u8]) -> TestResult<bool> {
+        let (mut client, server) = tokio::io::duplex(4096);
+        let (done, client_done) = oneshot::channel();
+        let mut observers = JoinSet::new();
+        observers.spawn(observe_h2_without_connect_protocol(server, client_done));
+        client
+            .write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+            .await?;
+        client.write_all(&[0, 0, 0, 4, 0, 0, 0, 0, 0]).await?;
+        client.write_all(frames).await?;
+        client.shutdown().await?;
+        // The observer may already have rejected the independent peer bytes.
+        let _ = done.send(());
+        timeout(Duration::from_secs(2), observers.join_next())
+            .await?
+            .ok_or("missing observer task")??
+    }
+
+    #[tokio::test]
+    async fn forbidden_malformed_headers_cannot_prove_absence() -> TestResult<()> {
+        // HPACK indexed field with an unterminated integer on stream 1.
+        assert!(observed_h2_frames(&[0, 0, 1, 1, 4, 0, 0, 0, 1, 0xff]).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn forbidden_valid_headers_are_observed() -> TestResult<()> {
+        // Static HPACK indexes: :method GET, :scheme https, :path /.
+        assert!(observed_h2_frames(&[0, 0, 3, 1, 4, 0, 0, 0, 1, 0x82, 0x87, 0x84]).await?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn truncated_frame_cannot_prove_absence() -> TestResult<()> {
+        let error = observed_h2_frames(&[0, 0])
+            .await
+            .expect_err("truncated frame");
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .expect("I/O error")
+                .kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn protocol_error_cannot_prove_absence() -> TestResult<()> {
+        // PING payloads must contain eight bytes, not one.
+        let error = observed_h2_frames(&[0, 0, 1, 6, 0, 0, 0, 0, 0, 0])
+            .await
+            .expect_err("invalid PING length");
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .expect("I/O error")
+                .kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn clean_h2_close_without_headers_proves_no_request() -> TestResult<()> {
+        assert!(!observed_h2_frames(&[]).await?);
+        Ok(())
+    }
+
+    async fn observed_h1_second_frame(opcode: u8) -> TestResult<()> {
+        let (mut client, server) = tokio::io::duplex(4096);
+        let mut origins = JoinSet::new();
+        origins.spawn(echo_h1(server));
+        client
+            .write_all(b"GET / HTTP/1.1\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
+            .await?;
+        // Zero masks are legal and keep these independent peer bytes readable.
+        client
+            .write_all(&[0x81, 0x85, 0, 0, 0, 0, b'h', b'e', b'l', b'l', b'o'])
+            .await?;
+        client
+            .write_all(&[0x80 | opcode, 0x82, 0, 0, 0, 0, 0x03, 0xe8])
+            .await?;
+        client.shutdown().await?;
+
+        let mut reply = Vec::new();
+        timeout(Duration::from_secs(2), client.read_to_end(&mut reply)).await??;
+        let (_, message) = timeout(Duration::from_secs(2), origins.join_next())
+            .await?
+            .ok_or("missing origin task")???;
+        assert_eq!(message.opcode, 1);
+        assert_eq!(message.payload, b"hello");
+        assert!(reply.ends_with(&[0x88, 2, 0x03, 0xe8]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn h1_echo_rejects_ping_in_place_of_close() {
+        let error = observed_h1_second_frame(9)
+            .await
+            .expect_err("Ping is not Close");
+        assert_eq!(error.to_string(), "client sent a non-Close second frame");
+    }
+
+    #[tokio::test]
+    async fn h1_echo_answers_an_observed_close() -> TestResult<()> {
+        observed_h1_second_frame(8).await
+    }
 }
