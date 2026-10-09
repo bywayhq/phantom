@@ -538,16 +538,22 @@ impl Sink<WebSocketMessage> for WebSocket {
         self: Pin<&mut Self>,
         context: &mut Context<'_>,
     ) -> Poll<Result<(), Self::Error>> {
-        let Some(socket) = self.get_mut().socket.as_mut() else {
+        let this = self.get_mut();
+        let Some(socket) = this.socket.as_mut() else {
             return Poll::Ready(Err(WebSocketError::closed()));
         };
-        match Pin::new(&mut *socket).poll_close(context) {
+        let result = match Pin::new(&mut *socket).poll_close(context) {
             Poll::Ready(Ok(())) => Pin::new(socket.get_mut())
                 .poll_shutdown_stream(context)
                 .map_err(WebSocketError::engine_io),
             Poll::Ready(Err(error)) => Poll::Ready(Err(WebSocketError::engine(error))),
             Poll::Pending => Poll::Pending,
+        };
+        if matches!(result, Poll::Ready(Err(_))) {
+            this.socket = None;
+            this.pending_incoming = None;
         }
+        result
     }
 }
 
@@ -576,6 +582,30 @@ mod tests {
     #[tokio::test]
     async fn close_stream_shutdown_failure_releases_the_socket_and_admission()
     -> Result<(), Box<dyn Error + Send + Sync>> {
+        assert_reset_releases_ownership(CloseAction::Receive).await
+    }
+
+    #[tokio::test]
+    async fn sink_close_write_failure_releases_the_socket_and_admission()
+    -> Result<(), Box<dyn Error + Send + Sync>> {
+        assert_reset_releases_ownership(CloseAction::Sink).await
+    }
+
+    #[tokio::test]
+    async fn sink_close_shutdown_failure_releases_the_socket_and_admission()
+    -> Result<(), Box<dyn Error + Send + Sync>> {
+        assert_reset_releases_ownership(CloseAction::SinkAfterClose).await
+    }
+
+    enum CloseAction {
+        Receive,
+        Sink,
+        SinkAfterClose,
+    }
+
+    async fn assert_reset_releases_ownership(
+        action: CloseAction,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         timeout(Duration::from_secs(5), async {
             let (client_io, server_io) = tokio::io::duplex(16 * 1024);
             let (reset_tx, mut reset_rx) = oneshot::channel();
@@ -605,18 +635,12 @@ mod tests {
 
             let connection =
                 Http2Connection::connect_extended(client_io, &chrome::v154_http2()).await?;
-            let Http2ExtendedConnectOutcome::Accepted {
-                response,
-                mut stream,
-            } = connection
+            let Http2ExtendedConnectOutcome::Accepted { response, stream } = connection
                 .send_extended_connect("example.test", OriginForm::parse("/")?, Vec::new())
                 .await?
             else {
                 return Err("extended CONNECT was rejected".into());
             };
-            reset_tx.send(()).map_err(|()| "reset receiver ended")?;
-            assert!(stream.read_u8().await.is_err());
-
             let retained = Arc::new(AtomicBool::new(true));
             let admission = AdmissionGuard(Arc::clone(&retained));
             let limits = WebSocketLimits::default();
@@ -634,11 +658,29 @@ mod tests {
                 },
             )
             .await;
-            // Exercise the post-flush close state with a real reset H2 stream.
-            // Its empty engine flush succeeds; ending the stream then fails.
-            socket.pending_incoming = Some(WebSocketMessage::Close(None));
+            if matches!(action, CloseAction::SinkAfterClose) {
+                socket.close(None).await?;
+            }
+            reset_tx.send(()).map_err(|()| "reset receiver ended")?;
+            let engine = socket.socket.as_mut().ok_or("socket was not installed")?;
+            let WebSocketIo::Http2 { stream, .. } = engine.get_mut() else {
+                return Err("socket did not retain its HTTP/2 stream".into());
+            };
+            assert!(stream.read_u8().await.is_err());
 
-            let error = socket.receive().await.err().ok_or("shutdown succeeded")?;
+            let error = match action {
+                CloseAction::Receive => {
+                    // Exercise the post-flush close state with a real reset H2 stream.
+                    // Its empty engine flush succeeds; ending the stream then fails.
+                    socket.pending_incoming = Some(WebSocketMessage::Close(None));
+                    socket.receive().await.err()
+                }
+                CloseAction::Sink | CloseAction::SinkAfterClose => {
+                    SinkExt::close(&mut socket).await.err()
+                }
+            }
+            .ok_or("close on a reset stream succeeded")?;
+
             assert_eq!(error.kind(), WebSocketErrorKind::Io);
             assert!(socket.socket.is_none());
             assert!(socket.pending_incoming.is_none());
