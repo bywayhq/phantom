@@ -310,6 +310,15 @@ that warning. Its cause remains unresolved, and the combined gate must
 check it again. Linux reports no such warning. These checks remain focused
 verification rather than a full gate.
 
+The [TLS cleanup review](a57-production-independent-review.json) approves
+the source at `78e664a0` with a required workflow trigger correction. Twelve
+source identities and ranges and eight retained log hashes were verified
+before import. Composition removes duplicated Autobahn container inspection
+and removal in favor of the same concrete owner checks. The combined
+84-method Windows suite passes. This does not establish actual Docker
+cleanup, cancellation of late daemon work, or bounded initial log memory.
+Composed independent review and Linux checks remain pending.
+
 ## Limits of the record
 
 Assignments do not establish coverage. Each completed pass must list the

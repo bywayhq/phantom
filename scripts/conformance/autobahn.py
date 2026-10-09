@@ -19,8 +19,10 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
+    from .docker_owner import remove_container, verified_container_id
     from .loopback_tls import generate_loopback_certificate
 else:
+    from docker_owner import remove_container, verified_container_id
     from loopback_tls import generate_loopback_certificate
 
 IMAGE = (
@@ -275,86 +277,37 @@ def _write_container_log(container_id: str, destination: Path) -> None:
         )
 
 
-def _owned_container_id(container_name: str, owner: str) -> str | None:
-    result = subprocess.run(
-        [
-            "docker",
-            "inspect",
-            "--type",
-            "container",
-            "--format",
-            "{{.Id}}\n{{json .Config.Labels}}",
-            container_name,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=CONTAINER_TIMEOUT_SECONDS,
-    )
-    if result.returncode:
-        diagnostic = result.stderr.strip()
-        if result.returncode == 1 and diagnostic in {
-            f"Error: No such object: {container_name}",
-            f"Error response from daemon: No such container: {container_name}",
-        }:
-            return None
-        raise RuntimeError(
-            f"container ownership inspection exited with status {result.returncode}: "
-            f"{diagnostic}"
-        )
-    lines = result.stdout.splitlines()
-    if (
-        len(lines) != 2
-        or len(lines[0]) != 64
-        or any(character not in "0123456789abcdef" for character in lines[0])
-    ):
-        raise ValueError("container ownership inspection returned an invalid ID")
-    try:
-        labels = json.loads(lines[1])
-    except json.JSONDecodeError as error:
-        raise ValueError(
-            "container ownership inspection returned invalid labels"
-        ) from error
-    if not isinstance(labels, dict) or labels.get(CONTAINER_OWNER_LABEL) != owner:
-        raise RuntimeError(
-            "container ownership did not match; left the container untouched"
-        )
-    return lines[0]
-
-
 def _cleanup_container(
     container_name: str, owner: str, run_directory: Path
 ) -> tuple[list[tuple[str, Exception | KeyboardInterrupt]], list[str]]:
     failures: list[tuple[str, Exception | KeyboardInterrupt]] = []
     notes: list[str] = []
+
     try:
-        container_id = _owned_container_id(container_name, owner)
+        container_id = verified_container_id(
+            container_name,
+            CONTAINER_OWNER_LABEL,
+            owner,
+            timeout=CONTAINER_TIMEOUT_SECONDS,
+        )
     except (Exception, KeyboardInterrupt) as error:
         failures.append(("container ownership inspection", error))
         return failures, notes
+
     if container_id is None:
         notes.append("container cleanup: named container not found")
         return failures, notes
+
     try:
         _write_container_log(container_id, run_directory / "container.log")
     except (Exception, KeyboardInterrupt) as error:
         failures.append(("container log collection", error))
+
     try:
-        # The verified immutable ID prevents a name replacement from changing the owner.
-        result = subprocess.run(
-            ["docker", "rm", "--force", container_id],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=CONTAINER_TIMEOUT_SECONDS,
-        )
-        if result.returncode:
-            raise RuntimeError(
-                f"container removal exited with status {result.returncode}: "
-                f"{result.stderr.strip()}"
-            )
+        remove_container(container_id, timeout=CONTAINER_TIMEOUT_SECONDS)
     except (Exception, KeyboardInterrupt) as error:
         failures.append(("container removal", error))
+
     return failures, notes
 
 

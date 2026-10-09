@@ -63,7 +63,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Repair independently approved; composed 51-method suite passes on Windows and Linux; actual loopback output and scratch controls pass |
 | A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent source review approved |
 | A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Signed baseline has seven passes and eight intended lifecycle failures; bounded process owner repair in progress |
-| A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Signed baseline has five passes and two intended failures; ownership and cleanup repair in progress |
+| A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Source remedy independently approved; 37 focused methods pass; shared Autobahn composition passes 84 Windows methods; composed review and Linux checks pending |
 
 ## Initial source evidence
 
@@ -697,12 +697,19 @@ The remedy verifies a unique ownership label and immutable container ID,
 bounds removal, and retains suite and cleanup causes together. Controlled
 subprocess fixtures do not establish actual Docker daemon behavior.
 
-The A57 implementation at `2c9dbead` remains unintegrated. Root review
-reproduces another interruption gap: log-retention KeyboardInterrupt skips
+Root review of A57 at `2c9dbead` reproduces another interruption gap:
+log-retention KeyboardInterrupt skips
 the second log and summary, losing an observed suite exit of 7 and removal
 exit of 9. Eighteen existing lifecycle methods pass; the added controlled
-regression fails because the retained summary is absent. The author is
-remediating it before independent approval and composition.
+regression fails because the retained summary is absent. Three further
+retention controls fail at the test-only checkpoint. The remedy at
+`78e664a0` passes all 37 owner and TLS methods and has independent source
+approval. Composition retains both failure causes and valid suite results,
+shares verified removal with Autobahn, and adds both shared paths to the
+TLS-Anvil push filter. The 84-method Windows suite passes; composed review,
+Linux verification and final integration remain pending. An absent container
+inspection does not prove that a timed-out daemon launch cannot create it
+later. Initial whole-log reads also remain outside the retained-size cap.
 
 ## Rejected candidates
 

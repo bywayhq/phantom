@@ -274,6 +274,11 @@ The conformance suites are [Autobahn](.github/workflows/autobahn.yml),
 [WPT EventSource](.github/workflows/wpt-eventsource.yml).
 [Release](.github/workflows/release.yml) runs only by manual dispatch.
 
+Autobahn and TLS-Anvil label each run's container and remove only its verified
+immutable ID. Cleanup failures fail the run and remain in its report. A
+timed-out Docker launch can still create a container after inspection reports
+it absent. Retained ownership metadata identifies that run for recovery.
+
 The QUIC interoperability download example creates a staging directory beside
 each output. Publication requires hard-link support on that filesystem and
 refuses an existing output. Each invocation removes only its staging file
