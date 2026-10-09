@@ -9,7 +9,7 @@
 mod support;
 
 #[cfg(any(feature = "sse", feature = "websocket"))]
-mod environment;
+mod environment_routes;
 
 #[cfg(feature = "sse")]
 mod sse;

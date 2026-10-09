@@ -108,7 +108,8 @@ async fn upload(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Use this with a matching Chrome profile and client hints. The prepared body
-fills the declared `Content-Type` and `Content-Length` positions. Firefox's
+fills the declared `Content-Type` position. It fills `Content-Length` when
+the request has no trailers. Firefox's
 Windows upload template also needs your `Priority` value for HTTP/1.1.
 The [upload table](../reference/profiles.md#upload-templates) lists positions
 and protocol support.
