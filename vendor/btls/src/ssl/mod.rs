@@ -954,7 +954,9 @@ pub enum SslMessageDirection {
 }
 
 /// A TLS protocol message observed by a message callback.
-#[derive(Debug, Clone, Copy)]
+///
+/// Debug output includes message metadata and length, but omits message bytes.
+#[derive(Clone, Copy)]
 pub struct SslMessage<'a> {
     /// Whether the message was read or written.
     pub direction: SslMessageDirection,
@@ -964,6 +966,18 @@ pub struct SslMessage<'a> {
     pub content_type: SslMessageContentType,
     /// The complete protocol message bytes reported by BoringSSL.
     pub data: &'a [u8],
+}
+
+impl fmt::Debug for SslMessage<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SslMessage")
+            .field("direction", &self.direction)
+            .field("version", &self.version)
+            .field("content_type", &self.content_type)
+            .field("data_len", &self.data.len())
+            .finish()
+    }
 }
 
 /// A TLS record content type, including the pseudo-types reported by BoringSSL.
