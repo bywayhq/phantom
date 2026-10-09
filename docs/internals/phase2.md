@@ -1,7 +1,8 @@
 # Phase 2 implementation checklist
 
-Track the API changes needed before Phantom's first release. Each item needs
-implementation, documentation, review, and evidence on merged `main`.
+Use this checklist to review the API work before Phantom's first release.
+All required changes are implemented. The final merge and CI proof remain
+pending.
 
 ## Starting point
 
@@ -17,9 +18,11 @@ contract in [Coverage](../reference/coverage.md).
 
 ## Milestones
 
-An unchecked item remains required. Commit links, review results, and exact
-gate results belong beside an item when it is completed. A partial lane or
-a passing focused test does not complete an item.
+Checked items record implemented and reviewed changes, including the
+candidate in [PR 187](https://github.com/bywayhq/phantom/pull/187) at
+`b2cf66d0`. They do not yet establish completion on merged `main`.
+See [Integration and completion](#integration-and-completion) for the
+final proof.
 
 ### 1. Routes
 
@@ -53,15 +56,18 @@ The eight feature rows of the public API inventory were regenerated.
 Path/git downstream consumers passed with default and all features.
 HTTP/1.1 backend errors now have an opaque payload; HTTP/3 backend conversion
 is private. Source chains and replay observations remain available.
-The remaining settings and workflow APIs still need final inventories,
-integration checks, and CI.
-- [ ] Unused internal exports become private. A public API inventory
+PR 187 finishes export cleanup, enum evolution, typed error categories,
+conversions, common traits, and public examples. The public API inventories
+and default/all-feature path and git consumers have been checked. Its final
+gate, PR checks, merge, and push CI remain pending.
+
+- [x] Unused internal exports become private. A public API inventory
   records the intended exports of each library crate.
-- [ ] Public enums have an explicit evolution policy. Extensible enums
+- [x] Public enums have an explicit evolution policy. Extensible enums
   use `#[non_exhaustive]` where callers should keep a fallback arm.
 - [x] Error APIs hide unintended vendored types. Intentional dependencies,
   including the QUIC provider interface, are listed explicitly.
-- [ ] Retained public APIs have consistent names, builders, conversions,
+- [x] Retained public APIs have consistent names, builders, conversions,
   meaningful settings types, and applicable common traits. Tests assert
   required `Send` and `Sync` bounds. Important returned values are
   `#[must_use]`. Examples and error documentation cover their use.
@@ -74,10 +80,12 @@ composition. Factories leave the default request template unset. You can
 configure one on the profile, replace it on a request, or opt out for that
 request. Credential stripping across redirects passed integration checks.
 Checked TLS version ranges and ticket settings preserve recipe values and
-keep TCP limits separate from QUIC ticket storage. Checked ECH and trust
-anchor settings remain in the next batch.
+keep TCP limits separate from QUIC ticket storage. PR 187 adds checked ECH
+settings and trust-anchor ID orders. These types retain recipe values and
+selection order. Public-field settings remain available for custom
+composition, with validation and a documented breaking-change policy.
 
-- [ ] Settings constructors and their evolution policy are settled.
+- [x] Settings constructors and their evolution policy are settled.
   Invalid combinations are prevented by types where practical; remaining
   invalid or unsupported values produce recoverable errors.
 - [x] Browser modules have one naming convention. Composed constructors
@@ -94,11 +102,14 @@ anchor settings remain in the next batch.
 PR 186 adds recoverable status checks and bounded bytes, UTF-8, and optional
 typed-JSON reads. Success and failure retain the response head and extensions.
 Bodies and trailers follow the existing collection and cancellation rules.
-These changes passed the full gate and CI. Request origin context, replay
-observations, and facade error formatting remain in the next batch.
-- [ ] Public errors expose typed categories and useful `source()` chains.
+These changes passed the full gate and CI. PR 187 adds typed recovery
+categories, safe origin context, replay observations, and error formatting
+that leaves causes in `source()`. Replay observations do not grant permission
+to resend a method or body.
+
+- [x] Public errors expose typed categories and useful `source()` chains.
   A cause is not repeated at every display layer.
-- [ ] Request failures expose replay safety and origin context without
+- [x] Request failures expose replay safety and origin context without
   retaining a sensitive full URL for diagnostics.
 - [x] Opt-in status-to-error conversion retains the response. Existing
   errors that have a response make it available to callers.
@@ -108,31 +119,49 @@ observations, and facade error formatting remain in the next batch.
 
 ### 5. Request workflows
 
-- [ ] Client/request timeout inheritance is explicit. Phase timeouts and
+PR 187 adds explicit timeout overrides and one overall retry budget.
+Ordered query pairs, validated authorization values, and bounded `Link`
+parsing support request preparation. Prepared JSON, form, and multipart
+bodies fill declared `Content-Type` and `Content-Length` slots. Windows
+Chrome and Firefox fetch-upload templates cover HTTP/1.1 and HTTP/2.
+SSE streams share polling state with `next_event()`. Environment proxies
+remain opt-in, with explicit route and `NO_PROXY` precedence.
+
+- [x] Client/request timeout inheritance is explicit. Phase timeouts and
   a total deadline have separate documented meanings.
-- [ ] An overall retry budget has defined interactions with each retry
+- [x] An overall retry budget has defined interactions with each retry
   class and browser-required replay. Delay control cannot silently grant
   permission to retry. One-shot bodies are never implicitly replayed.
-- [ ] Query construction preserves order and duplicates. Authorization
+- [x] Query construction preserves order and duplicates. Authorization
   constructors validate values. `Link` parsing returns data only.
-- [ ] JSON, form, and multipart bodies use browser evidence for
-  `Content-Type` placement. Convenience APIs follow declared templates
-  instead of inserting or reordering headers implicitly.
-- [ ] SSE implements `Stream`. Public APIs re-export the types callers
+- [x] JSON, form, and multipart bodies fill declared template slots.
+  Fetch-upload templates preserve the recorded HTTP/1.1 and HTTP/2 header
+  order. Multipart encoding has separate tests for framing and escaping.
+- [x] SSE implements `Stream`. Public APIs re-export the types callers
   need, including types previously reachable only through public fields.
-- [ ] Environment proxy selection is opt-in. Explicit routes, environment
+- [x] Environment proxy selection is opt-in. Explicit routes, environment
   variables, and `NO_PROXY` have documented precedence and tested behavior.
 
 ### 6. Observability and downstream tests
 
-- [ ] Tracing has a stable span/field contract that omits credentials,
+PR 187 documents the tracing span and header-redaction contract. A
+synchronous request hook fills only declared caller slots. It runs once
+during preparation and retains redirect credential stripping.
+
+The wire harness compares bounded HTTP/1.1 request heads with retained
+expectations. Metadata identifies the browser build, platform, run, and
+request kind. Package checks passed 95 tests and six doctests using
+self-contained fixtures. The harness does not establish TLS, HTTP/2, or
+HTTP/3 parity. Publication remains a separate release step.
+
+- [x] Tracing has a stable span/field contract that omits credentials,
   cookies, bodies, and sensitive URLs.
-- [ ] A request hook can fill a declared template slot. It cannot add a
+- [x] A request hook can fill a declared template slot. It cannot add a
   header or change header order.
-- [ ] A downstream wire-assertion harness checks actual requests against
-  named recipes. Its package is prepared for publication, without
-  publishing during this phase.
-- [ ] Consumer examples compile for profile setup, client reuse, proxy
+- [x] A downstream wire-assertion harness checks HTTP/1.1 request heads
+  against retained expectations. Its package is prepared for publication,
+  without publishing during this phase.
+- [x] Consumer examples compile for profile setup, client reuse, proxy
   selection, request bodies, bounded responses, error inspection,
   timeouts, retries, streaming cancellation, and downstream assertions.
 
@@ -155,19 +184,13 @@ Every API change keeps these existing boundaries:
 
 ## Existing behavior to retain
 
-These features already exist at the starting commit. Their presence does
-not complete the broader milestone that refines them.
+The starting API already had per-request timeouts, total deadlines,
+per-request retries, typed request errors, and bounded body collection.
+Phase 2 extends these with explicit inheritance, a shared retry budget,
+and response helpers.
 
-| Feature | Current API | Remaining Phase 2 work |
-| --- | --- | --- |
-| Per-request timeouts | `RequestBuilder::timeouts` | Inheritance policy |
-| Total deadline | `RequestTimeouts::total` | Preserve across API changes |
-| Per-request retries | `RequestBuilder::retry_policy` | Overall budget |
-| Typed request errors | `RequestError::kind` | Consistency across errors |
-| Timeout detail | `RequestError::timeout_phase` | Preserve classification |
-| Bounded collection | `ResponseBody::collect_with_limit` | Response helpers |
-| Separate proxy roots | `ClientBuilder::add_proxy_root_certificate_der` | Preserve trust separation |
-| Origin identities | `ClientBuilder::client_certificate_for` | Preserve selection and isolation |
+Separate proxy roots and origin-scoped client certificates remain in place.
+The route and settings changes preserve their selection and isolation.
 
 ## Research used for API decisions
 
@@ -189,19 +212,23 @@ reproduced defect, and a closed issue does not establish its current status.
 
 ## Integration and completion
 
-Each milestone uses a `lane/<name>` worktree and an independent review.
-The integration owner rebases, reviews every commit, and runs the full gate
-from the integration checkout. All required PR checks must pass, including
-Windows and macOS, before an exact-SHA fast-forward merge. A failing workflow
-on `main` blocks the next merge. Integrated lanes are removed.
+The workspace lint baseline, route consolidation, and first API batch are
+merged in PRs 184, 185, and 186. PR 187 contains the remaining implemented
+items at candidate `b2cf66d0`. The earlier integration run passed all 24
+gate steps and 3,085 tests. The candidate's final gate and CI are pending.
+
+Completion proof pending: replace this paragraph after PR 187 merges.
+Record the exact merged commit, its full gate result, all required PR
+checks, and push CI on `main`. Until that proof is recorded, Phase 2 remains
+awaiting final verification.
 
 Every breaking API change has a migration note. Completion requires every
 item above to be implemented, documented, reviewed, merged, and verified
-on green `main`. Deferrals require an explicit scope decision.
+on green `main`. A failing workflow on `main` blocks the next merge.
 
 New browser coverage, backend changes, broader hardening, optimization,
 and architecture audits are outside Phase 2. Publication and Phase 3 start
-after this phase; do not run `cargo publish` during it.
+after this phase. Ask before any `cargo publish`.
 
 ## Next
 

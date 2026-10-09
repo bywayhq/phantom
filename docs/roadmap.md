@@ -442,112 +442,51 @@ the wire, capture evidence.
 
 ## Phase 2: Ergonomics
 
-Track implementation and acceptance criteria in the
-[Phase 2 checklist](internals/phase2.md). The workspace lint baseline is
-merged, and route API consolidation is complete. Profiles, settings,
-response helpers, and request workflows are in progress.
+Phase 2 settles the public API before the first release. Its required API
+changes are implemented in PRs 184, 185, 186, and 187. The final batch in
+PR 187 awaits merge and CI proof. Use the
+[Phase 2 checklist](internals/phase2.md) to track that proof and the
+acceptance criteria.
 
-Phase 2 settles the public API before the first release, so it starts with
-the structural changes that would otherwise break published crates. They
-wait for Phase 1, so they cover every route and setting it adds. A lint
-baseline comes first, so the lints guide the refactor rather than follow it.
+- Workspace lints: `missing_debug_implementations`, `rust_2018_idioms`,
+  `clippy::must_use_candidate`, `clippy::cast_lossless`, and `clippy::cargo`.
+- Typed routes for protocol connection, send, and upgrade operations.
+  Pools and WebSocket openings share connection-leg ownership.
+- Public API inventories, private transport plumbing, opaque backend errors,
+  and documented public dependencies.
+- Extensible enums, typed error categories, applicable common traits,
+  `Send`/`Sync` assertions, conversions, and `#[must_use]` values.
+- Browser recipes under `profile::browser`, with explicit Windows and
+  Android profile constructors and named versions.
+- Checked TLS version ranges, session tickets, ECH settings, and trust-anchor
+  ID orders. Public-field settings retain validated custom composition.
+- Profile default request templates, per-request replacements, and opt-out.
+- Response-preserving status checks and bounded bytes, text, and optional
+  typed-JSON reads.
+- Typed error inspection, safe origin context, replay observations, and
+  source chains without repeated causes.
+- Explicit timeout inheritance, phase limits, total deadlines, and a shared
+  retry budget.
+- Ordered query pairs, validated authorization values, and bounded `Link`
+  parsing as data.
+- Prepared JSON, form, and multipart bodies with declared header slots.
+  Windows fetch-upload templates preserve HTTP/1.1 and HTTP/2 header order.
+- SSE `Stream` support, shared `next_event()` state, and public type exports.
+- Opt-in environment proxies with explicit route and `NO_PROXY` precedence.
+- A documented tracing contract and a synchronous hook for declared caller
+  slots.
+- A package-ready HTTP/1.1 wire-assertion harness and compiling downstream
+  examples.
 
-- A workspace lint baseline: `missing_debug_implementations`,
-  `rust_2018_idioms`, a chosen subset of `clippy::pedantic` (such as
-  `must_use_candidate`, `needless_pass_by_value`, `doc_markdown`, and the
-  `cast_*` lints), and `clippy::cargo` for the release. Each lint is fixed
-  across the workspace before it is turned on.
-- Replace the route-specific public API of `phantom-net` (109 methods on
-  five connectors and 14 free functions; 84 `pub fn` names spell out a
-  route, such as `upgrade_get_plaintext_https_connect_with_basic_auth`) with
-  one connect, send, and upgrade operation per protocol that takes a route
-  value, and build the connection leg in one place. This removes most of
-  the duplication between `http1/tls.rs` and `http2/tls.rs`, most of the 89
-  `too_many_arguments` allowances in `phantom-net`, and the 9
-  `match route` blocks in 6 pool and WebSocket files. It changes no wire
-  field or order: every fixture replay stays byte-identical.
-- Narrow what `phantom-net` and `phantom-quic-btls` publish. 104 of
-  `phantom-net`'s 543 non-test `pub` items are named by no other crate,
-  example, or test, 9 `pub` functions have no caller at all, and 12
-  `#[doc(hidden)] pub` items carry plumbing between crates.
-  `phantom-quic-btls` exports packet-protection primitives, such as
-  `derive_initial_keys`, `HeaderProtectionKey`, and `retry_integrity_tag`,
-  that only its own tests use. Make them `pub(crate)` and check the result
-  with `cargo public-api`.
-- `#[non_exhaustive]` on the 24 exhaustive public enums of `phantom-net`,
-  among them its 6 error enums and 9 error-kind enums, so a new failure
-  mode is not a breaking change. `phantom` already marks 18 of its 21 enums
-  and `phantom-profile` 48 of 51.
-- Keep vendored-fork types out of `phantom-net`'s public API: `Http1Error`
-  wraps `wreq_proto::Error` and `Http3Error` has a public
-  `From<h3::error::StreamError>`, so refreshing a fork is a semver break.
-  Wrap foreign errors in opaque types reached through `source()`, and list
-  each crate's intended public dependencies, such as the `btls` and
-  `quinn-proto` types `phantom-quic-btls` names as a quinn crypto provider.
-- Decide how the 26 public profile settings structs (135 `pub` fields)
-  grow: `#[non_exhaustive]` with constructors, or an explicit versioning
-  policy. Let the constructors make invalid combinations unrepresentable.
-  Checked TLS version ranges and session-ticket settings prevent reversed
-  endpoints and invalid TCP ticket counts. ECH still pairs an enabled flag
-  with payload settings; group those into a checked policy next. Keep the
-  existing validators for dependencies between settings.
-- Group the 23 public `phantom-profile` modules: browser recipes under one
-  module beside the protocol settings modules, with one naming rule for
-  Chrome and Chromium (today `chromium` holds the Chrome desktop recipes and
-  `chrome_android` the Android ones).
-- Check every public type against the
-  [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html):
-  common traits derived where they make sense (no `phantom-profile` type
-  derives `Hash`), `Send` and `Sync` asserted in tests (no error type is
-  today), `as_`, `to_`, and `into_` naming, consistent builders, `# Errors`
-  and `# Panics` sections, an example on each public item, and
-  `#[must_use]` where dropping a value is a bug. Today 7 of `phantom`'s 282
-  public functions have an example and the other library crates have none.
-  `# Errors` is on every `phantom` function that returns `Result`, but on 88
-  of 218 in `phantom-net`, 5 of 12 in `phantom-profile`, and 1 of 28 in
-  `phantom-quic-btls`.
-- `From` and `TryFrom` where a constructor is a conversion, such as
-  `CipherSuite::from_iana_id` and `RequestBody::from_bytes`; enums in place of value-selecting `bool`
-  parameters, such as `RequestField::default_value(trustworthy)`; and a
-  `Stream` impl on the SSE types, which offer only `next_event()` while
-  `WebSocket` implements `Stream` and `Sink`.
-- Public errors with a stable `kind()`, a `source()` chain, and lowercase
-  messages without trailing punctuation; enums or newtypes in place of
-  strings a caller would match on. The messages already meet the style
-  rule. The gaps: 23 of the 47 library error types have no `kind()`, 14 of
-  them classify by a `&'static str` field name, and 13 types print their
-  cause in `Display` and also return it from `source()`, so a chain
-  reporter prints each cause once per level above it.
-- Named types in place of bare primitives and nested collections in public
-  settings where the meaning is not obvious, such as the
-  `Vec<Vec<Box<[u8]>>>` of trust-anchor orders.
-- Composed per-browser profile constructors, such as
-  `browser::chrome::v154_windows()`, so
-  a caller cannot pair the HTTP/3 leg with the TCP ClientHello by mistake.
-- Error triage over `kind()`, a public replay-safety accessor, the
-  response carried on errors that have one, and the origin (scheme, host,
-  and port, never the full URI) on `RequestError`.
-- Bounded `text()`, `bytes()`, and typed-JSON helpers that never set a
-  request field.
-- Re-exports of the types the public API names, such as `Bytes`,
-  `http::Response`, `StatusCode`, and `Uri`, and of the five profile types
-  reachable only through public fields, such as `Http2StreamSettings`.
-- A tracing span and field contract, then one narrow request hook that may
-  fill a declared slot but never add a field.
-- A per-request timeout that layers onto the client's, and a retry budget.
-- One naming convention across the ordered-field types and request builders.
-- Query construction that never sorts, authorization value constructors, and
-  `Link` parsing as data.
-- JSON, form, and multipart bodies, after a POST capture shows where a
-  browser places `Content-Type`; opt-in `HTTP_PROXY` and `NO_PROXY` routes.
-- A default request template on the profile.
-- An opt-in status-to-error conversion that keeps the response.
-- A published wire-assertion harness, so downstream tests can check a request
-  against a named recipe.
+The route and settings changes preserve browser recipes, trust separation,
+origin-scoped identities, cancellation, and body replay rules. Upload tests
+cover header placement. Encoding tests cover multipart framing and escaping.
+The HTTP/1.1 harness makes no claim about TLS, HTTP/2, or HTTP/3 parity.
 
-Non-goals: middleware that can add a field or change an order, fallback from
-a proxy route to a direct connection, silent protocol fallback, automatic
-`Link` following, base-URL joining, and a blocking API.
+Non-goals remain arbitrary header middleware, proxy-to-direct fallback,
+silent protocol changes, automatic `Link` following, base-URL joining, and
+a blocking API. Publishing follows Phase 2 completion. Hardening remains
+in Phase 3.
 
 ## Release to crates.io
 
