@@ -1,0 +1,362 @@
+use std::{
+    net::SocketAddr,
+    pin::Pin,
+    sync::{Arc, Mutex, PoisonError},
+    time::Duration,
+};
+
+use btls::{
+    ssl::{SslConnector, SslMethod},
+    x509::X509,
+};
+use tokio::{
+    io::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _, BufReader},
+    net::{TcpListener, TcpStream},
+    task::JoinHandle,
+    time::timeout,
+};
+use tokio_btls::SslStream;
+
+use super::{CaptureResult, DnsAnswers, HOSTNAME, Identity, serve_doh, serve_doh_connection};
+
+const IO_TIMEOUT: Duration = Duration::from_secs(3);
+const DEADLINE_TEST_TIMEOUT: Duration = Duration::from_secs(12);
+type Client = BufReader<SslStream<TcpStream>>;
+type TestResult = CaptureResult<()>;
+
+enum ServerMode {
+    Capture,
+    Connection,
+}
+
+struct Server {
+    address: SocketAddr,
+    certificate: Vec<u8>,
+    queries: Arc<Mutex<Vec<String>>>,
+    task: JoinHandle<CaptureResult<()>>,
+}
+
+impl Server {
+    async fn start(mode: ServerMode) -> CaptureResult<Self> {
+        let identity = Identity::generate()?;
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(None)?;
+        let queries = Arc::new(Mutex::new(Vec::new()));
+        let recorded = Arc::clone(&queries);
+        let answers = DnsAnswers {
+            address: address.ip(),
+            port: address.port(),
+            ech_config_list: Vec::new(),
+            quic: false,
+        };
+
+        let task = tokio::spawn(async move {
+            match mode {
+                ServerMode::Connection => {
+                    let (tcp, _) = listener.accept().await?;
+                    // The test sends hundreds of small exchanges, not packet timings.
+                    tcp.set_nodelay(true)?;
+                    serve_doh_connection(tcp, &acceptor, &recorded, &answers).await
+                }
+                ServerMode::Capture => serve_doh(listener, acceptor, recorded, answers).await,
+            }
+        });
+
+        Ok(Self {
+            address,
+            certificate: identity.certificate,
+            queries,
+            task,
+        })
+    }
+
+    async fn client(&self) -> CaptureResult<Client> {
+        timeout(IO_TIMEOUT, async {
+            let tcp = TcpStream::connect(self.address).await?;
+            tcp.set_nodelay(true)?;
+            let mut builder = SslConnector::builder(SslMethod::tls())?;
+            builder
+                .cert_store_mut()
+                .add_cert(X509::from_der(&self.certificate)?)?;
+            let ssl = builder.build().configure()?.into_ssl(HOSTNAME)?;
+            let mut tls = SslStream::new(ssl, tcp)?;
+            Pin::new(&mut tls).connect().await?;
+            Ok(BufReader::new(tls))
+        })
+        .await?
+    }
+
+    async fn finish(&mut self, deadline: Duration) -> CaptureResult<()> {
+        timeout(deadline, &mut self.task).await??
+    }
+
+    fn descriptions(&self) -> Vec<String> {
+        self.queries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+impl Drop for Server {
+    fn drop(&mut self) {
+        // A failed assertion must not leave the listener running.
+        self.task.abort();
+    }
+}
+
+fn query(name: &str, record_type: u16) -> Vec<u8> {
+    let mut wire = vec![0x12, 0x34, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0];
+    for label in name.split('.') {
+        assert!(!label.is_empty() && label.len() <= 63);
+        wire.push(u8::try_from(label.len()).unwrap());
+        wire.extend_from_slice(label.as_bytes());
+    }
+    wire.push(0);
+    wire.extend_from_slice(&record_type.to_be_bytes());
+    wire.extend_from_slice(&1_u16.to_be_bytes());
+    wire
+}
+
+async fn exchange(client: &mut Client, name: &str, record_type: u16) -> CaptureResult<Vec<u8>> {
+    timeout(IO_TIMEOUT, async {
+        let message = query(name, record_type);
+        let mut request = format!(
+            "POST /dns-query HTTP/1.1\r\nhost: {HOSTNAME}\r\ncontent-length: {}\r\n\r\n",
+            message.len()
+        )
+        .into_bytes();
+        request.extend_from_slice(&message);
+        client.write_all(&request).await?;
+        client.flush().await?;
+
+        let mut status = String::new();
+        client.read_line(&mut status).await?;
+        if status != "HTTP/1.1 200 OK\r\n" {
+            return Err(format!("expected DNS response, received {status:?}").into());
+        }
+
+        let mut length = None;
+        loop {
+            let mut line = String::new();
+            let read = client.read_line(&mut line).await?;
+            if read == 0 {
+                return Err("DNS response ended before its header delimiter".into());
+            }
+            if line == "\r\n" {
+                break;
+            }
+            let (name, value) = line.split_once(':').ok_or("invalid response header")?;
+            if name.eq_ignore_ascii_case("content-length") {
+                length = Some(value.trim().parse::<usize>()?);
+            }
+        }
+
+        let length = length.ok_or("DNS response omitted content length")?;
+        assert!(length <= 65_535);
+        let mut response = vec![0; length];
+        client.read_exact(&mut response).await?;
+        assert_eq!(response.get(..2), Some(&[0x12, 0x34][..]));
+        Ok(response)
+    })
+    .await?
+}
+
+async fn assert_closed(client: &mut Client) -> TestResult {
+    let mut byte = [0; 1];
+    let read = timeout(IO_TIMEOUT, client.read(&mut byte)).await?;
+    assert!(
+        matches!(read, Ok(0) | Err(_)),
+        "closed DNS child still produced response data"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn ninth_live_doh_connection_fails_capture_without_detaching_children() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peers = Vec::new();
+    for _ in 0..8 {
+        let mut peer = server.client().await?;
+        exchange(&mut peer, HOSTNAME, 1).await?;
+        peers.push(peer);
+    }
+    assert_eq!(server.descriptions().len(), 8);
+
+    let ninth = server.client().await;
+    assert!(ninth.is_err(), "ninth live DNS child was admitted");
+    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    assert!(failure.to_string().contains("connection limit"));
+    for peer in &mut peers {
+        assert_closed(peer).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn doh_query_count_accepts_256_then_fails_without_retaining_the_next() -> TestResult {
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let mut client = server.client().await?;
+    for _ in 0..256 {
+        exchange(&mut client, HOSTNAME, 1).await?;
+    }
+    assert_eq!(server.descriptions().len(), 256);
+
+    let overflow = exchange(&mut client, HOSTNAME, 1).await;
+    assert!(
+        overflow.is_err(),
+        "257th query produced a successful response"
+    );
+    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    assert!(failure.to_string().contains("query count"));
+    assert_eq!(server.descriptions().len(), 256);
+    Ok(())
+}
+
+#[tokio::test]
+async fn doh_query_bytes_accept_64_kib_then_fail_below_the_count_limit() -> TestResult {
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let mut client = server.client().await?;
+    let name = [
+        "a".repeat(63),
+        "b".repeat(63),
+        "c".repeat(63),
+        "d".repeat(61),
+    ]
+    .join(".");
+    assert_eq!(name.len(), 253);
+    for _ in 0..253 {
+        exchange(&mut client, &name, 65).await?;
+    }
+    exchange(&mut client, "abc.def", 1).await?;
+    let descriptions = server.descriptions();
+    assert_eq!(descriptions.len(), 254);
+    assert_eq!(descriptions.iter().map(String::len).sum::<usize>(), 65_536);
+
+    let overflow = exchange(&mut client, "x", 1).await;
+    assert!(
+        overflow.is_err(),
+        "query metadata exceeded 64 KiB successfully"
+    );
+    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    assert!(failure.to_string().contains("query metadata"));
+    assert_eq!(server.descriptions(), descriptions);
+    Ok(())
+}
+
+#[tokio::test]
+async fn stalled_doh_tls_handshake_has_a_server_deadline() -> TestResult {
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let tcp = TcpStream::connect(server.address).await?;
+
+    let failure = server.finish(DEADLINE_TEST_TIMEOUT).await.unwrap_err();
+    assert!(
+        failure.to_string().contains("TLS handshake") && failure.to_string().contains("timed out"),
+        "TLS deadline did not surface its operation: {failure}"
+    );
+    drop(tcp);
+    Ok(())
+}
+
+#[tokio::test]
+async fn incomplete_doh_request_head_has_a_whole_exchange_deadline() -> TestResult {
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let mut client = server.client().await?;
+    client.write_all(b"POST /dns-query HTTP/1.1\r\n").await?;
+    client.flush().await?;
+
+    let failure = server.finish(DEADLINE_TEST_TIMEOUT).await.unwrap_err();
+    assert!(
+        failure.to_string().contains("request") && failure.to_string().contains("timed out"),
+        "request-head deadline did not surface its operation: {failure}"
+    );
+    assert!(server.descriptions().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn incomplete_doh_request_body_has_a_whole_exchange_deadline() -> TestResult {
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let mut client = server.client().await?;
+    client
+        .write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 32\r\n\r\nx")
+        .await?;
+    client.flush().await?;
+
+    let failure = server.finish(DEADLINE_TEST_TIMEOUT).await.unwrap_err();
+    assert!(
+        failure.to_string().contains("request") && failure.to_string().contains("timed out"),
+        "request-body deadline did not surface its operation: {failure}"
+    );
+    assert!(server.descriptions().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn aborting_doh_listener_closes_every_acknowledged_child() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut peers = Vec::new();
+    for _ in 0..3 {
+        let mut peer = server.client().await?;
+        exchange(&mut peer, HOSTNAME, 1).await?;
+        peers.push(peer);
+    }
+    assert_eq!(server.descriptions().len(), 3);
+
+    server.task.abort();
+    let joined = timeout(IO_TIMEOUT, &mut server.task).await?;
+    assert!(joined.is_err_and(|error| error.is_cancelled()));
+    for peer in &mut peers {
+        assert_closed(peer).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn ordinary_doh_eof_completes_without_a_capture_failure() -> TestResult {
+    let mut server = Server::start(ServerMode::Connection).await?;
+    let mut client = server.client().await?;
+    let response = exchange(&mut client, HOSTNAME, 1).await?;
+    assert_eq!(response.get(6..8), Some(&[0, 1][..]));
+    assert_eq!(server.descriptions(), [format!("A {HOSTNAME}")]);
+
+    client.shutdown().await?;
+    drop(client);
+    server.finish(IO_TIMEOUT).await
+}
+
+#[tokio::test]
+async fn completed_doh_connection_releases_a_live_work_slot() -> TestResult {
+    let server = Server::start(ServerMode::Capture).await?;
+    let mut peers = Vec::new();
+    for _ in 0..8 {
+        let mut peer = server.client().await?;
+        exchange(&mut peer, HOSTNAME, 1).await?;
+        peers.push(peer);
+    }
+
+    let mut completed = peers.remove(0);
+    completed.shutdown().await?;
+    assert_closed(&mut completed).await?;
+    let mut replacement = server.client().await?;
+    exchange(&mut replacement, HOSTNAME, 1).await?;
+    assert_eq!(server.descriptions().len(), 9);
+    Ok(())
+}
+
+#[tokio::test]
+async fn malformed_doh_child_request_fails_the_capture_owner() -> TestResult {
+    let mut server = Server::start(ServerMode::Capture).await?;
+    let mut client = server.client().await?;
+    exchange(&mut client, HOSTNAME, 1).await?;
+
+    client
+        .write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 1\r\n\r\nx")
+        .await?;
+    client.flush().await?;
+    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    assert!(failure.to_string().contains("malformed DNS query"));
+    assert_eq!(server.descriptions().len(), 1);
+    Ok(())
+}
