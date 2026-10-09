@@ -192,3 +192,13 @@ fn invalid_tls_settings_keep_the_validator_as_the_only_detailed_cause() -> TestR
     );
     Ok(())
 }
+
+#[test]
+fn error_categories_support_copy_equality_and_cross_thread_use() {
+    fn category<T: Copy + Eq + std::fmt::Debug + Send + Sync>() {}
+
+    category::<Http1ErrorKind>();
+    category::<Http1TlsErrorKind>();
+    category::<Http2ErrorKind>();
+    category::<Http2TlsErrorKind>();
+}

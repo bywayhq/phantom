@@ -79,6 +79,7 @@ impl PreparedRequest {
         Self::validate_source_uri(method, headers, body, trailers, None)
     }
 
+    #[cfg(test)]
     pub(super) fn validate_forward(
         method: Method,
         target: AbsoluteForm,
@@ -88,6 +89,7 @@ impl PreparedRequest {
         Self::validate_forward_with_trailers(method, target, headers, body, Vec::new())
     }
 
+    #[cfg(test)]
     pub(super) fn validate_forward_with_trailers(
         method: Method,
         target: AbsoluteForm,
