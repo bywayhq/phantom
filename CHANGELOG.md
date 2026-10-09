@@ -29,7 +29,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `send_get_via`; `send_request_*` for these routes, including HTTPS CONNECT
   and authenticated forms, becomes `send_request_via`; and TLS
   `upgrade_get_*` for these routes becomes `upgrade_get_via`. Pass the route
-  before the origin TLS name and request fields.
+  before the origin TLS name and request fields. HTTP/2 one-shot requests
+  use `send_get_via` and `send_request_via` in the same way. Replace HTTP/2
+  `send_extended_connect_{direct,http_connect,https_connect,socks5_local,socks5_remote}`
+  and authenticated forms with `send_extended_connect_via`. Openings on an
+  existing HTTP/2 connection continue to use `send_extended_connect_on`.
 
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.

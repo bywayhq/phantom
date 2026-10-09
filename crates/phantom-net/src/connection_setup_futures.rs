@@ -61,8 +61,8 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H1::upgrade_get_via),
         ),
         (
-            "Http1TlsConnector::send_request_https_connect_with_basic_auth",
-            future_size(&H1::send_request_https_connect_with_basic_auth),
+            "Http1TlsConnector::send_request_via",
+            future_size(&H1::send_request_via),
         ),
         (
             "Http2TlsConnector::connect",
@@ -73,16 +73,12 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H2::connect_via),
         ),
         (
-            "Http2TlsConnector::send_extended_connect_direct",
-            future_size(&H2::send_extended_connect_direct),
+            "Http2TlsConnector::send_extended_connect_via",
+            future_size(&H2::send_extended_connect_via),
         ),
         (
-            "Http2TlsConnector::send_extended_connect_https_connect_with_basic_auth",
-            future_size(&H2::send_extended_connect_https_connect_with_basic_auth),
-        ),
-        (
-            "Http2TlsConnector::send_request_https_connect_with_basic_auth",
-            future_size(&H2::send_request_https_connect_with_basic_auth),
+            "Http2TlsConnector::send_request_via",
+            future_size(&H2::send_request_via),
         ),
         (
             "Http1Or2TlsConnector::connect",
@@ -225,7 +221,7 @@ mod ech {
                 future_size(&http2),
             ),
             (
-                "Http2TlsConnector::send_extended_connect_direct_with_ech",
+                "Http2TlsConnector::send_extended_connect_via_with_ech",
                 future_size(&http2_extended),
             ),
             (

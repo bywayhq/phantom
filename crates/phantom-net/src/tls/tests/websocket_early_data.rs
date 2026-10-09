@@ -213,7 +213,7 @@ async fn http1_openings(second: Second) -> TestResult<Openings<Http1TlsError>> {
         connector.upgrade_get_via(
             crate::route::TcpRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
-                port: port,
+                port,
             }),
             TEST_SERVER_NAME,
             target.clone(),
@@ -260,9 +260,11 @@ async fn http2_openings(second: Second) -> TestResult<Openings<Http2TlsError>> {
     let authority = format!("{TEST_SERVER_NAME}:{port}");
     let target = OriginForm::parse("/socket")?;
     let open = || {
-        connector.send_extended_connect_direct(
-            "127.0.0.1",
-            port,
+        connector.send_extended_connect_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: port,
+            }),
             TEST_SERVER_NAME,
             &authority,
             target.clone(),

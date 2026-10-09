@@ -36,7 +36,9 @@ source binding, and HTTP/3 WebSockets. The full workspace compile passed at
 source-binding/certificate tests after the probe fix. Later API migration
 commits require their own verification. Ordinary TCP connection methods are
 removed. HTTP/1.1 route-specific request and TLS Upgrade methods are removed
-in favor of route-taking operations; other operation families remain pending.
+in favor of route-taking operations. HTTP/2 requests and extended CONNECT
+openings use routes too. ECH/slower, plaintext/forwarding, and datagram
+operation families remain pending.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
