@@ -17,6 +17,8 @@ use http::{
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt as _, combinators::UnsyncBoxBody};
 
+use crate::authorization::{self, InvalidAuthorization, MAX_AUTHORIZATION_VALUE_BYTES};
+
 type BoxError = Box<dyn StdError + Send + Sync>;
 
 mod continue_gate;
@@ -593,6 +595,54 @@ pub struct RequestHeader {
 }
 
 impl RequestHeader {
+    /// Creates a lowercase, sensitive `authorization` field with Basic credentials.
+    ///
+    /// Add the returned field where you want it in your ordered header list.
+    /// This constructor does not insert it or replace existing fields.
+    /// Credentials use ASCII, with no control characters. The username must
+    /// be nonempty and contain no colon. An empty password is accepted.
+    /// The complete encoded value is limited to 32 KiB.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidAuthorization`] when credentials violate these rules.
+    pub fn basic_authorization(
+        username: impl AsRef<str>,
+        password: impl AsRef<str>,
+    ) -> Result<Self, InvalidAuthorization> {
+        let value = authorization::basic_value(
+            username.as_ref(),
+            password.as_ref(),
+            MAX_AUTHORIZATION_VALUE_BYTES,
+        )
+        .map_err(InvalidAuthorization::basic)?;
+        Ok(Self {
+            name: "authorization".into(),
+            value,
+            sensitive: true,
+        })
+    }
+
+    /// Creates a lowercase, sensitive `authorization` field with a Bearer token.
+    ///
+    /// Add the returned field where you want it in your ordered header list.
+    /// Tokens use ASCII letters, digits, `-`, `.`, `_`, `~`, `+` and `/`,
+    /// followed by optional `=` padding. The token must be nonempty.
+    /// The complete value is limited to 32 KiB. The token bytes pass through
+    /// unchanged. Validation checks syntax and size.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidAuthorization`] for invalid syntax or an exceeded limit.
+    pub fn bearer_authorization(token: impl AsRef<str>) -> Result<Self, InvalidAuthorization> {
+        let value = authorization::bearer_value(token.as_ref())?;
+        Ok(Self {
+            name: "authorization".into(),
+            value,
+            sensitive: true,
+        })
+    }
+
     /// Creates a header to be validated when the request is sent.
     ///
     /// Construction is intentionally infallible so validation of the complete

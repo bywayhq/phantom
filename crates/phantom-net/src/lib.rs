@@ -28,6 +28,7 @@
 
 mod accept_ch;
 pub mod address_cache;
+mod authorization;
 mod connection_leg;
 mod direct;
 #[cfg(feature = "https-records")]
@@ -62,6 +63,7 @@ pub mod tcp;
 pub(crate) mod tls;
 mod udp;
 
+pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};

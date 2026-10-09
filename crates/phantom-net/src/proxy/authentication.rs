@@ -3,9 +3,11 @@ use std::fmt;
 use http::{HeaderMap, header::PROXY_AUTHENTICATE};
 
 use super::{HttpConnectError, http_connect::MAX_CONNECT_HEAD_BYTES};
-use crate::request::RequestHeader;
+use crate::{
+    authorization::{BasicAuthorizationError, basic_value, is_token68_base},
+    request::RequestHeader,
+};
 
-const BASIC_PREFIX: &[u8] = b"Basic ";
 const MAX_AUTH_PARAMS_PER_CHALLENGE: usize = 64;
 
 /// Validated credentials for challenge-driven HTTP Basic proxy authentication.
@@ -28,46 +30,15 @@ impl HttpBasicCredentials {
         username: impl AsRef<str>,
         password: impl AsRef<str>,
     ) -> Result<Self, HttpConnectError> {
-        let username = username.as_ref().as_bytes();
-        let password = password.as_ref().as_bytes();
-        if username.is_empty()
-            || !username.is_ascii()
-            || username.contains(&b':')
-            || username.iter().any(u8::is_ascii_control)
-        {
-            return Err(HttpConnectError::InvalidBasicUsername);
-        }
-        if !password.is_ascii() || password.iter().any(u8::is_ascii_control) {
-            return Err(HttpConnectError::InvalidBasicPassword);
-        }
-
-        let source_len = username
-            .len()
-            .checked_add(1)
-            .and_then(|length| length.checked_add(password.len()))
-            .ok_or(HttpConnectError::BasicCredentialsTooLarge)?;
-        let encoded_len = source_len
-            .checked_add(2)
-            .and_then(|length| length.checked_div(3))
-            .and_then(|length| length.checked_mul(4))
-            .and_then(|length| length.checked_add(BASIC_PREFIX.len()))
-            .ok_or(HttpConnectError::BasicCredentialsTooLarge)?;
-        if encoded_len > MAX_CONNECT_HEAD_BYTES {
-            return Err(HttpConnectError::BasicCredentialsTooLarge);
-        }
-
-        let mut source = Vec::with_capacity(source_len);
-        source.extend_from_slice(username);
-        source.push(b':');
-        source.extend_from_slice(password);
-        let encoded = btls::base64::encode_block(&source);
-
-        let mut authorization = Vec::with_capacity(BASIC_PREFIX.len() + encoded.len());
-        authorization.extend_from_slice(BASIC_PREFIX);
-        authorization.extend_from_slice(encoded.as_bytes());
-        Ok(Self {
-            authorization: authorization.into_boxed_slice(),
-        })
+        let authorization =
+            basic_value(username.as_ref(), password.as_ref(), MAX_CONNECT_HEAD_BYTES).map_err(
+                |error| match error {
+                    BasicAuthorizationError::Username => HttpConnectError::InvalidBasicUsername,
+                    BasicAuthorizationError::Password => HttpConnectError::InvalidBasicPassword,
+                    BasicAuthorizationError::TooLarge => HttpConnectError::BasicCredentialsTooLarge,
+                },
+            )?;
+        Ok(Self { authorization })
     }
 
     pub(crate) fn authorization(&self) -> &[u8] {
@@ -399,8 +370,4 @@ fn is_tchar(byte: u8) -> bool {
                 | b'|'
                 | b'~'
         )
-}
-
-fn is_token68_base(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~' | b'+' | b'/')
 }
