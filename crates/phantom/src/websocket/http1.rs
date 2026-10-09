@@ -41,34 +41,34 @@ async fn upgrade_direct(
             port: endpoint.port(),
         })
     };
+    // Bound the connector's `Send` proof separately from WebSocket setup;
+    // see `box_send`.
     #[cfg(feature = "https-records")]
     if let Some(ech) = client.direct_tcp_ech(endpoint, connector.ech_from_https_records(), || {
         connector.alpn_protocols()
     }) {
         let mut ech = std::pin::pin!(ech);
-        return connector
-            .upgrade(
-                Http1Route::Origin(OriginRoute::Tls {
-                    tcp: tcp(),
-                    server_name: endpoint.host(),
-                    setup: DirectTlsSetup::Ech(ech.as_mut()),
-                }),
-                Http1Target::Origin(target),
-                headers,
-            )
-            .await;
-    }
-    connector
-        .upgrade(
+        return crate::session::box_send(connector.upgrade(
             Http1Route::Origin(OriginRoute::Tls {
                 tcp: tcp(),
                 server_name: endpoint.host(),
-                setup: DirectTlsSetup::Default,
+                setup: DirectTlsSetup::Ech(ech.as_mut()),
             }),
             Http1Target::Origin(target),
             headers,
-        )
-        .await
+        ))
+        .await;
+    }
+    crate::session::box_send(connector.upgrade(
+        Http1Route::Origin(OriginRoute::Tls {
+            tcp: tcp(),
+            server_name: endpoint.host(),
+            setup: DirectTlsSetup::Default,
+        }),
+        Http1Target::Origin(target),
+        headers,
+    ))
+    .await
 }
 
 /// The connector of the request pool whose TLS session tickets a `wss://`
@@ -284,11 +284,7 @@ impl WebSocketRequestBuilder {
                     Http1Target::Origin(request.target),
                     prepared.headers,
                 );
-                if matches!(route, Route::HttpProxy(proxy) if proxy.basic_credentials().is_some()) {
-                    crate::session::box_send(operation).await
-                } else {
-                    operation.await
-                }
+                crate::session::box_send(operation).await
             }
             .map_err(RequestError::http1_connection_setup)
             .map_err(WebSocketError::request)?;
