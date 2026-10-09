@@ -1,4 +1,4 @@
-use super::{v157_http2, v157_http3, v157_http3_request, v157_http3_tls, v157_quic, v157_tls};
+use super::{v157_http2, v157_http3, v157_http3_request, v157_quic, v157_quic_tls, v157_tcp_tls};
 use crate::http2::{
     Http2HpackSettings, Http2IdleTimeout, Http2Priority, Http2PseudoHeader, Http2Setting,
     Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
@@ -16,7 +16,7 @@ const V157_SESSION_FIXTURE: &str = include_str!(concat!(
 
 #[test]
 fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v157_tls();
+    let settings = v157_tcp_tls();
     settings.validate()?;
 
     assert_eq!(settings.min_version, TlsVersion::Tls12);
@@ -275,7 +275,7 @@ fn firefox_157_macos_http2_session_capture_matches_the_recipe()
 
 #[test]
 fn firefox_157_http3_tls_keeps_the_quic_tail_and_tcp_extensions() {
-    let settings = v157_http3_tls();
+    let settings = v157_quic_tls();
     assert_eq!(settings.min_version, TlsVersion::Tls13);
     assert_eq!(
         settings.extension_order,
@@ -311,7 +311,7 @@ fn requests_to_an_alternative_append_alt_used() {
 
 #[test]
 fn http3_recipes_are_valid_profile_data() {
-    assert_eq!(v157_http3_tls().validate(), Ok(()));
+    assert_eq!(v157_quic_tls().validate(), Ok(()));
     assert_eq!(v157_quic().validate(), Ok(()));
     assert_eq!(v157_http3().validate(), Ok(()));
     assert_eq!(v157_http3_request().validate(), Ok(()));

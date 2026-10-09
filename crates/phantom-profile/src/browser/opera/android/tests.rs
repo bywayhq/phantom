@@ -1,6 +1,6 @@
-use super::{v102_android_client_hints, v102_android_client_hints_for_model, v102_tls};
+use super::{v102_android_client_hints, v102_android_client_hints_for_model, v102_android_tcp_tls};
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
-use crate::{chromium, opera};
+use crate::{browser::chrome, browser::opera};
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -33,7 +33,7 @@ fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() 
     };
     assert_eq!(
         names(v102_android_client_hints_for_model("Pixel 9")),
-        names(chromium::v154_windows_client_hints())
+        names(chrome::v154_windows_client_hints())
     );
 }
 
@@ -42,13 +42,13 @@ fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() 
 #[test]
 fn opera_android_102_tls_is_chrome_without_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v102_tls();
+    let settings = v102_android_tcp_tls();
     settings.validate()?;
-    let mut chrome = chromium::v154_tls();
+    let mut chrome = chrome::v154_tcp_tls();
     chrome.requested_trust_anchor_ids = None;
     chrome.ech_from_https_records = false;
     assert_eq!(settings, chrome);
-    let mut desktop = opera::v136_tls();
+    let mut desktop = opera::v136_tcp_tls();
     desktop.requested_trust_anchor_ids = None;
     desktop.ech_from_https_records = false;
     assert_eq!(settings, desktop);

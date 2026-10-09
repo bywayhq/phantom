@@ -11,10 +11,11 @@
 //!
 //! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
 //! cookie-placement recipe, for the reasons given in
-//! [`crate::chrome_android`].
+//! [`crate::browser::chrome`].
 
 use crate::{
-    brave, chromium,
+    browser::brave,
+    browser::chrome,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
@@ -32,24 +33,24 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 /// Returns TLS settings captured from Brave 1.95.104 for Android.
 ///
 /// The retained TCP ClientHello of each emulator equals the desktop Brave
-/// ClientHello of [`brave::v154_tls`], with no trust-anchor
+/// ClientHello of [`brave::v154_tcp_tls`], with no trust-anchor
 /// IDs. [`TlsSettings::ech_from_https_records`] is unset: no Android capture
 /// shows Brave using an HTTPS record's `ech`, because the device cannot be
 /// given a DNS-over-HTTPS resolver.
 #[must_use]
-pub fn v153_tls() -> TlsSettings {
-    let mut settings = brave::v154_tls();
+pub fn v153_android_tcp_tls() -> TlsSettings {
+    let mut settings = brave::v154_tcp_tls();
     settings.ech_from_https_records = false;
     settings
 }
 
 /// Returns TLS settings for the Brave 1.95.104 for Android HTTP/3 offer.
 ///
-/// The retained Android QUIC ClientHellos equal [`brave::v154_http3_tls`].
-/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_tls`].
+/// The retained Android QUIC ClientHellos equal [`brave::v154_quic_tls`].
+/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_android_tcp_tls`].
 #[must_use]
-pub fn v153_http3_tls() -> TlsSettings {
-    let mut settings = brave::v154_http3_tls();
+pub fn v153_android_quic_tls() -> TlsSettings {
+    let mut settings = brave::v154_quic_tls();
     settings.ech_from_https_records = false;
     settings
 }
@@ -93,42 +94,42 @@ pub fn v153_android_client_hints() -> ClientHintSettings {
 ///
 /// The raw startup is byte-identical to the desktop Chromium and Brave
 /// captures, and the H2 request shape of the WebSocket captures equals
-/// [`chromium::v154_http2`], so this returns that recipe.
+/// [`chrome::v154_http2`], so this returns that recipe.
 #[must_use]
-pub fn v153_http2() -> Http2Settings {
-    chromium::v154_http2()
+pub fn v153_android_http2() -> Http2Settings {
+    chrome::v154_http2()
 }
 
 /// Returns QUIC transport settings observed from Brave 1.95.104 for Android.
 ///
 /// The transport parameters of the retained Android capture equal
-/// [`chromium::v154_quic`]; see that recipe for what varies per connection.
+/// [`chrome::v154_quic`]; see that recipe for what varies per connection.
 #[must_use]
-pub fn v153_quic() -> QuicTransportSettings {
-    chromium::v154_quic()
+pub fn v153_android_quic() -> QuicTransportSettings {
+    chrome::v154_quic()
 }
 
 /// Returns HTTP/3 settings observed from Brave 1.95.104 for Android, equal to
-/// [`chromium::v154_http3`].
+/// [`chrome::v154_http3`].
 #[must_use]
-pub fn v153_http3() -> Http3Settings {
-    chromium::v154_http3()
+pub fn v153_android_http3() -> Http3Settings {
+    chrome::v154_http3()
 }
 
 /// Returns HTTP/3 request ordering observed from Brave 1.95.104 for Android,
-/// equal to [`chromium::v154_http3_request`].
+/// equal to [`chrome::v154_http3_request`].
 #[must_use]
-pub fn v153_http3_request() -> Http3RequestSettings {
-    chromium::v154_http3_request()
+pub fn v153_android_http3_request() -> Http3RequestSettings {
+    chrome::v154_http3_request()
 }
 
 /// Returns WebSocket settings observed from Brave 1.95.104 for Android.
 ///
-/// The nine retained WebSocket scenarios equal [`chromium::v154_websocket`]
+/// The nine retained WebSocket scenarios equal [`chrome::v154_websocket`]
 /// on every compared field.
 #[must_use]
-pub fn v153_websocket() -> WebSocketSettings {
-    chromium::v154_websocket()
+pub fn v153_android_websocket() -> WebSocketSettings {
+    chrome::v154_websocket()
 }
 
 /// Returns navigation request fields observed from Brave 1.95.104 for
@@ -145,7 +146,7 @@ pub fn v153_websocket() -> WebSocketSettings {
 #[must_use]
 pub fn v153_android_navigation_template() -> RequestTemplate {
     brave::with_brave_fields(
-        chromium::v154_navigation_template(Some(V153_ANDROID_USER_AGENT)),
+        chrome::v154_navigation_template(Some(V153_ANDROID_USER_AGENT)),
         Some(brave::V154_NAVIGATION_ACCEPT),
     )
 }
@@ -157,7 +158,7 @@ pub fn v153_android_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
     brave::with_brave_fields(
-        chromium::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT)),
+        chrome::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT)),
         None,
     )
 }

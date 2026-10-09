@@ -5,21 +5,21 @@
 //! pseudo-header order and priority, extended CONNECT shape, WebSocket
 //! connection choice and opening fields, proxy CONNECT fields, QUIC transport
 //! parameters, and H3 SETTINGS, so they are replayed against
-//! [`chromium::v154_http2`], [`chromium::v154_websocket`],
-//! [`chromium::v154_proxy_connect`], [`chromium::v154_quic`],
-//! [`chromium::v154_http3`], and [`chromium::v154_http3_request`]. The TLS
+//! [`chrome::v154_http2`], [`chrome::v154_websocket`],
+//! [`chrome::v154_proxy_connect`], [`chrome::v154_quic`],
+//! [`chrome::v154_http3`], and [`chrome::v154_http3_request`]. The TLS
 //! offers, client hints, and request fields differ, so only they have Brave
 //! recipes here.
 //!
 //! The retained Brave cookie captures place `Cookie` and split it into crumbs
 //! as Chrome 154 does over HTTP/1.1, HTTP/2, and HTTP/3, so they are replayed
-//! against [`chromium::v154_cookie_placement`] with the H2 and H3 recipes.
+//! against [`chrome::v154_cookie_placement`] with the H2 and H3 recipes.
 //!
 //! The TCP and UDP options, the HTTP/1.1 connection bound, and the address
 //! cache are not visible in a capture. Brave 1.96.59 builds Chromium tag
 //! `154.0.8037.58` (`package.json` in `brave-core` at tag `v1.96.59`), the tag
-//! behind [`chromium::v154_tcp`], [`chromium::v154_udp`],
-//! [`chromium::v154_http1`], and [`chromium::v154_dns_cache`], and none of its
+//! behind [`chrome::v154_tcp`], [`chrome::v154_udp`],
+//! [`chrome::v154_http1`], and [`chrome::v154_dns_cache`], and none of its
 //! patches or overrides changes a value those recipes cite, so they serve Brave
 //! unchanged. The one Brave change that reaches these layers enables
 //! `kPartitionConnectionsByNetworkIsolationKey`
@@ -29,8 +29,36 @@
 //! client shares each of these across all its requests, as Brave does within
 //! one top-level site.
 
+//!
+//! ## Android
+//!
+//! Wire settings retained from Brave for Android observations.
+//!
+//! Brave 1.95.104 (Chromium 153), as the Google Play Store served it to two
+//! emulators: the `phantom-pixel7` Android 17 emulator, which reports a
+//! Pixel 7, and the earlier `phantom-api35-play` Android 15 emulator. Fixtures
+//! record it as `153.1.95.104` to match the desktop naming. Its captures equal
+//! the desktop Brave recipes in [`brave`] on the TLS and QUIC ClientHellos and on every
+//! request-field difference from Chrome, and the desktop Chromium recipes on
+//! HTTP/2, QUIC transport parameters, HTTP/3, and WebSocket openings. Only
+//! the client hints and `User-Agent` carry Android data.
+//!
+//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
+//! cookie-placement recipe, for the reasons given in
+//! [`crate::browser::chrome`].
+
+use crate::{ClientProfile, Http3ClientSettings};
+
+mod android;
+
+pub use android::{
+    v153_android_client_hints, v153_android_fetch_no_store_template, v153_android_http2,
+    v153_android_http3, v153_android_http3_request, v153_android_navigation_template,
+    v153_android_quic, v153_android_quic_tls, v153_android_tcp_tls, v153_android_websocket,
+};
+
 use crate::{
-    chromium,
+    browser::chrome,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     request_template::{RequestField, RequestTemplate},
     tls::TlsSettings,
@@ -45,7 +73,7 @@ image/avif,image/webp,image/apng,*/*;q=0.8";
 ///
 /// Brave 154.1.96.59 (Windows 11 build 26200) sends the Chrome 154 TCP
 /// ClientHello without the trust-anchor IDs extension, across 20 fresh
-/// processes, so this reuses [`chromium::v154_tls`] and removes the ID list;
+/// processes, so this reuses [`chrome::v154_tcp_tls`] and removes the ID list;
 /// the retained Brave ClientHello is replayed against the result.
 ///
 /// It keeps [`TlsSettings::ech_from_https_records`] set. The retained
@@ -55,8 +83,8 @@ image/avif,image/webp,image/apng,*/*;q=0.8";
 /// payload, as Chrome 154 sends. In `ech-reject.txt` Brave connects once more
 /// with the server's retry configuration, which the origin accepts.
 #[must_use]
-pub fn v154_tls() -> TlsSettings {
-    let mut settings = chromium::v154_tls();
+pub fn v154_tcp_tls() -> TlsSettings {
+    let mut settings = chrome::v154_tcp_tls();
     settings.requested_trust_anchor_ids = None;
     settings
 }
@@ -64,7 +92,7 @@ pub fn v154_tls() -> TlsSettings {
 /// Returns TLS settings for the Brave 154.1.96.59 HTTP/3 offer on Windows 11.
 ///
 /// The QUIC ClientHellos of three fresh processes match
-/// [`chromium::v154_http3_tls`] without the trust-anchor IDs extension, so
+/// [`chrome::v154_quic_tls`] without the trust-anchor IDs extension, so
 /// this reuses that recipe and removes only the ID list. It inherits that
 /// recipe's ticket resumption, which the retained Brave resumption captures
 /// show: a resumed connection offers early data.
@@ -75,8 +103,8 @@ pub fn v154_tls() -> TlsSettings {
 /// rejected QUIC connection, as Chrome 154 does, in three runs of each
 /// scenario.
 #[must_use]
-pub fn v154_http3_tls() -> TlsSettings {
-    let mut settings = chromium::v154_http3_tls();
+pub fn v154_quic_tls() -> TlsSettings {
+    let mut settings = chrome::v154_quic_tls();
     settings.requested_trust_anchor_ids = None;
     settings
 }
@@ -118,7 +146,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 
 /// Returns navigation request fields observed from Brave 154.1.96.59 on Windows 11.
 ///
-/// Brave sends the fields of [`chromium::v154_windows_navigation_template`]
+/// Brave sends the fields of [`chrome::v154_windows_navigation_template`]
 /// in the same order on HTTP/1.1, HTTP/2, and HTTP/3, with three
 /// differences in the retained captures:
 ///
@@ -132,7 +160,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 ///   chooses one and keeps it for the session.
 ///
 /// `User-Agent` is a required caller slot for the reason given for
-/// [`crate::edge::v154_windows_navigation_template`]: every retained Brave
+/// [`crate::browser::edge::v154_windows_navigation_template`]: every retained Brave
 /// capture ran headless and sent `HeadlessChrome`. The brand-bearing client
 /// hints come from [`v154_windows_client_hints`]. The retained proxy route
 /// captures show the Chromium change for a URL that is not potentially
@@ -142,7 +170,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 #[must_use]
 pub fn v154_windows_navigation_template() -> RequestTemplate {
     with_brave_fields(
-        chromium::v154_navigation_template(None),
+        chrome::v154_navigation_template(None),
         Some(V154_NAVIGATION_ACCEPT),
     )
 }
@@ -150,7 +178,7 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 /// Returns same-origin no-store `fetch` request fields observed from Brave
 /// 154.1.96.59 on Windows 11.
 ///
-/// The order and values match [`chromium::v154_windows_fetch_no_store_template`]
+/// The order and values match [`chrome::v154_windows_fetch_no_store_template`]
 /// on HTTP/1.1 and HTTP/2, including the HTTP/2 HEADERS priority weight 220,
 /// except that `Sec-GPC: 1` follows `Accept` and `User-Agent` and
 /// `Accept-Language` are required caller slots, for the reasons given in
@@ -159,7 +187,7 @@ pub fn v154_windows_navigation_template() -> RequestTemplate {
 /// fetch.
 #[must_use]
 pub fn v154_windows_fetch_no_store_template() -> RequestTemplate {
-    with_brave_fields(chromium::v154_fetch_no_store_template(None), None)
+    with_brave_fields(chrome::v154_fetch_no_store_template(None), None)
 }
 
 /// Applies Brave's request-field differences to a Chromium template: an
@@ -216,6 +244,53 @@ pub(crate) fn with_brave_fields(
     template.http2_fields = apply(template.http2_fields, "sec-gpc");
     template.http3_fields = template.http3_fields.map(|fields| apply(fields, "sec-gpc"));
     template
+}
+
+/// Returns the Windows connection profile for Brave 1.96.59 (Chromium 154).
+///
+/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
+/// proxy CONNECT fields, and cookie placement. UDP socket settings and
+/// client hints are included.
+/// No request template is selected. Choose one for your request kind.
+#[must_use]
+pub fn v154_windows() -> ClientProfile {
+    ClientProfile::new(v154_tcp_tls())
+        .with_tcp(chrome::v154_tcp())
+        .with_udp(chrome::v154_udp())
+        .with_dns_cache(chrome::v154_dns_cache())
+        .with_http1(chrome::v154_http1())
+        .with_http2(chrome::v154_http2())
+        .with_http3(Http3ClientSettings::new(
+            v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
+        ))
+        .with_client_hints(v154_windows_client_hints())
+        .with_websocket(chrome::v154_websocket())
+        .with_proxy_connect(chrome::v154_proxy_connect())
+        .with_cookie_placement(chrome::v154_cookie_placement())
+}
+
+/// Returns the captured Android layers for Brave 1.95.104 (Chromium 153).
+///
+/// Supplies TCP TLS, HTTP/2, HTTP/3, and client hints. WebSocket
+/// settings are included.
+/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
+/// and cookie-placement recipes are absent. Their generic defaults remain.
+/// No request template is selected. These captures came from emulators.
+#[must_use]
+pub fn v153_android() -> ClientProfile {
+    ClientProfile::new(v153_android_tcp_tls())
+        .with_http2(v153_android_http2())
+        .with_http3(Http3ClientSettings::new(
+            v153_android_quic_tls(),
+            v153_android_quic(),
+            v153_android_http3(),
+            v153_android_http3_request(),
+        ))
+        .with_client_hints(v153_android_client_hints())
+        .with_websocket(v153_android_websocket())
 }
 
 #[cfg(test)]

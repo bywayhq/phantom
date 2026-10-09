@@ -133,7 +133,7 @@ fn brave_android_153_h3_capture_matches_the_chromium_recipe()
         "../../../../fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt"
     );
     assert_eq!(fixture_field(fixture, "client")?, "Brave");
-    assert_eq!(crate::brave_android::v153_http3(), v154_http3());
+    assert_eq!(crate::browser::brave::v153_android_http3(), v154_http3());
     assert_settings_match_control_stream(fixture, v154_http3(), v154_http3_request())
 }
 
@@ -147,9 +147,9 @@ fn chrome_android_154_h3_capture_matches_the_chromium_recipe()
         fixture_field(CHROME_ANDROID_154_FIXTURE, "client_version")?,
         "154.0.8037.57"
     );
-    assert_eq!(crate::chrome_android::v154_http3(), v154_http3());
+    assert_eq!(crate::browser::chrome::v154_android_http3(), v154_http3());
     assert_eq!(
-        crate::chrome_android::v154_http3_request(),
+        crate::browser::chrome::v154_android_http3_request(),
         v154_http3_request()
     );
     assert_settings_match_control_stream(
@@ -173,9 +173,9 @@ fn edge_android_153_h3_capture_matches_the_chromium_recipe()
         fixture_field(EDGE_ANDROID_153_FIXTURE, "client")?,
         "Microsoft Edge"
     );
-    assert_eq!(crate::edge_android::v153_http3(), v154_http3());
+    assert_eq!(crate::browser::edge::v153_android_http3(), v154_http3());
     assert_eq!(
-        crate::edge_android::v153_http3_request(),
+        crate::browser::edge::v153_android_http3_request(),
         v154_http3_request()
     );
     assert_settings_match_control_stream(
@@ -410,9 +410,9 @@ fn snapshot_http3_field_orders(snapshot: &str) -> Vec<&str> {
 fn chromium_family_requests_to_an_alternative_omit_alt_used() {
     assert_eq!(v154_http3_request().alt_used, Http3AltUsed::Omit);
     for request in [
-        crate::chrome_android::v154_http3_request(),
-        crate::edge_android::v153_http3_request(),
-        crate::brave_android::v153_http3_request(),
+        crate::browser::chrome::v154_android_http3_request(),
+        crate::browser::edge::v153_android_http3_request(),
+        crate::browser::brave::v153_android_http3_request(),
     ] {
         assert_eq!(request.alt_used, Http3AltUsed::Omit);
     }

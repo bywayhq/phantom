@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::{
-    v154_http2, v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints,
+    v154_http2, v154_macos_client_hints, v154_quic_tls, v154_tcp_tls, v154_windows_client_hints,
 };
 use crate::TrustAnchorIds;
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
@@ -39,7 +39,7 @@ const V154_SESSION_FIXTURE: &str = include_str!(concat!(
 fn chrome_recipes_keep_the_backend_ech_grease_aead_policy() {
     // Chrome always advertises AES-128-GCM; with `aes_hardware` set, the
     // backend default produces exactly that choice.
-    for settings in [v154_tls(), v154_http3_tls()] {
+    for settings in [v154_tcp_tls(), v154_quic_tls()] {
         assert!(settings.ech_grease);
         assert!(settings.ech_grease_aeads.is_empty());
         assert!(settings.aes_hardware);
@@ -143,7 +143,7 @@ fn chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process()
         .map(decode_hex)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let Some(TrustAnchorIds::Fixed(recipe)) = v154_tls().requested_trust_anchor_ids else {
+    let Some(TrustAnchorIds::Fixed(recipe)) = v154_tcp_tls().requested_trust_anchor_ids else {
         return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
     };
     let recipe = recipe.iter().map(|id| id.to_vec()).collect::<Vec<_>>();
@@ -154,8 +154,8 @@ fn chrome_154_tls_trust_anchor_ids_are_sorted_and_shared_by_every_process()
         "the Chrome 154 list must be in ascending byte order"
     );
     assert_eq!(
-        v154_http3_tls().requested_trust_anchor_ids,
-        v154_tls().requested_trust_anchor_ids
+        v154_quic_tls().requested_trust_anchor_ids,
+        v154_tcp_tls().requested_trust_anchor_ids
     );
     Ok(())
 }
@@ -329,7 +329,7 @@ const V154_CLIENT_HELLO_CAPTURES: &[(&str, &str)] = &[
 #[test]
 fn chrome_154_trust_anchor_ids_match_every_retained_client_hello_in_every_process()
 -> Result<(), Box<dyn std::error::Error>> {
-    let Some(TrustAnchorIds::Fixed(ids)) = v154_tls().requested_trust_anchor_ids else {
+    let Some(TrustAnchorIds::Fixed(ids)) = v154_tcp_tls().requested_trust_anchor_ids else {
         return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
     };
     let mut list = Vec::new();
@@ -490,14 +490,14 @@ fn chrome_154_http2_recipe_matches_windows_captures() -> Result<(), Box<dyn std:
 
 #[test]
 fn chrome_154_tls_recipes_are_valid() -> Result<(), Box<dyn std::error::Error>> {
-    let settings = v154_tls();
+    let settings = v154_tcp_tls();
     settings.validate()?;
     let alps = settings.alps.ok_or("Chrome TLS profile omitted ALPS")?;
     assert_eq!(alps.protocol.as_ref(), b"h2");
     assert!(alps.settings.is_empty());
     assert!(alps.use_new_codepoint);
 
-    let http3 = v154_http3_tls();
+    let http3 = v154_quic_tls();
     http3.validate()?;
     assert_eq!(http3.min_version, crate::tls::TlsVersion::Tls13);
     assert_eq!(http3.max_version, crate::tls::TlsVersion::Tls13);

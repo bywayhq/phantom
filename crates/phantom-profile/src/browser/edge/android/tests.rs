@@ -1,13 +1,14 @@
 use super::{
     v153_android_client_hints, v153_android_client_hints_for_model,
-    v153_android_fetch_no_store_template, v153_android_navigation_template, v153_http2, v153_http3,
-    v153_http3_request, v153_http3_tls, v153_quic, v153_tls,
+    v153_android_fetch_no_store_template, v153_android_http2, v153_android_http3,
+    v153_android_http3_request, v153_android_navigation_template, v153_android_quic,
+    v153_android_quic_tls, v153_android_tcp_tls,
 };
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
 };
-use crate::{RequestField, chromium, edge};
+use crate::{RequestField, browser::chrome, browser::edge};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -76,18 +77,18 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_carry_the_edge_153
 /// other layers are the Chromium recipes.
 #[test]
 fn edge_android_153_reuses_the_desktop_edge_and_chromium_recipes() -> TestResult {
-    let mut tls = edge::v154_tls();
+    let mut tls = edge::v154_tcp_tls();
     tls.ech_from_https_records = false;
-    assert_eq!(v153_tls(), tls);
-    let mut http3_tls = edge::v154_http3_tls();
+    assert_eq!(v153_android_tcp_tls(), tls);
+    let mut http3_tls = edge::v154_quic_tls();
     http3_tls.ech_from_https_records = false;
-    assert_eq!(v153_http3_tls(), http3_tls);
-    v153_tls().validate()?;
-    v153_http3_tls().validate()?;
-    assert_eq!(v153_http2(), chromium::v154_http2());
-    assert_eq!(v153_quic(), chromium::v154_quic());
-    assert_eq!(v153_http3(), chromium::v154_http3());
-    assert_eq!(v153_http3_request(), chromium::v154_http3_request());
+    assert_eq!(v153_android_quic_tls(), http3_tls);
+    v153_android_tcp_tls().validate()?;
+    v153_android_quic_tls().validate()?;
+    assert_eq!(v153_android_http2(), chrome::v154_http2());
+    assert_eq!(v153_android_quic(), chrome::v154_quic());
+    assert_eq!(v153_android_http3(), chrome::v154_http3());
+    assert_eq!(v153_android_http3_request(), chrome::v154_http3_request());
     Ok(())
 }
 
@@ -136,7 +137,7 @@ fn edge_android_153_http2_session_capture_matches_the_chromium_recipe() -> TestR
     assert_eq!(capture.value("client_version")?, "153.0.4234.49");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
-    let settings = v153_http2();
+    let settings = v153_android_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,

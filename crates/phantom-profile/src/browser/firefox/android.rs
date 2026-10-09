@@ -13,7 +13,7 @@
 //! recipe: none of those layers was captured on Android.
 
 use crate::{
-    firefox,
+    browser::firefox,
     tls::{SessionTicketOrder, TlsSettings},
 };
 
@@ -21,7 +21,7 @@ use crate::{
 ///
 /// Twelve fresh-profile ClientHellos of the retained capture equal the
 /// desktop Firefox 156.0.1 ClientHello, which desktop Firefox 157.0 still
-/// sends and [`firefox::v157_tls`] reproduces: the same fixed extension order,
+/// sends and [`firefox::v157_tcp_tls`] reproduces: the same fixed extension order,
 /// cipher suites, groups, key shares, signature algorithms, record size
 /// limit, delegated-credential schemes, and a 240-byte ECH GREASE payload.
 /// Firefox for Android also draws its ECH GREASE AEAD per connection: 5 of
@@ -50,9 +50,9 @@ use crate::{
 /// never tie and the earliest goes first, as in the macOS capture. No
 /// Android capture shows the order.
 #[must_use]
-pub fn v156_tls() -> TlsSettings {
+pub fn v156_android_tcp_tls() -> TlsSettings {
     TlsSettings {
         session_ticket_order: SessionTicketOrder::OldestFirst,
-        ..firefox::v157_tls()
+        ..firefox::v157_tcp_tls()
     }
 }

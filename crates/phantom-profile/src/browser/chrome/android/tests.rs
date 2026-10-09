@@ -1,9 +1,9 @@
 use super::{
     v154_android_client_hints, v154_android_client_hints_for_model,
-    v154_android_fetch_no_store_template, v154_android_navigation_template, v154_http2,
-    v154_http3_tls, v154_tls, v154_websocket,
+    v154_android_fetch_no_store_template, v154_android_http2, v154_android_navigation_template,
+    v154_android_quic_tls, v154_android_tcp_tls, v154_android_websocket,
 };
-use crate::chromium;
+use crate::browser::chrome;
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
@@ -48,14 +48,14 @@ fn chrome_android_154_client_hints_share_the_chromium_names_order_and_delivery()
     };
     assert_eq!(
         names(v154_android_client_hints()),
-        names(chromium::v154_windows_client_hints())
+        names(chrome::v154_windows_client_hints())
     );
 }
 
 #[test]
 fn chrome_android_154_reuses_the_desktop_http2_and_websocket_recipes() {
-    assert_eq!(v154_http2(), chromium::v154_http2());
-    assert_eq!(v154_websocket(), chromium::v154_websocket());
+    assert_eq!(v154_android_http2(), chrome::v154_http2());
+    assert_eq!(v154_android_websocket(), chrome::v154_websocket());
 }
 
 #[test]
@@ -63,11 +63,11 @@ fn chrome_android_154_templates_change_only_the_user_agent() {
     for (android, windows) in [
         (
             v154_android_navigation_template(),
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_windows_navigation_template(),
         ),
         (
             v154_android_fetch_no_store_template(),
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_fetch_no_store_template(),
         ),
     ] {
         assert_eq!(android.validate(), Ok(()));
@@ -111,7 +111,7 @@ fn chrome_android_154_http2_session_capture_matches_the_chromium_recipe() -> Tes
     assert_eq!(capture.value("scenario")?, "accept");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
-    let settings = v154_http2();
+    let settings = v154_android_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
@@ -144,8 +144,8 @@ fn chrome_android_154_http2_session_capture_matches_the_chromium_recipe() -> Tes
 #[test]
 fn chrome_android_154_tls_recipes_differ_from_desktop_only_in_ech_lookup() -> TestResult {
     for (android, desktop) in [
-        (v154_tls(), chromium::v154_tls()),
-        (v154_http3_tls(), chromium::v154_http3_tls()),
+        (v154_android_tcp_tls(), chrome::v154_tcp_tls()),
+        (v154_android_quic_tls(), chrome::v154_quic_tls()),
     ] {
         android.validate()?;
         assert!(!android.ech_from_https_records);

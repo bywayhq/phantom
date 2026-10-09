@@ -1,5 +1,5 @@
-use super::{v154_http3_tls, v154_tls, v154_windows_client_hints};
-use crate::chromium;
+use super::{v154_quic_tls, v154_tcp_tls, v154_windows_client_hints};
+use crate::browser::chrome;
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
@@ -45,15 +45,14 @@ fn brave_154_client_hints_are_the_chromium_hints_without_two_names() {
             .map(|hint| (hint.name().to_owned(), hint.delivery()))
             .collect::<Vec<_>>()
     };
-    let mut chromium = names(chromium::v154_windows_client_hints());
-    chromium
-        .retain(|(name, _)| name != "sec-ch-ua-full-version" && name != "sec-ch-ua-form-factors");
-    assert_eq!(names(v154_windows_client_hints()), chromium);
+    let mut chrome = names(chrome::v154_windows_client_hints());
+    chrome.retain(|(name, _)| name != "sec-ch-ua-full-version" && name != "sec-ch-ua-form-factors");
+    assert_eq!(names(v154_windows_client_hints()), chrome);
 }
 
 #[test]
 fn brave_154_recipes_keep_the_backend_ech_grease_aead_policy() {
-    for settings in [v154_tls(), v154_http3_tls()] {
+    for settings in [v154_tcp_tls(), v154_quic_tls()] {
         assert!(settings.ech_grease);
         assert!(settings.ech_grease_aeads.is_empty());
         assert!(settings.aes_hardware);
@@ -64,8 +63,8 @@ fn brave_154_recipes_keep_the_backend_ech_grease_aead_policy() {
 fn brave_154_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     for (brave, chrome) in [
-        (v154_tls(), chromium::v154_tls()),
-        (v154_http3_tls(), chromium::v154_http3_tls()),
+        (v154_tcp_tls(), chrome::v154_tcp_tls()),
+        (v154_quic_tls(), chrome::v154_quic_tls()),
     ] {
         brave.validate()?;
         assert!(chrome.requested_trust_anchor_ids.is_some());
@@ -75,8 +74,8 @@ fn brave_154_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
     }
     // Both recipes keep Chrome's ECH from HTTPS records, which the retained
     // Brave ECH captures over TCP and QUIC show.
-    assert!(v154_tls().ech_from_https_records);
-    assert!(v154_http3_tls().ech_from_https_records);
+    assert!(v154_tcp_tls().ech_from_https_records);
+    assert!(v154_quic_tls().ech_from_https_records);
     Ok(())
 }
 
@@ -89,7 +88,7 @@ fn brave_154_http2_session_capture_matches_the_chromium_recipe()
     assert_eq!(capture.value("scenario")?, "accept");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
-    let settings = chromium::v154_http2();
+    let settings = chrome::v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,

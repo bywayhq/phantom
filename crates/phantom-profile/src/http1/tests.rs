@@ -1,10 +1,10 @@
-use crate::{chromium, firefox};
+use crate::{browser::chrome, browser::firefox};
 
 #[test]
 fn chromium_154_opens_six_http1_connections_per_origin() {
     // `g_max_sockets_per_group` for the normal pool,
     // `net/socket/client_socket_pool_manager.cc:54-58` at `154.0.8037.58`.
-    assert_eq!(chromium::v154_http1().max_connections_per_origin.get(), 6);
+    assert_eq!(chrome::v154_http1().max_connections_per_origin.get(), 6);
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn chromium_154_stops_reusing_a_connection_idle_300_seconds() {
     // `g_used_idle_socket_timeout_s`, `net/socket/client_socket_pool.cc:42`
     // at `154.0.8037.58`.
     assert_eq!(
-        chromium::v154_http1().idle_timeout,
+        chrome::v154_http1().idle_timeout,
         crate::Http1IdleTimeout::CheckedOnRequest(std::time::Duration::from_secs(300))
     );
 }
@@ -68,6 +68,6 @@ fn a_timer_idle_limit_is_valid_up_to_firefox_range() {
 
 #[test]
 fn the_browser_http1_settings_are_valid() {
-    assert_eq!(chromium::v154_http1().validate(), Ok(()));
+    assert_eq!(chrome::v154_http1().validate(), Ok(()));
     assert_eq!(firefox::v157_http1().validate(), Ok(()));
 }

@@ -6,7 +6,8 @@ use super::{
     WebSocketSettings,
 };
 use crate::{
-    AlpsSettings, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings, chromium, firefox,
+    AlpsSettings, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings, browser::chrome,
+    browser::firefox,
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -71,9 +72,9 @@ const BRAVE_ANDROID: [&str; 9] =
 
 #[test]
 fn chromium_154_websocket_recipe_matches_chromium_family_captures() -> TestResult {
-    let recipe = chromium::v154_websocket();
-    let http2 = chromium::v154_http2();
-    let tls = chromium::v154_tls();
+    let recipe = chrome::v154_websocket();
+    let http2 = chrome::v154_http2();
+    let tls = chrome::v154_tcp_tls();
     // Every `refused-stream` run opened over the page's H2 session, so each
     // carries a refusal to compare.
     for (fixtures, client) in [
@@ -98,9 +99,9 @@ fn chrome_android_154_websocket_recipe_matches_captures() -> TestResult {
     let summary = assert_recipe_matches(
         &CHROME_ANDROID,
         "Google Chrome",
-        &crate::chrome_android::v154_websocket(),
-        &crate::chrome_android::v154_http2(),
-        &crate::chrome_android::v154_tls(),
+        &crate::browser::chrome::v154_android_websocket(),
+        &crate::browser::chrome::v154_android_http2(),
+        &crate::browser::chrome::v154_android_tcp_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 0);
@@ -115,9 +116,9 @@ fn brave_android_153_websocket_capture_matches_the_chromium_recipe() -> TestResu
     let summary = assert_recipe_matches(
         &BRAVE_ANDROID,
         "Brave",
-        &crate::brave_android::v153_websocket(),
-        &crate::brave_android::v153_http2(),
-        &crate::brave_android::v153_tls(),
+        &crate::browser::brave::v153_android_websocket(),
+        &crate::browser::brave::v153_android_http2(),
+        &crate::browser::brave::v153_android_tcp_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 0);
@@ -134,7 +135,7 @@ fn firefox_157_websocket_recipe_matches_captures() -> TestResult {
         "Mozilla Firefox",
         &firefox::v157_websocket(),
         &firefox::v157_http2(),
-        &firefox::v157_tls(),
+        &firefox::v157_tcp_tls(),
     )?;
     assert_eq!(summary.reused_sessions, 15);
     assert_eq!(summary.new_http2_connections, 3);
@@ -146,8 +147,8 @@ fn firefox_157_websocket_recipe_matches_captures() -> TestResult {
 
 #[test]
 fn http1_upgrade_tls_settings_replace_only_alpn_and_unoffered_alps() {
-    let policy = chromium::v154_websocket().connection;
-    let base = chromium::v154_tls();
+    let policy = chrome::v154_websocket().connection;
+    let base = chrome::v154_tcp_tls();
     let derived = policy.http1_tls_settings(&base);
 
     assert_eq!(derived.alpn_protocols, [Box::from(*b"http/1.1")]);
@@ -180,7 +181,7 @@ fn validation_rejects_alpn_that_cannot_carry_an_upgrade() {
 
 #[test]
 fn validation_rejects_templates_unusable_by_their_protocol() {
-    let mut settings = chromium::v154_websocket();
+    let mut settings = chrome::v154_websocket();
     settings
         .http2_fields
         .push(WebSocketField::caller("User-Agent"));
@@ -189,13 +190,13 @@ fn validation_rejects_templates_unusable_by_their_protocol() {
         Err("http2_fields")
     );
 
-    let mut settings = chromium::v154_websocket();
+    let mut settings = chrome::v154_websocket();
     settings
         .http2_fields
         .push(WebSocketField::key("sec-websocket-key"));
     assert!(settings.validate().is_err());
 
-    let mut settings = chromium::v154_websocket();
+    let mut settings = chrome::v154_websocket();
     settings
         .http1_fields
         .retain(|field| !matches!(field, WebSocketField::Key { .. }));
@@ -204,7 +205,7 @@ fn validation_rejects_templates_unusable_by_their_protocol() {
         Err("http1_fields")
     );
 
-    let mut settings = chromium::v154_websocket();
+    let mut settings = chrome::v154_websocket();
     settings
         .http1_fields
         .push(WebSocketField::literal("Bad Name", "x"));
@@ -231,7 +232,7 @@ fn recipes_carry_the_browser_handshake_timers() {
     // Chromium's kHandshakeTimeoutIntervalInSeconds and Firefox's
     // network.websocket.timeout.open default; see the recipe docs.
     assert_eq!(
-        chromium::v154_websocket().handshake_timeout,
+        chrome::v154_websocket().handshake_timeout,
         Some(Duration::from_secs(240))
     );
     assert_eq!(
@@ -242,7 +243,7 @@ fn recipes_carry_the_browser_handshake_timers() {
 
 #[test]
 fn validation_rejects_a_zero_or_unrepresentable_handshake_timeout() {
-    let mut settings = chromium::v154_websocket();
+    let mut settings = chrome::v154_websocket();
     settings.handshake_timeout = Some(Duration::ZERO);
     assert_eq!(
         settings.validate().map_err(|error| error.field()),
@@ -748,28 +749,24 @@ macro_rules! proxy_fixture_set {
 /// takes a page-chosen value.
 #[test]
 fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestResult {
-    let chromium = chromium::v154_websocket();
+    let chrome = chrome::v154_websocket();
     let firefox = firefox::v157_websocket();
     for (fixtures, client, recipe) in [
         (
             proxy_fixture_set!("chrome", "154.0.8037.58"),
             "Google Chrome",
-            &chromium,
+            &chrome,
         ),
         (
             proxy_fixture_set!("edge", "154.0.4258.37"),
             "Microsoft Edge",
-            &chromium,
+            &chrome,
         ),
-        (
-            proxy_fixture_set!("brave", "154.1.96.59"),
-            "Brave",
-            &chromium,
-        ),
+        (proxy_fixture_set!("brave", "154.1.96.59"), "Brave", &chrome),
         (
             proxy_fixture_set!("opera", "136.0.6008.52"),
             "Opera",
-            &chromium,
+            &chrome,
         ),
         (
             proxy_fixture_set!("firefox", "157.0"),
@@ -826,7 +823,7 @@ fn websocket_recipes_follow_origin_trust_in_the_proxy_route_captures() -> TestRe
 fn android_websocket_recipes_follow_origin_trust_in_the_direct_captures() -> TestResult {
     for (recipe, fixtures) in [
         (
-            crate::chrome_android::v154_websocket(),
+            crate::browser::chrome::v154_android_websocket(),
             [
                 include_str!(concat!(
                     env!("CARGO_MANIFEST_DIR"),
@@ -839,7 +836,7 @@ fn android_websocket_recipes_follow_origin_trust_in_the_direct_captures() -> Tes
             ],
         ),
         (
-            crate::brave_android::v153_websocket(),
+            crate::browser::brave::v153_android_websocket(),
             [
                 include_str!(concat!(
                     env!("CARGO_MANIFEST_DIR"),
@@ -904,7 +901,7 @@ fn policy_type_is_plain_profile_data() {
 fn both_recipes_reuse_a_proxied_http2_session() {
     // Chromium and Firefox source both key the session by proxy and let a
     // WebSocket reuse it. See the recipe docs.
-    for settings in [chromium::v154_websocket(), firefox::v157_websocket()] {
+    for settings in [chrome::v154_websocket(), firefox::v157_websocket()] {
         assert_eq!(
             settings.connection.proxied_http2_session,
             WebSocketProxiedSession::Reuse

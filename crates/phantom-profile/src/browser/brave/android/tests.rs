@@ -1,13 +1,13 @@
 use super::{
-    v153_android_client_hints, v153_android_fetch_no_store_template,
-    v153_android_navigation_template, v153_http2, v153_http3, v153_http3_request, v153_http3_tls,
-    v153_quic, v153_tls, v153_websocket,
+    v153_android_client_hints, v153_android_fetch_no_store_template, v153_android_http2,
+    v153_android_http3, v153_android_http3_request, v153_android_navigation_template,
+    v153_android_quic, v153_android_quic_tls, v153_android_tcp_tls, v153_android_websocket,
 };
 use crate::client_hints::navigation_capture::{NavigationCapture, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
 };
-use crate::{RequestField, brave, chromium};
+use crate::{RequestField, browser::brave, browser::chrome};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -51,19 +51,19 @@ fn brave_android_153_client_hints_share_the_desktop_brave_names_and_delivery() {
 
 #[test]
 fn brave_android_153_reuses_the_desktop_recipes() -> TestResult {
-    let tls = v153_tls();
+    let tls = v153_android_tcp_tls();
     tls.validate()?;
-    let mut desktop = brave::v154_tls();
+    let mut desktop = brave::v154_tcp_tls();
     desktop.ech_from_https_records = false;
     assert_eq!(tls, desktop);
-    let mut desktop_http3 = brave::v154_http3_tls();
+    let mut desktop_http3 = brave::v154_quic_tls();
     desktop_http3.ech_from_https_records = false;
-    assert_eq!(v153_http3_tls(), desktop_http3);
-    assert_eq!(v153_http2(), chromium::v154_http2());
-    assert_eq!(v153_quic(), chromium::v154_quic());
-    assert_eq!(v153_http3(), chromium::v154_http3());
-    assert_eq!(v153_http3_request(), chromium::v154_http3_request());
-    assert_eq!(v153_websocket(), chromium::v154_websocket());
+    assert_eq!(v153_android_quic_tls(), desktop_http3);
+    assert_eq!(v153_android_http2(), chrome::v154_http2());
+    assert_eq!(v153_android_quic(), chrome::v154_quic());
+    assert_eq!(v153_android_http3(), chrome::v154_http3());
+    assert_eq!(v153_android_http3_request(), chrome::v154_http3_request());
+    assert_eq!(v153_android_websocket(), chrome::v154_websocket());
     Ok(())
 }
 
@@ -112,7 +112,7 @@ fn brave_android_153_http2_session_capture_matches_the_chromium_recipe() -> Test
     assert_eq!(capture.value("client_version")?, "153.1.95.104");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
-    let settings = v153_http2();
+    let settings = v153_android_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,

@@ -1,11 +1,11 @@
 mod hash_set_order;
 
-use super::{v136_http3_tls, v136_macos_client_hints, v136_tls, v136_windows_client_hints};
+use super::{v136_macos_client_hints, v136_quic_tls, v136_tcp_tls, v136_windows_client_hints};
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
 };
-use crate::{TrustAnchorIds, chromium};
+use crate::{TrustAnchorIds, browser::chrome};
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -54,13 +54,13 @@ fn opera_client_hints_share_the_chromium_names_order_and_delivery() {
     };
     assert_eq!(
         names(v136_windows_client_hints()),
-        names(chromium::v154_windows_client_hints())
+        names(chrome::v154_windows_client_hints())
     );
 }
 
 #[test]
 fn opera_136_recipes_keep_the_backend_ech_grease_aead_policy() {
-    for settings in [v136_tls(), v136_http3_tls()] {
+    for settings in [v136_tcp_tls(), v136_quic_tls()] {
         assert!(settings.ech_grease);
         assert!(settings.ech_grease_aeads.is_empty());
         assert!(settings.aes_hardware);
@@ -80,7 +80,7 @@ fn id_set(ids: &TrustAnchorIds) -> Vec<Box<[u8]>> {
 #[test]
 fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
-    let opera = v136_tls();
+    let opera = v136_tcp_tls();
     opera.validate()?;
     let Some(ids @ TrustAnchorIds::PerClient(orders)) = &opera.requested_trust_anchor_ids else {
         return Err("Opera 136 recipe does not draw its trust-anchor order per client".into());
@@ -88,7 +88,7 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
     assert_eq!(orders.len(), 29);
     let ids_listed = id_set(ids);
     assert_eq!(ids_listed.len(), 32);
-    let mut expected = chromium::v154_tls();
+    let mut expected = chrome::v154_tcp_tls();
     let Some(TrustAnchorIds::Fixed(chrome_ids)) = &expected.requested_trust_anchor_ids else {
         return Err("Chrome 154 recipe omitted its fixed trust-anchor IDs".into());
     };
@@ -110,7 +110,7 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
     expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
     assert_eq!(opera, expected);
 
-    let opera = v136_http3_tls();
+    let opera = v136_quic_tls();
     opera.validate()?;
     let Some(quic_ids @ TrustAnchorIds::PerConnection(quic_orders)) =
         &opera.requested_trust_anchor_ids
@@ -121,7 +121,7 @@ fn opera_136_tls_recipes_are_chromium_s_with_opera_trust_anchor_ids()
     };
     assert_eq!(quic_orders.len(), 20);
     assert_eq!(id_set(quic_ids), ids_listed);
-    let mut expected = chromium::v154_http3_tls();
+    let mut expected = chrome::v154_quic_tls();
     expected.requested_trust_anchor_ids = opera.requested_trust_anchor_ids.clone();
     assert_eq!(opera, expected);
     Ok(())
@@ -376,7 +376,7 @@ fn opera_136_trust_anchor_recipes_draw_from_the_retained_orders() -> TestResult<
         assert_eq!(*count, recorded, "order_{index}");
     }
     assert_eq!(
-        recipe_orders(v136_tls().requested_trust_anchor_ids)?,
+        recipe_orders(v136_tcp_tls().requested_trust_anchor_ids)?,
         observed(&tcp_orders, &tcp_counts)
     );
 
@@ -404,7 +404,7 @@ fn opera_136_trust_anchor_recipes_draw_from_the_retained_orders() -> TestResult<
         assert_eq!(*count, recorded, "quic_order_{index}");
     }
     assert_eq!(
-        recipe_orders(v136_http3_tls().requested_trust_anchor_ids)?,
+        recipe_orders(v136_quic_tls().requested_trust_anchor_ids)?,
         observed(&quic_orders, &quic_counts)
     );
 
@@ -422,7 +422,7 @@ fn opera_136_http2_session_capture_matches_the_chromium_recipe()
     assert_eq!(capture.value("scenario")?, "accept");
     let observed = capture.navigation_settings()?;
     assert_eq!(observed.len(), 3);
-    let settings = chromium::v154_http2();
+    let settings = chrome::v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
@@ -499,7 +499,7 @@ fn opera_136_macos_http2_session_capture_matches_the_chromium_recipe()
         "macOS 15.5 (24F74) arm64"
     );
     assert_eq!(capture.value("scenario")?, "accept");
-    let settings = chromium::v154_http2();
+    let settings = chrome::v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,

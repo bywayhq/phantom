@@ -86,7 +86,7 @@ fn brave_android_153_quic_capture_matches_the_chromium_recipe()
         "/../../fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt"
     ));
     assert!(fixture.contains("\nclient=Brave\n"));
-    assert_eq!(crate::brave_android::v153_quic(), v154_quic());
+    assert_eq!(crate::browser::brave::v153_android_quic(), v154_quic());
     assert_quic_settings_match_startup(fixture, &v154_quic())
 }
 
@@ -95,7 +95,7 @@ fn chrome_android_154_quic_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     assert!(CHROME_ANDROID_154_HTTP3_FIXTURE.contains("\nclient_version=154.0.8037.57\n"));
     assert!(CHROME_ANDROID_154_HTTP3_FIXTURE.contains("\nlaunch_mode=android-intent\n"));
-    assert_eq!(crate::chrome_android::v154_quic(), v154_quic());
+    assert_eq!(crate::browser::chrome::v154_android_quic(), v154_quic());
     assert_quic_settings_match_startup(CHROME_ANDROID_154_HTTP3_FIXTURE, &v154_quic())
 }
 
@@ -107,7 +107,7 @@ fn edge_android_153_quic_capture_matches_the_chromium_recipe()
         "/../../fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt"
     ));
     assert!(fixture.contains("\nclient=Microsoft Edge\n"));
-    assert_eq!(crate::edge_android::v153_quic(), v154_quic());
+    assert_eq!(crate::browser::edge::v153_android_quic(), v154_quic());
     assert_quic_settings_match_startup(fixture, &v154_quic())
 }
 

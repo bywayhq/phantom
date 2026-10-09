@@ -15,11 +15,11 @@
 //! there are no request templates, and no H2, QUIC, H3, or WebSocket recipe.
 //!
 //! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
-//! cookie-placement recipe, for the reasons given in [`crate::opera`] and
-//! [`crate::chrome_android`].
+//! cookie-placement recipe, for the reasons given in [`crate::browser::opera`] and
+//! [`crate::browser::chrome`].
 
 use crate::{
-    chromium,
+    browser::chrome,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     tls::TlsSettings,
 };
@@ -27,17 +27,17 @@ use crate::{
 /// Returns TLS settings captured from Opera 102.1.5206.90382 for Android.
 ///
 /// The retained ClientHello, from a cleared profile, equals the
-/// [`crate::chromium::v154_tls`] ClientHello without the trust-anchor IDs
+/// [`crate::browser::chrome::v154_tcp_tls`] ClientHello without the trust-anchor IDs
 /// extension, signature-algorithm GREASE included. Desktop Opera 136, on the
-/// same Chromium 152 base, sends 32 trust-anchor IDs ([`crate::opera::v136_tls`]);
+/// same Chromium 152 base, sends 32 trust-anchor IDs ([`crate::browser::opera::v136_tcp_tls`]);
 /// Opera for Android sends none. The captures reached `localhost`, the only
 /// name Opera could resolve to the listener, and a ClientHello to another
 /// name differs only in its server name.
 /// [`TlsSettings::ech_from_https_records`] is unset: no Android capture
 /// shows Opera using an HTTPS record's `ech`, though desktop Opera 136 does.
 #[must_use]
-pub fn v102_tls() -> TlsSettings {
-    let mut settings = chromium::v154_tls();
+pub fn v102_android_tcp_tls() -> TlsSettings {
+    let mut settings = chrome::v154_tcp_tls();
     settings.requested_trust_anchor_ids = None;
     settings.ech_from_https_records = false;
     settings
@@ -56,7 +56,7 @@ pub fn v102_tls() -> TlsSettings {
 /// For another phone, use [`v102_android_client_hints_for_model`].
 #[must_use]
 pub fn v102_android_client_hints() -> ClientHintSettings {
-    v102_android_client_hints_for_model(crate::chrome_android::CAPTURED_MODEL)
+    v102_android_client_hints_for_model(crate::browser::chrome::CAPTURED_MODEL)
 }
 
 /// Returns the client hints of [`v102_android_client_hints`] with another
@@ -79,7 +79,7 @@ pub fn v102_android_client_hints_for_model(model: &str) -> ClientHintSettings {
         ClientHint::new("sec-ch-ua-platform-version", r#""17""#, AcceptCh),
         ClientHint::new(
             "sec-ch-ua-model",
-            crate::chrome_android::model_value(model),
+            crate::browser::chrome::model_value(model),
             AcceptCh,
         ),
         ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),

@@ -1,21 +1,13 @@
 //! Browser recipes and typed settings for Phantom connections.
 
-pub mod brave;
-pub mod brave_android;
-pub mod chrome_android;
-pub mod chromium;
+pub mod browser;
+
 pub mod client_hints;
 pub mod cookie;
 pub mod dns_cache;
-pub mod edge;
-pub mod edge_android;
-pub mod firefox;
-pub mod firefox_android;
 pub mod http1;
 pub mod http2;
 pub mod http3;
-pub mod opera;
-pub mod opera_android;
 pub mod proxy_connect;
 pub mod quic;
 pub mod request_template;

@@ -2,8 +2,8 @@
 
 use crate::{
     ClientHintSettings, CookiePlacement, DnsCacheSettings, Http1Settings, Http2Settings,
-    Http3RequestSettings, Http3Settings, ProxyConnectTemplate, TcpSettings, TlsSettings,
-    UdpSettings, WebSocketSettings, quic::QuicTransportSettings,
+    Http3RequestSettings, Http3Settings, ProxyConnectTemplate, RequestTemplate, TcpSettings,
+    TlsSettings, UdpSettings, WebSocketSettings, quic::QuicTransportSettings,
 };
 
 /// TLS, QUIC transport, HTTP/3 connection, and request settings for one client.
@@ -71,6 +71,7 @@ pub struct ClientProfile {
     websocket: Option<WebSocketSettings>,
     proxy_connect: Option<ProxyConnectTemplate>,
     cookie_placement: CookiePlacement,
+    request_template: Option<RequestTemplate>,
 }
 
 impl ClientProfile {
@@ -89,6 +90,7 @@ impl ClientProfile {
             websocket: None,
             proxy_connect: None,
             cookie_placement: CookiePlacement::last(),
+            request_template: None,
         }
     }
 
@@ -180,6 +182,23 @@ impl ClientProfile {
         self
     }
 
+    /// Sets the default ordered fields for ordinary requests.
+    ///
+    /// A request can replace this template or choose to send without one.
+    /// WebSocket openings and proxy CONNECT requests use their own templates.
+    #[must_use]
+    pub fn with_request_template(mut self, template: RequestTemplate) -> Self {
+        self.request_template = Some(template);
+        self
+    }
+
+    /// Removes the default template for ordinary requests.
+    #[must_use]
+    pub fn without_request_template(mut self) -> Self {
+        self.request_template = None;
+        self
+    }
+
     /// Makes the draws the profile takes once per client, as
     /// [`TlsSettings::draw_per_client`] describes, for the TLS settings and
     /// then the HTTP/3 TLS settings, calling `random` once for each draw.
@@ -261,6 +280,12 @@ impl ClientProfile {
         self.proxy_connect.as_ref()
     }
 
+    /// Returns the default template for ordinary requests, when configured.
+    #[must_use]
+    pub fn request_template(&self) -> Option<&RequestTemplate> {
+        self.request_template.as_ref()
+    }
+
     /// Returns where the automatic `Cookie` request field goes.
     #[must_use]
     pub fn cookie_placement(&self) -> &CookiePlacement {
@@ -272,12 +297,12 @@ impl ClientProfile {
 mod tests {
     use crate::{
         CipherSuite, ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile,
-        Http3ClientSettings, TlsVersion, TrustAnchorIds, chromium, opera,
+        Http3ClientSettings, TlsVersion, TrustAnchorIds, browser::chrome, browser::opera,
     };
 
     #[test]
     fn new_owns_tls_settings_without_enabling_http2() {
-        let tls = chromium::v154_tls();
+        let tls = chrome::v154_tcp_tls();
         let profile = ClientProfile::new(tls.clone());
 
         assert_eq!(profile.tls(), &tls);
@@ -289,42 +314,42 @@ mod tests {
 
     #[test]
     fn with_tcp_owns_and_exposes_tcp_settings() {
-        let tcp = chromium::v154_tcp();
-        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
+        let tcp = chrome::v154_tcp();
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_tcp(tcp);
 
         assert_eq!(profile.tcp(), Some(&tcp));
     }
 
     #[test]
     fn with_udp_owns_and_exposes_udp_settings() {
-        let udp = chromium::v154_udp();
-        let profile = ClientProfile::new(chromium::v154_tls()).with_udp(udp);
+        let udp = chrome::v154_udp();
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_udp(udp);
 
         assert_eq!(profile.udp(), Some(&udp));
-        assert_eq!(ClientProfile::new(chromium::v154_tls()).udp(), None);
+        assert_eq!(ClientProfile::new(chrome::v154_tcp_tls()).udp(), None);
     }
 
     #[test]
     fn with_dns_cache_owns_and_exposes_dns_cache_settings() {
-        let dns_cache = chromium::v154_dns_cache();
-        let profile = ClientProfile::new(chromium::v154_tls()).with_dns_cache(dns_cache);
+        let dns_cache = chrome::v154_dns_cache();
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_dns_cache(dns_cache);
 
         assert_eq!(profile.dns_cache(), Some(&dns_cache));
-        assert_eq!(ClientProfile::new(chromium::v154_tls()).dns_cache(), None);
+        assert_eq!(ClientProfile::new(chrome::v154_tcp_tls()).dns_cache(), None);
     }
 
     #[test]
     fn with_http1_owns_and_exposes_http1_settings() {
-        let http1 = chromium::v154_http1();
-        let profile = ClientProfile::new(chromium::v154_tls()).with_http1(http1);
+        let http1 = chrome::v154_http1();
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http1(http1);
 
         assert_eq!(profile.http1(), Some(&http1));
     }
 
     #[test]
     fn with_http2_owns_and_exposes_http2_settings() {
-        let tls = chromium::v154_tls();
-        let http2 = chromium::v154_http2();
+        let tls = chrome::v154_tcp_tls();
+        let http2 = chrome::v154_http2();
         let profile = ClientProfile::new(tls.clone()).with_http2(http2.clone());
 
         assert_eq!(profile.tls(), &tls);
@@ -338,17 +363,17 @@ mod tests {
             "value",
             ClientHintDelivery::Default,
         )]);
-        let profile = ClientProfile::new(chromium::v154_tls()).with_client_hints(hints.clone());
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_client_hints(hints.clone());
 
         assert_eq!(profile.client_hints(), Some(&hints));
     }
 
     #[test]
     fn http3_settings_own_and_expose_each_protocol_layer() {
-        let tls = chromium::v154_tls();
-        let quic_transport = chromium::v154_quic();
-        let http3 = chromium::v154_http3();
-        let request = chromium::v154_http3_request();
+        let tls = chrome::v154_tcp_tls();
+        let quic_transport = chrome::v154_quic();
+        let http3 = chrome::v154_http3();
+        let request = chrome::v154_http3_request();
         let settings = Http3ClientSettings::new(
             tls.clone(),
             quic_transport.clone(),
@@ -364,8 +389,8 @@ mod tests {
 
     #[test]
     fn with_http3_owns_and_exposes_http3_settings() {
-        let tcp_tls = chromium::v154_tls();
-        let mut http3_tls = chromium::v154_tls();
+        let tcp_tls = chrome::v154_tcp_tls();
+        let mut http3_tls = chrome::v154_tcp_tls();
         http3_tls.min_version = TlsVersion::Tls13;
         http3_tls.max_version = TlsVersion::Tls13;
         http3_tls.cipher_suites = vec![
@@ -376,12 +401,12 @@ mod tests {
         http3_tls.alpn_protocols = vec![Box::from(*b"h3")];
         http3_tls.alps = None;
         http3_tls.session_tickets = false;
-        let http2 = chromium::v154_http2();
+        let http2 = chrome::v154_http2();
         let http3 = Http3ClientSettings::new(
             http3_tls.clone(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
         let profile = ClientProfile::new(tcp_tls.clone())
             .with_http2(http2.clone())
@@ -401,12 +426,12 @@ mod tests {
     #[test]
     fn per_client_draw_fixes_the_tcp_trust_anchor_order_only() {
         let http3 = Http3ClientSettings::new(
-            opera::v136_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            opera::v136_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
-        let mut profile = ClientProfile::new(opera::v136_tls()).with_http3(http3.clone());
+        let mut profile = ClientProfile::new(opera::v136_tcp_tls()).with_http3(http3.clone());
         let mut draws = 0;
         let drawn = profile.draw_per_client(|| {
             draws += 1;
@@ -415,7 +440,7 @@ mod tests {
 
         assert_eq!(drawn, Ok(()));
         assert_eq!(draws, 1);
-        let tcp_orders = opera::v136_tls()
+        let tcp_orders = opera::v136_tcp_tls()
             .requested_trust_anchor_ids
             .map(|ids| ids.orders().to_vec());
         let last = tcp_orders.and_then(|orders| orders.last().cloned());

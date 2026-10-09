@@ -1,5 +1,28 @@
 //! Wire settings retained from Firefox browser observations.
 
+//!
+//! ## Android
+//!
+//! Wire settings retained from Firefox for Android observations.
+//!
+//! Firefox 156.0.1 for Android, as the Google Play Store served it to the
+//! `phantom-api35-play` Android 15 emulator. A release Firefox for Android
+//! reads GeckoView's debug configuration when it is the device's debug app,
+//! so a capture can set preferences such as `network.dns.localDomains`, but
+//! it cannot place a certificate override in the app's private profile. No
+//! capture can therefore complete a TLS handshake with a test certificate, and
+//! only the TCP ClientHello is captured. It has a recipe here.
+//!
+//! There is no Firefox for Android H2, WebSocket, request template, TCP,
+//! HTTP/1.1 connection, address-cache, proxy CONNECT, or cookie-placement
+//! recipe: none of those layers was captured on Android.
+
+use crate::{ClientProfile, Http3ClientSettings};
+
+mod android;
+
+pub use android::v156_android_tcp_tls;
+
 use std::{
     num::{NonZeroU32, NonZeroUsize},
     time::Duration,
@@ -96,7 +119,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// `security.tls.ech.grease_size` over TCP, and NSS sends the TLS 1.2
 /// `extended_master_secret` and `renegotiation_info` extensions whatever its
 /// minimum version ([`TlsSettings::tls12_extensions_in_tls13_client_hello`]),
-/// which matters only to [`v157_http3_tls`].
+/// which matters only to [`v157_quic_tls`].
 ///
 /// Ticket resumption over TCP follows the retained `resumption-*.txt`
 /// captures. A resumed ClientHello omits the empty `session_ticket`
@@ -117,7 +140,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
-pub fn v157_tls() -> TlsSettings {
+pub fn v157_tcp_tls() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls13,
@@ -705,7 +728,7 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 /// Returns TLS settings for the Firefox 157 HTTP/3 offer on Windows 11.
 ///
 /// Firefox's QUIC stack, neqo, runs its handshake on NSS with a configuration
-/// of its own, so the QUIC ClientHello differs from [`v157_tls`]. The retained
+/// of its own, so the QUIC ClientHello differs from [`v157_tcp_tls`]. The retained
 /// Firefox 157.0 QUIC ClientHellos (`fixtures/http3/firefox/157.0/`, three
 /// fresh processes and the first connection of each resumption run) offer TLS
 /// 1.3 alone, the three TLS 1.3 cipher suites in the TCP order, the `h3` ALPN
@@ -738,8 +761,8 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 /// retained resumption captures a resumed ClientHello adds `early_data` and,
 /// last, `pre_shared_key`, as [`v157_quic`] allows.
 #[must_use]
-pub fn v157_http3_tls() -> TlsSettings {
-    let mut settings = v157_tls();
+pub fn v157_quic_tls() -> TlsSettings {
+    let mut settings = v157_tcp_tls();
     settings.min_version = TlsVersion::Tls13;
     settings.max_version = TlsVersion::Tls13;
     settings.cipher_suites = vec![
@@ -812,7 +835,7 @@ pub fn v157_http3_tls() -> TlsSettings {
 ///
 /// A resumed Firefox connection offers early data, so `early_data` is set;
 /// it takes effect with TLS settings that enable session tickets, such as
-/// [`v157_http3_tls`]. No resumed connection sent `initial_rtt_us`.
+/// [`v157_quic_tls`]. No resumed connection sent `initial_rtt_us`.
 #[must_use]
 pub fn v157_quic() -> QuicTransportSettings {
     use QuicTransportParameterKind as Kind;
@@ -1276,7 +1299,43 @@ fn fetch_template(user_agent: &str, cache: FetchCache) -> RequestTemplate {
     }
 }
 
+/// Returns the Windows connection profile for Firefox 157.
+///
+/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
+/// proxy CONNECT fields, and cookie placement.
+/// Firefox sends no client hints, and no UDP socket recipe is supplied.
+/// No request template is selected. Choose one for your request kind.
+#[must_use]
+pub fn v157_windows() -> ClientProfile {
+    ClientProfile::new(v157_tcp_tls())
+        .with_tcp(v157_tcp())
+        .with_dns_cache(v157_dns_cache())
+        .with_http1(v157_http1())
+        .with_http2(v157_http2())
+        .with_http3(Http3ClientSettings::new(
+            v157_quic_tls(),
+            v157_quic(),
+            v157_http3(),
+            v157_http3_request(),
+        ))
+        .with_websocket(v157_websocket())
+        .with_proxy_connect(v157_proxy_connect())
+        .with_cookie_placement(v157_cookie_placement())
+}
+
+/// Returns the captured Android layers for Firefox 156.
+///
+/// Supplies TCP TLS only.
+/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
+/// and cookie-placement recipes are absent. Their generic defaults remain.
+/// No request template is selected. These captures came from emulators.
+#[must_use]
+pub fn v156_android() -> ClientProfile {
+    ClientProfile::new(v156_android_tcp_tls())
+}
+
 #[cfg(test)]
 mod hook_tests;
+
 #[cfg(test)]
 mod tests;

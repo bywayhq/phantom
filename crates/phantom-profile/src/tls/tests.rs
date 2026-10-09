@@ -169,14 +169,14 @@ fn session_tickets_per_origin_must_be_between_one_and_ten() -> Result<(), Box<dy
 #[test]
 fn tcp_ticket_retention_follows_the_resumption_captures() {
     for settings in [
-        crate::chromium::v154_tls(),
-        crate::edge::v154_tls(),
-        crate::brave::v154_tls(),
-        crate::opera::v136_tls(),
-        crate::chrome_android::v154_tls(),
-        crate::edge_android::v153_tls(),
-        crate::brave_android::v153_tls(),
-        crate::opera_android::v102_tls(),
+        crate::browser::chrome::v154_tcp_tls(),
+        crate::browser::edge::v154_tcp_tls(),
+        crate::browser::brave::v154_tcp_tls(),
+        crate::browser::opera::v136_tcp_tls(),
+        crate::browser::chrome::v154_android_tcp_tls(),
+        crate::browser::edge::v153_android_tcp_tls(),
+        crate::browser::brave::v153_android_tcp_tls(),
+        crate::browser::opera::v102_android_tcp_tls(),
     ] {
         assert_eq!(settings.session_tickets_per_origin, 2);
         assert_eq!(
@@ -187,11 +187,11 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
     }
     for (firefox, order) in [
         (
-            crate::firefox::v157_tls(),
+            crate::browser::firefox::v157_tcp_tls(),
             SessionTicketOrder::OldestConnectionFirst,
         ),
         (
-            crate::firefox_android::v156_tls(),
+            crate::browser::firefox::v156_android_tcp_tls(),
             SessionTicketOrder::OldestFirst,
         ),
     ] {
@@ -204,26 +204,26 @@ fn tcp_ticket_retention_follows_the_resumption_captures() {
 #[test]
 fn only_the_firefox_recipe_sends_early_data_over_tcp() {
     for settings in [
-        crate::chromium::v154_tls(),
-        crate::chromium::v154_http3_tls(),
-        crate::chrome_android::v154_tls(),
-        crate::chrome_android::v154_http3_tls(),
-        crate::edge::v154_tls(),
-        crate::edge::v154_http3_tls(),
-        crate::edge_android::v153_tls(),
-        crate::edge_android::v153_http3_tls(),
-        crate::brave::v154_tls(),
-        crate::brave::v154_http3_tls(),
-        crate::brave_android::v153_tls(),
-        crate::brave_android::v153_http3_tls(),
-        crate::opera::v136_tls(),
-        crate::opera::v136_http3_tls(),
-        crate::opera_android::v102_tls(),
+        crate::browser::chrome::v154_tcp_tls(),
+        crate::browser::chrome::v154_quic_tls(),
+        crate::browser::chrome::v154_android_tcp_tls(),
+        crate::browser::chrome::v154_android_quic_tls(),
+        crate::browser::edge::v154_tcp_tls(),
+        crate::browser::edge::v154_quic_tls(),
+        crate::browser::edge::v153_android_tcp_tls(),
+        crate::browser::edge::v153_android_quic_tls(),
+        crate::browser::brave::v154_tcp_tls(),
+        crate::browser::brave::v154_quic_tls(),
+        crate::browser::brave::v153_android_tcp_tls(),
+        crate::browser::brave::v153_android_quic_tls(),
+        crate::browser::opera::v136_tcp_tls(),
+        crate::browser::opera::v136_quic_tls(),
+        crate::browser::opera::v102_android_tcp_tls(),
     ] {
         assert!(!settings.tcp_early_data);
     }
-    assert!(crate::firefox::v157_tls().tcp_early_data);
-    assert!(crate::firefox_android::v156_tls().tcp_early_data);
+    assert!(crate::browser::firefox::v157_tcp_tls().tcp_early_data);
+    assert!(crate::browser::firefox::v156_android_tcp_tls().tcp_early_data);
 }
 
 #[test]
@@ -309,22 +309,22 @@ fn ech_from_https_records_requires_ech_grease() {
 
 #[test]
 fn only_the_desktop_chromium_recipes_use_ech_from_https_records() {
-    assert!(crate::chromium::v154_tls().ech_from_https_records);
-    assert!(crate::chromium::v154_http3_tls().ech_from_https_records);
-    assert!(crate::edge::v154_tls().ech_from_https_records);
-    assert!(crate::edge::v154_http3_tls().ech_from_https_records);
-    assert!(crate::brave::v154_tls().ech_from_https_records);
-    assert!(crate::brave::v154_http3_tls().ech_from_https_records);
-    assert!(crate::opera::v136_tls().ech_from_https_records);
-    assert!(crate::opera::v136_http3_tls().ech_from_https_records);
-    assert!(!crate::opera_android::v102_tls().ech_from_https_records);
-    assert!(!crate::chrome_android::v154_tls().ech_from_https_records);
-    assert!(!crate::chrome_android::v154_http3_tls().ech_from_https_records);
-    assert!(!crate::edge_android::v153_tls().ech_from_https_records);
-    assert!(!crate::edge_android::v153_http3_tls().ech_from_https_records);
-    assert!(!crate::brave_android::v153_tls().ech_from_https_records);
-    assert!(!crate::brave_android::v153_http3_tls().ech_from_https_records);
-    assert!(!crate::firefox::v157_tls().ech_from_https_records);
+    assert!(crate::browser::chrome::v154_tcp_tls().ech_from_https_records);
+    assert!(crate::browser::chrome::v154_quic_tls().ech_from_https_records);
+    assert!(crate::browser::edge::v154_tcp_tls().ech_from_https_records);
+    assert!(crate::browser::edge::v154_quic_tls().ech_from_https_records);
+    assert!(crate::browser::brave::v154_tcp_tls().ech_from_https_records);
+    assert!(crate::browser::brave::v154_quic_tls().ech_from_https_records);
+    assert!(crate::browser::opera::v136_tcp_tls().ech_from_https_records);
+    assert!(crate::browser::opera::v136_quic_tls().ech_from_https_records);
+    assert!(!crate::browser::opera::v102_android_tcp_tls().ech_from_https_records);
+    assert!(!crate::browser::chrome::v154_android_tcp_tls().ech_from_https_records);
+    assert!(!crate::browser::chrome::v154_android_quic_tls().ech_from_https_records);
+    assert!(!crate::browser::edge::v153_android_tcp_tls().ech_from_https_records);
+    assert!(!crate::browser::edge::v153_android_quic_tls().ech_from_https_records);
+    assert!(!crate::browser::brave::v153_android_tcp_tls().ech_from_https_records);
+    assert!(!crate::browser::brave::v153_android_quic_tls().ech_from_https_records);
+    assert!(!crate::browser::firefox::v157_tcp_tls().ech_from_https_records);
 }
 
 #[test]

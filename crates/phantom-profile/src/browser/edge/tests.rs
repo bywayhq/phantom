@@ -1,5 +1,5 @@
-use super::{v154_http3_tls, v154_macos_client_hints, v154_tls, v154_windows_client_hints};
-use crate::chromium;
+use super::{v154_macos_client_hints, v154_quic_tls, v154_tcp_tls, v154_windows_client_hints};
+use crate::browser::chrome;
 use crate::client_hints::navigation_capture::{NavigationCapture, changed_hints, profile_hints};
 use crate::http2::{
     Http2HpackSettings, Http2Settings, Http2StreamSettings, session_capture::SessionCapture,
@@ -48,7 +48,7 @@ fn edge_154_client_hints_share_the_chromium_names_order_and_delivery() {
     };
     assert_eq!(
         names(v154_windows_client_hints()),
-        names(chromium::v154_windows_client_hints())
+        names(chrome::v154_windows_client_hints())
     );
 }
 
@@ -56,7 +56,7 @@ fn edge_154_client_hints_share_the_chromium_names_order_and_delivery() {
 fn edge_154_recipes_keep_the_backend_ech_grease_aead_policy() {
     // Edge advertises AES-128-GCM like Chrome; the backend default produces
     // that choice because `aes_hardware` is set.
-    for settings in [v154_tls(), v154_http3_tls()] {
+    for settings in [v154_tcp_tls(), v154_quic_tls()] {
         assert!(settings.ech_grease);
         assert!(settings.ech_grease_aeads.is_empty());
         assert!(settings.aes_hardware);
@@ -69,8 +69,8 @@ fn edge_154_recipes_keep_the_backend_ech_grease_aead_policy() {
 fn edge_154_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
 -> Result<(), Box<dyn std::error::Error>> {
     for (edge, chrome) in [
-        (v154_tls(), chromium::v154_tls()),
-        (v154_http3_tls(), chromium::v154_http3_tls()),
+        (v154_tcp_tls(), chrome::v154_tcp_tls()),
+        (v154_quic_tls(), chrome::v154_quic_tls()),
     ] {
         edge.validate()?;
         assert!(chrome.requested_trust_anchor_ids.is_some());
@@ -92,7 +92,7 @@ fn edge_154_http2_session_capture_matches_the_chromium_recipe()
     assert_eq!(observed.len(), 3);
     // One navigation block shows only the static-name choice; the WebSocket
     // recipe tests compare the whole encoder identity with every CONNECT.
-    let settings = chromium::v154_http2();
+    let settings = chrome::v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,
@@ -175,7 +175,7 @@ fn edge_154_macos_http2_session_capture_matches_the_chromium_recipe()
         "macOS 15.5 (24F74) arm64"
     );
     assert_eq!(capture.value("scenario")?, "accept");
-    let settings = chromium::v154_http2();
+    let settings = chrome::v154_http2();
     let navigation = Http2Settings {
         extended_connect_pseudo_header_order: None,
         extended_connect_priority: None,

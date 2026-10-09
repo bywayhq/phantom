@@ -4,8 +4,8 @@ use super::{
     client_hint_placement, restart_client_hint_placement,
 };
 use crate::{
-    ClientHintSettings, brave, brave_android, chrome_android, chromium,
-    client_hints::navigation_capture::NavigationCapture, edge, edge_android, firefox, opera,
+    ClientHintSettings, browser::brave, browser::chrome, browser::edge, browser::firefox,
+    browser::opera, client_hints::navigation_capture::NavigationCapture,
 };
 
 macro_rules! fixture {
@@ -318,8 +318,8 @@ fn assert_all_match(
 #[test]
 fn every_template_recipe_is_valid() {
     for template in [
-        chromium::v154_windows_navigation_template(),
-        chromium::v154_windows_fetch_no_store_template(),
+        chrome::v154_windows_navigation_template(),
+        chrome::v154_windows_fetch_no_store_template(),
         edge::v154_windows_navigation_template(),
         edge::v154_windows_fetch_no_store_template(),
         brave::v154_windows_navigation_template(),
@@ -330,16 +330,16 @@ fn every_template_recipe_is_valid() {
         firefox::v157_windows_fetch_no_store_template(),
         firefox::v157_macos_navigation_template(),
         firefox::v157_macos_fetch_no_store_template(),
-        chromium::v154_macos_navigation_template(),
-        chromium::v154_macos_fetch_no_store_template(),
-        chrome_android::v154_android_navigation_template(),
-        chrome_android::v154_android_fetch_no_store_template(),
-        edge_android::v153_android_navigation_template(),
-        edge_android::v153_android_fetch_no_store_template(),
-        brave_android::v153_android_navigation_template(),
-        brave_android::v153_android_fetch_no_store_template(),
-        chromium::v154_windows_fetch_template(),
-        chromium::v154_macos_fetch_template(),
+        chrome::v154_macos_navigation_template(),
+        chrome::v154_macos_fetch_no_store_template(),
+        chrome::v154_android_navigation_template(),
+        chrome::v154_android_fetch_no_store_template(),
+        edge::v153_android_navigation_template(),
+        edge::v153_android_fetch_no_store_template(),
+        brave::v153_android_navigation_template(),
+        brave::v153_android_fetch_no_store_template(),
+        chrome::v154_windows_fetch_template(),
+        chrome::v154_macos_fetch_template(),
         firefox::v157_windows_fetch_template(),
         firefox::v157_macos_fetch_template(),
     ] {
@@ -349,8 +349,8 @@ fn every_template_recipe_is_valid() {
 
 #[test]
 fn chrome_154_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = chromium::v154_windows_navigation_template();
-    let hints = chromium::v154_windows_client_hints();
+    let template = chrome::v154_windows_navigation_template();
+    let hints = chrome::v154_windows_client_hints();
     let (http1, http2) = observed(&[&CHROME_SSE, &CHROME_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &template,
@@ -382,7 +382,7 @@ fn chrome_154_navigation_matches_every_captured_page_request() -> CaptureResult<
 
 #[test]
 fn chrome_154_navigation_user_agent_is_the_headful_capture_value() -> CaptureResult<()> {
-    let template = chromium::v154_windows_navigation_template();
+    let template = chrome::v154_windows_navigation_template();
     let literal = |fields: &[RequestField]| {
         fields.iter().find_map(|field| match field {
             RequestField::Literal { name, value } if name.eq_ignore_ascii_case("user-agent") => {
@@ -453,20 +453,20 @@ fn edge_154_navigation_matches_every_captured_page_request() -> CaptureResult<()
 fn android_17_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
     for (template, hints, set, label) in [
         (
-            chrome_android::v154_android_navigation_template(),
-            chrome_android::v154_android_client_hints(),
+            chrome::v154_android_navigation_template(),
+            chrome::v154_android_client_hints(),
             &CHROME_ANDROID_WEBSOCKET,
             "chrome android",
         ),
         (
-            edge_android::v153_android_navigation_template(),
-            edge_android::v153_android_client_hints(),
+            edge::v153_android_navigation_template(),
+            edge::v153_android_client_hints(),
             &EDGE_ANDROID_WEBSOCKET,
             "edge android",
         ),
         (
-            brave_android::v153_android_navigation_template(),
-            brave_android::v153_android_client_hints(),
+            brave::v153_android_navigation_template(),
+            brave::v153_android_client_hints(),
             &BRAVE_ANDROID_17_WEBSOCKET,
             "brave android 17",
         ),
@@ -620,8 +620,8 @@ fn brave_android_153_accept_language_is_one_drawn_value_per_session() -> Capture
     assert_eq!(runs, 33);
     assert_eq!(seen, allowed);
     for template in [
-        brave_android::v153_android_navigation_template(),
-        brave_android::v153_android_fetch_no_store_template(),
+        brave::v153_android_navigation_template(),
+        brave::v153_android_fetch_no_store_template(),
     ] {
         let slots: Vec<&RequestField> = template
             .http1_fields
@@ -644,8 +644,8 @@ fn brave_android_153_accept_language_is_one_drawn_value_per_session() -> Capture
 
 #[test]
 fn brave_android_153_navigation_matches_every_captured_page_request() -> CaptureResult<()> {
-    let template = brave_android::v153_android_navigation_template();
-    let hints = brave_android::v153_android_client_hints();
+    let template = brave::v153_android_navigation_template();
+    let hints = brave::v153_android_client_hints();
     let (http1, http2) = observed(&[&BRAVE_ANDROID_WEBSOCKET], "page", "document")?;
     assert_all_match(
         &template,
@@ -737,8 +737,8 @@ fn firefox_157_http3_templates_follow_the_captured_field_order() {
 fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()> {
     for (template, hints, set, label) in [
         (
-            chromium::v154_windows_fetch_no_store_template(),
-            chromium::v154_windows_client_hints(),
+            chrome::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_client_hints(),
             &CHROME_WEBSOCKET,
             "chrome",
         ),
@@ -761,8 +761,8 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
             "opera",
         ),
         (
-            brave_android::v153_android_fetch_no_store_template(),
-            brave_android::v153_android_client_hints(),
+            brave::v153_android_fetch_no_store_template(),
+            brave::v153_android_client_hints(),
             &BRAVE_ANDROID_WEBSOCKET,
             "brave android",
         ),
@@ -776,20 +776,20 @@ fn chromium_family_fetch_matches_every_captured_no_store_fetch() -> CaptureResul
     // The Android 17 captures hold one HTTP/1.1 and one HTTP/2 scenario.
     for (template, hints, set, label) in [
         (
-            chrome_android::v154_android_fetch_no_store_template(),
-            chrome_android::v154_android_client_hints(),
+            chrome::v154_android_fetch_no_store_template(),
+            chrome::v154_android_client_hints(),
             &CHROME_ANDROID_WEBSOCKET,
             "chrome android",
         ),
         (
-            edge_android::v153_android_fetch_no_store_template(),
-            edge_android::v153_android_client_hints(),
+            edge::v153_android_fetch_no_store_template(),
+            edge::v153_android_client_hints(),
             &EDGE_ANDROID_WEBSOCKET,
             "edge android",
         ),
         (
-            brave_android::v153_android_fetch_no_store_template(),
-            brave_android::v153_android_client_hints(),
+            brave::v153_android_fetch_no_store_template(),
+            brave::v153_android_client_hints(),
             &BRAVE_ANDROID_17_WEBSOCKET,
             "brave android 17",
         ),
@@ -826,9 +826,9 @@ fn firefox_157_fetch_matches_every_captured_no_store_fetch() -> CaptureResult<()
 fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
     for (navigation, fetch, hints, set, label) in [
         (
-            chromium::v154_macos_navigation_template(),
-            chromium::v154_macos_fetch_no_store_template(),
-            chromium::v154_macos_client_hints(),
+            chrome::v154_macos_navigation_template(),
+            chrome::v154_macos_fetch_no_store_template(),
+            chrome::v154_macos_client_hints(),
             &CHROME_MACOS_WEBSOCKET,
             "chrome macos",
         ),
@@ -859,8 +859,8 @@ fn chromium_family_on_macos_matches_its_templates() -> CaptureResult<()> {
     // out of this comparison.
     for (template, hints, capture, label) in [
         (
-            chromium::v154_macos_navigation_template(),
-            chromium::v154_macos_client_hints(),
+            chrome::v154_macos_navigation_template(),
+            chrome::v154_macos_client_hints(),
             CHROME_MACOS_HTTP3,
             "chrome macos h3",
         ),
@@ -961,23 +961,20 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
     // The client-hint capture recorded Chrome and Edge navigations after
     // `Accept-CH`; no capture recorded a fetch after it.
     for (template, placed) in [
-        (chromium::v154_windows_navigation_template(), true),
+        (chrome::v154_windows_navigation_template(), true),
         (edge::v154_windows_navigation_template(), true),
-        (chromium::v154_windows_fetch_no_store_template(), false),
+        (chrome::v154_windows_fetch_no_store_template(), false),
         (edge::v154_windows_fetch_no_store_template(), false),
         (brave::v154_windows_navigation_template(), true),
         (brave::v154_windows_fetch_no_store_template(), false),
         (opera::v136_windows_navigation_template(), true),
         (opera::v136_windows_fetch_no_store_template(), false),
-        (chrome_android::v154_android_navigation_template(), true),
-        (edge_android::v153_android_navigation_template(), true),
-        (brave_android::v153_android_navigation_template(), true),
-        (brave_android::v153_android_fetch_no_store_template(), false),
-        (
-            chrome_android::v154_android_fetch_no_store_template(),
-            false,
-        ),
-        (edge_android::v153_android_fetch_no_store_template(), false),
+        (chrome::v154_android_navigation_template(), true),
+        (edge::v153_android_navigation_template(), true),
+        (brave::v153_android_navigation_template(), true),
+        (brave::v153_android_fetch_no_store_template(), false),
+        (chrome::v154_android_fetch_no_store_template(), false),
+        (edge::v153_android_fetch_no_store_template(), false),
         (firefox::v157_windows_navigation_template(), false),
         (firefox::v157_windows_fetch_no_store_template(), false),
     ] {
@@ -990,31 +987,28 @@ fn only_templates_with_a_requested_hint_capture_claim_its_placement() {
 #[test]
 fn only_chromium_navigation_templates_restart_for_connection_accept_ch() {
     for (template, restarts) in [
-        (chromium::v154_windows_navigation_template(), true),
-        (chromium::v154_macos_navigation_template(), true),
+        (chrome::v154_windows_navigation_template(), true),
+        (chrome::v154_macos_navigation_template(), true),
         (edge::v154_windows_navigation_template(), true),
         (brave::v154_windows_navigation_template(), true),
         (opera::v136_windows_navigation_template(), true),
-        (chrome_android::v154_android_navigation_template(), true),
-        (edge_android::v153_android_navigation_template(), true),
-        (brave_android::v153_android_navigation_template(), true),
-        (chromium::v154_windows_fetch_no_store_template(), false),
-        (chromium::v154_macos_fetch_no_store_template(), false),
+        (chrome::v154_android_navigation_template(), true),
+        (edge::v153_android_navigation_template(), true),
+        (brave::v153_android_navigation_template(), true),
+        (chrome::v154_windows_fetch_no_store_template(), false),
+        (chrome::v154_macos_fetch_no_store_template(), false),
         (edge::v154_windows_fetch_no_store_template(), false),
         (brave::v154_windows_fetch_no_store_template(), false),
         (opera::v136_windows_fetch_no_store_template(), false),
-        (
-            chrome_android::v154_android_fetch_no_store_template(),
-            false,
-        ),
-        (edge_android::v153_android_fetch_no_store_template(), false),
-        (brave_android::v153_android_fetch_no_store_template(), false),
+        (chrome::v154_android_fetch_no_store_template(), false),
+        (edge::v153_android_fetch_no_store_template(), false),
+        (brave::v153_android_fetch_no_store_template(), false),
         (firefox::v157_windows_navigation_template(), false),
         (firefox::v157_windows_fetch_no_store_template(), false),
         (firefox::v157_macos_navigation_template(), false),
         (firefox::v157_macos_fetch_no_store_template(), false),
-        (chromium::v154_windows_fetch_template(), false),
-        (chromium::v154_macos_fetch_template(), false),
+        (chrome::v154_windows_fetch_template(), false),
+        (chrome::v154_macos_fetch_template(), false),
         (firefox::v157_windows_fetch_template(), false),
         (firefox::v157_macos_fetch_template(), false),
     ] {
@@ -1028,14 +1022,14 @@ fn only_chromium_navigation_templates_restart_for_connection_accept_ch() {
 #[test]
 fn chromium_navigation_lists_place_restart_hints_before_sec_fetch_site() {
     for (template, brave_family) in [
-        (chromium::v154_windows_navigation_template(), false),
-        (chromium::v154_macos_navigation_template(), false),
+        (chrome::v154_windows_navigation_template(), false),
+        (chrome::v154_macos_navigation_template(), false),
         (edge::v154_windows_navigation_template(), false),
         (brave::v154_windows_navigation_template(), true),
         (opera::v136_windows_navigation_template(), false),
-        (chrome_android::v154_android_navigation_template(), false),
-        (edge_android::v153_android_navigation_template(), false),
-        (brave_android::v153_android_navigation_template(), true),
+        (chrome::v154_android_navigation_template(), false),
+        (edge::v153_android_navigation_template(), false),
+        (brave::v153_android_navigation_template(), true),
     ] {
         let lists = [
             Some(&template.http1_fields),
@@ -1068,7 +1062,7 @@ fn chromium_navigation_lists_place_restart_hints_before_sec_fetch_site() {
         assert!(template.validate().is_ok());
     }
     for template in [
-        chromium::v154_windows_fetch_no_store_template(),
+        chrome::v154_windows_fetch_no_store_template(),
         firefox::v157_windows_navigation_template(),
     ] {
         assert_eq!(restart_client_hint_placement(&template.http2_fields), None);
@@ -1077,18 +1071,18 @@ fn chromium_navigation_lists_place_restart_hints_before_sec_fetch_site() {
 
 #[test]
 fn restart_hint_slots_must_be_single_and_agree_across_protocols() {
-    let mut twice = chromium::v154_windows_navigation_template();
+    let mut twice = chrome::v154_windows_navigation_template();
     twice.http2_fields.push(RequestField::RestartClientHints);
     assert!(twice.validate().is_err());
 
-    let mut moved = chromium::v154_windows_navigation_template();
+    let mut moved = chrome::v154_windows_navigation_template();
     moved
         .http1_fields
         .retain(|field| *field != RequestField::RestartClientHints);
     moved.http1_fields.push(RequestField::RestartClientHints);
     assert!(moved.validate().is_err());
 
-    let mut missing = chromium::v154_windows_navigation_template();
+    let mut missing = chrome::v154_windows_navigation_template();
     missing
         .http2_fields
         .retain(|field| *field != RequestField::RestartClientHints);
@@ -1099,13 +1093,13 @@ fn restart_hint_slots_must_be_single_and_agree_across_protocols() {
 fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<()> {
     let cases: [(RequestTemplate, &[&str], &str, u16); 12] = [
         (
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_windows_navigation_template(),
             &CHROME_WEBSOCKET,
             "document",
             256,
         ),
         (
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_fetch_no_store_template(),
             &CHROME_WEBSOCKET,
             "empty",
             220,
@@ -1159,13 +1153,13 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
             22,
         ),
         (
-            brave_android::v153_android_navigation_template(),
+            brave::v153_android_navigation_template(),
             &BRAVE_ANDROID_WEBSOCKET,
             "document",
             256,
         ),
         (
-            brave_android::v153_android_fetch_no_store_template(),
+            brave::v153_android_fetch_no_store_template(),
             &BRAVE_ANDROID_WEBSOCKET,
             "empty",
             220,
@@ -1190,8 +1184,8 @@ fn http2_priority_matches_every_captured_request_of_the_kind() -> CaptureResult<
     // The fetch weights differ from the connection recipes' HEADERS
     // priority, so the template, not the H2 settings, must supply them.
     assert_ne!(
-        chromium::v154_windows_fetch_no_store_template().http2_priority,
-        chromium::v154_http2().headers_priority
+        chrome::v154_windows_fetch_no_store_template().http2_priority,
+        chrome::v154_http2().headers_priority
     );
     assert_ne!(
         firefox::v157_windows_fetch_no_store_template().http2_priority,
@@ -1207,8 +1201,8 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
     for (fixture, hints, template) in [
         (
             CHROME_CLIENT_HINTS,
-            chromium::v154_windows_client_hints(),
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_windows_client_hints(),
+            chrome::v154_windows_navigation_template(),
         ),
         (
             EDGE_CLIENT_HINTS,
@@ -1227,18 +1221,18 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
         ),
         (
             CHROME_ANDROID_CLIENT_HINTS,
-            chrome_android::v154_android_client_hints(),
-            chrome_android::v154_android_navigation_template(),
+            chrome::v154_android_client_hints(),
+            chrome::v154_android_navigation_template(),
         ),
         (
             EDGE_ANDROID_CLIENT_HINTS,
-            edge_android::v153_android_client_hints(),
-            edge_android::v153_android_navigation_template(),
+            edge::v153_android_client_hints(),
+            edge::v153_android_navigation_template(),
         ),
         (
             BRAVE_ANDROID_CLIENT_HINTS,
-            brave_android::v153_android_client_hints(),
-            brave_android::v153_android_navigation_template(),
+            brave::v153_android_client_hints(),
+            brave::v153_android_navigation_template(),
         ),
     ] {
         use crate::ClientHintDelivery::Default;
@@ -1291,7 +1285,7 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
 
 #[test]
 fn validation_rejects_generated_repeated_and_misplaced_fields() {
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     template.http2_fields[2] = RequestField::literal("Upgrade-Insecure-Requests", "1");
     assert_eq!(
         template.validate().map_err(|error| error.field()),
@@ -1310,12 +1304,12 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         RequestField::caller("COOKIE"),
         RequestField::literal("Cookie", "a=b"),
     ] {
-        let mut template = chromium::v154_windows_navigation_template();
+        let mut template = chrome::v154_windows_navigation_template();
         template.http1_fields.push(field);
         assert!(template.validate().is_err(), "HTTP/1.1 Cookie");
     }
     for protocol in [Protocol::Http2, Protocol::Http3] {
-        let mut template = chromium::v154_windows_navigation_template();
+        let mut template = chrome::v154_windows_navigation_template();
         let list = match protocol {
             Protocol::Http2 => &mut template.http2_fields,
             _ => template.http3_fields.get_or_insert_with(Vec::new),
@@ -1338,13 +1332,13 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
     template.http1_fields.push(RequestField::ClientHints);
     assert!(template.validate().is_err(), "hint slot at the end");
 
-    let mut template = chromium::v154_windows_fetch_no_store_template();
+    let mut template = chrome::v154_windows_fetch_no_store_template();
     template
         .http2_fields
         .retain(|field| field != &RequestField::ClientHints);
     assert!(template.validate().is_err(), "single slots need a block");
 
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     let block = template
         .http1_fields
         .iter()
@@ -1358,7 +1352,7 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
     );
 
     for (dependency_stream_id, weight) in [(3, 220), (0, 0), (0, 257)] {
-        let mut template = chromium::v154_windows_fetch_no_store_template();
+        let mut template = chrome::v154_windows_fetch_no_store_template();
         template.http2_priority = Some(crate::Http2Priority {
             dependency_stream_id,
             weight,
@@ -1407,10 +1401,10 @@ fn cookie_placement_presets_find_their_neighbours_in_every_template_list() {
 
     // Chromium: last on HTTP/1.1, which sends no `Priority`; before the
     // final `priority` field on HTTP/2 and HTTP/3.
-    let placement = chromium::v154_cookie_placement();
+    let placement = chrome::v154_cookie_placement();
     for template in [
-        chromium::v154_windows_navigation_template(),
-        chromium::v154_windows_fetch_no_store_template(),
+        chrome::v154_windows_navigation_template(),
+        chrome::v154_windows_fetch_no_store_template(),
         edge::v154_windows_navigation_template(),
         edge::v154_windows_fetch_no_store_template(),
     ] {
@@ -1438,7 +1432,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
             "{name}"
         );
 
-        let mut template = chromium::v154_windows_navigation_template();
+        let mut template = chrome::v154_windows_navigation_template();
         if let Some(fields) = &mut template.http3_fields {
             fields.push(RequestField::caller(name));
         }
@@ -1466,7 +1460,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
 
     // HTTP/1.1 lists keep `Connection: keep-alive`, and Chromium's also
     // `Proxy-Connection: keep-alive` for a forwarded request.
-    let http1 = chromium::v154_windows_navigation_template().http1_fields;
+    let http1 = chrome::v154_windows_navigation_template().http1_fields;
     assert!(http1.contains(&RequestField::unless_forwarded("Connection", "keep-alive")));
     assert!(http1.contains(&RequestField::when_forwarded(
         "Proxy-Connection",
@@ -1482,7 +1476,7 @@ fn validation_rejects_connection_specific_fields_on_http2_and_http3() {
 #[test]
 fn client_hint_placement_names_fields_up_to_the_first_literal() {
     let chrome =
-        client_hint_placement(&chromium::v154_windows_fetch_no_store_template().http1_fields);
+        client_hint_placement(&chrome::v154_windows_fetch_no_store_template().http1_fields);
     let edge = client_hint_placement(&edge::v154_windows_fetch_no_store_template().http2_fields);
     let names = |slots: &[super::ClientHintSlot]| {
         slots
@@ -1515,8 +1509,8 @@ fn client_hint_placement_names_fields_up_to_the_first_literal() {
 #[test]
 fn comparison_rejects_another_browsers_request() -> CaptureResult<()> {
     let (firefox_pages, _) = observed(&[&FIREFOX_WEBSOCKET], "page", "document")?;
-    let chrome = chromium::v154_windows_navigation_template();
-    let hints = chromium::v154_windows_client_hints();
+    let chrome = chrome::v154_windows_navigation_template();
+    let hints = chrome::v154_windows_client_hints();
     let outcome = std::panic::catch_unwind(|| {
         assert_matches(
             &chrome.http1_fields,
@@ -1642,13 +1636,13 @@ fn templates_send_the_captured_plaintext_named_origin_fields() {
     let cases = [
         (
             "chrome navigation",
-            chromium::v154_windows_navigation_template(),
+            chrome::v154_windows_navigation_template(),
             CHROMIUM_NAMED_NAVIGATION_H1.to_vec(),
             CHROMIUM_NAMED_NAVIGATION_H2.to_vec(),
         ),
         (
             "chrome fetch",
-            chromium::v154_windows_fetch_no_store_template(),
+            chrome::v154_windows_fetch_no_store_template(),
             CHROMIUM_NAMED_FETCH_H1.to_vec(),
             CHROMIUM_NAMED_FETCH_H2.to_vec(),
         ),
@@ -1741,7 +1735,7 @@ fn validation_rejects_a_trust_dependent_field_without_values() {
 
 #[test]
 fn validation_rejects_a_forwarding_dependent_field_without_values() {
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     template.http1_fields.push(RequestField::ByForwarding {
         name: "X-Probe".into(),
         unforwarded: None,
@@ -1752,14 +1746,14 @@ fn validation_rejects_a_forwarding_dependent_field_without_values() {
         Err("http1_fields")
     );
 
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     template
         .http1_fields
         .push(RequestField::when_forwarded("X-Probe", "a\r\n"));
     assert!(template.validate().is_err());
 
     // `Proxy-Connection` is connection-specific, so HTTP/2 refuses it.
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     template.http2_fields.push(RequestField::when_forwarded(
         "proxy-connection",
         "keep-alive",
@@ -1796,8 +1790,8 @@ fn chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded()
             .collect()
     };
     for template in [
-        chromium::v154_windows_navigation_template(),
-        chromium::v154_windows_fetch_no_store_template(),
+        chrome::v154_windows_navigation_template(),
+        chrome::v154_windows_fetch_no_store_template(),
         edge::v154_windows_navigation_template(),
         edge::v154_windows_fetch_no_store_template(),
     ] {
@@ -1868,7 +1862,7 @@ fn validation_rejects_overlapping_or_misnamed_credentials_slots() {
     }
 
     // A literal of the same name repeats the slot's field.
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     template
         .http1_fields
         .push(RequestField::literal("Proxy-Authorization", "Basic x"));
@@ -1878,7 +1872,7 @@ fn validation_rejects_overlapping_or_misnamed_credentials_slots() {
     );
 
     // HTTP/3 is never forwarded.
-    let mut template = chromium::v154_windows_navigation_template();
+    let mut template = chrome::v154_windows_navigation_template();
     if let Some(fields) = &mut template.http3_fields {
         fields.insert(
             0,
@@ -1942,8 +1936,8 @@ const BRAVE_ANDROID_DIRECT: [(&str, bool); 2] = [
 #[test]
 fn brave_android_navigation_follows_origin_trust_in_the_direct_captures() -> CaptureResult<()> {
     assert_direct_pages_match(
-        &brave_android::v153_android_navigation_template(),
-        &brave_android::v153_android_client_hints(),
+        &brave::v153_android_navigation_template(),
+        &brave::v153_android_client_hints(),
         &BRAVE_ANDROID_DIRECT,
         "153.1.95.104",
     )

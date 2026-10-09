@@ -1,14 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate};
-use crate::{chromium, firefox};
+use crate::{browser::chrome, browser::firefox};
 
 #[test]
 fn every_connect_recipe_is_valid() {
-    for template in [
-        chromium::v154_proxy_connect(),
-        firefox::v157_proxy_connect(),
-    ] {
+    for template in [chrome::v154_proxy_connect(), firefox::v157_proxy_connect()] {
         assert_eq!(template.validate(), Ok(()));
     }
 }
@@ -24,9 +21,9 @@ fn connect_recipes_name_the_captured_fields_in_order() {
     let names = |fields: &[ProxyConnectField]| -> Vec<String> {
         fields.iter().map(|field| field.name().to_owned()).collect()
     };
-    let chromium = chromium::v154_proxy_connect();
+    let chrome = chrome::v154_proxy_connect();
     assert_eq!(
-        names(&chromium.http1_fields),
+        names(&chrome.http1_fields),
         [
             "Host",
             "Proxy-Connection",
@@ -45,7 +42,7 @@ fn connect_recipes_name_the_captured_fields_in_order() {
             "Proxy-Authorization"
         ]
     );
-    for template in [&chromium, &firefox] {
+    for template in [&chrome, &firefox] {
         assert_eq!(
             names(&template.http2_fields),
             ["user-agent", "proxy-authorization"]
@@ -236,10 +233,10 @@ fn connection_sharing_follows_the_captured_proxy_connections()
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/proxy");
     let mut checked = 0;
     for (browser, recipe) in [
-        ("chrome/154.0.8037.58", chromium::v154_proxy_connect()),
-        ("edge/154.0.4258.37", chromium::v154_proxy_connect()),
-        ("brave/154.1.96.59", chromium::v154_proxy_connect()),
-        ("opera/136.0.6008.52", chromium::v154_proxy_connect()),
+        ("chrome/154.0.8037.58", chrome::v154_proxy_connect()),
+        ("edge/154.0.4258.37", chrome::v154_proxy_connect()),
+        ("brave/154.1.96.59", chrome::v154_proxy_connect()),
+        ("opera/136.0.6008.52", chrome::v154_proxy_connect()),
         ("firefox/157.0", firefox::v157_proxy_connect()),
     ] {
         let directory = root.join(browser).join("windows-11-26200");

@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use crate::{chromium, firefox};
+use crate::{browser::chrome, browser::firefox};
 
 #[test]
 fn chromium_154_keeps_1000_answers_for_60_seconds_and_no_failures() {
     // `kDefaultCacheSize`, `net/dns/resolve_context.cc:110`, the system
     // resolver TTLs, `net/dns/host_resolver_manager_job.cc:55-58`, and the
     // built-in client's `kMinimumTTLSeconds`, `:61`, at `154.0.8037.58`.
-    let settings = chromium::v154_dns_cache();
+    let settings = chrome::v154_dns_cache();
 
     assert_eq!(settings.max_entries.get(), 1000);
     assert_eq!(settings.ttl, Duration::from_secs(60));

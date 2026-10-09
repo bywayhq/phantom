@@ -500,8 +500,8 @@ pub struct TlsSettings {
     /// presents, and which one a full origin evicts.
     ///
     /// The Chromium-family recipes set [`SessionTicketOrder::NewestFirst`],
-    /// `firefox::v157_tls` [`SessionTicketOrder::OldestConnectionFirst`], and
-    /// `firefox_android::v156_tls` [`SessionTicketOrder::OldestFirst`].
+    /// `firefox::v157_tcp_tls` [`SessionTicketOrder::OldestConnectionFirst`], and
+    /// `firefox::v156_android_tcp_tls` [`SessionTicketOrder::OldestFirst`].
     /// QUIC connections ignore it.
     pub session_ticket_order: SessionTicketOrder,
     /// Whether a ClientHello that offers a TLS 1.3 ticket over TCP keeps the

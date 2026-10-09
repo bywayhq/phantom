@@ -7,6 +7,41 @@
 //! report, so only [`v154_windows_client_hints`] comes from 154.0.8037.97
 //! captures. Each other recipe names the build it was captured from.
 
+//!
+//! ## Android
+//!
+//! Wire settings retained from Chrome for Android observations.
+//!
+//! Google Chrome 154.0.8037.57 is the build the Google Play Store served to the
+//! `phantom-pixel7` Android 17 x86_64 emulator on the Windows 11 capture host.
+//! A Magisk module sets the emulator's build properties to those of a Pixel 7
+//! on build `CP3A.260905.009`: model, build fingerprint, and security patch
+//! level. `docs/explanation/validation.md`, under "Chrome for Android 154
+//! recipes", describes the emulator.
+//!
+//! Where a layer equals the desktop Chrome recipe on every compared field, the
+//! function here returns the [`chrome`] recipe, and a test replays the
+//! Android capture against it. Values that carry the platform, such as client
+//! hints and `User-Agent`, have their own data.
+//!
+//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
+//! cookie-placement recipe. The emulator's network terminates the device's TCP
+//! connections, so no socket option reaches a host listener, and the other
+//! layers rest on Chromium source or on captures not taken on Android.
+
+use crate::{ClientProfile, Http3ClientSettings};
+
+mod android;
+
+pub use android::{
+    v154_android_client_hints, v154_android_client_hints_for_model,
+    v154_android_fetch_no_store_template, v154_android_http2, v154_android_http3,
+    v154_android_http3_request, v154_android_navigation_template, v154_android_quic,
+    v154_android_quic_tls, v154_android_tcp_tls, v154_android_websocket,
+};
+
+pub(crate) use android::{CAPTURED_MODEL, model_value};
+
 use std::{num::NonZeroUsize, time::Duration};
 
 use crate::{
@@ -231,7 +266,7 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 /// The returned value is an ordinary owned [`TlsSettings`], so callers can
 /// customize it before constructing a transport.
 #[must_use]
-pub fn v154_tls() -> TlsSettings {
+pub fn v154_tcp_tls() -> TlsSettings {
     TlsSettings {
         min_version: TlsVersion::Tls12,
         max_version: TlsVersion::Tls13,
@@ -344,7 +379,7 @@ pub fn v154_tls() -> TlsSettings {
 /// Phantom sets it before binding.
 ///
 /// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
-/// values, so this recipe also serves Brave 154 (see [`crate::brave`]).
+/// values, so this recipe also serves Brave 154 (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_tcp() -> TcpSettings {
     const KEEPALIVE: Duration = Duration::from_secs(45);
@@ -386,7 +421,7 @@ pub fn v154_tcp() -> TcpSettings {
 /// supports has the option.
 ///
 /// Brave 1.96.59 builds the same Chromium tag, so this recipe also serves
-/// Brave 154 (see [`crate::brave`]).
+/// Brave 154 (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_udp() -> UdpSettings {
     UdpSettings {
@@ -426,7 +461,7 @@ pub fn v154_udp() -> UdpSettings {
 /// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
 /// values, so this recipe also serves Brave 154. Brave enables
 /// `kPartitionConnectionsByNetworkIsolationKey`, which keys the cache by
-/// top-level site as well (see [`crate::brave`]).
+/// top-level site as well (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_dns_cache() -> DnsCacheSettings {
     DnsCacheSettings {
@@ -476,7 +511,7 @@ pub fn v154_dns_cache() -> DnsCacheSettings {
 /// Brave 1.96.59 builds the same Chromium tag and changes none of the cited
 /// values, so this recipe also serves Brave 154. Brave enables
 /// `kPartitionConnectionsByNetworkIsolationKey`, which keys each socket group
-/// by top-level site as well (see [`crate::brave`]).
+/// by top-level site as well (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_http1() -> Http1Settings {
     Http1Settings {
@@ -1173,7 +1208,7 @@ pub fn v154_http3() -> Http3Settings {
 /// Returns TLS settings for the Chrome 154.0.8037.58 HTTP/3 offer on Windows 11.
 ///
 /// The wire-visible offer fields come from the retained Chrome 154 QUIC
-/// ClientHellos. They match [`v154_tls`], including the sorted trust-anchor ID
+/// ClientHellos. They match [`v154_tcp_tls`], including the sorted trust-anchor ID
 /// list, except for the fields this function replaces: TLS 1.3 only, three
 /// cipher suites with no GREASE, the nine non-ML-DSA signature schemes ending
 /// in `rsa_pkcs1_sha1`, an `h3` ALPN offer and `h3` ALPS protocol, and no
@@ -1194,7 +1229,7 @@ pub fn v154_http3() -> Http3Settings {
 /// `pre_shared_key`; [`v154_quic`] sets `early_data` so a resumed connection
 /// offers it too.
 ///
-/// [`TlsSettings::ech_from_https_records`] stays set from [`v154_tls`]:
+/// [`TlsSettings::ech_from_https_records`] stays set from [`v154_tcp_tls`]:
 /// given an HTTPS record that lists `h3` and carries `ech`, Chrome 154
 /// encrypted its QUIC ClientHello with the record's configuration, under the
 /// public name, with the extension set of its ECH GREASE QUIC ClientHello.
@@ -1206,8 +1241,8 @@ pub fn v154_http3() -> Http3Settings {
 /// `ech_from_https_records = false` on the returned value to send ECH
 /// GREASE instead.
 #[must_use]
-pub fn v154_http3_tls() -> TlsSettings {
-    let mut settings = v154_tls();
+pub fn v154_quic_tls() -> TlsSettings {
+    let mut settings = v154_tcp_tls();
     settings.min_version = TlsVersion::Tls13;
     settings.max_version = TlsVersion::Tls13;
     settings.cipher_suites = vec![
@@ -1299,7 +1334,7 @@ pub fn v154_http3_request() -> Http3RequestSettings {
 /// The retained resumption captures of Chrome 154 and Edge 154 add two
 /// things to a resumed connection. Its ClientHello offers early data, so
 /// `early_data` is set; it takes effect with H3 TLS settings that enable
-/// session tickets, such as [`v154_http3_tls`]. Its transport parameters add
+/// session tickets, such as [`v154_quic_tls`]. Its transport parameters add
 /// `initial_rtt_us` (`0x3127`) with a two-byte id, a one-byte length, and a
 /// minimal-length value, at a position permuted with the others. A fresh
 /// connection sends neither.
@@ -1385,11 +1420,61 @@ fn trust_anchor_ids(ids: &[&[u8]]) -> TrustAnchorIds {
     TrustAnchorIds::Fixed(ids.iter().map(|id| Box::from(*id)).collect())
 }
 
+/// Returns the Windows connection profile for Chrome 154.
+///
+/// Includes TCP, HTTP/1.1 policy, address cache, HTTP/2, HTTP/3, WebSocket,
+/// proxy CONNECT fields, and cookie placement. UDP socket settings and
+/// client hints are included.
+/// No request template is selected. Choose one for your request kind.
+#[must_use]
+pub fn v154_windows() -> ClientProfile {
+    ClientProfile::new(v154_tcp_tls())
+        .with_tcp(v154_tcp())
+        .with_udp(v154_udp())
+        .with_dns_cache(v154_dns_cache())
+        .with_http1(v154_http1())
+        .with_http2(v154_http2())
+        .with_http3(Http3ClientSettings::new(
+            v154_quic_tls(),
+            v154_quic(),
+            v154_http3(),
+            v154_http3_request(),
+        ))
+        .with_client_hints(v154_windows_client_hints())
+        .with_websocket(v154_websocket())
+        .with_proxy_connect(v154_proxy_connect())
+        .with_cookie_placement(v154_cookie_placement())
+}
+
+/// Returns the captured Android layers for Chrome 154.
+///
+/// Supplies TCP TLS, HTTP/2, HTTP/3, and client hints. WebSocket
+/// settings are included.
+/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
+/// and cookie-placement recipes are absent. Their generic defaults remain.
+/// No request template is selected. These captures came from emulators.
+#[must_use]
+pub fn v154_android() -> ClientProfile {
+    ClientProfile::new(v154_android_tcp_tls())
+        .with_http2(v154_android_http2())
+        .with_http3(Http3ClientSettings::new(
+            v154_android_quic_tls(),
+            v154_android_quic(),
+            v154_android_http3(),
+            v154_android_http3_request(),
+        ))
+        .with_client_hints(v154_android_client_hints())
+        .with_websocket(v154_android_websocket())
+}
+
 #[cfg(test)]
 mod hook_tests;
+
 #[cfg(test)]
 mod http3_tests;
+
 #[cfg(test)]
 mod quic_tests;
+
 #[cfg(test)]
 mod tests;

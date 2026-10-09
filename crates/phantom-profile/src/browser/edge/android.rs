@@ -13,15 +13,15 @@
 //!
 //! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT,
 //! WebSocket, or cookie-placement recipe: the emulator hides socket options,
-//! as [`crate::chrome_android`] explains, and only the `accept` and
+//! as [`crate::browser::chrome`] explains, and only the `accept` and
 //! `h1-accept` WebSocket scenarios were captured, for their page and `fetch`
 //! requests.
 
 use crate::{
-    chrome_android::{CAPTURED_MODEL, model_value},
-    chromium,
+    browser::chrome,
+    browser::chrome::{CAPTURED_MODEL, model_value},
+    browser::edge,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
-    edge,
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
     quic::QuicTransportSettings,
@@ -37,24 +37,24 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36 Edg
 /// Returns TLS settings captured from Edge 153.0.4234.49 for Android.
 ///
 /// Three fresh-process TCP ClientHellos of the retained capture equal the
-/// desktop Edge ClientHello of [`edge::v154_tls`]: the Chromium ClientHello
+/// desktop Edge ClientHello of [`edge::v154_tcp_tls`]: the Chromium ClientHello
 /// without trust-anchor IDs. [`TlsSettings::ech_from_https_records`] is
 /// unset: no Android capture shows Edge using an HTTPS record's `ech`,
 /// because the device cannot be given a DNS-over-HTTPS resolver.
 #[must_use]
-pub fn v153_tls() -> TlsSettings {
-    let mut settings = edge::v154_tls();
+pub fn v153_android_tcp_tls() -> TlsSettings {
+    let mut settings = edge::v154_tcp_tls();
     settings.ech_from_https_records = false;
     settings
 }
 
 /// Returns TLS settings for the Edge 153.0.4234.49 for Android HTTP/3 offer.
 ///
-/// The retained QUIC ClientHello equals [`edge::v154_http3_tls`].
-/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_tls`].
+/// The retained QUIC ClientHello equals [`edge::v154_quic_tls`].
+/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_android_tcp_tls`].
 #[must_use]
-pub fn v153_http3_tls() -> TlsSettings {
-    let mut settings = edge::v154_http3_tls();
+pub fn v153_android_quic_tls() -> TlsSettings {
+    let mut settings = edge::v154_quic_tls();
     settings.ech_from_https_records = false;
     settings
 }
@@ -63,31 +63,31 @@ pub fn v153_http3_tls() -> TlsSettings {
 ///
 /// The raw startup is byte-identical to the Chrome 154 startup, and the page
 /// requests of the WebSocket captures carry its pseudo-header order and
-/// priority, so this returns [`chromium::v154_http2`].
+/// priority, so this returns [`chrome::v154_http2`].
 #[must_use]
-pub fn v153_http2() -> Http2Settings {
-    chromium::v154_http2()
+pub fn v153_android_http2() -> Http2Settings {
+    chrome::v154_http2()
 }
 
 /// Returns QUIC transport settings observed from Edge 153.0.4234.49 for
-/// Android, equal to [`chromium::v154_quic`].
+/// Android, equal to [`chrome::v154_quic`].
 #[must_use]
-pub fn v153_quic() -> QuicTransportSettings {
-    chromium::v154_quic()
+pub fn v153_android_quic() -> QuicTransportSettings {
+    chrome::v154_quic()
 }
 
 /// Returns HTTP/3 settings observed from Edge 153.0.4234.49 for Android,
-/// equal to [`chromium::v154_http3`].
+/// equal to [`chrome::v154_http3`].
 #[must_use]
-pub fn v153_http3() -> Http3Settings {
-    chromium::v154_http3()
+pub fn v153_android_http3() -> Http3Settings {
+    chrome::v154_http3()
 }
 
 /// Returns HTTP/3 request ordering observed from Edge 153.0.4234.49 for
-/// Android, equal to [`chromium::v154_http3_request`].
+/// Android, equal to [`chrome::v154_http3_request`].
 #[must_use]
-pub fn v153_http3_request() -> Http3RequestSettings {
-    chromium::v154_http3_request()
+pub fn v153_android_http3_request() -> Http3RequestSettings {
+    chrome::v154_http3_request()
 }
 
 /// Returns client-hint fields observed from Edge 153 for Android on a
@@ -146,7 +146,7 @@ pub fn v153_android_client_hints_for_model(model: &str) -> ClientHintSettings {
 /// Android.
 ///
 /// A navigation typed into the address bar. The retained captures send the
-/// fields of [`chromium::v154_windows_navigation_template`] in the same order
+/// fields of [`chrome::v154_windows_navigation_template`] in the same order
 /// and with the same values and HTTP/2 priority, except `User-Agent`, which
 /// is the literal Edge for Android string, and the client hints of
 /// [`v153_android_client_hints`]. The captures ran with a visible browser,
@@ -156,7 +156,7 @@ pub fn v153_android_client_hints_for_model(model: &str) -> ClientHintSettings {
 /// `Sec-Fetch-Site: cross-site`.
 #[must_use]
 pub fn v153_android_navigation_template() -> RequestTemplate {
-    chromium::v154_navigation_template(Some(V153_ANDROID_USER_AGENT))
+    chrome::v154_navigation_template(Some(V153_ANDROID_USER_AGENT))
 }
 
 /// Returns same-origin no-store `fetch` request fields observed from Edge
@@ -165,7 +165,7 @@ pub fn v153_android_navigation_template() -> RequestTemplate {
 /// for Android `User-Agent`. No capture backs this request kind on HTTP/3.
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
-    chromium::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT))
+    chrome::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT))
 }
 
 #[cfg(test)]
