@@ -1,13 +1,17 @@
 //! Deterministic wire-capture helpers used by Phantom tests.
 //!
-//! The crate captures protocol bytes without interpreting browser identity or
-//! providing production networking abstractions.
+//! Capture protocol bytes and compare retained request records in local tests.
+
+#![doc = include_str!("../README.md")]
 
 /// A scripted loopback DNS responder that records queries.
 pub mod dns;
 
 /// Sizes of async functions' futures, for tests that bound a call's stack use.
 pub mod future_size;
+
+/// Bounded HTTP/1 request heads and retained request expectations.
+pub mod http1;
 
 /// Helpers for capturing an HTTP/2 client connection preface and initial frames.
 pub mod http2;
