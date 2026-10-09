@@ -102,6 +102,8 @@ pub struct Client {
 /// stay shared.
 #[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
+    pub(crate) base_url: Option<crate::base_url::BaseUrl>,
+    pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
     pub(crate) http1: Option<Http1TlsConnector>,
     pub(crate) http1_or_2: Option<Http1Or2TlsConnector>,
     pub(crate) http2: Option<Http2TlsConnector>,
@@ -387,6 +389,8 @@ impl Client {
     /// timeouts, redirects, retries, cookie jar, or Alt-Svc learning.
     pub fn builder(profile: ClientProfile) -> ClientBuilder {
         ClientBuilder {
+            base_url: None,
+            header_hooks: Vec::new(),
             profile,
             additional_roots: Vec::new(),
             server_authentication: ServerAuthentication::default(),
@@ -688,6 +692,8 @@ impl Client {
 /// ```
 #[must_use = "client builders do nothing until build is called"]
 pub struct ClientBuilder {
+    base_url: Option<crate::base_url::BaseUrl>,
+    header_hooks: Vec<crate::header_hook::HeaderHook>,
     profile: ClientProfile,
     additional_roots: Vec<Box<[u8]>>,
     server_authentication: ServerAuthentication,
@@ -723,6 +729,8 @@ impl fmt::Debug for ClientBuilder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = formatter.debug_struct("ClientBuilder");
         debug
+            .field("base_url", &self.base_url.is_some())
+            .field("header_hook_count", &self.header_hooks.len())
             .field("http2_configured", &self.profile.http2().is_some())
             .field(
                 "negotiated_http1_or_2_configured",
@@ -772,6 +780,40 @@ impl fmt::Debug for ClientBuilder {
 }
 
 impl ClientBuilder {
+    /// Resolves relative HTTP request URLs against this absolute HTTP(S) URL.
+    ///
+    /// Standard URL joining applies: `https://example.com/api/` plus `users`
+    /// yields `/api/users`; without the trailing slash it yields `/users`.
+    /// `/users` starts at the origin root. Absolute URLs override the base and
+    /// retain their original request-target bytes. Query-only references replace
+    /// the base query. This is a convenience, not an origin restriction.
+    /// WebSocket URLs still must be absolute.
+    ///
+    /// # Errors
+    /// Returns [`crate::BuildErrorKind::InvalidBaseUrl`] for unsupported schemes,
+    /// missing or invalid authorities, credentials, or fragments.
+    pub fn base_url(mut self, url: &str) -> Result<Self, BuildError> {
+        self.base_url = Some(crate::base_url::BaseUrl::new(url)?);
+        Ok(self)
+    }
+
+    /// Adds a reusable hook for ordered caller headers on HTTP requests.
+    ///
+    /// Hooks run in registration order when sending begins, including SSE HTTP
+    /// requests. They do not run on WebSocket openings. See
+    /// [`crate::HeaderHookContext`] for the fields they see and redirect rules.
+    /// Clones share callbacks; separately built clients own their own list.
+    pub fn header_hook<F>(mut self, hook: F) -> Self
+    where
+        F: Fn(&mut crate::HeaderHookContext<'_>) -> Result<(), crate::HeaderHookError>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.header_hooks
+            .push(crate::header_hook::HeaderHook::new(hook));
+        self
+    }
     /// Adds a DER-encoded certificate to the bundled public trust roots.
     ///
     /// By default only the bundled public roots are trusted. Certificate and
@@ -2073,6 +2115,8 @@ impl ClientBuilder {
 
         let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
+            base_url: self.base_url,
+            header_hooks: self.header_hooks,
             http1,
             http1_or_2,
             http2,

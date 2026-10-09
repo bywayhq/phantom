@@ -433,6 +433,7 @@ impl SseRequest {
             .client
             .get(self.protocol, &self.uri)?
             .headers(headers)
+            .protect_event_source_headers()
             .without_response_body_timeouts();
         if let Some(timeouts) = self.timeouts {
             request = request.timeouts(timeouts);

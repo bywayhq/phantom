@@ -25,6 +25,8 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum BuildErrorKind {
+    /// The base URL is not a valid absolute HTTP or HTTPS URL.
+    InvalidBaseUrl,
     /// The profile contains invalid or inconsistent settings.
     InvalidProfile,
     /// The connection policies conflict or cannot be used together.
@@ -49,6 +51,9 @@ pub struct BuildError {
 }
 
 impl BuildError {
+    pub(crate) fn invalid_base_url(source: impl StdError + Send + Sync + 'static) -> Self {
+        Self::with_source(BuildErrorKind::InvalidBaseUrl, "invalid base URL", source)
+    }
     pub(crate) fn invalid_policy(message: &'static str) -> Self {
         Self {
             kind: BuildErrorKind::InvalidPolicy,
@@ -319,6 +324,8 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestErrorKind {
+    /// A request header hook failed before network I/O.
+    HeaderHook,
     /// The request URI cannot be parsed.
     InvalidUri,
     /// The URI scheme is neither `http` nor `https`, or is `http` for a
@@ -451,6 +458,14 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn header_hook(source: crate::HeaderHookError) -> Self {
+        Self::with_source(
+            RequestErrorKind::HeaderHook,
+            None,
+            "request header hook failed",
+            source,
+        )
+    }
     pub(crate) fn request_template_filled_slot() -> Self {
         Self::without_source(
             RequestErrorKind::RequestTemplate,

@@ -77,6 +77,9 @@ pub struct RequestBuilder {
     body: RequestBodySource,
     prepared_content_type: Option<Box<str>>,
     filled_slots: Vec<Box<str>>,
+    header_hooks: Vec<crate::header_hook::HeaderHook>,
+    client_header_hooks: bool,
+    protected_hook_headers: &'static [&'static str],
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
@@ -94,6 +97,8 @@ impl fmt::Debug for RequestBuilder {
             .field("protocol_selection", &self.selection)
             .field("method", &self.method)
             .field("header_count", &self.headers.len())
+            .field("header_hook_count", &self.header_hooks.len())
+            .field("client_header_hooks", &self.client_header_hooks)
             .field("template", &self.request.template.is_some())
             .field("trailer_count", &self.trailers.len())
             .field("body_kind", &self.body.trace_kind())
@@ -149,7 +154,10 @@ impl RequestBuilder {
             )
             | ProtocolSelection::Http1Or2 => {}
         }
-        let uri = parse_absolute_uri(uri).map_err(request_uri_error)?;
+        let uri = match &client.inner.base_url {
+            Some(base) => base.resolve(uri)?,
+            None => parse_absolute_uri(uri).map_err(request_uri_error)?,
+        };
         let mut request = ResolvedRequest::new(&uri)?;
         request.template = client.inner.request_template.clone();
         Ok(Self {
@@ -162,6 +170,9 @@ impl RequestBuilder {
             body: RequestBodySource::Absent,
             prepared_content_type: None,
             filled_slots: Vec::new(),
+            header_hooks: Vec::new(),
+            client_header_hooks: true,
+            protected_hook_headers: &[],
             route: None,
             timeouts: None,
             retry_policy: None,
@@ -228,6 +239,8 @@ impl RequestBuilder {
 
     /// Runs a synchronous preparation hook that fills declared caller slots.
     ///
+    /// Client and request header hooks run later, when sending begins.
+    ///
     /// Set a template first. The hook receives only slots declared on every
     /// protocol this request may use, including enabled HTTP/2 fallback.
     /// Filled fields keep the template's spelling and position when sent.
@@ -266,6 +279,37 @@ impl RequestBuilder {
                 .map(|header| Box::from(header.name())),
         );
         Ok(self)
+    }
+
+    /// Adds a header hook after this client's hooks and earlier request hooks.
+    ///
+    /// See [`crate::HeaderHookContext`] for timing, ordering, and redirect rules.
+    /// Failures return [`crate::RequestErrorKind::HeaderHook`] before I/O.
+    pub fn header_hook<F>(mut self, hook: F) -> Self
+    where
+        F: Fn(&mut crate::HeaderHookContext<'_>) -> Result<(), crate::HeaderHookError>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.header_hooks
+            .push(crate::header_hook::HeaderHook::new(hook));
+        self
+    }
+
+    /// Skips client hooks and clears request hooks for this request.
+    ///
+    /// Hooks added after this call still run.
+    pub fn without_header_hooks(mut self) -> Self {
+        self.client_header_hooks = false;
+        self.header_hooks.clear();
+        self
+    }
+
+    #[cfg(feature = "sse")]
+    pub(crate) fn protect_event_source_headers(mut self) -> Self {
+        self.protected_hook_headers = &["last-event-id"];
+        self
     }
 
     fn slot_scope(&self) -> template::ProtocolScope {
@@ -765,21 +809,34 @@ impl RequestBuilder {
         let scope = self.slot_scope();
         let mut filled_slots = std::mem::take(&mut self.filled_slots);
         if let Some(content_type) = &self.prepared_content_type {
-            if template::place_prepared_content_type(
-                self.request.template.as_ref(),
-                template::ProtocolScope {
-                    exact: match self.selection {
-                        ProtocolSelection::Exact(protocol) => Some(protocol),
-                        ProtocolSelection::Http1Or2 => None,
+            if !self
+                .headers
+                .iter()
+                .any(|header| header.name().eq_ignore_ascii_case("content-type"))
+                && self.request.template.as_ref().is_some_and(|prepared| {
+                    template::caller_slot_is_declared(
+                        prepared,
+                        scope,
+                        initial_fallback,
+                        "content-type",
+                    )
+                })
+                && template::place_prepared_content_type(
+                    self.request.template.as_ref(),
+                    template::ProtocolScope {
+                        exact: match self.selection {
+                            ProtocolSelection::Exact(protocol) => Some(protocol),
+                            ProtocolSelection::Http1Or2 => None,
+                        },
+                        alt_svc: self.client.alt_svc_enabled()
+                            && self.selected_route().carries_quic_alternative(),
+                        content_decoding: false,
                     },
-                    alt_svc: self.client.alt_svc_enabled()
-                        && self.selected_route().carries_quic_alternative(),
-                    content_decoding: false,
-                },
-                initial_fallback,
-                &mut self.headers,
-                content_type,
-            )? {
+                    initial_fallback,
+                    &mut self.headers,
+                    content_type,
+                )?
+            {
                 filled_slots.push(Box::<str>::from("content-type"));
             }
             if self.trailers.is_empty()
@@ -793,6 +850,37 @@ impl RequestBuilder {
                 )?
             {
                 filled_slots.push(Box::<str>::from("content-length"));
+            }
+        }
+        {
+            let mut context = crate::HeaderHookContext {
+                method: &self.method,
+                uri: &self.request.uri,
+                headers: &mut self.headers,
+                protected: self.protected_hook_headers,
+            };
+            if self.client_header_hooks {
+                for hook in &self.client.inner.header_hooks {
+                    hook.run(&mut context).map_err(RequestError::header_hook)?;
+                }
+            }
+            for hook in &self.header_hooks {
+                hook.run(&mut context).map_err(RequestError::header_hook)?;
+            }
+        }
+        if let Some(content_type) = &self.prepared_content_type {
+            let mut fields = self
+                .headers
+                .iter()
+                .filter(|header| header.name().eq_ignore_ascii_case("content-type"));
+            if !fields
+                .next()
+                .is_some_and(|header| header.value() == content_type.as_bytes())
+                || fields.next().is_some()
+            {
+                return Err(RequestError::prepared_body_content_type(
+                    "prepared body needs one matching Content-Type field",
+                ));
             }
         }
         template::check_filled_slots(
@@ -914,6 +1002,9 @@ impl RequestBuilder {
             body,
             prepared_content_type: _,
             filled_slots: _,
+            header_hooks: _,
+            client_header_hooks: _,
+            protected_hook_headers: _,
             route,
             timeouts: _,
             retry_policy: _,
@@ -1367,7 +1458,7 @@ impl RequestBodySource {
     }
 }
 
-fn request_uri_error(error: ParseUriError) -> RequestError {
+pub(crate) fn request_uri_error(error: ParseUriError) -> RequestError {
     match error {
         ParseUriError::Syntax(error) => RequestError::invalid_uri(error),
         ParseUriError::Authority(error) => RequestError::invalid_authority(error.message()),

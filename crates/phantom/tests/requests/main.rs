@@ -28,6 +28,7 @@ mod plaintext_templates;
 mod prepared_bodies;
 mod query_authorization;
 mod redirects;
+mod request_conveniences;
 mod request_templates;
 mod response_conveniences;
 mod send_futures;

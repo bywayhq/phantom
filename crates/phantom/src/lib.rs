@@ -182,6 +182,7 @@ struct WebSocketGuideDoctests;
 struct WebSocketFieldsGuideDoctests;
 
 mod authority;
+mod base_url;
 mod body;
 mod client;
 mod content_coding;
@@ -189,6 +190,7 @@ mod content_coding;
 mod diagnostics;
 mod environment_proxy;
 mod error;
+mod header_hook;
 mod link;
 mod redirect;
 mod request;
@@ -323,6 +325,7 @@ pub mod dns {
     };
 }
 
+pub use header_hook::{HeaderHookContext, HeaderHookError};
 /// An ordered request field preserving spelling, value bytes, and position.
 pub use phantom_net::request::RequestHeader;
 /// One declared request-trailer name retaining exact spelling and position.
