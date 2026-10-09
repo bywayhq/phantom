@@ -99,18 +99,21 @@ impl ClientHintSettings {
         for hint in &self.hints {
             if !valid_client_hint_name(hint.name()) {
                 return Err(InvalidClientHintSettings::new(
+                    crate::ValidationErrorKind::InvalidValue,
                     "hints.name",
                     "names must be unique lowercase HTTP field names and structured-field tokens",
                 ));
             }
             if !names.insert(hint.name()) {
                 return Err(InvalidClientHintSettings::new(
+                    crate::ValidationErrorKind::Duplicate,
                     "hints.name",
                     "field names must not repeat",
                 ));
             }
             if !valid_field_value(hint.value()) {
                 return Err(InvalidClientHintSettings::new(
+                    crate::ValidationErrorKind::InvalidValue,
                     "hints.value",
                     "values must contain only visible ASCII bytes, spaces, or horizontal tabs",
                 ));
@@ -160,15 +163,33 @@ fn valid_field_value(value: &[u8]) -> bool {
 }
 
 /// Error returned when client-hint profile data is inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidClientHintSettings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: &'static str,
 }
 
 impl InvalidClientHintSettings {
-    const fn new(field: &'static str, message: &'static str) -> Self {
-        Self { field, message }
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    const fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: &'static str,
+    ) -> Self {
+        Self {
+            kind,
+            field,
+            message,
+        }
     }
 
     /// Returns the invalid setting's field name.

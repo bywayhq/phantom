@@ -43,8 +43,13 @@ fn cipher_suites_round_trip_iana_identifiers() {
         CipherSuite::Rsa3DesEdeCbcSha,
     ] {
         assert_eq!(CipherSuite::from_iana_id(suite.iana_id()), Some(suite));
+        assert_eq!(CipherSuite::try_from(u16::from(suite)), Ok(suite));
     }
     assert_eq!(CipherSuite::from_iana_id(0x0a0a), None);
+    let error = CipherSuite::try_from(0x0a0a).unwrap_err();
+    assert_eq!(error.iana_id(), 0x0a0a);
+    assert_eq!(error.to_string(), "unknown TLS cipher suite 0x0a0a");
+    assert!(error.source().is_none());
 }
 
 fn minimal_settings() -> TlsSettings {

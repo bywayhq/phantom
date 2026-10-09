@@ -140,16 +140,19 @@ impl WebSocketField {
 
     /// Returns the value this entry sends when the caller supplies no field
     /// of its name: a literal's value, or a trust-dependent entry's value
-    /// for `trustworthy`. Slots and placeholders return `None`.
+    /// for `trust`. Slots and placeholders return `None`.
     #[must_use]
-    pub fn default_value(&self, trustworthy: bool) -> Option<&str> {
+    pub fn default_value(&self, trust: crate::UrlTrust) -> Option<&str> {
         match self {
             Self::Literal { value, .. } => Some(value),
             Self::ByTrust {
                 trustworthy: secure,
                 untrustworthy: other,
                 ..
-            } => if trustworthy { secure } else { other }.as_deref(),
+            } => match trust {
+                crate::UrlTrust::PotentiallyTrustworthy => secure.as_deref(),
+                crate::UrlTrust::Untrustworthy => other.as_deref(),
+            },
             Self::Caller { .. }
             | Self::Authority { .. }
             | Self::Key { .. }
@@ -311,6 +314,7 @@ impl WebSocketConnectionPolicy {
             .any(|protocol| protocol.as_ref() == HTTP1_ALPN)
         {
             return Err(InvalidWebSocketSettings::new(
+                crate::ValidationErrorKind::Missing,
                 FIELD,
                 "HTTP/1.1 Upgrade connections must offer http/1.1",
             ));
@@ -321,6 +325,7 @@ impl WebSocketConnectionPolicy {
             .any(|protocol| protocol.as_ref() == b"h2")
         {
             return Err(InvalidWebSocketSettings::new(
+                crate::ValidationErrorKind::Unsupported,
                 FIELD,
                 "HTTP/1.1 Upgrade connections must not offer h2",
             ));
@@ -376,12 +381,14 @@ impl WebSocketSettings {
         if let Some(timeout) = self.handshake_timeout {
             if timeout.is_zero() {
                 return Err(InvalidWebSocketSettings::new(
+                    crate::ValidationErrorKind::OutOfRange,
                     "handshake_timeout",
                     "a handshake timeout must be positive; None sets no limit",
                 ));
             }
             if Instant::now().checked_add(timeout).is_none() {
                 return Err(InvalidWebSocketSettings::new(
+                    crate::ValidationErrorKind::OutOfRange,
                     "handshake_timeout",
                     "the handshake timeout exceeds the clock range",
                 ));
@@ -394,21 +401,45 @@ impl WebSocketSettings {
 }
 
 /// Error returned when WebSocket profile settings are inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidWebSocketSettings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: &'static str,
 }
 
 impl InvalidWebSocketSettings {
-    const fn new(field: &'static str, message: &'static str) -> Self {
-        Self { field, message }
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    const fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: &'static str,
+    ) -> Self {
+        Self {
+            kind,
+            field,
+            message,
+        }
     }
 
     /// Returns the invalid setting's field name.
     #[must_use]
     pub fn field(&self) -> &'static str {
         self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub const fn reason(&self) -> &'static str {
+        self.message
     }
 }
 
@@ -457,12 +488,14 @@ fn validate_template(
         };
         if name.is_empty() || !name.bytes().all(is_token_byte) {
             return Err(InvalidWebSocketSettings::new(
+                crate::ValidationErrorKind::InvalidValue,
                 field,
                 "field names must be non-empty tokens",
             ));
         }
         if http2 && name.bytes().any(|byte| byte.is_ascii_uppercase()) {
             return Err(InvalidWebSocketSettings::new(
+                crate::ValidationErrorKind::InvalidValue,
                 field,
                 "HTTP/2 field names must be lowercase",
             ));
@@ -471,12 +504,14 @@ fn validate_template(
     let expected_generated = usize::from(!http2);
     if authority != expected_generated || key != expected_generated {
         return Err(InvalidWebSocketSettings::new(
+            crate::ValidationErrorKind::InvalidValue,
             field,
             "HTTP/1.1 templates need one authority and one key; HTTP/2 templates need neither",
         ));
     }
     if deflate > 1 || cookies > 1 {
         return Err(InvalidWebSocketSettings::new(
+            crate::ValidationErrorKind::Duplicate,
             field,
             "compression and cookie placeholders may occur at most once",
         ));
@@ -498,12 +533,14 @@ fn validate_deflate_offer(
         };
         if std::mem::replace(&mut seen[index], true) {
             return Err(InvalidWebSocketSettings::new(
+                crate::ValidationErrorKind::Duplicate,
                 FIELD,
                 "each offer parameter may occur once",
             ));
         }
         if bits.is_some_and(|bits| !(8..=15).contains(&bits)) {
             return Err(InvalidWebSocketSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 FIELD,
                 "window widths must be between 8 and 15 bits",
             ));

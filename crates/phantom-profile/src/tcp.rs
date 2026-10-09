@@ -301,6 +301,7 @@ impl TcpSettings {
             && i32::try_from(size.get()).is_err()
         {
             return Err(InvalidTcpSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "send_buffer_size",
                 "send buffer size must fit in a signed 32-bit socket option",
             ));
@@ -329,6 +330,7 @@ impl TcpSettings {
                                 .contains(&timeout.as_secs()) =>
                     {
                         Err(InvalidTcpSettings::new(
+                            crate::ValidationErrorKind::OutOfRange,
                             "address_selection.known_family_backup_timeout",
                             "the backup timeout must be whole seconds in 1..=600",
                         ))
@@ -347,12 +349,14 @@ fn validate_schedule(schedule: TcpKeepaliveSchedule) -> Result<(), InvalidTcpSet
     let time = schedule.short_lived_time;
     if time.subsec_nanos() != 0 || !(1..=MAX_TCP_SHORT_LIVED_SECONDS).contains(&time.as_secs()) {
         return Err(InvalidTcpSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "keepalive.short_lived_time",
             "the short-lived time must be whole seconds in 1..=300",
         ));
     }
     if !(1..=MAX_TCP_KEEPALIVE_PROBES).contains(&schedule.probe_count) {
         return Err(InvalidTcpSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "keepalive.probe_count",
             "the probe count must be in 1..=127",
         ));
@@ -366,6 +370,7 @@ fn validate_keepalive_seconds(
 ) -> Result<(), InvalidTcpSettings> {
     if value.subsec_nanos() != 0 || !(1..=MAX_TCP_KEEPALIVE_SECONDS).contains(&value.as_secs()) {
         return Err(InvalidTcpSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             field,
             "keepalive times must be whole seconds in 1..=32767",
         ));
@@ -376,6 +381,7 @@ fn validate_keepalive_seconds(
 fn validate_delay(delay: Duration, field: &'static str) -> Result<(), InvalidTcpSettings> {
     if delay.is_zero() || delay > MAX_TCP_FALLBACK_DELAY {
         return Err(InvalidTcpSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             field,
             "the delay must be nonzero and at most 10 seconds",
         ));
@@ -384,15 +390,30 @@ fn validate_delay(delay: Duration, field: &'static str) -> Result<(), InvalidTcp
 }
 
 /// Error returned when TCP profile settings cannot be applied as written.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidTcpSettings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl InvalidTcpSettings {
-    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: impl Into<Box<str>>,
+    ) -> Self {
         Self {
+            kind,
             field,
             message: message.into(),
         }
@@ -402,6 +423,12 @@ impl InvalidTcpSettings {
     #[must_use]
     pub fn field(&self) -> &'static str {
         self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.message
     }
 }
 

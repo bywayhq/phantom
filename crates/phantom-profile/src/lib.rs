@@ -35,6 +35,8 @@ pub mod udp;
 pub mod websocket;
 
 mod client;
+mod url_trust;
+mod validation;
 
 pub use client::{ClientProfile, Http3ClientSettings};
 pub use client_hints::{
@@ -72,9 +74,11 @@ pub use tls::{
     ClientHelloExtensionOrder, EchGreaseAead, EchGreasePayloadLength, EchGreaseSettings,
     EchSettings, InvalidTlsSettings, NamedGroup, SessionTicketOrder, SessionTickets,
     SignatureScheme, TlsSettings, TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder,
-    TrustAnchorOrders,
+    TrustAnchorOrders, UnknownCipherSuite,
 };
 pub use udp::UdpSettings;
+pub use url_trust::UrlTrust;
+pub use validation::ValidationErrorKind;
 pub use websocket::{
     InvalidWebSocketSettings, WebSocketConnectionPolicy, WebSocketDeflateParameter,
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
@@ -98,6 +102,8 @@ mod tests {
         settings::<Http3Settings>();
         settings::<Http3RequestSettings>();
         settings::<quic::QuicTransportSettings>();
+        settings::<UrlTrust>();
+        settings::<ValidationErrorKind>();
 
         fn error<T: Clone + std::fmt::Debug + Eq + std::error::Error + Send + Sync>() {}
         error::<InvalidTcpSettings>();
@@ -107,5 +113,10 @@ mod tests {
         error::<InvalidHttp3Settings>();
         error::<InvalidHttp3RequestSettings>();
         error::<quic::InvalidQuicTransportSettings>();
+        error::<InvalidHttp1Settings>();
+        error::<InvalidProxyConnectTemplate>();
+        error::<InvalidRequestTemplate>();
+        error::<InvalidWebSocketSettings>();
+        error::<UnknownCipherSuite>();
     }
 }

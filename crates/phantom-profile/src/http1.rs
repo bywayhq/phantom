@@ -39,6 +39,7 @@ impl Http1Settings {
                 if limit > Duration::from_secs(MAX_HTTP1_TIMER_IDLE_SECONDS) =>
             {
                 Err(InvalidHttp1Settings {
+                    kind: crate::ValidationErrorKind::OutOfRange,
                     field: "idle_timeout",
                     message: "a timer's idle limit must be at most 65535 seconds",
                 })
@@ -120,17 +121,33 @@ impl Http1IdleTimeout {
 }
 
 /// Error returned when HTTP/1.1 profile settings cannot be applied as written.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidHttp1Settings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: &'static str,
 }
 
 impl InvalidHttp1Settings {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
     /// Returns the invalid setting's field name.
     #[must_use]
     pub fn field(&self) -> &'static str {
         self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub const fn reason(&self) -> &'static str {
+        self.message
     }
 }
 

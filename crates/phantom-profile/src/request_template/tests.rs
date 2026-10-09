@@ -1763,7 +1763,16 @@ fn comparison_rejects_another_browsers_request() -> CaptureResult<()> {
 fn emitted(fields: &[RequestField], trustworthy: bool) -> Vec<(&str, &str)> {
     fields
         .iter()
-        .filter_map(|field| Some((field.name()?, field.default_value(trustworthy)?)))
+        .filter_map(|field| {
+            Some((
+                field.name()?,
+                field.default_value(if trustworthy {
+                    crate::UrlTrust::PotentiallyTrustworthy
+                } else {
+                    crate::UrlTrust::Untrustworthy
+                })?,
+            ))
+        })
         .collect()
 }
 
@@ -2012,7 +2021,7 @@ fn chromium_templates_swap_connection_for_proxy_connection_only_when_forwarded()
             .filter_map(|field| {
                 let value = match field {
                     RequestField::ByForwarding { forwarded, .. } => forwarded.as_deref(),
-                    other => other.default_value(false),
+                    other => other.default_value(crate::UrlTrust::Untrustworthy),
                 }?;
                 Some((field.name()?.to_owned(), value.to_owned()))
             })
@@ -2211,9 +2220,14 @@ fn assert_direct_pages_match(
                 }
                 RequestField::Caller { name, .. } => expected.push((name.to_string(), None)),
                 _ => {
-                    if let (Some(name), Some(value)) =
-                        (field.name(), field.default_value(trustworthy))
-                    {
+                    if let (Some(name), Some(value)) = (
+                        field.name(),
+                        field.default_value(if trustworthy {
+                            crate::UrlTrust::PotentiallyTrustworthy
+                        } else {
+                            crate::UrlTrust::Untrustworthy
+                        }),
+                    ) {
                         expected.push((name.to_owned(), Some(value.to_owned())));
                     }
                 }

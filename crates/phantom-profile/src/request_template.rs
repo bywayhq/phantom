@@ -27,7 +27,7 @@ pub enum RequestField {
     Literal {
         /// Exact field-name spelling.
         name: Box<str>,
-        /// Captured field value.
+        /// Field value.
         value: Box<str>,
     },
     /// The position of a caller-supplied field.
@@ -248,17 +248,20 @@ impl RequestField {
 
     /// Returns the value this entry sends when the caller supplies no field
     /// of its name and no HTTP proxy forwards the request: a literal's value,
-    /// a trust-dependent entry's value for `trustworthy`, or a
+    /// a trust-dependent entry's value for `trust`, or a
     /// forwarding-dependent entry's unforwarded value. Slots return `None`.
     #[must_use]
-    pub fn default_value(&self, trustworthy: bool) -> Option<&str> {
+    pub fn default_value(&self, trust: crate::UrlTrust) -> Option<&str> {
         match self {
             Self::Literal { value, .. } => Some(value),
             Self::ByTrust {
                 trustworthy: secure,
                 untrustworthy: other,
                 ..
-            } => if trustworthy { secure } else { other }.as_deref(),
+            } => match trust {
+                crate::UrlTrust::PotentiallyTrustworthy => secure.as_deref(),
+                crate::UrlTrust::Untrustworthy => other.as_deref(),
+            },
             Self::ByForwarding { unforwarded, .. } => unforwarded.as_deref(),
             Self::Caller { .. }
             | Self::ClientHint { .. }
@@ -348,12 +351,14 @@ impl RequestTemplate {
         if let Some(priority) = self.http2_priority {
             if priority.dependency_stream_id != 0 {
                 return Err(InvalidRequestTemplate::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "http2_priority",
                     "a template's HTTP/2 priority must depend on stream 0",
                 ));
             }
             if !(1..=256).contains(&priority.weight) {
                 return Err(InvalidRequestTemplate::new(
+                    crate::ValidationErrorKind::OutOfRange,
                     "http2_priority",
                     "priority weight must be in 1..=256",
                 ));
@@ -367,6 +372,7 @@ impl RequestTemplate {
             || !restart_slots_agree(restart_slot_signature(&self.http1_fields), &restart)
         {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::Inconsistent,
                 "http1_fields",
                 "client hints must have the same slots and following fields on every protocol",
             ));
@@ -377,6 +383,7 @@ impl RequestTemplate {
                 || !restart_slots_agree(restart_slot_signature(fields), &restart)
             {
                 return Err(InvalidRequestTemplate::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "http3_fields",
                     "client hints must have the same slots and following fields on every protocol",
                 ));
@@ -497,15 +504,33 @@ fn restart_slots_agree(left: Option<Vec<Box<str>>>, right: &Option<Vec<Box<str>>
 }
 
 /// Error returned when request-template data is inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidRequestTemplate {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: &'static str,
 }
 
 impl InvalidRequestTemplate {
-    const fn new(field: &'static str, message: &'static str) -> Self {
-        Self { field, message }
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    const fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: &'static str,
+    ) -> Self {
+        Self {
+            kind,
+            field,
+            message,
+        }
     }
 
     /// Returns the invalid setting's field name.
@@ -564,12 +589,14 @@ fn validate_fields(
             RequestField::ProxyAuthorization { name, attempt } => {
                 if !name.eq_ignore_ascii_case("proxy-authorization") {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         field,
                         "a credentials slot must be named Proxy-Authorization",
                     ));
                 }
                 if field == "http3_fields" {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::Unsupported,
                         field,
                         "an HTTP proxy never forwards HTTP/3, so its list has no credentials slot",
                     ));
@@ -580,6 +607,7 @@ fn validate_fields(
                         || *attempt == ProxyAuthorizationAttempt::Every
                 }) {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::Duplicate,
                         field,
                         "credentials slots must cover different attempts",
                     ));
@@ -592,6 +620,7 @@ fn validate_fields(
                 single_hints += 1;
                 if name.bytes().any(|byte| byte.is_ascii_uppercase()) {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         field,
                         "client-hint slot names must be lowercase",
                     ));
@@ -600,6 +629,7 @@ fn validate_fields(
             RequestField::Literal { value, .. } => {
                 if !is_field_value(value) {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         field,
                         "literal values must contain only visible ASCII, spaces, or tabs",
                     ));
@@ -612,6 +642,7 @@ fn validate_fields(
             } => {
                 if trustworthy.is_none() && untrustworthy.is_none() {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::Missing,
                         field,
                         "a trust-dependent field needs a value for at least one kind of URL",
                     ));
@@ -622,6 +653,7 @@ fn validate_fields(
                     .all(|value| is_field_value(value))
                 {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         field,
                         "literal values must contain only visible ASCII, spaces, or tabs",
                     ));
@@ -634,6 +666,7 @@ fn validate_fields(
             } => {
                 if unforwarded.is_none() && forwarded.is_none() {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::Missing,
                         field,
                         "a forwarding-dependent field needs a value for at least one route",
                     ));
@@ -644,6 +677,7 @@ fn validate_fields(
                     .all(|value| is_field_value(value))
                 {
                     return Err(InvalidRequestTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         field,
                         "literal values must contain only visible ASCII, spaces, or tabs",
                     ));
@@ -657,6 +691,7 @@ fn validate_fields(
                 .any(|next| matches!(next, RequestField::Literal { .. }))
         {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::Missing,
                 field,
                 "a client-hint slot must be followed by a literal field",
             ));
@@ -666,12 +701,14 @@ fn validate_fields(
         };
         if name.is_empty() || !name.bytes().all(is_token_byte) {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::InvalidValue,
                 field,
                 "field names must be non-empty tokens",
             ));
         }
         if lowercase && name.bytes().any(|byte| byte.is_ascii_uppercase()) {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::InvalidValue,
                 field,
                 "HTTP/2 and HTTP/3 field names must be lowercase",
             ));
@@ -679,6 +716,7 @@ fn validate_fields(
         let lower = name.to_ascii_lowercase();
         if lowercase && is_connection_specific(template, &lower) {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::Unsupported,
                 field,
                 "HTTP/2 and HTTP/3 lists must not carry connection-specific fields",
             ));
@@ -687,6 +725,7 @@ fn validate_fields(
             && !(lower == "content-length" && matches!(template, RequestField::Caller { .. }))
         {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::Unsupported,
                 field,
                 "Host, Cookie, Alt-Used, and body framing fields are generated by the client",
             ));
@@ -697,6 +736,7 @@ fn validate_fields(
             && authorization_slots.len() > 1;
         if !names.insert(lower) && !repeated_slot {
             return Err(InvalidRequestTemplate::new(
+                crate::ValidationErrorKind::Duplicate,
                 field,
                 "field names must not repeat",
             ));
@@ -704,12 +744,18 @@ fn validate_fields(
     }
     if hint_blocks > 1 || (single_hints > 0 && hint_blocks == 0) {
         return Err(InvalidRequestTemplate::new(
+            if hint_blocks > 1 {
+                crate::ValidationErrorKind::Duplicate
+            } else {
+                crate::ValidationErrorKind::Missing
+            },
             field,
             "a list has at most one client-hints slot, required when it has single-hint slots",
         ));
     }
     if restart_slots > 1 {
         return Err(InvalidRequestTemplate::new(
+            crate::ValidationErrorKind::Duplicate,
             field,
             "a list has at most one restart client-hints slot",
         ));

@@ -403,7 +403,13 @@ fn assert_template(
                 let chosen = caller.iter().find_map(|(caller, value)| {
                     name.eq_ignore_ascii_case(caller).then_some(*value)
                 });
-                match chosen.or_else(|| field.default_value(trustworthy)) {
+                match chosen.or_else(|| {
+                    field.default_value(if trustworthy {
+                        crate::UrlTrust::PotentiallyTrustworthy
+                    } else {
+                        crate::UrlTrust::Untrustworthy
+                    })
+                }) {
                     Some(value) => (name, Some(value), true),
                     None => continue,
                 }

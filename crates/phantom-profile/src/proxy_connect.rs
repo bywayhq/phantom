@@ -26,7 +26,7 @@ pub enum ProxyConnectField {
     Literal {
         /// Exact field-name spelling.
         name: Box<str>,
-        /// Captured field value.
+        /// Field value.
         value: Box<str>,
     },
     /// The value of the field with this name in the request that opens the
@@ -172,15 +172,33 @@ impl ProxyConnectTemplate {
 }
 
 /// Error returned when CONNECT template data is inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidProxyConnectTemplate {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: &'static str,
 }
 
 impl InvalidProxyConnectTemplate {
-    const fn new(field: &'static str, message: &'static str) -> Self {
-        Self { field, message }
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    const fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: &'static str,
+    ) -> Self {
+        Self {
+            kind,
+            field,
+            message,
+        }
     }
 
     /// Returns the invalid list's field name.
@@ -233,12 +251,14 @@ fn validate_fields(
         let name = field.name();
         if name.is_empty() || !name.bytes().all(is_token_byte) {
             return Err(InvalidProxyConnectTemplate::new(
+                crate::ValidationErrorKind::InvalidValue,
                 list,
                 "field names must be non-empty tokens",
             ));
         }
         if http2 && name.bytes().any(|byte| byte.is_ascii_uppercase()) {
             return Err(InvalidProxyConnectTemplate::new(
+                crate::ValidationErrorKind::InvalidValue,
                 list,
                 "HTTP/2 field names must be lowercase",
             ));
@@ -248,12 +268,14 @@ fn validate_fields(
             ProxyConnectField::Authority { .. } => {
                 if http2 {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::Unsupported,
                         list,
                         "HTTP/2 sends the authority as :authority, so its list has no authority entry",
                     ));
                 }
                 if lower != "host" {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         list,
                         "the authority placeholder must be named Host",
                     ));
@@ -263,6 +285,7 @@ fn validate_fields(
             ProxyConnectField::ProxyAuthorization { .. } => {
                 if lower != "proxy-authorization" {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         list,
                         "the credentials placeholder must be named Proxy-Authorization",
                     ));
@@ -275,6 +298,7 @@ fn validate_fields(
                     .all(|byte| matches!(byte, b'\t' | b' '..=b'~'))
                 {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::InvalidValue,
                         list,
                         "literal values must contain only visible ASCII, spaces, or tabs",
                     ));
@@ -284,6 +308,7 @@ fn validate_fields(
                     "host" | "proxy-authorization" | "content-length" | "transfer-encoding"
                 ) {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::Unsupported,
                         list,
                         "Host, Proxy-Authorization, and framing fields are placeholders or generated",
                     ));
@@ -295,12 +320,14 @@ fn validate_fields(
                     "host" | "proxy-authorization" | "content-length" | "transfer-encoding"
                 ) {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::Unsupported,
                         list,
                         "Host, Proxy-Authorization, and framing fields are placeholders or generated",
                     ));
                 }
                 if CREDENTIAL_FIELDS.contains(&lower.as_str()) {
                     return Err(InvalidProxyConnectTemplate::new(
+                        crate::ValidationErrorKind::Unsupported,
                         list,
                         "a CONNECT request must not copy the origin's credentials or cookies",
                     ));
@@ -309,12 +336,14 @@ fn validate_fields(
         }
         if http2 && CONNECTION_SPECIFIC.contains(&lower.as_str()) {
             return Err(InvalidProxyConnectTemplate::new(
+                crate::ValidationErrorKind::Unsupported,
                 list,
                 "HTTP/2 lists must not carry connection-specific fields",
             ));
         }
         if !names.insert(lower) {
             return Err(InvalidProxyConnectTemplate::new(
+                crate::ValidationErrorKind::Duplicate,
                 list,
                 "field names must not repeat",
             ));
@@ -322,12 +351,22 @@ fn validate_fields(
     }
     if !http2 && authorities != 1 {
         return Err(InvalidProxyConnectTemplate::new(
+            if authorities == 0 {
+                crate::ValidationErrorKind::Missing
+            } else {
+                crate::ValidationErrorKind::Duplicate
+            },
             list,
             "an HTTP/1.1 list needs exactly one authority placeholder",
         ));
     }
     if authorizations != 1 {
         return Err(InvalidProxyConnectTemplate::new(
+            if authorizations == 0 {
+                crate::ValidationErrorKind::Missing
+            } else {
+                crate::ValidationErrorKind::Duplicate
+            },
             list,
             "a list needs exactly one Proxy-Authorization placeholder",
         ));

@@ -512,6 +512,7 @@ impl Http2Settings {
             .contains(&self.initial_connection_window_size)
         {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "initial_connection_window_size",
                 "connection window must be in 65535..=2147483647 bytes",
             ));
@@ -554,18 +555,21 @@ impl Http2Settings {
 fn validate_streams(streams: Http2StreamSettings) -> Result<(), InvalidHttp2Settings> {
     if streams.first_stream_id.is_multiple_of(2) || streams.first_stream_id > MAX_STREAM_ID {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "streams.first_stream_id",
             "a client stream ID must be odd and use 31 bits",
         ));
     }
     if streams.assumed_max_concurrent_streams == Some(0) {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "streams.assumed_max_concurrent_streams",
             "an assumed stream limit must be at least 1",
         ));
     }
     if streams.max_concurrent_streams_cap == Some(0) {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "streams.max_concurrent_streams_cap",
             "a stream limit cap must be at least 1",
         ));
@@ -580,12 +584,14 @@ fn validate_idle_ping(
     if let Some(after) = after {
         if after.is_zero() {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "idle_ping_after",
                 "an idle PING time must be positive; None sends no idle PING",
             ));
         }
         if Instant::now().checked_add(after).is_none() {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "idle_ping_after",
                 "the idle PING time exceeds the clock range",
             ));
@@ -596,18 +602,21 @@ fn validate_idle_ping(
     };
     if after.is_none() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::Inconsistent,
             "idle_ping_timeout",
             "an idle PING timeout applies only to an idle PING; set idle_ping_after",
         ));
     }
     if timeout.is_zero() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "idle_ping_timeout",
             "an idle PING timeout must be positive; None sets no limit",
         ));
     }
     if Instant::now().checked_add(timeout).is_none() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "idle_ping_timeout",
             "the idle PING timeout exceeds the clock range",
         ));
@@ -630,6 +639,7 @@ fn validate_idle_timeout(idle_timeout: Http2IdleTimeout) -> Result<(), InvalidHt
         Ok(())
     } else {
         Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "idle_timeout",
             "a timer's idle limit must be in 1..=65535 seconds",
         ))
@@ -642,6 +652,7 @@ fn validate_ping_failure_retries(
 ) -> Result<(), InvalidHttp2Settings> {
     if ping_failure_retries > 0 && ping_timeout.is_none() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::Inconsistent,
             "ping_failure_retries",
             "PING-failure retries apply only with a PING timeout; set ping_timeout or \
              idle_ping_timeout",
@@ -659,18 +670,21 @@ fn validate_ping_timeout(
     };
     if preface_ping_after.is_none() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::Inconsistent,
             "ping_timeout",
             "a PING timeout applies only to a preface PING; set preface_ping_after",
         ));
     }
     if timeout.is_zero() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "ping_timeout",
             "a PING timeout must be positive; None sets no limit",
         ));
     }
     if Instant::now().checked_add(timeout).is_none() {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "ping_timeout",
             "the PING timeout exceeds the clock range",
         ));
@@ -685,12 +699,14 @@ fn validate_priority(
 ) -> Result<(), InvalidHttp2Settings> {
     if priority.dependency_stream_id > MAX_STREAM_ID {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             dependency_field,
             "stream IDs use 31 bits",
         ));
     }
     if !(1..=256).contains(&priority.weight) {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::OutOfRange,
             weight_field,
             "priority weight must be in 1..=256",
         ));
@@ -699,15 +715,30 @@ fn validate_priority(
 }
 
 /// Error returned when HTTP/2 profile settings are internally inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidHttp2Settings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl InvalidHttp2Settings {
-    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: impl Into<Box<str>>,
+    ) -> Self {
         Self {
+            kind,
             field,
             message: message.into(),
         }
@@ -717,6 +748,12 @@ impl InvalidHttp2Settings {
     #[must_use]
     pub fn field(&self) -> &'static str {
         self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.message
     }
 }
 
@@ -736,6 +773,7 @@ fn validate_initial_settings(settings: &[Http2Setting]) -> Result<(), InvalidHtt
         let kind = setting.kind();
         if kinds.contains(&kind) {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::Duplicate,
                 "initial_settings",
                 format!("{kind:?} must not repeat"),
             ));
@@ -747,6 +785,7 @@ fn validate_initial_settings(settings: &[Http2Setting]) -> Result<(), InvalidHtt
                 has_initial_window_size = true;
                 if size > MAX_WINDOW_SIZE {
                     return Err(InvalidHttp2Settings::new(
+                        crate::ValidationErrorKind::OutOfRange,
                         "initial_settings.initial_window_size",
                         "stream window must not exceed 2147483647 bytes",
                     ));
@@ -756,6 +795,7 @@ fn validate_initial_settings(settings: &[Http2Setting]) -> Result<(), InvalidHtt
                 if !(MIN_FRAME_SIZE..=MAX_FRAME_SIZE).contains(&size) =>
             {
                 return Err(InvalidHttp2Settings::new(
+                    crate::ValidationErrorKind::OutOfRange,
                     "initial_settings.max_frame_size",
                     "maximum frame size must be in 16384..=16777215",
                 ));
@@ -766,6 +806,7 @@ fn validate_initial_settings(settings: &[Http2Setting]) -> Result<(), InvalidHtt
 
     if !has_initial_window_size {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::Missing,
             "initial_settings",
             "exactly one InitialWindowSize setting is required by the current backend",
         ));
@@ -778,6 +819,7 @@ fn validate_pseudo_header_order(order: &[Http2PseudoHeader]) -> Result<(), Inval
     const REQUIRED_COUNT: usize = 4;
     if order.len() != REQUIRED_COUNT {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::InvalidValue,
             "pseudo_header_order",
             "order must contain method, authority, scheme, and path exactly once",
         ));
@@ -792,6 +834,7 @@ fn validate_pseudo_header_order(order: &[Http2PseudoHeader]) -> Result<(), Inval
             Http2PseudoHeader::Path => 3,
             Http2PseudoHeader::Protocol => {
                 return Err(InvalidHttp2Settings::new(
+                    crate::ValidationErrorKind::Unsupported,
                     "pseudo_header_order",
                     "ordinary requests must not contain protocol",
                 ));
@@ -799,6 +842,7 @@ fn validate_pseudo_header_order(order: &[Http2PseudoHeader]) -> Result<(), Inval
         };
         if present[index] {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::Duplicate,
                 "pseudo_header_order",
                 "order must contain method, authority, scheme, and path exactly once",
             ));
@@ -817,6 +861,7 @@ fn validate_literal_pseudo_headers(
     for header in headers {
         if seen.contains(header) {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::Duplicate,
                 FIELD,
                 "each pseudo-header may be listed once",
             ));
@@ -833,6 +878,7 @@ fn validate_extended_connect_pseudo_header_order(
     const FIELD: &str = "extended_connect_pseudo_header_order";
     if order.len() != REQUIRED_COUNT {
         return Err(InvalidHttp2Settings::new(
+            crate::ValidationErrorKind::InvalidValue,
             FIELD,
             "order must contain method, authority, scheme, path, and protocol exactly once",
         ));
@@ -849,6 +895,7 @@ fn validate_extended_connect_pseudo_header_order(
         };
         if present[index] {
             return Err(InvalidHttp2Settings::new(
+                crate::ValidationErrorKind::Duplicate,
                 FIELD,
                 "order must contain method, authority, scheme, path, and protocol exactly once",
             ));

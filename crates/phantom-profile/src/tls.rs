@@ -82,6 +82,7 @@ impl TlsVersionRange {
     pub fn new(min: TlsVersion, max: TlsVersion) -> Result<Self, InvalidTlsSettings> {
         if min > max {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Inconsistent,
                 "version range",
                 "minimum TLS version exceeds maximum TLS version",
             ));
@@ -146,6 +147,7 @@ impl SessionTickets {
     pub fn enabled(tcp_per_origin: u8) -> Result<Self, InvalidTlsSettings> {
         if !(1..=MAX_SESSION_TICKETS_PER_ORIGIN).contains(&tcp_per_origin) {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "session_tickets.tcp_per_origin",
                 "session tickets per origin must be between 1 and 10",
             ));
@@ -281,6 +283,57 @@ impl CipherSuite {
         }
     }
 }
+
+impl From<CipherSuite> for u16 {
+    fn from(suite: CipherSuite) -> Self {
+        suite.iana_id()
+    }
+}
+
+impl TryFrom<u16> for CipherSuite {
+    type Error = UnknownCipherSuite;
+
+    /// Converts a supported IANA identifier into a cipher suite.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnknownCipherSuite`] when this profile API does not name the ID.
+    fn try_from(iana_id: u16) -> Result<Self, Self::Error> {
+        Self::from_iana_id(iana_id).ok_or(UnknownCipherSuite { iana_id })
+    }
+}
+
+/// A cipher-suite identifier this profile API does not name.
+///
+/// ```
+/// use phantom_profile::CipherSuite;
+///
+/// let suite = CipherSuite::try_from(0x1301)?;
+/// assert_eq!(u16::from(suite), 0x1301);
+/// let unknown = CipherSuite::try_from(0xffff).unwrap_err();
+/// assert_eq!(unknown.iana_id(), 0xffff);
+/// # Ok::<(), phantom_profile::UnknownCipherSuite>(())
+/// ```
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct UnknownCipherSuite {
+    iana_id: u16,
+}
+
+impl UnknownCipherSuite {
+    /// Returns the unsupported IANA identifier.
+    #[must_use]
+    pub const fn iana_id(self) -> u16 {
+        self.iana_id
+    }
+}
+
+impl fmt::Display for UnknownCipherSuite {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "unknown TLS cipher suite 0x{:04x}", self.iana_id)
+    }
+}
+
+impl Error for UnknownCipherSuite {}
 
 /// A TLS supported group.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -540,12 +593,14 @@ impl EchGreaseSettings {
         if let EchGreasePayloadLength::Exact(length) = payload_length {
             if length == 0 {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::OutOfRange,
                     "ech_grease_payload_length",
                     "an exact ECH GREASE payload length must be nonzero",
                 ));
             }
             if length > MAX_ECH_GREASE_PAYLOAD_LENGTH {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::TooLarge,
                     "ech_grease_payload_length",
                     "ECH GREASE payload and framing exceed the TLS extension body limit",
                 ));
@@ -554,6 +609,7 @@ impl EchGreaseSettings {
         for (index, aead) in aeads.iter().enumerate() {
             if aeads[..index].contains(aead) {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Duplicate,
                     "ech_grease_aeads",
                     "ECH GREASE AEAD choices must not repeat",
                 ));
@@ -742,6 +798,7 @@ impl TrustAnchorOrders {
     pub fn new(orders: Vec<TrustAnchorOrder>) -> Result<Self, InvalidTlsSettings> {
         let Some((first, rest)) = orders.split_first() else {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Missing,
                 "requested_trust_anchor_ids",
                 "a drawn trust anchor ID order needs at least one order to draw from",
             ));
@@ -754,6 +811,7 @@ impl TrustAnchorOrders {
         let expected = sorted(first);
         if rest.iter().any(|order| sorted(order) != expected) {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Inconsistent,
                 "requested_trust_anchor_ids",
                 "every drawn trust anchor ID order must list the same IDs",
             ));
@@ -1001,12 +1059,14 @@ impl TlsSettings {
     pub fn validate(&self) -> Result<(), InvalidTlsSettings> {
         if self.cipher_suites.is_empty() {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Missing,
                 "cipher_suites",
                 "at least one cipher suite is required",
             ));
         }
         if self.groups.is_empty() {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Missing,
                 "groups",
                 "at least one supported group is required",
             ));
@@ -1016,12 +1076,14 @@ impl TlsSettings {
             .is_some_and(|limit| !(64..=16_385).contains(&limit))
         {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "record_size_limit",
                 "record size limit must be between 64 and 16385 bytes",
             ));
         }
         if self.tcp_early_data && !self.session_tickets.is_enabled() {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Inconsistent,
                 "tcp_early_data",
                 "early data over TCP requires session tickets",
             ));
@@ -1029,36 +1091,42 @@ impl TlsSettings {
         if self.versions.max() < TlsVersion::Tls13 {
             if self.tcp_early_data {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "tcp_early_data",
                     "early data over TCP requires TLS 1.3 to be enabled",
                 ));
             }
             if !self.key_shares.is_empty() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "key_shares",
                     "initial key shares require TLS 1.3 to be enabled",
                 ));
             }
             if self.ech.grease().is_some() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "ech",
                     "ECH requires TLS 1.3 to be enabled",
                 ));
             }
             if self.requested_trust_anchor_ids.is_some() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "requested_trust_anchor_ids",
                     "requested trust anchors require TLS 1.3 to be enabled",
                 ));
             }
             if !self.certificate_compression.is_empty() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "certificate_compression",
                     "certificate compression requires TLS 1.3 to be enabled",
                 ));
             }
             if !self.delegated_credential_schemes.is_empty() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "delegated_credential_schemes",
                     "delegated credentials require TLS 1.3 to be enabled",
                 ));
@@ -1066,6 +1134,7 @@ impl TlsSettings {
         } else {
             if self.key_shares.is_empty() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Missing,
                     "key_shares",
                     "at least one initial key share is required when TLS 1.3 is enabled",
                 ));
@@ -1076,6 +1145,7 @@ impl TlsSettings {
                 .find(|group| !self.groups.contains(group))
             {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "key_shares",
                     format!("key share {group:?} is absent from supported groups"),
                 ));
@@ -1083,6 +1153,7 @@ impl TlsSettings {
         }
         if self.signature_schemes.is_empty() {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Missing,
                 "signature_schemes",
                 "at least one signature scheme is required",
             ));
@@ -1094,6 +1165,7 @@ impl TlsSettings {
             .any(|scheme| !can_advertise_for_delegated_credentials(scheme))
         {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::Unsupported,
                 "delegated_credential_schemes",
                 "delegated credential advertisement contains an unsupported or RSAE scheme",
             ));
@@ -1103,6 +1175,7 @@ impl TlsSettings {
         if let Some(alps) = &self.alps {
             if self.versions.max() < TlsVersion::Tls13 {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "alps",
                     "ALPS requires TLS 1.3 to be enabled",
                 ));
@@ -1113,12 +1186,14 @@ impl TlsSettings {
                 .any(|protocol| protocol.as_ref() == alps.protocol.as_ref())
             {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "alps.protocol",
                     "ALPS protocol is absent from the ALPN protocol list",
                 ));
             }
             if alps.settings.len() > u16::MAX as usize {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::TooLarge,
                     "alps.settings",
                     "ALPS application settings exceed the TLS vector limit",
                 ));
@@ -1128,6 +1203,7 @@ impl TlsSettings {
         for (index, algorithm) in self.certificate_compression.iter().enumerate() {
             if self.certificate_compression[..index].contains(algorithm) {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Duplicate,
                     "certificate_compression",
                     "certificate compression algorithms must not repeat",
                 ));
@@ -1139,6 +1215,7 @@ impl TlsSettings {
         {
             if extensions.is_empty() {
                 return Err(InvalidTlsSettings::new(
+                    crate::ValidationErrorKind::Missing,
                     "extension_order",
                     "a fixed extension order or tail must contain at least one extension",
                 ));
@@ -1146,6 +1223,7 @@ impl TlsSettings {
             for (index, extension) in extensions.iter().enumerate() {
                 if extensions[..index].contains(extension) {
                     return Err(InvalidTlsSettings::new(
+                        crate::ValidationErrorKind::Duplicate,
                         "extension_order",
                         "a fixed extension order or tail must not contain duplicates",
                     ));
@@ -1193,15 +1271,30 @@ fn can_advertise_for_delegated_credentials(scheme: SignatureScheme) -> bool {
 }
 
 /// Error returned when TLS profile settings are internally inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidTlsSettings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl InvalidTlsSettings {
-    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: impl Into<Box<str>>,
+    ) -> Self {
         Self {
+            kind,
             field,
             message: message.into(),
         }
@@ -1211,6 +1304,12 @@ impl InvalidTlsSettings {
     #[must_use]
     pub fn field(&self) -> &'static str {
         self.field
+    }
+
+    /// Returns the reason the setting is invalid.
+    #[must_use]
+    pub fn reason(&self) -> &str {
+        &self.message
     }
 }
 
@@ -1225,6 +1324,7 @@ impl Error for InvalidTlsSettings {}
 fn validate_alpn(protocols: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings> {
     if protocols.is_empty() {
         return Err(InvalidTlsSettings::new(
+            crate::ValidationErrorKind::Missing,
             "alpn_protocols",
             "at least one ALPN protocol is required",
         ));
@@ -1233,16 +1333,22 @@ fn validate_alpn(protocols: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings> {
     let encoded_length = protocols.iter().try_fold(0usize, |length, protocol| {
         if protocol.is_empty() || protocol.len() > u8::MAX as usize {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "alpn_protocols",
                 "each ALPN protocol must contain 1..=255 bytes",
             ));
         }
-        length
-            .checked_add(1 + protocol.len())
-            .ok_or_else(|| InvalidTlsSettings::new("alpn_protocols", "encoded list is too large"))
+        length.checked_add(1 + protocol.len()).ok_or_else(|| {
+            InvalidTlsSettings::new(
+                crate::ValidationErrorKind::TooLarge,
+                "alpn_protocols",
+                "encoded list is too large",
+            )
+        })
     })?;
     if encoded_length > u16::MAX as usize {
         return Err(InvalidTlsSettings::new(
+            crate::ValidationErrorKind::TooLarge,
             "alpn_protocols",
             "encoded ALPN protocol list exceeds 65535 bytes",
         ));
@@ -1255,18 +1361,24 @@ fn validate_trust_anchor_ids(ids: &[Box<[u8]>]) -> Result<(), InvalidTlsSettings
     let encoded_length = ids.iter().try_fold(0usize, |length, id| {
         if id.is_empty() || id.len() > u8::MAX as usize {
             return Err(InvalidTlsSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "requested_trust_anchor_ids",
                 "each trust anchor ID must contain 1..=255 bytes",
             ));
         }
         length.checked_add(1 + id.len()).ok_or_else(|| {
-            InvalidTlsSettings::new("requested_trust_anchor_ids", "encoded ID list is too large")
+            InvalidTlsSettings::new(
+                crate::ValidationErrorKind::TooLarge,
+                "requested_trust_anchor_ids",
+                "encoded ID list is too large",
+            )
         })
     })?;
 
     // The ID vector has its own u16 length inside the extension's u16-sized body.
     if encoded_length > u16::MAX as usize - size_of::<u16>() {
         return Err(InvalidTlsSettings::new(
+            crate::ValidationErrorKind::TooLarge,
             "requested_trust_anchor_ids",
             "encoded trust anchor ID list exceeds 65533 bytes",
         ));

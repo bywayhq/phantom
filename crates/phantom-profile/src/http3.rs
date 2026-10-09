@@ -195,6 +195,7 @@ impl Http3Settings {
             let kind = setting.kind();
             if kinds.contains(&kind) {
                 return Err(InvalidHttp3Settings::new(
+                    crate::ValidationErrorKind::Duplicate,
                     "initial_settings",
                     format!("{kind:?} must not repeat"),
                 ));
@@ -204,6 +205,7 @@ impl Http3Settings {
             match *setting {
                 Http3Setting::EnableWebTransportDraft02(true) => {
                     return Err(InvalidHttp3Settings::new(
+                        crate::ValidationErrorKind::Unsupported,
                         "initial_settings.enable_webtransport",
                         "WebTransport is not implemented",
                     ));
@@ -214,12 +216,14 @@ impl Http3Settings {
                         .contains(&Http3Setting::H3Datagram(true)) =>
                 {
                     return Err(InvalidHttp3Settings::new(
+                        crate::ValidationErrorKind::Inconsistent,
                         "initial_settings.h3_datagram_draft04",
                         "the draft HTTP Datagram setting requires H3Datagram(true)",
                     ));
                 }
                 Http3Setting::QpackMaxTableCapacity(value) if value > MAX_QPACK_TABLE_CAPACITY => {
                     return Err(InvalidHttp3Settings::new(
+                        crate::ValidationErrorKind::OutOfRange,
                         "initial_settings.qpack_max_table_capacity",
                         "QPACK table capacity must not exceed 1073741823 bytes",
                     ));
@@ -229,6 +233,7 @@ impl Http3Settings {
                     if value > MAX_VARINT =>
                 {
                     return Err(InvalidHttp3Settings::new(
+                        crate::ValidationErrorKind::OutOfRange,
                         "initial_settings",
                         "setting values must be smaller than 2^62",
                     ));
@@ -336,6 +341,7 @@ fn validate_pseudo_header_order(
     const REQUIRED_COUNT: usize = 4;
     if order.len() != REQUIRED_COUNT {
         return Err(InvalidHttp3RequestSettings::new(
+            crate::ValidationErrorKind::InvalidValue,
             "pseudo_header_order",
             "order must contain method, authority, scheme, and path exactly once",
         ));
@@ -350,6 +356,7 @@ fn validate_pseudo_header_order(
             Http3PseudoHeader::Path => 3,
             Http3PseudoHeader::Protocol => {
                 return Err(InvalidHttp3RequestSettings::new(
+                    crate::ValidationErrorKind::Unsupported,
                     "pseudo_header_order",
                     "ordinary requests must not contain protocol",
                 ));
@@ -357,6 +364,7 @@ fn validate_pseudo_header_order(
         };
         if present[index] {
             return Err(InvalidHttp3RequestSettings::new(
+                crate::ValidationErrorKind::Duplicate,
                 "pseudo_header_order",
                 "order must contain method, authority, scheme, and path exactly once",
             ));
@@ -375,7 +383,11 @@ fn validate_extended_connect_pseudo_header_order(
     const MESSAGE: &str =
         "order must contain method, authority, scheme, path, and protocol exactly once";
     if order.len() != REQUIRED_COUNT {
-        return Err(InvalidHttp3RequestSettings::new(FIELD, MESSAGE));
+        return Err(InvalidHttp3RequestSettings::new(
+            crate::ValidationErrorKind::InvalidValue,
+            FIELD,
+            MESSAGE,
+        ));
     }
 
     let mut present = [false; REQUIRED_COUNT];
@@ -388,7 +400,11 @@ fn validate_extended_connect_pseudo_header_order(
             Http3PseudoHeader::Protocol => 4,
         };
         if present[index] {
-            return Err(InvalidHttp3RequestSettings::new(FIELD, MESSAGE));
+            return Err(InvalidHttp3RequestSettings::new(
+                crate::ValidationErrorKind::Duplicate,
+                FIELD,
+                MESSAGE,
+            ));
         }
         present[index] = true;
     }
@@ -397,15 +413,30 @@ fn validate_extended_connect_pseudo_header_order(
 }
 
 /// Error returned when HTTP/3 request settings are inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidHttp3RequestSettings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl InvalidHttp3RequestSettings {
-    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: impl Into<Box<str>>,
+    ) -> Self {
         Self {
+            kind,
             field,
             message: message.into(),
         }
@@ -437,15 +468,30 @@ impl fmt::Display for InvalidHttp3RequestSettings {
 impl Error for InvalidHttp3RequestSettings {}
 
 /// Error returned when HTTP/3 profile settings are inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidHttp3Settings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl InvalidHttp3Settings {
-    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: impl Into<Box<str>>,
+    ) -> Self {
         Self {
+            kind,
             field,
             message: message.into(),
         }

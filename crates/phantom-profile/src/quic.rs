@@ -155,6 +155,7 @@ impl QuicConnectionIdLength {
             || longest > MAX_CONNECTION_ID_LENGTH
         {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "initial_destination_connection_id",
                 "Initial Destination Connection IDs must be 8 to 20 bytes",
             ));
@@ -424,6 +425,7 @@ impl QuicTransportSettings {
         validate_varint("max_idle_timeout_ms", self.max_idle_timeout_ms)?;
         if !(MIN_UDP_PAYLOAD_SIZE..=MAX_UDP_PAYLOAD_SIZE).contains(&self.max_udp_payload_size) {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "max_udp_payload_size",
                 "UDP payload size must be in 1200..=65527 bytes",
             ));
@@ -448,12 +450,14 @@ impl QuicTransportSettings {
         }
         if self.max_ack_delay_ms >= MAX_ACK_DELAY_LIMIT_MS {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "max_ack_delay_ms",
                 "max_ack_delay must be below 16384 milliseconds",
             ));
         }
         if !(2..=8).contains(&self.active_connection_id_limit) {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "active_connection_id_limit",
                 "active_connection_id_limit must be 2 through 8",
             ));
@@ -462,6 +466,7 @@ impl QuicTransportSettings {
             && value > self.max_ack_delay_ms * 1_000
         {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::Inconsistent,
                 "min_ack_delay_us",
                 "min_ack_delay must not exceed max_ack_delay",
             ));
@@ -472,6 +477,7 @@ impl QuicTransportSettings {
                 .contains(&u64::from(mtu))
         {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::Inconsistent,
                 "initial_path_mtu",
                 "the path MTU must leave 1200-byte Initial datagrams over IPv6 and at most max_udp_payload_size over IPv4",
             ));
@@ -489,6 +495,7 @@ impl QuicTransportSettings {
             let identity = parameter.kind.identity();
             if identities.contains(&identity) {
                 return Err(InvalidQuicTransportSettings::new(
+                    crate::ValidationErrorKind::Duplicate,
                     "wire_parameters",
                     format!("{identity:?} must not repeat"),
                 ));
@@ -501,6 +508,7 @@ impl QuicTransportSettings {
                 .is_some_and(|identifier| !parameter.id_width.can_encode(identifier))
             {
                 return Err(InvalidQuicTransportSettings::new(
+                    crate::ValidationErrorKind::OutOfRange,
                     "wire_parameters.id_width",
                     format!("{identity:?} identifier does not fit its configured width"),
                 ));
@@ -551,6 +559,7 @@ impl QuicTransportSettings {
             QuicTransportParameterKind::MinAckDelay { value_width, .. } => {
                 let value = self.min_ack_delay_us.ok_or_else(|| {
                     InvalidQuicTransportSettings::new(
+                        crate::ValidationErrorKind::Inconsistent,
                         "wire_parameters",
                         "MinAckDelay requires min_ack_delay_us",
                     )
@@ -560,6 +569,7 @@ impl QuicTransportSettings {
             QuicTransportParameterKind::InitialSourceConnectionId { length } => {
                 if *length > MAX_CONNECTION_ID_LENGTH {
                     return Err(InvalidQuicTransportSettings::new(
+                        crate::ValidationErrorKind::OutOfRange,
                         "wire_parameters.initial_source_connection_id",
                         "connection ID length must not exceed 20 bytes",
                     ));
@@ -572,6 +582,7 @@ impl QuicTransportSettings {
             QuicTransportParameterKind::MaxDatagramFrameSize { value_width } => {
                 let value = self.max_datagram_frame_size.ok_or_else(|| {
                     InvalidQuicTransportSettings::new(
+                        crate::ValidationErrorKind::Inconsistent,
                         "wire_parameters",
                         "MaxDatagramFrameSize requires max_datagram_frame_size",
                     )
@@ -588,6 +599,7 @@ impl QuicTransportSettings {
 
         if !parameter.length_width.can_encode(payload_length) {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::OutOfRange,
                 "wire_parameters.length_width",
                 "parameter payload length does not fit its configured width",
             ));
@@ -645,6 +657,7 @@ impl QuicTransportSettings {
         for (required, identity) in required_non_defaults {
             if required && !identities.contains(&identity) {
                 return Err(InvalidQuicTransportSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "wire_parameters",
                     format!("non-default {identity:?} value must be advertised"),
                 ));
@@ -653,6 +666,7 @@ impl QuicTransportSettings {
 
         if !identities.contains(&ParameterIdentity::InitialSourceConnectionId) {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::Missing,
                 "wire_parameters",
                 "InitialSourceConnectionId is required",
             ));
@@ -660,12 +674,14 @@ impl QuicTransportSettings {
         match self.max_datagram_frame_size {
             Some(_) if !identities.contains(&ParameterIdentity::MaxDatagramFrameSize) => {
                 return Err(InvalidQuicTransportSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "wire_parameters",
                     "max_datagram_frame_size must be advertised when configured",
                 ));
             }
             None if identities.contains(&ParameterIdentity::MaxDatagramFrameSize) => {
                 return Err(InvalidQuicTransportSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
                     "wire_parameters",
                     "MaxDatagramFrameSize must be omitted when DATAGRAM support is disabled",
                 ));
@@ -687,7 +703,11 @@ impl QuicTransportSettings {
             ),
         ] {
             if configured != identities.contains(&identity) {
-                return Err(InvalidQuicTransportSettings::new(field, message));
+                return Err(InvalidQuicTransportSettings::new(
+                    crate::ValidationErrorKind::Inconsistent,
+                    field,
+                    message,
+                ));
             }
         }
 
@@ -696,15 +716,30 @@ impl QuicTransportSettings {
 }
 
 /// Error returned when QUIC transport profile settings are inconsistent.
+///
+/// Use [`Self::kind`] for recovery and [`Self::field`] and [`Self::reason`]
+/// for diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidQuicTransportSettings {
+    kind: crate::ValidationErrorKind,
     field: &'static str,
     message: Box<str>,
 }
 
 impl InvalidQuicTransportSettings {
-    fn new(field: &'static str, message: impl Into<Box<str>>) -> Self {
+    /// Returns the stable recovery category.
+    #[must_use]
+    pub const fn kind(&self) -> crate::ValidationErrorKind {
+        self.kind
+    }
+
+    fn new(
+        kind: crate::ValidationErrorKind,
+        field: &'static str,
+        message: impl Into<Box<str>>,
+    ) -> Self {
         Self {
+            kind,
             field,
             message: message.into(),
         }
@@ -760,6 +795,7 @@ enum ParameterIdentity {
 fn validate_varint(field: &'static str, value: u64) -> Result<(), InvalidQuicTransportSettings> {
     if value > MAX_VARINT {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             field,
             "value must be smaller than 2^62",
         ));
@@ -773,6 +809,7 @@ fn validate_stream_count(
 ) -> Result<(), InvalidQuicTransportSettings> {
     if value > MAX_STREAM_COUNT {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             field,
             "stream count must not exceed 2^60",
         ));
@@ -786,6 +823,7 @@ fn validate_value_width(
 ) -> Result<u64, InvalidQuicTransportSettings> {
     if !width.can_encode(value) {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "wire_parameters.value_width",
             "parameter value does not fit its configured width",
         ));
@@ -798,6 +836,7 @@ fn validate_google_connection_options(
 ) -> Result<u64, InvalidQuicTransportSettings> {
     if options.is_empty() {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::Missing,
             "wire_parameters.google_connection_options",
             "Google connection options must not be empty",
         ));
@@ -805,6 +844,7 @@ fn validate_google_connection_options(
     for (index, option) in options.iter().enumerate() {
         if options[..index].contains(option) {
             return Err(InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::Duplicate,
                 "wire_parameters.google_connection_options",
                 "Google connection options must not repeat",
             ));
@@ -816,6 +856,7 @@ fn validate_google_connection_options(
         .and_then(|count| count.checked_mul(4))
         .ok_or_else(|| {
             InvalidQuicTransportSettings::new(
+                crate::ValidationErrorKind::TooLarge,
                 "wire_parameters.google_connection_options",
                 "Google connection options exceed the QUIC varint limit",
             )
@@ -825,12 +866,14 @@ fn validate_google_connection_options(
 fn validate_grease(grease: &QuicTransportGrease) -> Result<u64, InvalidQuicTransportSettings> {
     if grease.minimum_payload_length > grease.maximum_payload_length {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::Missing,
             "wire_parameters.grease",
             "GREASE payload length range must not be empty",
         ));
     }
     if grease.maximum_payload_length > MAX_CAPTURED_GREASE_PAYLOAD_LENGTH {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::OutOfRange,
             "wire_parameters.grease",
             "captured GREASE payload lengths are limited to 0..=15 bytes",
         ));
@@ -843,6 +886,7 @@ fn validate_version_information(
 ) -> Result<u64, InvalidQuicTransportSettings> {
     if settings.available_version_count == 0 {
         return Err(InvalidQuicTransportSettings::new(
+            crate::ValidationErrorKind::Inconsistent,
             "wire_parameters.version_information",
             "available versions must include the chosen version",
         ));
