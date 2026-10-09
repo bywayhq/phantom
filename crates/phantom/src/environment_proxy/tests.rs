@@ -24,9 +24,10 @@ fn selected(proxies: &EnvironmentProxies, target: &str) -> TestResult<Route> {
 }
 
 fn canary() -> TestResult<String> {
-    let mut bytes = [0; 16];
-    btls::rand::rand_bytes(&mut bytes)?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_nanos();
+    Ok(format!("{timestamp:032x}"))
 }
 
 #[test]
@@ -389,11 +390,11 @@ fn malformed_or_rejected_credentials_are_recoverable_and_redacted() -> TestResul
     let password = canary()?;
     for userinfo in [
         format!("user:{password}%"),
-        "user:%ff".into(),
-        "user:%0a".into(),
-        "user:%".into(),
-        "user:%GG".into(),
-        "user:%c2%85".into(),
+        format!("user:{password}%ff"),
+        format!("user:{password}%0a"),
+        format!("user:{password}%0"),
+        format!("user:{password}%GG"),
+        format!("user:{password}%c2%85"),
         format!(":{password}"),
         format!("u%3Aser:{password}"),
         format!("user:{password}@other"),
