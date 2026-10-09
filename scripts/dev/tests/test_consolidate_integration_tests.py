@@ -228,6 +228,43 @@ class ConsolidateTests(CrateTestCase):
 
 
 class RefusalTests(CrateTestCase):
+    def test_quoted_autotests_without_group_targets_stops_before_any_mutation(
+        self,
+    ) -> None:
+        self.consolidate()
+        manifest = self.read("crates/demo/Cargo.toml")
+        self.write("crates/demo/tests/late.rs", "#[test]\nfn runs() {}\n")
+        self.run_git("add", ".")
+        groups = {
+            "crates/demo": {"only": ("the demo crate", ["gated", "late", "plain"])}
+        }
+        with mock.patch.object(consolidator, "GROUPS", groups):
+            for key in ('"autotests"', "'autotests'"):
+                with self.subTest(key=key):
+                    self.write(
+                        "crates/demo/Cargo.toml",
+                        manifest.replace(
+                            'name = "demo"', f'name = "demo"\n{key} = false'
+                        )
+                        + '\n[[test]]\nname = "late"\nrequired-features = ["extra"]\n',
+                    )
+                    before = {
+                        path: path.read_bytes()
+                        for path in self.crate.rglob("*")
+                        if path.is_file()
+                    }
+                    with self.assertRaises(SystemExit) as stop:
+                        self.consolidate()
+                    self.assertIn(
+                        "add explicit test targets for only", str(stop.exception)
+                    )
+                    after = {
+                        path: path.read_bytes()
+                        for path in self.crate.rglob("*")
+                        if path.is_file()
+                    }
+                    self.assertEqual(after, before)
+
     def test_unsupported_late_target_syntax_stops_before_any_mutation(self) -> None:
         self.consolidate()
         manifest = self.read("crates/demo/Cargo.toml").replace(

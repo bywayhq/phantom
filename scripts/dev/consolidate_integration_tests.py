@@ -374,7 +374,11 @@ def target_gates(manifest: Path, stems: set[str], groups: set[str]) -> dict[str,
     ):
         if not re.fullmatch(r"\[\[test\]\][ \t]*\n", header[0]):
             fail(f"{manifest}: an explicit test target uses unsupported table syntax")
-    if re.search(r"^[ \t]*autotests[ \t]*=[ \t]*false", text, re.M):
+    if re.search(
+        r"""^[ \t]*(?:autotests|"autotests"|'autotests')[ \t]*=[ \t]*false""",
+        text,
+        re.M,
+    ):
         explicit_groups: set[str] = set()
         for table in TEST_TABLE.finditer(text):
             body = table.group(0)
