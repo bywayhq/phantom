@@ -51,6 +51,32 @@ during the TLS handshake. A combination that a route can't carry fails
 before Phantom connects. The [route matrix](../reference/route-matrix.md)
 lists every combination of URL scheme, protocol, and route.
 
+## Read proxy settings from the environment
+
+Opt in by reading one snapshot, then pass it to the client builder.
+
+```rust,no_run
+use phantom::{Client, EnvironmentProxies};
+use phantom::profile::browser::chrome;
+
+fn environment_client() -> Result<Client, Box<dyn std::error::Error>> {
+    let proxies = EnvironmentProxies::from_env()?;
+    Ok(Client::builder(chrome::v154_windows())
+        .environment_proxies(proxies)
+        .build()?)
+}
+```
+
+For injected settings, use `EnvironmentProxies::from_values`. The snapshot
+stays fixed for the client's lifetime. Explicit request routes win over
+explicit client routes, and both win over the snapshot. This includes
+`Route::direct()`, regardless of setter order.
+
+`NO_PROXY` selects a direct route. Redirects select again for the new
+origin. A failed proxy never triggers a direct connection. See the
+[environment reference](../reference/environment-proxies.md) for variables,
+bypass syntax, credentials, and the HTTPS proxy ALPN requirement.
+
 ## Send a request through an HTTP proxy
 
 Reach HTTPS servers through a tunnel in the proxy, and `http://` servers by
