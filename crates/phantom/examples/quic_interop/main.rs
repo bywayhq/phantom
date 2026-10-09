@@ -18,11 +18,11 @@ use phantom::{
 };
 use tokio::{fs, io::AsyncWriteExt, task::JoinSet, time::timeout};
 
-mod partial_download;
-mod target;
-
 use partial_download::{CleanupFailures, PartialDownload};
 use target::DownloadTarget;
+
+mod partial_download;
+mod target;
 
 const SUPPORTED_CASE: &str = "http3";
 const UNSUPPORTED_EXIT_CODE: u8 = 127;
