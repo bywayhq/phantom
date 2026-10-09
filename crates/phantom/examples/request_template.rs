@@ -1,7 +1,8 @@
 //! Sends an address-bar navigation and then a same-origin `fetch` GET, each
 //! with the request fields Chrome 154 sends, in Chrome's order.
 //!
-//! This mirrors "Apply a captured request template" in `docs/guides/profiles.md`.
+//! This mirrors "Apply a captured request template" in
+//! `docs/guides/request-templates.md`.
 //! It needs no feature:
 //!
 //! ```console
@@ -14,7 +15,7 @@
 use std::env;
 
 use phantom::{
-    Client, HttpProtocol, PreparedRequestTemplate, RequestHeader,
+    Client, HttpProtocol, PreparedRequestTemplate, RequestHeader, StatusCode,
     profile::{ClientProfile, browser::chrome},
 };
 use url::Url;
@@ -28,11 +29,8 @@ const BODY_LIMIT: usize = 1 << 20;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
     let page_url = args.next().unwrap_or_else(|| DEFAULT_URL.to_owned());
-    let page_url = Url::parse(&page_url)?;
-    let fetch_url = match args.next() {
-        Some(target) => page_url.join(&target)?,
-        None => page_url.clone(),
-    };
+    let target = args.next();
+    let (page_url, fetch_url) = request_urls(&page_url, target.as_deref())?;
 
     let profile = ClientProfile::new(chrome::v154_tcp_tls())
         .with_http2(chrome::v154_http2())
@@ -47,7 +45,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .template(&navigation)
         .send()
         .await?;
-    println!("navigation {page_url}: {}", page.status());
+    println!(
+        "{}",
+        request_diagnostic("navigation", &page_url, page.status())
+    );
     let body = page.into_body().collect_with_limit(BODY_LIMIT).await?;
     println!("navigation body: {} bytes", body.len());
 
@@ -58,6 +59,111 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .header(RequestHeader::new("referer", page_url.as_str()))
         .send()
         .await?;
-    println!("fetch {fetch_url}: {}", data.status());
+    println!("{}", request_diagnostic("fetch", &fetch_url, data.status()));
     Ok(())
+}
+
+fn request_urls(
+    page: &str,
+    target: Option<&str>,
+) -> Result<(Url, Url), Box<dyn std::error::Error>> {
+    let page = Url::parse(page)?;
+    let fetch = match target {
+        Some(target) => page.join(target)?,
+        None => page.clone(),
+    };
+
+    if page.origin() != fetch.origin() {
+        return Err("fetch URL must have the same origin as the page URL".into());
+    }
+    Ok((page, fetch))
+}
+
+fn request_diagnostic(operation: &str, url: &Url, status: StatusCode) -> String {
+    format!(
+        "{operation} {}: {status}",
+        url.origin().ascii_serialization()
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use phantom::StatusCode;
+    use url::Url;
+
+    use super::{request_diagnostic, request_urls};
+
+    #[test]
+    fn relative_and_same_origin_targets_keep_their_paths_and_queries()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let page = "https://example.test/pages/home?session=page_secret";
+        for (target, expected) in [
+            (None, page),
+            (
+                Some("data.json?key=fetch_secret"),
+                "https://example.test/pages/data.json?key=fetch_secret",
+            ),
+            (
+                Some("/data.json?key=fetch_secret"),
+                "https://example.test/data.json?key=fetch_secret",
+            ),
+            (
+                Some("https://example.test/data.json"),
+                "https://example.test/data.json",
+            ),
+            (
+                Some("https://EXAMPLE.test:443/data.json"),
+                "https://example.test/data.json",
+            ),
+            (
+                Some("//example.test/data.json"),
+                "https://example.test/data.json",
+            ),
+        ] {
+            let (actual_page, fetch) = request_urls(page, target)?;
+            assert_eq!(actual_page.as_str(), page);
+            assert_eq!(fetch.as_str(), expected);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn fetches_to_another_scheme_host_or_port_are_rejected() {
+        for target in [
+            "http://example.test/data.json",
+            "https://other.test/data.json",
+            "https://example.test:8443/data.json",
+            "//other.test/data.json",
+            "//example.test:8443/data.json",
+            "https://other.test/private_path?token=private_query",
+        ] {
+            let error = request_urls("https://example.test/", Some(target))
+                .expect_err("accepted a target outside the page origin");
+            assert_eq!(
+                error.to_string(),
+                "fetch URL must have the same origin as the page URL"
+            );
+        }
+    }
+
+    #[test]
+    fn request_diagnostics_keep_only_the_operation_origin_and_status()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let url = Url::parse("https://example.test:8443/private_path?token=private_query")?;
+        for operation in ["navigation", "fetch"] {
+            let diagnostic = request_diagnostic(operation, &url, StatusCode::OK);
+            assert_eq!(
+                diagnostic,
+                format!("{operation} https://example.test:8443: 200 OK")
+            );
+            for secret in ["private_path", "private_query", "token"] {
+                assert!(!diagnostic.contains(secret));
+            }
+        }
+        assert_eq!(
+            url.as_str(),
+            "https://example.test:8443/private_path?token=private_query"
+        );
+        Ok(())
+    }
 }

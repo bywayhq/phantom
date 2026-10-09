@@ -38,8 +38,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for attempt in 1..=2 {
         if let Some(jar) = client.cookie_jar() {
-            let sent = jar.request_value(&url)?.unwrap_or_default();
-            println!("request {attempt} sends cookie: {sent:?}");
+            let has_cookie = jar.request_value(&url)?.is_some();
+            println!("{}", cookie_diagnostic(attempt, has_cookie));
         }
 
         // Stores every `Set-Cookie` from the response in the shared jar.
@@ -56,4 +56,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("jar holds {} cookies", jar.len());
     }
     Ok(())
+}
+
+fn cookie_diagnostic(attempt: usize, has_cookie: bool) -> String {
+    format!("request {attempt} sends cookie: {has_cookie}")
+}
+
+#[cfg(test)]
+mod tests {
+    use phantom::CookieJar;
+
+    use super::cookie_diagnostic;
+
+    #[test]
+    fn cookie_diagnostics_report_presence_without_names_or_values()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let jar = CookieJar::default();
+        let url = "https://example.test/";
+        let has_cookie = jar.request_value(url)?.is_some();
+        assert_eq!(
+            cookie_diagnostic(1, has_cookie),
+            "request 1 sends cookie: false"
+        );
+
+        jar.set_cookie(url, "private_session_name=secret_cookie_value; Path=/")?;
+        let value = jar.request_value(url)?;
+        assert_eq!(
+            value.as_deref(),
+            Some("private_session_name=secret_cookie_value")
+        );
+        let diagnostic = cookie_diagnostic(2, value.is_some());
+        assert_eq!(diagnostic, "request 2 sends cookie: true");
+        for secret in ["private_session_name", "secret_cookie_value"] {
+            assert!(!diagnostic.contains(secret));
+        }
+        Ok(())
+    }
 }
