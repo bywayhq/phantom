@@ -22,6 +22,32 @@ fn target(value: &str) -> Result<OriginForm, Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn template_rejects_zero_udp_target_port() -> Result<(), Box<dyn std::error::Error>> {
+    for template in [
+        DEFAULT_TEMPLATE,
+        "https://proxy.example/udp{?target_host,target_port}",
+    ] {
+        let proxy = ConnectUdpProxy::new(template)?;
+        assert!(proxy.expand("127.0.0.1", 0).is_err(), "{template}");
+    }
+    Ok(())
+}
+
+#[test]
+fn template_accepts_both_nonzero_udp_port_boundaries() -> Result<(), Box<dyn std::error::Error>> {
+    for (port, path) in [
+        (1, "/.well-known/masque/udp/127.0.0.1/1/"),
+        (u16::MAX, "/.well-known/masque/udp/127.0.0.1/65535/"),
+    ] {
+        assert_eq!(
+            expanded(DEFAULT_TEMPLATE, "127.0.0.1", port)?,
+            target(path)?
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn default_template_expands_domain_and_ipv4_targets() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
         expanded(DEFAULT_TEMPLATE, "origin.example", 443)?,

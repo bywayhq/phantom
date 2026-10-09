@@ -341,6 +341,93 @@ async fn connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io() ->
 }
 
 #[tokio::test]
+async fn zero_udp_target_port_fails_before_http1_proxy_io() -> TestResult<()> {
+    zero_port_before_tcp_proxy_io(StreamLeg::Http1).await
+}
+
+#[tokio::test]
+async fn zero_udp_target_port_fails_before_http2_proxy_io() -> TestResult<()> {
+    zero_port_before_tcp_proxy_io(StreamLeg::Http2).await
+}
+
+async fn zero_port_before_tcp_proxy_io(leg: StreamLeg) -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let template = format!(
+            "https://{}/.well-known/masque/udp/{{target_host}}/{{target_port}}/",
+            listener.local_addr()?
+        );
+        let client = leg_client(
+            &origin_identity,
+            &proxy_identity,
+            leg_proxy(&template, leg)?,
+        )?;
+        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
+        let error = tokio::select! {
+            result = request.send() => result.err().ok_or("zero UDP target was accepted")?,
+            incoming = listener.accept() => {
+                drop(incoming?);
+                return Err("zero UDP target caused TCP proxy I/O".into());
+            }
+        };
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTarget);
+        assert!(
+            timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_err(),
+            "a TCP proxy connection followed the invalid-target error"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn zero_udp_target_port_fails_before_http3_proxy_io() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let (address, endpoint) = server_endpoint(&proxy_identity)?;
+        let proxy = ConnectUdpProxy::new(&format!(
+            "https://{address}/.well-known/masque/udp/{{target_host}}/{{target_port}}/"
+        ))?;
+        let client = client_builder(&origin_identity, &proxy_identity)
+            .route(Route::connect_udp(proxy))
+            .build()?;
+        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
+        let error = tokio::select! {
+            result = request.send() => result.err().ok_or("zero UDP target was accepted")?,
+            incoming = endpoint.accept() => {
+                drop(incoming.ok_or("proxy endpoint closed before observation")?);
+                return Err("zero UDP target caused QUIC proxy I/O".into());
+            }
+        };
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTarget);
+        assert!(
+            timeout(Duration::from_millis(100), endpoint.accept())
+                .await
+                .is_err(),
+            "a QUIC proxy connection followed the invalid-target error"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn direct_route_keeps_port_zero_request_targets_valid() -> TestResult<()> {
+    let client = Client::builder(profile()).route(Route::Direct).build()?;
+    for protocol in [
+        HttpProtocol::Http1,
+        HttpProtocol::Http2,
+        HttpProtocol::Http3,
+    ] {
+        let _request = client.get(protocol, "https://127.0.0.1:0/")?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn mtu_config_that_cannot_fit_an_initial_fails_before_io() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
