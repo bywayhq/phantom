@@ -209,12 +209,12 @@ fn connector_with(
 async fn connect(
     identity: &TestIdentity,
     address: SocketAddr,
-    ech: impl Future<Output = Option<EchConfigList>>,
+    ech: impl Future<Output = Option<EchConfigList>> + Send,
 ) -> TestResult<Result<Http1Or2Connection, Http1Or2TlsError>> {
     let connector = connector(identity)?;
     Ok(tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("127.0.0.1", address.port(), INNER_NAME, ech),
+        connect_ech(&connector, "127.0.0.1", address.port(), INNER_NAME, ech),
     )
     .await?)
 }
@@ -447,7 +447,7 @@ async fn replay(
     let connector = connector_with(settings, &identity)?;
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("127.0.0.1", address.port(), origin, async {
+        connect_ech(&connector, "127.0.0.1", address.port(), origin, async {
             Some(EchConfigList::new(list))
         }),
     )
@@ -602,7 +602,7 @@ async fn a_resolved_address_waits_for_a_lookup_within_the_bound() -> TestResult<
     let ech = async { lookup.await.ok() };
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+        connect_ech(&connector, "origin.test", address.port(), INNER_NAME, ech),
     )
     .await??;
 
@@ -632,8 +632,13 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
 
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector
-            .connect_direct_with_ech("origin.test", address.port(), INNER_NAME, async { None }),
+        connect_ech(
+            &connector,
+            "origin.test",
+            address.port(),
+            INNER_NAME,
+            async { None },
+        ),
     )
     .await??;
     // Started now, as the client's lookup starts with the request.
@@ -644,7 +649,7 @@ async fn a_cached_address_does_not_wait_for_the_lookup() -> TestResult<()> {
     let ech = async { lookup.await.ok() };
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+        connect_ech(&connector, "origin.test", address.port(), INNER_NAME, ech),
     )
     .await??;
 
@@ -674,9 +679,13 @@ async fn an_overridden_name_waits_only_the_minimum_for_the_lookup() -> TestResul
 
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, async {
-            Some(published(1, &TEST_ECH_KEYS[0]))
-        }),
+        connect_ech(
+            &connector,
+            "origin.test",
+            address.port(),
+            INNER_NAME,
+            async { Some(published(1, &TEST_ECH_KEYS[0])) },
+        ),
     )
     .await??;
     // Started now, as the client's lookup starts with the request.
@@ -687,7 +696,7 @@ async fn an_overridden_name_waits_only_the_minimum_for_the_lookup() -> TestResul
     let ech = async { lookup.await.ok() };
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+        connect_ech(&connector, "origin.test", address.port(), INNER_NAME, ech),
     )
     .await??;
 
@@ -715,7 +724,7 @@ async fn a_lookup_past_the_bound_leaves_grease() -> TestResult<()> {
     let ech = async { lookup.await.ok() };
     tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_direct_with_ech("origin.test", address.port(), INNER_NAME, ech),
+        connect_ech(&connector, "origin.test", address.port(), INNER_NAME, ech),
     )
     .await??;
 
@@ -753,4 +762,22 @@ async fn a_rejection_without_a_public_name_certificate_is_not_retried() -> TestR
     assert_eq!(observed.len(), 1);
     assert!(!observed[0].handshake_completed);
     Ok(())
+}
+
+async fn connect_ech(
+    connector: &Http1Or2TlsConnector,
+    host: &str,
+    port: u16,
+    server_name: &str,
+    ech: impl Future<Output = Option<EchConfigList>> + Send,
+) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+    let mut ech = std::pin::pin!(ech);
+    connector
+        .connect(crate::route::OriginRoute::Tls {
+            tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint { host, port }),
+            server_name,
+            setup: crate::route::DirectTlsSetup::Ech(ech.as_mut()),
+        })
+        .await
+        .map(|(connection, _)| connection)
 }

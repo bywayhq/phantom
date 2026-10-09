@@ -9,6 +9,10 @@ use std::{
     task::{Context, Waker},
 };
 
+use crate::route::{
+    ConnectedStream, DirectTlsSetup, Http1Route, Http1Target, OriginRoute, ProxyTransport, TcpRoute,
+};
+use http::Method;
 use http_body_util::BodyExt;
 use phantom_profile::{
     CipherSuite, ClientHelloExtensionOrder, NamedGroup, SessionTicketOrder, SignatureScheme,
@@ -52,11 +56,16 @@ async fn dropping_tls_response_head_future_records_cancelled_once() -> TestResul
     let subscriber = OutcomeSubscriber::default();
     let (client, _server) = duplex(64 * 1024);
     let pending = poll_once_then_drop(
-        connector.send_get(
-            client,
-            TEST_SERVER_NAME,
-            OriginForm::parse("/")?,
+        connector.send(
+            Http1Route::Origin(OriginRoute::Tls {
+                tcp: TcpRoute::Connected(ConnectedStream::new(client)),
+                server_name: TEST_SERVER_NAME,
+                setup: DirectTlsSetup::Default,
+            }),
+            Method::GET,
+            Http1Target::Origin(OriginForm::parse("/")?),
             vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            None,
         ),
         subscriber.clone(),
     )
@@ -96,17 +105,12 @@ async fn streams_ordered_http1_over_trusted_tls() -> TestResult<()> {
         let connector = test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
         let response = connector
-            .send_get(
-                tcp,
-                TEST_SERVER_NAME,
-                OriginForm::parse("/resource?item=1")?,
-                vec![
+            .send(Http1Route::Origin(OriginRoute::Tls { tcp: TcpRoute::Connected(ConnectedStream::new(tcp)), server_name: TEST_SERVER_NAME, setup: DirectTlsSetup::Default }), Method::GET, Http1Target::Origin(OriginForm::parse("/resource?item=1")?), vec![
                     RequestHeader::new("Host", TEST_SERVER_NAME),
                     RequestHeader::new("X-First", "one"),
                     RequestHeader::new("x-repeat", "alpha"),
                     RequestHeader::new("X-Repeat", "beta"),
-                ],
-            )
+                ], None)
             .await?;
         assert_eq!(response.status(), 200);
 
@@ -163,11 +167,16 @@ async fn rejects_h2_before_writing_http1_bytes() -> TestResult<()> {
         let tcp = TcpStream::connect(address).await?;
         let subscriber = OutcomeSubscriber::default();
         let result = connector
-            .send_get(
-                tcp,
-                TEST_SERVER_NAME,
-                OriginForm::parse("/")?,
+            .send(
+                Http1Route::Origin(OriginRoute::Tls {
+                    tcp: TcpRoute::Connected(ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: DirectTlsSetup::Default,
+                }),
+                Method::GET,
+                Http1Target::Origin(OriginForm::parse("/")?),
                 vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+                None,
             )
             .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
@@ -209,11 +218,16 @@ async fn no_negotiated_alpn_proceeds_as_http1() -> TestResult<()> {
         let connector = test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
         let response = connector
-            .send_get(
-                tcp,
-                TEST_SERVER_NAME,
-                OriginForm::parse("/health")?,
+            .send(
+                Http1Route::Origin(OriginRoute::Tls {
+                    tcp: TcpRoute::Connected(ConnectedStream::new(tcp)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: DirectTlsSetup::Default,
+                }),
+                Method::GET,
+                Http1Target::Origin(OriginForm::parse("/health")?),
                 vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+                None,
             )
             .await?;
         assert_eq!(response.status(), 204);
@@ -248,7 +262,14 @@ async fn disabled_authentication_accepts_untrusted_name_mismatch_and_preserves_s
             ServerAuthentication::DangerDisabled,
         )?;
         let tcp = TcpStream::connect(address).await?;
-        let connection = connector.connect(tcp, "mismatch.phantom.test").await?;
+        let connection = connector
+            .connect(Http1Route::Origin(OriginRoute::Tls {
+                tcp: TcpRoute::Connected(ConnectedStream::new(tcp)),
+                server_name: "mismatch.phantom.test",
+                setup: DirectTlsSetup::Default,
+            }))
+            .await?
+            .0;
         drop(connection);
 
         assert_eq!(
@@ -286,11 +307,16 @@ async fn invalid_request_never_touches_tls_stream() -> TestResult<()> {
         let subscriber = OutcomeSubscriber::default();
 
         let result = connector
-            .send_get(
-                stream,
-                TEST_SERVER_NAME,
-                OriginForm::parse("/")?,
+            .send(
+                Http1Route::Origin(OriginRoute::Tls {
+                    tcp: TcpRoute::Connected(ConnectedStream::new(stream)),
+                    server_name: TEST_SERVER_NAME,
+                    setup: DirectTlsSetup::Default,
+                }),
+                Method::GET,
+                Http1Target::Origin(OriginForm::parse("/")?),
                 Vec::new(),
+                None,
             )
             .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
@@ -312,14 +338,19 @@ async fn direct_preparation_failure_has_tls_wrapper_outcome() -> TestResult<()> 
     let subscriber = OutcomeSubscriber::default();
 
     let result = connector
-        .send_get_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                host: "127.0.0.1",
-                port: 9,
+        .send(
+            Http1Route::Origin(OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: 9,
+                }),
+                server_name: TEST_SERVER_NAME,
+                setup: DirectTlsSetup::Default,
             }),
-            TEST_SERVER_NAME,
-            OriginForm::parse("/")?,
+            Method::GET,
+            Http1Target::Origin(OriginForm::parse("/")?),
             Vec::new(),
+            None,
         )
         .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
@@ -337,14 +368,19 @@ fn direct_without_runtime_has_tls_wrapper_outcome() -> TestResult<()> {
     let connector = test_connector(&identity)?;
     let subscriber = OutcomeSubscriber::default();
     let future = connector
-        .send_get_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                host: "127.0.0.1",
-                port: 9,
+        .send(
+            Http1Route::Origin(OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: 9,
+                }),
+                server_name: TEST_SERVER_NAME,
+                setup: DirectTlsSetup::Default,
             }),
-            TEST_SERVER_NAME,
-            OriginForm::parse("/")?,
+            Method::GET,
+            Http1Target::Origin(OriginForm::parse("/")?),
             vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            None,
         )
         .with_subscriber(Dispatch::new(subscriber.clone()));
     let mut future = std::pin::pin!(future);
@@ -385,9 +421,16 @@ async fn plaintext_direct_connection_is_reusable_without_tls() -> TestResult<()>
         });
 
         let connection = connector
-            .connect_plaintext_direct("127.0.0.1", address.port())
+            .connect(Http1Route::Origin(OriginRoute::Plaintext {
+                tcp: TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                }),
+                family: None,
+            }))
             .with_subscriber(Dispatch::new(subscriber.clone()))
-            .await?;
+            .await?
+            .0;
         for target in ["/first", "/second"] {
             let response = connection
                 .send_get(
@@ -424,7 +467,13 @@ fn plaintext_direct_without_runtime_is_runtime_unavailable() -> TestResult<()> {
     let connector = test_connector(&identity)?;
     let subscriber = OutcomeSubscriber::default();
     let future = connector
-        .connect_plaintext_direct("127.0.0.1", 9)
+        .connect(Http1Route::Origin(OriginRoute::Plaintext {
+            tcp: TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: 9,
+            }),
+            family: None,
+        }))
         .with_subscriber(Dispatch::new(subscriber.clone()));
     let mut future = std::pin::pin!(future);
     let mut context = Context::from_waker(Waker::noop());
@@ -455,7 +504,13 @@ async fn plaintext_direct_connect_failure_is_not_a_proxy_error() -> TestResult<(
     let address = reserved.address();
 
     let result = connector
-        .connect_plaintext_direct("127.0.0.1", address.port())
+        .connect(Http1Route::Origin(OriginRoute::Plaintext {
+            tcp: TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: address.port(),
+            }),
+            family: None,
+        }))
         .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
     let error = match result {
@@ -495,10 +550,15 @@ async fn plaintext_direct_upgrade_preserves_request_and_session_bytes() -> TestR
         });
 
         let outcome = connector
-            .upgrade_get_plaintext_direct(
-                "127.0.0.1",
-                address.port(),
-                OriginForm::parse("/socket?encoding=json")?,
+            .upgrade(
+                Http1Route::Origin(OriginRoute::Plaintext {
+                    tcp: TcpRoute::Direct(crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    }),
+                    family: None,
+                }),
+                Http1Target::Origin(OriginForm::parse("/socket?encoding=json")?),
                 vec![
                     RequestHeader::new("Host", "127.0.0.1"),
                     RequestHeader::new("Connection", "Upgrade"),
@@ -573,10 +633,14 @@ async fn plaintext_forward_upgrade_preserves_absolute_form_and_coalesced_bytes()
         });
 
         let outcome = connector
-            .upgrade_get_forward_proxy(
-                "127.0.0.1",
-                address.port(),
-                AbsoluteForm::parse("http://origin.phantom.test/socket?encoding=json")?,
+            .upgrade(
+                Http1Route::Forward(ProxyTransport::Tcp(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                })),
+                Http1Target::Absolute(AbsoluteForm::parse(
+                    "http://origin.phantom.test/socket?encoding=json",
+                )?),
                 vec![
                     RequestHeader::new("Host", "origin.phantom.test"),
                     RequestHeader::new("Connection", "Upgrade"),
@@ -634,12 +698,16 @@ async fn https_forward_upgrade_uses_proxy_tls_and_preserves_absolute_form() -> T
         let connector = test_connector(&identity)?;
         let proxy_connector = test_proxy_connector(&identity)?;
         let outcome = connector
-            .upgrade_get_https_forward_proxy(
-                &proxy_connector,
-                "127.0.0.1",
-                address.port(),
-                TEST_SERVER_NAME,
-                AbsoluteForm::parse("https://origin.phantom.test/socket")?,
+            .upgrade(
+                Http1Route::Forward(ProxyTransport::Tls {
+                    endpoint: crate::route::Endpoint {
+                        host: "127.0.0.1",
+                        port: address.port(),
+                    },
+                    server_name: TEST_SERVER_NAME,
+                    connector: &proxy_connector,
+                }),
+                Http1Target::Absolute(AbsoluteForm::parse("https://origin.phantom.test/socket")?),
                 vec![
                     RequestHeader::new("Host", "origin.phantom.test"),
                     RequestHeader::new("Connection", "Upgrade"),
@@ -688,14 +756,17 @@ async fn https_forward_proxy_uses_dns_sni_and_accepts_http1_alpn() -> TestResult
         let proxy_connector = test_proxy_connector(&identity)?;
         let subscriber = OutcomeSubscriber::default();
         let connection = connector
-            .connect_https_forward_proxy(
-                &proxy_connector,
-                "127.0.0.1",
-                address.port(),
-                TEST_SERVER_NAME,
-            )
+            .connect(Http1Route::Forward(ProxyTransport::Tls {
+                endpoint: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                },
+                server_name: TEST_SERVER_NAME,
+                connector: &proxy_connector,
+            }))
             .with_subscriber(subscriber.dispatch())
-            .await?;
+            .await?
+            .0;
         let response = connection
             .send_get(
                 OriginForm::parse("/through-proxy")?,
@@ -745,14 +816,17 @@ async fn https_forward_proxy_accepts_absent_alpn() -> TestResult<()> {
         let proxy_connector = test_proxy_connector(&identity)?;
         let subscriber = OutcomeSubscriber::default();
         let connection = connector
-            .connect_https_forward_proxy(
-                &proxy_connector,
-                "127.0.0.1",
-                address.port(),
-                TEST_SERVER_NAME,
-            )
+            .connect(Http1Route::Forward(ProxyTransport::Tls {
+                endpoint: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                },
+                server_name: TEST_SERVER_NAME,
+                connector: &proxy_connector,
+            }))
             .with_subscriber(subscriber.dispatch())
-            .await?;
+            .await?
+            .0;
         let response = connection
             .send_get(
                 OriginForm::parse("/without-alpn")?,
@@ -797,12 +871,14 @@ async fn https_forward_proxy_rejects_h2_without_writing_http_bytes() -> TestResu
         let proxy_connector = test_proxy_connector(&identity)?;
         let subscriber = OutcomeSubscriber::default();
         let result = connector
-            .connect_https_forward_proxy(
-                &proxy_connector,
-                "127.0.0.1",
-                address.port(),
-                TEST_SERVER_NAME,
-            )
+            .connect(Http1Route::Forward(ProxyTransport::Tls {
+                endpoint: crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                },
+                server_name: TEST_SERVER_NAME,
+                connector: &proxy_connector,
+            }))
             .with_subscriber(subscriber.dispatch())
             .await;
         let error = match result {
@@ -845,11 +921,16 @@ async fn handshake_failure_has_tls_wrapper_outcome() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
 
     let result = connector
-        .send_get(
-            client,
-            TEST_SERVER_NAME,
-            OriginForm::parse("/")?,
+        .send(
+            Http1Route::Origin(OriginRoute::Tls {
+                tcp: TcpRoute::Connected(ConnectedStream::new(client)),
+                server_name: TEST_SERVER_NAME,
+                setup: DirectTlsSetup::Default,
+            }),
+            Method::GET,
+            Http1Target::Origin(OriginForm::parse("/")?),
             vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            None,
         )
         .with_subscriber(Dispatch::new(subscriber.clone()))
         .await;
@@ -950,4 +1031,126 @@ where
         bytes.push(byte[0]);
     }
     Ok(bytes)
+}
+
+#[tokio::test]
+async fn origin_send_rejects_absolute_target_before_stream_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let touches = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let stream = TouchCountingStream::new(client, Arc::clone(&touches));
+    let result = connector
+        .send(
+            Http1Route::Origin(OriginRoute::Tls {
+                tcp: TcpRoute::Connected(ConnectedStream::new(stream)),
+                server_name: TEST_SERVER_NAME,
+                setup: DirectTlsSetup::Default,
+            }),
+            Method::GET,
+            Http1Target::Absolute(AbsoluteForm::parse("http://origin.phantom.test/")?),
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            None,
+        )
+        .await;
+    assert!(
+        matches!(result, Err(Http1TlsError::Connect(ref error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn one_shot_operations_reject_retained_slower_before_dialing() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let family = crate::tcp::AddressFamilyMemory::default();
+    let route = || {
+        Http1Route::Origin(OriginRoute::Tls {
+            tcp: TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: 9,
+            }),
+            server_name: TEST_SERVER_NAME,
+            setup: DirectTlsSetup::KeepSlower(&family),
+        })
+    };
+    let sent = connector
+        .send(
+            route(),
+            Method::GET,
+            Http1Target::Origin(OriginForm::parse("/")?),
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+            None,
+        )
+        .await;
+    assert!(
+        matches!(sent, Err(Http1TlsError::Connect(ref error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    let upgraded = connector
+        .upgrade(
+            route(),
+            Http1Target::Origin(OriginForm::parse("/")?),
+            vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
+        )
+        .await;
+    assert!(
+        matches!(upgraded, Err(Http1TlsError::Connect(ref error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    Ok(())
+}
+
+#[cfg(feature = "https-records")]
+#[tokio::test]
+async fn connected_ech_route_rejects_before_lookup_polling_or_stream_io() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let touches = Arc::new(AtomicUsize::new(0));
+    let polls = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let stream = TouchCountingStream::new(client, Arc::clone(&touches));
+    let mut ech = std::pin::pin!(std::future::poll_fn(|_| {
+        polls.fetch_add(1, Ordering::SeqCst);
+        std::task::Poll::Ready(None)
+    }));
+    let result = connector
+        .connect(Http1Route::Origin(OriginRoute::Tls {
+            tcp: TcpRoute::Connected(ConnectedStream::new(stream)),
+            server_name: TEST_SERVER_NAME,
+            setup: DirectTlsSetup::Ech(ech.as_mut()),
+        }))
+        .await;
+    assert!(
+        matches!(result, Err(Http1TlsError::Connect(ref error)) if error.kind() == io::ErrorKind::InvalidInput)
+    );
+    assert_eq!(polls.load(Ordering::SeqCst), 0);
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn dropping_route_connect_closes_stream_and_records_cancelled_once() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let subscriber = OutcomeSubscriber::default();
+    let (client, mut server) = duplex(64 * 1024);
+    let pending = poll_once_then_drop(
+        connector.connect(Http1Route::Origin(OriginRoute::Tls {
+            tcp: TcpRoute::Connected(ConnectedStream::new(client)),
+            server_name: TEST_SERVER_NAME,
+            setup: DirectTlsSetup::Default,
+        })),
+        subscriber.clone(),
+    )
+    .await;
+    assert!(pending);
+    let mut written = Vec::new();
+    timeout(TEST_TIMEOUT, server.read_to_end(&mut written)).await??;
+    assert!(
+        !written.is_empty(),
+        "TLS opening did not write its ClientHello"
+    );
+    assert_eq!(subscriber.outcomes_for("http1.tls.connect"), ["cancelled"]);
+    assert_eq!(subscriber.outcomes_for("tls.handshake"), ["cancelled"]);
+    Ok(())
 }

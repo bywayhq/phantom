@@ -215,8 +215,8 @@ async fn a_connection_through_a_proxy_offers_no_early_data() -> TestResult<()> {
     let authority = format!("{TEST_SERVER_NAME}:{}", address.port());
     let connection = tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_via(
-            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+        connector.connect(crate::route::OriginRoute::Tls {
+            tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
                 proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
                     host: "127.0.0.1",
                     port: address.port(),
@@ -225,10 +225,12 @@ async fn a_connection_through_a_proxy_offers_no_early_data() -> TestResult<()> {
                 headers: &[HttpConnectHeader::authority("Host")],
                 credentials: None,
             }),
-            TEST_SERVER_NAME,
-        ),
+            server_name: TEST_SERVER_NAME,
+            setup: crate::route::DirectTlsSetup::Default,
+        }),
     )
-    .await??;
+    .await??
+    .0;
     let Http1Or2Connection::Http1(connection) = connection else {
         return Err("the tunnelled origin did not select HTTP/1.1".into());
     };
@@ -415,15 +417,17 @@ async fn send_http2(connector: &Http1Or2TlsConnector, port: u16, method: Method)
 async fn connect(connector: &Http1Or2TlsConnector, port: u16) -> TestResult<Http1Or2Connection> {
     Ok(tokio::time::timeout(
         TEST_TIMEOUT,
-        connector.connect_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+        connector.connect(crate::route::OriginRoute::Tls {
+            tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
                 port,
             }),
-            TEST_SERVER_NAME,
-        ),
+            server_name: TEST_SERVER_NAME,
+            setup: crate::route::DirectTlsSetup::Default,
+        }),
     )
-    .await??)
+    .await??
+    .0)
 }
 
 async fn observed<const N: usize>(
@@ -446,4 +450,58 @@ fn h2_frame_types(bytes: &[u8]) -> TestResult<Vec<u8>> {
         frames = frames.get(9 + length..).unwrap_or_default();
     }
     Ok(types)
+}
+
+#[tokio::test]
+async fn plaintext_negotiation_rejects_before_stream_io() -> TestResult<()> {
+    use crate::route::{ConnectedStream, OriginRoute, TcpRoute};
+    use crate::tls::test_support::TouchCountingStream;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let connector = Http1Or2TlsConnector::new(&firefox::v157_tls(), &firefox::v157_http2())?;
+    let touches = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = tokio::io::duplex(128);
+    let stream = TouchCountingStream::new(client, Arc::clone(&touches));
+    let result = connector
+        .connect(OriginRoute::Plaintext {
+            tcp: TcpRoute::Connected(ConnectedStream::new(stream)),
+            family: None,
+        })
+        .await;
+    assert!(
+        matches!(result, Err(crate::http1_or_2::Http1Or2TlsError::Connect(ref error)) if error.kind() == std::io::ErrorKind::InvalidInput)
+    );
+    assert_eq!(touches.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn dropping_negotiated_route_connect_closes_stream_and_records_cancelled_once()
+-> TestResult<()> {
+    use crate::route::{ConnectedStream, DirectTlsSetup, OriginRoute, TcpRoute};
+    use crate::tracing_test::{OutcomeSubscriber, poll_once_then_drop};
+    let connector = Http1Or2TlsConnector::new(&firefox::v157_tls(), &firefox::v157_http2())?;
+    let subscriber = OutcomeSubscriber::default();
+    let (client, mut server) = tokio::io::duplex(64 * 1024);
+    let pending = poll_once_then_drop(
+        connector.connect(OriginRoute::Tls {
+            tcp: TcpRoute::Connected(ConnectedStream::new(client)),
+            server_name: TEST_SERVER_NAME,
+            setup: DirectTlsSetup::Default,
+        }),
+        subscriber.clone(),
+    )
+    .await;
+    assert!(pending);
+    let mut written = Vec::new();
+    tokio::time::timeout(TEST_TIMEOUT, server.read_to_end(&mut written)).await??;
+    assert!(
+        !written.is_empty(),
+        "TLS opening did not write its ClientHello"
+    );
+    assert_eq!(
+        subscriber.outcomes_for("http1_or_2.tls.connect"),
+        ["cancelled"]
+    );
+    assert_eq!(subscriber.outcomes_for("tls.handshake"), ["cancelled"]);
+    Ok(())
 }
