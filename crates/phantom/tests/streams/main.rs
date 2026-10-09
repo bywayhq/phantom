@@ -5,7 +5,7 @@
 //! `support` holds the loopback servers and helpers that the crate's test
 //! binaries share.
 
-#[path = "../support/mod.rs"]
+#[path = "../support.rs"]
 mod support;
 
 #[cfg(feature = "sse")]

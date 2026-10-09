@@ -122,7 +122,7 @@ class ConsolidateTests(CrateTestCase):
     def test_moves_each_file_into_its_group(self) -> None:
         self.consolidate()
         tests = self.crate / "tests"
-        self.assertEqual(sorted(p.name for p in tests.glob("*.rs")), [])
+        self.assertEqual(sorted(p.name for p in tests.glob("*.rs")), ["support.rs"])
         self.assertTrue((tests / "only" / "gated.rs").is_file())
         self.assertTrue((tests / "only" / "plain.rs").is_file())
 
@@ -145,8 +145,13 @@ class ConsolidateTests(CrateTestCase):
 
     def test_support_files_load_once_as_a_shared_module(self) -> None:
         self.consolidate()
-        support = self.read("crates/demo/tests/support/mod.rs")
+        support = self.read("crates/demo/tests/support.rs")
+        self.assertFalse((self.crate / "tests" / "support" / "mod.rs").exists())
+        self.assertIn(
+            '#[path = "../support.rs"]', self.read("crates/demo/tests/only/main.rs")
+        )
         self.assertIn("pub(crate) mod tls;", support)
+        self.assertIn('#[path = "support/tls.rs"]', support)
         self.assertIn(
             "pub(crate) fn certificate", self.read("crates/demo/tests/support/tls.rs")
         )
@@ -210,7 +215,9 @@ class RepositoryTests(unittest.TestCase):
         for crate_dir, groups in consolidator.GROUPS.items():
             with self.subTest(crate=crate_dir):
                 tests = REPO / crate_dir / "tests"
-                stray = sorted(p.name for p in tests.glob("*.rs"))
+                stray = sorted(
+                    p.name for p in tests.glob("*.rs") if p.stem != "support"
+                )
                 self.assertEqual(
                     stray, [], "run scripts/dev/consolidate_integration_tests.py"
                 )

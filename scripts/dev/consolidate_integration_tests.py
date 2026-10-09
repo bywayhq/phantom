@@ -5,7 +5,7 @@ of the test binary `<group>`, as `GROUPS` assigns it, and each directory that
 the file includes moves with it. `tests/support/` stays in place and becomes
 one `support` module that every group loads once, instead of a copy per test
 file. The script rewrites the paths, feature gates, and imports that the move
-changes, regenerates each `main.rs` and `tests/support/mod.rs`, and rewrites
+changes, regenerates each `main.rs` and `tests/support.rs`, and rewrites
 `crates/<crate>/tests/<name>` references in tracked text files.
 
 A few binaries rather than one: stable rustc type-checks a crate on one
@@ -450,7 +450,7 @@ def write_main(
             "//! `support` holds the loopback servers and helpers that the crate's test",
             "//! binaries share.",
         ]
-        lines += ["", '#[path = "../support/mod.rs"]', "mod support;"]
+        lines += ["", '#[path = "../support.rs"]', "mod support;"]
     lines.append("")
     for name in sorted(module_cfg):
         if module_cfg[name]:
@@ -471,8 +471,9 @@ def write_support_mod(support: Path, gates: dict[str, str | None]) -> None:
     for stem in sorted(gates):
         if gates[stem]:
             lines.append(f"#[cfg({gates[stem]})]")
+        lines.append(f'#[path = "support/{stem}.rs"]')
         lines.append(f"pub(crate) mod {stem};")
-    write(support / "mod.rs", "\n".join(lines) + "\n")
+    write(support.with_suffix(".rs"), "\n".join(lines) + "\n")
 
 
 def rewrite_references(crate_dir: str, placed: dict[str, str]) -> None:
@@ -506,7 +507,7 @@ def consolidate(crate_dir: str) -> None:
         fail(f"{crate_dir}/Cargo.toml has no package name")
     groups = GROUPS[crate_dir]
     group_for = {m: g for g, (_, members) in groups.items() for m in members}
-    tops = sorted(tests.glob("*.rs"))
+    tops = sorted(p for p in tests.glob("*.rs") if p.stem != "support")
     manifest = Path(crate_dir) / "Cargo.toml"
     unplaced = [p.stem for p in tops if p.stem not in group_for]
     if unplaced:
@@ -556,8 +557,8 @@ def consolidate(crate_dir: str) -> None:
 
     # Support files are rewritten once, when they first become a module.
     listed: set[str] = set()
-    if (support / "mod.rs").exists():
-        listed = set(re.findall(r"mod (\w+);", read(support / "mod.rs")))
+    if support.with_suffix(".rs").exists():
+        listed = set(re.findall(r"mod (\w+);", read(support.with_suffix(".rs"))))
     existing = [tests / group_for[m] / f"{m}.rs" for m in module_cfg]
     aliases = collect_aliases([*moved, *existing])
     for path in sorted(support.glob("*.rs")):
@@ -594,7 +595,7 @@ def consolidate(crate_dir: str) -> None:
             subprocess.run(["rustfmt", "--edition", "2024", str(main)], check=True)
             git("add", "--", str(tests / group))
     if support.is_dir():
-        git("add", "--", str(support))
+        git("add", "--", str(support), str(support.with_suffix(".rs")))
     git("add", "--", str(manifest))
     print(
         f"{crate_dir}: moved {len(moved)} test files and {len(placed_dirs)} directories"
