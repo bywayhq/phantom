@@ -363,3 +363,33 @@ fn expectation_types_are_send_and_sync() {
     check::<MismatchLocation>();
     check::<AdjustableHeader>();
 }
+
+#[test]
+fn metadata_and_expectation_debug_omit_untrusted_strings() -> TestResult {
+    let marker = "private-metadata-marker";
+    let mut fixture = CHROME.to_owned();
+    for field in [
+        "client",
+        "client_version",
+        "operating_system",
+        "launch_mode",
+        "scenario",
+    ] {
+        fixture = replace_record(&fixture, field, Some(marker));
+    }
+    fixture = replace_record(
+        &fixture,
+        "run_0_request_0",
+        Some("kind:private-metadata-marker"),
+    );
+    let expected = RequestExpectation::from_retained(&fixture, 0, 0, CHROME.len() * 2, LIMITS)?;
+    assert_eq!(expected.metadata().browser(), marker);
+    assert_eq!(expected.metadata().build(), marker);
+    assert_eq!(expected.metadata().platform(), marker);
+    assert_eq!(expected.metadata().launch_mode(), marker);
+    assert_eq!(expected.metadata().scenario(), marker);
+    assert_eq!(expected.metadata().request_kind(), marker);
+    assert!(!format!("{:?}", expected.metadata()).contains(marker));
+    assert!(!format!("{expected:?}").contains(marker));
+    Ok(())
+}

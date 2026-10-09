@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, error::Error, fmt};
 use super::{CaptureError, CaptureLimits, RequestHeadCapture};
 
 /// Identity and selection recorded alongside an expected request.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct RequestMetadata {
     browser: String,
     build: String,
@@ -16,6 +16,15 @@ pub struct RequestMetadata {
     run: usize,
     request: usize,
     request_kind: String,
+}
+
+impl fmt::Debug for RequestMetadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RequestMetadata")
+            .field("run", &self.run)
+            .field("request", &self.request)
+            .finish_non_exhaustive()
+    }
 }
 
 impl RequestMetadata {
