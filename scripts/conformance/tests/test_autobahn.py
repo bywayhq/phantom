@@ -431,6 +431,97 @@ class AutobahnRunTests(unittest.TestCase):
         self.assertEqual(len(self.processes.calls("rm")), 1)
         self.assertIn("KeyboardInterrupt", " ".join(self.summary()["failures"]))
 
+    def test_summary_interrupt_preserves_suite_and_removal_diagnostics(self) -> None:
+        self.report[autobahn.AGENT][SMOKE_CASE_IDS[0]]["behavior"] = "FAILED"
+        self.processes.remove_status = 9
+        interruption = KeyboardInterrupt("controlled summary interruption")
+        write_text = Path.write_text
+
+        def retained(path: Path, *args: object, **options: object) -> int:
+            if path.name == "summary.json":
+                raise interruption
+            return write_text(path, *args, **options)
+
+        with mock.patch.object(Path, "write_text", retained):
+            try:
+                autobahn.run("smoke", self.repository, self.report_root)
+            except (RuntimeError, KeyboardInterrupt) as error:
+                failure = error
+            else:
+                self.fail("failed suite returned success after report interruption")
+
+        self.assertEqual(len(self.processes.calls("rm")), 1)
+        self.assertIsInstance(failure, RuntimeError)
+        self.assertIn("conformance failures", str(failure))
+        self.assertIn("controlled removal failure", str(failure))
+        self.assertIn("controlled summary interruption", str(failure))
+        self.assertIsInstance(failure.__cause__, RuntimeError)
+        self.assertIn("conformance failures", str(failure.__cause__))
+        self.assertEqual(list(self.report_root.glob("*/summary.json")), [])
+
+    def test_log_retention_interrupt_preserves_failed_command_and_removal(self) -> None:
+        self.processes.log_status = 7
+        self.processes.remove_status = 9
+        interruption = KeyboardInterrupt("controlled log interruption")
+        write_text = Path.write_text
+
+        def retained(path: Path, *args: object, **options: object) -> int:
+            if path.name == "container.log":
+                raise interruption
+            return write_text(path, *args, **options)
+
+        with (
+            mock.patch.object(Path, "write_text", retained),
+            self.assertRaises(RuntimeError) as failed,
+        ):
+            autobahn.run("smoke", self.repository, self.report_root)
+
+        self.assertEqual(len(self.processes.calls("rm")), 1)
+        rendered = str(failed.exception)
+        self.assertIn("status 7", rendered)
+        self.assertIn("controlled log failure", rendered)
+        self.assertIn("controlled log interruption", rendered)
+        self.assertIn("controlled removal failure", rendered)
+        self.assertIn("controlled log failure", " ".join(self.summary()["failures"]))
+
+    def test_lone_summary_retention_interrupt_preserves_original_identity(self) -> None:
+        interruption = KeyboardInterrupt("lone summary interruption")
+        write_text = Path.write_text
+
+        def retained(path: Path, *args: object, **options: object) -> int:
+            if path.name == "summary.json":
+                raise interruption
+            return write_text(path, *args, **options)
+
+        with (
+            mock.patch.object(Path, "write_text", retained),
+            self.assertRaises(KeyboardInterrupt) as failed,
+        ):
+            autobahn.run("smoke", self.repository, self.report_root)
+
+        self.assertIs(failed.exception, interruption)
+        self.assertEqual(len(self.processes.calls("rm")), 1)
+        self.assertEqual(list(self.report_root.glob("*/summary.json")), [])
+
+    def test_lone_log_retention_interrupt_preserves_original_identity(self) -> None:
+        interruption = KeyboardInterrupt("lone log interruption")
+        write_text = Path.write_text
+
+        def retained(path: Path, *args: object, **options: object) -> int:
+            if path.name == "container.log":
+                raise interruption
+            return write_text(path, *args, **options)
+
+        with (
+            mock.patch.object(Path, "write_text", retained),
+            self.assertRaises(KeyboardInterrupt) as failed,
+        ):
+            autobahn.run("smoke", self.repository, self.report_root)
+
+        self.assertIs(failed.exception, interruption)
+        self.assertEqual(len(self.processes.calls("rm")), 1)
+        self.assertIn("lone log interruption", " ".join(self.summary()["failures"]))
+
     def test_log_status_and_log_retention_failures_both_survive_removal(self) -> None:
         self.processes.log_status = 1
         write_text = Path.write_text
