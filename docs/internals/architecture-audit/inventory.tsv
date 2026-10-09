@@ -423,9 +423,9 @@ crates/phantom/examples/first_request.rs	crate	pending
 crates/phantom/examples/http3.rs	crate	pending	
 crates/phantom/examples/proxy.rs	crate	pending	
 crates/phantom/examples/quic_interop/main.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/main.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/main.rs
-crates/phantom/examples/quic_interop/partial_download.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs
+crates/phantom/examples/quic_interop/partial_download.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/partial_download.rs
 crates/phantom/examples/quic_interop/target.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs; new-tooling-source-pass-01-coverage.json#crates/phantom/examples/quic_interop/target.rs; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/target.rs
-crates/phantom/examples/quic_interop/tests.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs
+crates/phantom/examples/quic_interop/tests.rs	crate	source-complete	introduced source; review pending; a50-private-staging-independent-review.json#crates/phantom/examples/quic_interop/tests.rs; a50-two-owner-independent-review.json#crates/phantom/examples/quic_interop/tests.rs
 crates/phantom/examples/request_template.rs	crate	pending	
 crates/phantom/examples/sse.rs	crate	pending	
 crates/phantom/examples/websocket.rs	crate	pending	
@@ -516,16 +516,16 @@ crates/phantom/src/sse/event_source/request.rs	crate	source-complete	client-publ
 crates/phantom/src/sse/event_source/request/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/sse/event_source/request/tests.rs
 crates/phantom/src/sse/tests.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/sse/tests.rs
 crates/phantom/src/timeout.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/timeout.rs
-crates/phantom/src/websocket.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket.rs
-crates/phantom/src/websocket/compression.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/compression.rs
+crates/phantom/src/websocket.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket.rs; a55-production-independent-review.json#crates/phantom/src/websocket.rs
+crates/phantom/src/websocket/compression.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/compression.rs; a55-production-independent-review.json#crates/phantom/src/websocket/compression.rs
 crates/phantom/src/websocket/connection.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/connection.rs
 crates/phantom/src/websocket/error.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/error.rs
 crates/phantom/src/websocket/handshake.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/handshake.rs
 crates/phantom/src/websocket/handshake/response.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/handshake/response.rs
 crates/phantom/src/websocket/handshake/syntax.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/handshake/syntax.rs
-crates/phantom/src/websocket/http1.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http1.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http1.rs
-crates/phantom/src/websocket/http2.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http2.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http2.rs
-crates/phantom/src/websocket/http3.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/websocket/http3.rs; a49-independent-review.json#crates/phantom/src/websocket/http3.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http3.rs
+crates/phantom/src/websocket/http1.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http1.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http1.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http1.rs
+crates/phantom/src/websocket/http2.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/http2.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http2.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http2.rs
+crates/phantom/src/websocket/http3.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/websocket/http3.rs; a49-independent-review.json#crates/phantom/src/websocket/http3.rs; client-websocket-continuation-coverage.json#crates/phantom/src/websocket/http3.rs; a55-production-independent-review.json#crates/phantom/src/websocket/http3.rs
 crates/phantom/src/websocket/message.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/message.rs
 crates/phantom/src/websocket/retry.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/retry.rs
 crates/phantom/src/websocket/retry/tests.rs	crate	source-complete	client-websocket-continuation-coverage.json#crates/phantom/src/websocket/retry/tests.rs

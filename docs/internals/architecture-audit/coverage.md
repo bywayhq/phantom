@@ -284,8 +284,16 @@ retained. At `73a08ed8`, eighteen tests pass on Windows and Linux, including
 two owners competing for one output, actual HTTP/3 downloads, cancellation,
 and platform-specific cleanup or permission controls. The Linux example
 also compiles on Rust 1.88. Deliberate modification inside private staging
-and ancestor replacement remain outside its documented contract. The added
-two-owner test still needs independent review.
+and ancestor replacement remain outside its documented contract. The
+[two-owner review](a50-two-owner-independent-review.json) also approves
+the added portable control at `73a08ed8`. It exercises overlapping owners
+with sequential publication, rather than simultaneous scheduling stress.
+
+The [WebSocket bounds review](a55-production-independent-review.json)
+approves the authored remedy and composed source at `66d20201`. Six controls
+pass on Windows and Linux, and the Linux Rust 1.88 library check passes.
+The iterator control establishes bounded consumption. It does not measure
+allocation or bound arbitrary iterator implementations.
 
 The [version-server review](a54-production-independent-review.json) covers
 scratch ownership and close-finally across publication and cancellation.

@@ -56,12 +56,12 @@ No finding is resolved by an assignment or a proposed fix.
 | A47 | P2 | Conformance image arguments cannot execute shell syntax | Whitespace-only validation forwards shell substitutions into the pinned runner | Marker reproduction and 18 failed baseline subcases; corrected eight-method suite passes; independent review approved |
 | A48 | P2 | HPACK indexing arithmetic accepts legal peer limits | Three-quarter selection multiplies a peer u32 table limit in usize | Actual 32-bit debug panic and release mismatch; three corrected tests pass in debug and release; independent review and Windows/Linux vendor checks pass |
 | A49 | P2 | WebSocket compression negotiation follows HTTP grammar | Unicode trim accepts non-HTTP whitespace around parameters | Two intended baseline failures and seven passes; nine corrected tests pass; independent review and Windows/Linux vendor checks pass |
-| A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Private staging independently approved; eighteen tests pass on Windows and Linux; Linux Rust 1.88 check passes; added two-owner test review pending |
+| A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Private staging and added two-owner test independently approved; eighteen tests pass on Windows and Linux; Linux Rust 1.88 check passes |
 | A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Zero baseline reproduced; count controls and actual default/one-request peers pass; independent source review approved |
 | A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Baseline has seven failures across six methods; twenty corrected methods and composed conformance suite pass; independent review approved |
 | A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Source candidate; ownership design and bounded reproduction pending |
 | A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Repair independently approved; composed 51-method suite passes on Windows and Linux; actual loopback output and scratch controls pass |
-| A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent review pending |
+| A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent source review approved |
 | A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Signed baseline has seven passes and eight intended lifecycle failures; bounded process owner repair in progress |
 | A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Signed baseline has five passes and two intended failures; ownership and cleanup repair in progress |
 
@@ -617,8 +617,8 @@ Create-only hard-link publication refuses a competing output. At `73a08ed8`,
 eighteen tests pass on Windows and Linux, including actual HTTP/3 peers,
 two owners targeting one output, cancellation and platform-specific failure
 or permission controls. Linux Rust 1.88 compilation passes. Independent
-source review approves private staging; the added two-owner test review and
-final integration remain pending. The filesystem must support hard links.
+source review approves private staging and the added two-owner test. Final
+integration remains pending. The filesystem must support hard links.
 Deliberate mutation inside private staging and ancestor replacement are
 outside the documented ordinary-concurrency contract.
 

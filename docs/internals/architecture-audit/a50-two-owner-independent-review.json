@@ -1,0 +1,58 @@
+{
+  "verdict": "approve exact follow-up source; no actionable findings",
+  "revision": "73a08ed8c5c479a7346d59e6cc40a9f4271ac5dc",
+  "records": [
+    {
+      "path": "crates/phantom/examples/quic_interop/tests.rs",
+      "revision": "73a08ed8c5c479a7346d59e6cc40a9f4271ac5dc",
+      "git_blob": "0d5a685efded48dee13ed58e9337fb8343c42300",
+      "sha256": "1553e46f32e4bfed55fd9955c7254bc17e9c44b3ba5a1f618573bdb4f5b82ae1",
+      "ranges": [
+        [
+          726,
+          784
+        ]
+      ],
+      "scope": "full added two-owner test plus adjacent boundary"
+    },
+    {
+      "path": "crates/phantom/examples/quic_interop/partial_download.rs",
+      "revision": "73a08ed8c5c479a7346d59e6cc40a9f4271ac5dc",
+      "git_blob": "640301392d0f2818521357134ad724638642e737",
+      "sha256": "006365610336295587032d140001bd77311ee0d38eff3da81851b0fb2f45682b",
+      "ranges": [
+        [
+          65,
+          97
+        ],
+        [
+          165,
+          193
+        ]
+      ],
+      "scope": "six whitespace-only grouping hunks compared to parent"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a50-private-staging-two-owner-windows.log",
+      "sha256": "36284c0de4be8d85ff86330d089f47b4701e86b874cc8dda4a8a29e4a6ba8627",
+      "scope": "full retained log read; executed by integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a50-private-staging-two-owner-linux.log",
+      "sha256": "c71ebf9b3c3e2e395fb11fad44147f2ae37caa18a4f14830dfc699ffb0039300",
+      "scope": "full retained log read; executed by integration owner"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a50-private-staging-msrv-linux.log",
+      "sha256": "589153a877504b9c1b5cb0e4b7e74be9a31b85865a7007090cdaee77984594d7",
+      "scope": "full retained log read; executed by integration owner"
+    }
+  ],
+  "limitations": [
+    "Only the follow-up new test and whitespace changes are approved here; prior private-owner production approval remains a separate exact-source record.",
+    "Overlapping owners with deterministic sequential publication, not simultaneous scheduling stress or filesystem durability proof.",
+    "No reviewer execution; platform logs supplied and fully read."
+  ]
+}
