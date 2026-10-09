@@ -255,7 +255,7 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
     let settings = chromium::v154_http3();
     let response = timeout(
         TEST_TIMEOUT,
-        super::send_request(
+        super::send_with_config(
             address,
             TEST_SERVER_NAME,
             client,
@@ -265,6 +265,7 @@ async fn capture_backed_transport_profile_completes_a_request() -> TestResult<()
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             super::OriginForm::parse("/profiled")?,
             Vec::new(),
+            crate::http3::Http3SendOptions::default(),
         ),
     )
     .await
@@ -306,7 +307,7 @@ async fn bounded_qlog_completes_without_recording_request_headers() -> TestResul
 
     let response = timeout(
         TEST_TIMEOUT,
-        super::send_request_with_qlog(
+        super::send_with_config(
             address,
             TEST_SERVER_NAME,
             client,
@@ -316,7 +317,12 @@ async fn bounded_qlog_completes_without_recording_request_headers() -> TestResul
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             super::OriginForm::parse("/qlog")?,
             vec![super::RequestHeader::new("x-phantom-secret", SECRET)],
-            capture.clone(),
+            crate::http3::Http3SendOptions {
+                body: None,
+                trailers: Vec::new(),
+                #[cfg(feature = "qlog")]
+                qlog: Some(capture.clone()),
+            },
         ),
     )
     .await

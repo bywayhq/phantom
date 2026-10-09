@@ -36,6 +36,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and request authorities separate. Connection-based HTTP/2 and HTTP/3
   WebSocket operations remain available.
 
+- Remove endpoint-only HTTP CONNECT and SOCKS5 helpers and HTTPS forwarding
+  setup methods from `phantom-net`'s public API. Migrate: use protocol
+  connector operations with `TcpRoute::HttpConnect` or `TcpRoute::Socks5`,
+  or `Http2Route::Forward`. `connect_http_tunnel` remains available for a
+  CONNECT exchange over a supplied proxy stream.
+- Replace the six raw HTTP/3 one-shot helpers with `send_with_config`.
+  Migrate: pass the method explicitly, then supply body, ordered trailers,
+  and optional bounded qlog capture through `Http3SendOptions`. For routing
+  from profiles, use `Http3Connector::send`.
+
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.
   `Http2Connection::idle_time_left` is new, and `is_reusable` returns

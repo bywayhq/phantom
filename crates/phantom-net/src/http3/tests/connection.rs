@@ -134,6 +134,64 @@ async fn static_trailers_follow_data_and_support_trailer_only_requests() -> Test
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn raw_custom_config_send_emits_body_and_duplicate_trailers() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut stream) = accept_stream(&mut connection).await?;
+        assert_eq!(request.method(), http::Method::POST);
+        assert_eq!(request.uri().path(), "/raw-trailers");
+        assert_eq!(
+            collect_request_body(&mut stream).await?,
+            b"payload".as_slice()
+        );
+        let trailers = stream.recv_trailers().await?.ok_or("trailers missing")?;
+        assert_eq!(
+            trailers
+                .get_all("x-repeat")
+                .iter()
+                .map(HeaderValue::as_bytes)
+                .collect::<Vec<_>>(),
+            [b"alpha".as_slice(), b"beta".as_slice()],
+        );
+        send_response(&mut stream, "accepted").await?;
+        let _ = done_received.await;
+        Ok(())
+    });
+    let response = timeout(
+        TEST_TIMEOUT,
+        crate::http3::send_with_config(
+            address,
+            TEST_SERVER_NAME,
+            client,
+            &test_settings(),
+            &phantom_profile::chromium::v154_http3_request(),
+            http::Method::POST,
+            TEST_SERVER_NAME,
+            crate::http3::OriginForm::parse("/raw-trailers")?,
+            Vec::new(),
+            crate::http3::Http3SendOptions {
+                body: Some(Bytes::from_static(b"payload")),
+                trailers: vec![
+                    RequestHeader::new("x-repeat", "alpha"),
+                    RequestHeader::new("x-repeat", "beta"),
+                ],
+                #[cfg(feature = "qlog")]
+                qlog: None,
+            },
+        ),
+    )
+    .await
+    .map_err(|_| "raw HTTP/3 upload timed out")??;
+    assert_eq!(collect_body(response.into_body()).await?, "accepted");
+    let _ = client_done.send(());
+    join_server(server).await
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn body_produced_trailers_follow_the_declared_order_and_sensitivity() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = client_config(&identity)?;

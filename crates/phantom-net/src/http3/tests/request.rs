@@ -8,7 +8,7 @@ use std::{
 
 use bytes::{Buf, Bytes, BytesMut};
 use h3::ext::{OrderedHeaders, RequestPseudoHeader, RequestPseudoHeaderOrder};
-use http::{HeaderValue, Request, Response, StatusCode};
+use http::{HeaderValue, Method, Request, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use phantom_profile::{
     Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding,
@@ -131,15 +131,17 @@ async fn chrome_request_matches_captured_qpack_on_a_live_connection() -> TestRes
 
     let response = timeout(
         TEST_TIMEOUT,
-        crate::http3::send_get(
+        crate::http3::send_with_config(
             address,
             TEST_SERVER_NAME,
             client,
             &chromium::v154_http3(),
             &chromium::v154_http3_request(),
+            Method::GET,
             &authority,
             target,
             headers,
+            crate::http3::Http3SendOptions::default(),
         ),
     )
     .await
@@ -722,20 +724,78 @@ fn ordered_get_rejects_invalid_input_before_network_setup() -> TestResult<()> {
     Ok(())
 }
 
+#[test]
+fn raw_send_rejects_trailers_before_runtime_or_capture_attachment() -> TestResult<()> {
+    use std::future::Future as _;
+
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let settings = chromium::v154_http3();
+    let request_settings = chromium::v154_http3_request();
+    #[cfg(feature = "qlog")]
+    let capture = crate::http3::QlogCapture::new(
+        std::num::NonZeroUsize::new(4096).ok_or("capture bound must be nonzero")?,
+    );
+    let options = crate::http3::Http3SendOptions {
+        body: Some(Bytes::from_static(b"payload")),
+        trailers: vec![RequestHeader::new("content-length", "7")],
+        #[cfg(feature = "qlog")]
+        qlog: Some(capture.clone()),
+    };
+    let mut send = std::pin::pin!(crate::http3::send_with_config(
+        "127.0.0.1:9".parse()?,
+        TEST_SERVER_NAME,
+        client,
+        &settings,
+        &request_settings,
+        Method::POST,
+        TEST_SERVER_NAME,
+        OriginForm::parse("/trailers")?,
+        Vec::new(),
+        options,
+    ));
+    let mut context = Context::from_waker(std::task::Waker::noop());
+    match send.as_mut().poll(&mut context) {
+        Poll::Ready(Err(error)) => assert_eq!(error.kind(), Http3ErrorKind::Request),
+        _ => return Err("invalid trailers reached runtime setup".into()),
+    }
+    #[cfg(feature = "qlog")]
+    drop(capture.attach()?);
+    Ok(())
+}
+
+#[test]
+fn raw_send_options_debug_omits_body_and_trailer_values() {
+    let options = crate::http3::Http3SendOptions {
+        body: Some(Bytes::from_static(b"private-upload")),
+        trailers: vec![RequestHeader::new("x-private-name", "private-token")],
+        #[cfg(feature = "qlog")]
+        qlog: None,
+    };
+    let debug = format!("{options:?}");
+    for secret in ["private-upload", "x-private-name", "private-token"] {
+        assert!(!debug.contains(secret));
+    }
+    assert!(debug.contains("body_bytes: Some(14)"));
+    assert!(debug.contains("trailer_count: 1"));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn invalid_ordered_get_is_traced_before_connecting() -> TestResult<()> {
     OutcomeSubscriber::install_dynamic_callsite_fallback();
     let identity = TestIdentity::generate()?;
     let subscriber = OutcomeSubscriber::default();
-    let result = crate::http3::send_get(
+    let result = crate::http3::send_with_config(
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
         client_config(&identity)?,
         &chromium::v154_http3(),
         &chromium::v154_http3_request(),
+        Method::GET,
         "user@server.phantom.test",
         OriginForm::parse("/")?,
         Vec::new(),
+        crate::http3::Http3SendOptions::default(),
     )
     .with_subscriber(subscriber.dispatch())
     .await;
@@ -768,15 +828,17 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
     invalid_request_settings.pseudo_header_order[3] = Http3PseudoHeader::Method;
 
     let error = expected_http3_error(
-        crate::http3::send_get(
+        crate::http3::send_with_config(
             "127.0.0.1:9".parse()?,
             TEST_SERVER_NAME,
             Arc::clone(&client),
             &invalid_settings,
             &invalid_request_settings,
+            Method::GET,
             "user@server.phantom.test",
             OriginForm::parse("/")?,
             Vec::new(),
+            crate::http3::Http3SendOptions::default(),
         )
         .await,
         "mixed-invalid ordered request unexpectedly reached the network",
@@ -784,7 +846,7 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
     assert_eq!(error.kind(), Http3ErrorKind::Request);
 
     let error = expected_http3_error(
-        crate::http3::send_request_with_body(
+        crate::http3::send_with_config(
             "127.0.0.1:9".parse()?,
             TEST_SERVER_NAME,
             client,
@@ -794,7 +856,12 @@ async fn request_errors_precede_profile_errors() -> TestResult<()> {
             "server.phantom.test",
             OriginForm::parse("/")?,
             vec![RequestHeader::new("content-length", "3")],
-            Some(Bytes::from_static(b"body")),
+            crate::http3::Http3SendOptions {
+                body: Some(Bytes::from_static(b"body")),
+                trailers: Vec::new(),
+                #[cfg(feature = "qlog")]
+                qlog: None,
+            },
         )
         .await,
         "mixed-invalid request with a body unexpectedly reached the network",
@@ -837,12 +904,13 @@ async fn ordered_get_completes_with_duplicate_fields() -> TestResult<()> {
     let request_settings = chromium::v154_http3_request();
     let response = timeout(
         TEST_TIMEOUT,
-        crate::http3::send_get(
+        crate::http3::send_with_config(
             address,
             TEST_SERVER_NAME,
             client,
             &settings,
             &request_settings,
+            Method::GET,
             &format!("{TEST_SERVER_NAME}:{}", address.port()),
             OriginForm::parse("/ordered")?,
             vec![
@@ -850,6 +918,7 @@ async fn ordered_get_completes_with_duplicate_fields() -> TestResult<()> {
                 RequestHeader::new("x-middle", "between"),
                 RequestHeader::new("x-repeat", "beta"),
             ],
+            crate::http3::Http3SendOptions::default(),
         ),
     )
     .await
@@ -904,7 +973,7 @@ async fn one_shot_request_with_body_uses_the_ordered_profile_path() -> TestResul
 
     let response = timeout(
         TEST_TIMEOUT,
-        crate::http3::send_request_with_body(
+        crate::http3::send_with_config(
             address,
             TEST_SERVER_NAME,
             client,
@@ -918,7 +987,12 @@ async fn one_shot_request_with_body_uses_the_ordered_profile_path() -> TestResul
                 RequestHeader::new("x-middle", "between"),
                 RequestHeader::new("x-repeat", "beta"),
             ],
-            Some(Bytes::from_static(b"body")),
+            crate::http3::Http3SendOptions {
+                body: Some(Bytes::from_static(b"body")),
+                trailers: Vec::new(),
+                #[cfg(feature = "qlog")]
+                qlog: None,
+            },
         ),
     )
     .await

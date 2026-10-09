@@ -61,37 +61,89 @@ const H3_SETTINGS_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0109);
 /// Matches the HTTP CONNECT proxy's bound on interim responses per request.
 const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
-/// Sends one empty-body HTTP/3 GET over a new direct QUIC connection.
+/// Body, trailers, and diagnostics for one raw HTTP/3 request.
 ///
-/// The profile, authority, target, and complete ordered header list are
-/// validated before the UDP endpoint is created. Ordinary header order and
-/// duplicate positions are emitted exactly as supplied.
+/// Start with [`Self::default`] and set the fields needed for this call.
+/// These choices do not change the supplied QUIC or HTTP/3 profile.
+#[derive(Default)]
+#[non_exhaustive]
+pub struct Http3SendOptions {
+    /// An optional owned request body.
+    pub body: Option<Bytes>,
+    /// Static trailers in their exact wire order, including duplicates.
+    pub trailers: Vec<RequestHeader>,
+    /// A bounded, single-use capture of this connection's QUIC metadata.
+    ///
+    /// Request headers and payloads are not included. Reusing a capture
+    /// fails with [`QlogCaptureError::AlreadyAttached`] through the error's
+    /// source chain.
+    #[cfg(feature = "qlog")]
+    pub qlog: Option<QlogCapture>,
+}
+
+impl std::fmt::Debug for Http3SendOptions {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug = formatter.debug_struct("Http3SendOptions");
+        debug
+            .field("body_bytes", &self.body.as_ref().map(Bytes::len))
+            .field("trailer_count", &self.trailers.len());
+        #[cfg(feature = "qlog")]
+        debug.field("qlog", &self.qlog.is_some());
+        debug.finish()
+    }
+}
+
+/// Sends one request using a caller-supplied QUIC crypto configuration.
+///
+/// Use [`Http3Connector::send`] for profile-based routing. This lower-level
+/// operation opens one direct connection to `remote`, using `server_name`
+/// for origin TLS and the supplied configuration for certificate checking.
+/// It never falls back to another route or protocol.
+///
+/// Request pseudo-header order comes from `request_settings`. Header and
+/// trailer order and duplicates are preserved. Validation completes before
+/// a UDP endpoint is created. The connection is owned by the returned body.
+///
+/// # Errors
+///
+/// Returns a typed error for invalid request or profile settings, an
+/// unavailable runtime, connection failure, or request failure. With qlog,
+/// a capture that was already attached is a configuration error.
 #[allow(clippy::too_many_arguments)]
-pub async fn send_get(
+pub async fn send_with_config(
     remote: SocketAddr,
     server_name: &str,
     crypto: Arc<QuicClientConfig>,
     settings: &Http3Settings,
     request_settings: &Http3RequestSettings,
+    method: Method,
     authority: &str,
     target: OriginForm,
     headers: Vec<RequestHeader>,
+    options: Http3SendOptions,
 ) -> Result<Response<Http3Body>, Http3Error> {
-    let request = prepare_traced_request(
+    let request = prepare_traced_request_body_with_trailers(
         request_settings,
-        Method::GET,
+        method,
         authority,
         target,
         headers,
-        None,
+        options.body.map(crate::request::RequestBody::from_bytes),
+        options.trailers,
     )?;
+    #[cfg_attr(not(feature = "qlog"), expect(clippy::needless_update))]
+    let connection_options = ConnectionOptions {
+        #[cfg(feature = "qlog")]
+        qlog: options.qlog,
+        ..Default::default()
+    };
     send_prepared_request(
         remote,
         server_name,
         crypto,
         settings,
         request,
-        ConnectionOptions::default(),
+        connection_options,
     )
     .await
 }
@@ -178,185 +230,6 @@ fn prepare_traced_request_body_with_trailers(
         }
     }
     request
-}
-
-/// Sends one empty-body request over a new direct QUIC and HTTP/3 connection.
-///
-/// The caller supplies a certificate-verifying BoringSSL-backed QUIC
-/// configuration. Pseudo-header order comes from `request_settings`, and
-/// ordinary header order and duplicate positions are emitted exactly as
-/// supplied. This path uses UDP only and never falls back to HTTP/2,
-/// HTTP/1.1, or TCP. Profile and request validation complete before any
-/// network I/O.
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request(
-    remote: SocketAddr,
-    server_name: &str,
-    crypto: Arc<QuicClientConfig>,
-    settings: &Http3Settings,
-    request_settings: &Http3RequestSettings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-) -> Result<Response<Http3Body>, Http3Error> {
-    send_request_with_body(
-        remote,
-        server_name,
-        crypto,
-        settings,
-        request_settings,
-        method,
-        authority,
-        target,
-        headers,
-        None,
-    )
-    .await
-}
-
-/// Sends one request with an optional owned body over a new direct QUIC and
-/// HTTP/3 connection.
-///
-/// Ordering, transport, and validation match [`send_request`]. A nonempty
-/// body without a supplied `content-length` receives one after the supplied
-/// headers.
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_with_body(
-    remote: SocketAddr,
-    server_name: &str,
-    crypto: Arc<QuicClientConfig>,
-    settings: &Http3Settings,
-    request_settings: &Http3RequestSettings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-) -> Result<Response<Http3Body>, Http3Error> {
-    let request =
-        prepare_traced_request(request_settings, method, authority, target, headers, body)?;
-    send_prepared_request(
-        remote,
-        server_name,
-        crypto,
-        settings,
-        request,
-        ConnectionOptions::default(),
-    )
-    .await
-}
-
-/// Sends one request with an optional owned body and exact ordered static trailers.
-///
-/// Ordering and validation match [`send_request_with_body`]. Trailer fields
-/// are validated before the UDP endpoint is created. Duplicate fields,
-/// cross-name order, and sensitivity markers are preserved.
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_with_body_and_trailers(
-    remote: SocketAddr,
-    server_name: &str,
-    crypto: Arc<QuicClientConfig>,
-    settings: &Http3Settings,
-    request_settings: &Http3RequestSettings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-    trailers: Vec<RequestHeader>,
-) -> Result<Response<Http3Body>, Http3Error> {
-    let request = prepare_traced_request_body_with_trailers(
-        request_settings,
-        method,
-        authority,
-        target,
-        headers,
-        body.map(crate::request::RequestBody::from_bytes),
-        trailers,
-    )?;
-    send_prepared_request(
-        remote,
-        server_name,
-        crypto,
-        settings,
-        request,
-        ConnectionOptions::default(),
-    )
-    .await
-}
-
-/// Sends one empty-body request over a new direct QUIC connection while
-/// capturing bounded qlog output.
-///
-/// Ordering and validation match [`send_request`]. The capture is single-use
-/// and records only Quinn's QUIC metadata. Request headers and payloads are
-/// not added to the qlog output.
-#[cfg(feature = "qlog")]
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_with_qlog(
-    remote: SocketAddr,
-    server_name: &str,
-    crypto: Arc<QuicClientConfig>,
-    settings: &Http3Settings,
-    request_settings: &Http3RequestSettings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    capture: QlogCapture,
-) -> Result<Response<Http3Body>, Http3Error> {
-    send_request_with_body_and_qlog(
-        remote,
-        server_name,
-        crypto,
-        settings,
-        request_settings,
-        method,
-        authority,
-        target,
-        headers,
-        None,
-        capture,
-    )
-    .await
-}
-
-/// Sends one request with an optional owned body over a new direct QUIC
-/// connection while capturing bounded qlog output.
-///
-/// Ordering and validation match [`send_request_with_body`]. The capture is
-/// single-use and records only Quinn's QUIC metadata. Request headers and
-/// payloads are not added to the qlog output.
-#[cfg(feature = "qlog")]
-#[allow(clippy::too_many_arguments)]
-pub async fn send_request_with_body_and_qlog(
-    remote: SocketAddr,
-    server_name: &str,
-    crypto: Arc<QuicClientConfig>,
-    settings: &Http3Settings,
-    request_settings: &Http3RequestSettings,
-    method: Method,
-    authority: &str,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-    capture: QlogCapture,
-) -> Result<Response<Http3Body>, Http3Error> {
-    let request =
-        prepare_traced_request(request_settings, method, authority, target, headers, body)?;
-    send_prepared_request(
-        remote,
-        server_name,
-        crypto,
-        settings,
-        request,
-        ConnectionOptions {
-            qlog: Some(capture),
-            ..Default::default()
-        },
-    )
-    .await
 }
 
 async fn send_prepared_request(

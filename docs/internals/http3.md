@@ -103,10 +103,10 @@ vendored `h3` builder applies both through `qpack_decoder_stream_first` and
 
 ## Request streams
 
-The one-shot `phantom_net::http3::send_request*` functions take
-`Http3RequestSettings` with ordered `RequestHeader` input. They share
-preparation with pooled requests, so their pseudo-header and field order
-always come from the profile.
+`Http3Connector::send` accepts a datagram route and ordered request input.
+The low-level `send_with_config` accepts a caller-supplied QUIC configuration
+and per-call body, trailers, and bounded qlog capture. Both share preparation
+with pooled requests. Pseudo-header and field order come from the profile.
 
 A final response may arrive before the request body has been sent. The upload
 then continues alongside the response body (RFC 9114 section 4.1).

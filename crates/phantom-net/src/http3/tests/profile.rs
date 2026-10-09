@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use http::Request;
+use http::{Method, Request};
 use phantom_profile::{
     Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
     Http3Setting, Http3SettingOrder, Http3Settings, chromium,
@@ -51,15 +51,17 @@ async fn rejects_invalid_pseudo_layout_before_connecting() -> TestResult<()> {
     let settings = chromium::v154_http3();
     let mut request_settings = chromium::v154_http3_request();
     request_settings.pseudo_header_order[3] = phantom_profile::Http3PseudoHeader::Method;
-    let result = super::super::send_get(
+    let result = super::super::send_with_config(
         "127.0.0.1:9".parse()?,
         TEST_SERVER_NAME,
         client_config(&identity)?,
         &settings,
         &request_settings,
+        Method::GET,
         TEST_SERVER_NAME,
         super::super::OriginForm::parse("/")?,
         Vec::new(),
+        crate::http3::Http3SendOptions::default(),
     )
     .await;
     let error = match result {
