@@ -241,7 +241,6 @@ impl RequestBody {
     ///
     /// Trailer frames fail with [`RequestBodyErrorKind::TrailersUnsupported`].
     /// Use [`Self::streaming_with_trailers`] to declare body-produced trailers.
-    #[must_use]
     pub fn streaming<B>(body: B) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,
@@ -267,7 +266,6 @@ impl RequestBody {
     /// lowercase names. The body-produced trailer map must contain exactly the
     /// declared normalized names and multiplicities. An empty list does not
     /// enable trailer frames.
-    #[must_use]
     pub fn streaming_with_trailers<B>(body: B, trailer_names: Vec<RequestTrailerName>) -> Self
     where
         B: Body<Data = Bytes> + Send + 'static,
@@ -279,7 +277,6 @@ impl RequestBody {
     }
 
     /// Wraps one complete replayable byte body for a transport attempt.
-    #[must_use]
     pub fn from_bytes(body: Bytes) -> Self {
         Self::streaming(http_body_util::Full::new(body))
     }
@@ -299,7 +296,6 @@ impl RequestBody {
     /// `Expect` takes its place instead and must be the only one, with the
     /// value `100-continue`; otherwise preparing the request fails with an
     /// invalid-header error before any I/O, on every protocol.
-    #[must_use]
     pub fn expect_continue(mut self, wait: Duration) -> Self {
         self.continue_wait = Some(wait);
         self

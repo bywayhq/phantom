@@ -30,9 +30,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Stream for T {}
 /// use tokio::net::TcpStream;
 ///
 /// # async fn request() -> Result<(), Box<dyn std::error::Error>> {
-/// let tls = chrome::v154_tcp_tls()
+/// let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?
 ///     .with_alpn_protocols(&[Box::from(&b"http/1.1"[..])])?;
-/// let connector = Http1TlsConnector::new(&tls)?;
 /// let socket = TcpStream::connect("example.com:80").await?;
 /// let route = Http1Route::Origin(OriginRoute::Plaintext {
 ///     tcp: TcpRoute::Connected(ConnectedStream::new(socket)),
