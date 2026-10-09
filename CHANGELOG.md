@@ -2426,6 +2426,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Enforce the total request deadline when reading buffered response data.
+  A ready body frame still satisfies the read-idle limit.
+
 - HTTP/1.1 setup through an HTTPS proxy no longer exceeds the pinned
   nightly compiler's `Send` proof depth on Windows.
 - An HTTP/3 request cancelled while its HEADERS frame waited for flow

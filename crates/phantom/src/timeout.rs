@@ -588,11 +588,14 @@ impl ResponseTimeouts {
     }
 
     pub(crate) fn poll_expired(&mut self, context: &mut Context<'_>) -> Poll<RequestError> {
-        if let Some(timer) = self.total.as_mut() {
+        if let Poll::Ready(error) = self.poll_total_expired(context) {
+            return Poll::Ready(error);
+        }
+        if let Some(timer) = self.idle.as_mut() {
             match timer.poll_expired(context) {
                 Poll::Ready(Ok(())) => {
                     return Poll::Ready(RequestError::timeout(
-                        TimeoutPhase::Total,
+                        TimeoutPhase::ReadIdle,
                         Some(self.protocol),
                     ));
                 }
@@ -600,11 +603,15 @@ impl ResponseTimeouts {
                 Poll::Pending => {}
             }
         }
-        if let Some(timer) = self.idle.as_mut() {
+        Poll::Pending
+    }
+
+    pub(crate) fn poll_total_expired(&mut self, context: &mut Context<'_>) -> Poll<RequestError> {
+        if let Some(timer) = self.total.as_mut() {
             match timer.poll_expired(context) {
                 Poll::Ready(Ok(())) => {
                     return Poll::Ready(RequestError::timeout(
-                        TimeoutPhase::ReadIdle,
+                        TimeoutPhase::Total,
                         Some(self.protocol),
                     ));
                 }
