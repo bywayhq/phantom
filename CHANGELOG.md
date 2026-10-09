@@ -1027,6 +1027,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- `QuicTransportProfileError::kind()` distinguishes invalid settings from
+  entropy failures through `QuicTransportProfileErrorKind`.
+
 - Fill declared template caller slots through `RequestBuilder::fill_slots`.
   The preparation hook runs once, preserves template field positions, and
   cannot insert an undeclared field. Later protocol and redirect changes

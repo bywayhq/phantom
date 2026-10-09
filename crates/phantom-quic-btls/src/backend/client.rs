@@ -61,7 +61,7 @@ const H3_PROTOCOL: &[u8] = b"h3";
 /// use phantom_quic_btls::QuicClientConfig;
 /// use quinn_proto::{ClientConfig, EndpointConfig, TransportConfig};
 ///
-/// let mut context = SslContextBuilder::new(SslMethod::tls_client())?;
+/// let mut context = SslContextBuilder::new(SslMethod::tls())?;
 /// context.set_verify(SslVerifyMode::PEER);
 /// context.set_default_verify_paths()?;
 /// context.set_min_proto_version(Some(SslVersion::TLS1_3))?;
