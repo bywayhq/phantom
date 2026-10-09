@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.capture import run_matrix
 from scripts.capture.browser_launch import FIREFOX_START_LIMIT_SECONDS
 from scripts.capture.process_container import ProcessContainer
 from scripts.capture.run_matrix import (
@@ -506,6 +507,177 @@ class ScheduleTests(unittest.TestCase):
         ]
 
         self.assertEqual([j.id for j in order_jobs(jobs)], ["long", "short", "alone"])
+
+
+class CleanupFailureTests(unittest.TestCase):
+    def test_stop_cleans_every_attempt_after_one_cleanup_failure(self) -> None:
+        for operation in ["close", "sweep"]:
+            with self.subTest(operation=operation):
+                attempts = Attempts()
+                first, second = mock.Mock(), mock.Mock()
+                attempts.add("first", first, Path("owned-first"))
+                attempts.add("second", second, Path("owned-second"))
+                if operation == "close":
+                    first.close.side_effect = OSError("job close failed")
+                sweep_error = OSError("profile discovery failed")
+                with (
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=[sweep_error, None]
+                        if operation == "sweep"
+                        else None,
+                    ) as sweep,
+                    self.assertRaises(Exception) as raised,
+                ):
+                    attempts.stop()
+
+                self.assertTrue(attempts.stopped.is_set())
+                self.assertEqual(first.close.call_count, 1)
+                self.assertEqual(second.close.call_count, 1)
+                self.assertEqual(
+                    [call.args[0] for call in sweep.call_args_list],
+                    [Path("owned-first"), Path("owned-second")],
+                )
+                self.assertIn("first", str(raised.exception))
+                self.assertIn(
+                    "job close failed"
+                    if operation == "close"
+                    else "profile discovery failed",
+                    str(raised.exception),
+                )
+
+    def test_interrupt_cleanup_failure_still_joins_workers_and_returns_results(
+        self,
+    ) -> None:
+        release = threading.Event()
+        finished = threading.Event()
+        stopped = threading.Event()
+        join = threading.Thread.join
+        interrupted = False
+        joins = []
+        owned_threads = []
+
+        def run(item: Job) -> JobResult:
+            release.wait(10)
+            finished.set()
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def interrupt_join(thread, *args, **kwargs):
+            nonlocal interrupted
+            owned_threads.append(thread)
+            if not interrupted:
+                interrupted = True
+                raise KeyboardInterrupt
+            joins.append(thread)
+            return join(thread, *args, **kwargs)
+
+        def cleanup() -> None:
+            stopped.set()
+            release.set()
+            raise OSError("profile discovery failed")
+
+        try:
+            with mock.patch.object(threading.Thread, "join", interrupt_join):
+                results = schedule(
+                    [job("running")],
+                    run,
+                    limit=1,
+                    stopped=stopped,
+                    on_interrupt=cleanup,
+                )
+        finally:
+            release.set()
+            for thread in owned_threads:
+                join(thread, 10)
+
+        self.assertTrue(finished.is_set())
+        self.assertTrue(joins)
+        self.assertEqual(results[0].status, "failed")
+        self.assertIn("cleanup", results[0].attempts[-1].detail)
+        self.assertIn("profile discovery failed", results[0].attempts[-1].detail)
+
+    def test_main_writes_summary_and_results_after_interrupt_cleanup_failure(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text("{}")
+            output_path = root / "results.json"
+            release = threading.Event()
+            join = threading.Thread.join
+            interrupted = False
+            joins = []
+            owned_threads = []
+            attempts = Attempts()
+            finished = threading.Event()
+            registered = threading.Event()
+            container = mock.Mock()
+            container.close.side_effect = release.set
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+
+            def attempt(_job, _number, _work, **kwargs):
+                attempts.add("owned-attempt", container, root / "owned")
+                registered.set()
+                release.wait(10)
+                finished.set()
+                return Attempt(False, 0.1, "stopped")
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    # The worker registers ownership before this checkpoint.
+                    self.assertTrue(registered.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                joins.append(thread)
+                return join(thread, *args, **kwargs)
+
+            output = io.StringIO()
+            try:
+                with (
+                    mock.patch.object(
+                        run_matrix, "expand_manifest", return_value=[item]
+                    ),
+                    mock.patch.object(run_matrix, "Attempts", return_value=attempts),
+                    mock.patch.object(run_matrix, "run_attempt", side_effect=attempt),
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=OSError("profile discovery failed"),
+                    ),
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    contextlib.redirect_stdout(output),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    status = main(
+                        [
+                            str(manifest_path),
+                            "--work-dir",
+                            str(root / "work"),
+                            "--results",
+                            str(output_path),
+                        ]
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual(status, 130)
+            self.assertTrue(finished.is_set())
+            self.assertTrue(joins)
+            self.assertIn("failed", output.getvalue())
+            document = json.loads(output_path.read_text())
+            self.assertTrue(document["interrupted"])
+            self.assertEqual(document["jobs"][0]["status"], "failed")
+            detail = document["jobs"][0]["attempts"][-1]["detail"]
+            self.assertIn("cleanup", detail)
+            self.assertIn("profile discovery failed", detail)
 
 
 class RetryTests(unittest.TestCase):
