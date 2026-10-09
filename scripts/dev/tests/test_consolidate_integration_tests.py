@@ -207,7 +207,7 @@ class ConsolidateTests(CrateTestCase):
             "crates/demo/Cargo.toml",
             manifest
             + group_target
-            + '\n[[test]]\nname = "late"\nrequired-features = ["extra"]\n',
+            + '\n[[test]]\nname = "late"\nrequired-features = [\n    "extra",\n] # late feature\n',
         )
         self.run_git("add", ".")
         groups = {
@@ -228,6 +228,50 @@ class ConsolidateTests(CrateTestCase):
 
 
 class RefusalTests(CrateTestCase):
+    def test_unsupported_late_target_syntax_stops_before_any_mutation(self) -> None:
+        self.consolidate()
+        manifest = self.read("crates/demo/Cargo.toml").replace(
+            'name = "demo"', 'name = "demo"\nautotests = false'
+        )
+        manifest += '\n[[test]]\nname = "only"\npath = "tests/only/main.rs"\n'
+        self.write("crates/demo/tests/late.rs", "#[test]\nfn runs() {}\n")
+        self.run_git("add", ".")
+        groups = {
+            "crates/demo": {"only": ("the demo crate", ["gated", "late", "plain"])}
+        }
+        cases = {
+            "quoted harness": 'name = "late"\n"harness" = false\n',
+            "quoted feature key": 'name = "late"\n"required-features" = ["extra"]\n',
+            "single-quoted feature": "name = \"late\"\nrequired-features = ['extra']\n",
+            "single-quoted path": "name = \"late\"\npath = 'tests/late.rs'\n",
+            "quoted name key": '"name" = "late"\n',
+            "quoted table name": '[["test"]]\nname = "late"\nrequired-features = ["extra"]\n',
+            "table header comment": '[[test]] # late target\nname = "late"\nrequired-features = ["extra"]\n',
+            "duplicate feature key": 'name = "late"\nrequired-features = ["extra"]\nrequired-features = ["more"]\n',
+        }
+        with mock.patch.object(consolidator, "GROUPS", groups):
+            for name, settings in cases.items():
+                with self.subTest(case=name):
+                    table = (
+                        settings
+                        if settings.startswith("[[")
+                        else "[[test]]\n" + settings
+                    )
+                    self.write("crates/demo/Cargo.toml", manifest + "\n" + table)
+                    before = {
+                        path: path.read_bytes()
+                        for path in self.crate.rglob("*")
+                        if path.is_file()
+                    }
+                    with self.assertRaises(SystemExit):
+                        self.consolidate()
+                    after = {
+                        path: path.read_bytes()
+                        for path in self.crate.rglob("*")
+                        if path.is_file()
+                    }
+                    self.assertEqual(after, before)
+
     def test_incompatible_explicit_group_targets_stop_before_moving_files(self) -> None:
         manifest = MANIFEST.replace('name = "demo"', 'name = "demo"\nautotests = false')
         group_target = '\n[[test]]\nname = "only"\npath = "tests/only/main.rs"\n'

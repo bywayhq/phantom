@@ -367,6 +367,13 @@ def target_gates(manifest: Path, stems: set[str], groups: set[str]) -> dict[str,
     standard target path without additional settings.
     """
     text = read(manifest)
+    for header in re.finditer(
+        r"""^[ \t]*\[\[[ \t]*(?:test|"test"|'test')[ \t]*\]\][^\n]*(?:\n|$)""",
+        text,
+        re.M,
+    ):
+        if not re.fullmatch(r"\[\[test\]\][ \t]*\n", header[0]):
+            fail(f"{manifest}: an explicit test target uses unsupported table syntax")
     if re.search(r"^[ \t]*autotests[ \t]*=[ \t]*false", text, re.M):
         explicit_groups: set[str] = set()
         for table in TEST_TABLE.finditer(text):
@@ -404,15 +411,36 @@ def target_gates(manifest: Path, stems: set[str], groups: set[str]) -> dict[str,
             )
     gates: dict[str, str] = {}
     moving = []
+    moving_names: set[str] = set()
+    feature_list = r'\[\s*(?:"[^"\\\n]+"(?:\s*,\s*"[^"\\\n]+")*\s*,?)?\s*\]'
+    supported_settings = (
+        r'(?:[ \t]*(?:#.*)?\n|[ \t]*(?:name|path)[ \t]*=[ \t]*"[^"\\\n]*"'
+        r"[ \t]*(?:#.*)?\n|[ \t]*required-features[ \t]*=[ \t]*"
+        + feature_list
+        + r"[ \t]*(?:#.*)?\n)*"
+    )
     for table in TEST_TABLE.finditer(text):
         body = table.group(0)
         name = re.search(r'^[ \t]*name[ \t]*=[ \t]*"(?P<name>[^"]+)"', body, re.M)
-        if name is None or name["name"] not in stems:
+        if name is None:
+            fail(f"{manifest}: an explicit test target has no supported name")
+        if name["name"] not in stems:
             continue
         stem = name["name"]
+        if stem in moving_names:
+            fail(f"{manifest}: test `{stem}` has duplicate targets")
+        moving_names.add(stem)
+        keys = []
         for key in TABLE_KEY.finditer(body):
+            keys.append(key["key"])
             if key["key"] not in {"name", "path", "required-features"}:
                 fail(f"{manifest}: test `{stem}` sets `{key['key']}`; move it by hand")
+        if len(keys) != len(set(keys)) or not re.fullmatch(
+            supported_settings, body.split("\n", 1)[1]
+        ):
+            fail(
+                f"{manifest}: test `{stem}` uses unsupported settings syntax; move it by hand"
+            )
         path = re.search(r'^[ \t]*path[ \t]*=[ \t]*"(?P<path>[^"]+)"', body, re.M)
         if path and path["path"] != f"tests/{stem}.rs":
             fail(f"{manifest}: test `{stem}` has path {path['path']}; move it by hand")
