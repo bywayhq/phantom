@@ -129,41 +129,44 @@ class ReportingProtocol(QuicConnectionProtocol):
 
 
 async def run(args: argparse.Namespace) -> None:
-    directory = Path(tempfile.mkdtemp(prefix="phantom-aioquic-versions-"))
-    certificate = generate_loopback_certificate(directory)
-    args.root.write_bytes(certificate.root_der.read_bytes())
-    configuration = QuicConfiguration(
-        is_client=False,
-        alpn_protocols=H3_ALPN,
-        max_datagram_frame_size=65_536,
-    )
-    configuration.load_cert_chain(
-        certificate.certificate_pem, certificate.private_key_pem
-    )
-    tickets: dict[bytes, object] = {}
-    ReportingProtocol.requests = []
-    ReportingProtocol.done = asyncio.Event()
-    ReportingProtocol.expected = args.requests
-    server = await serve_past_reserved_ports(
-        lambda: serve(
-            args.listen,
-            0,
-            configuration=configuration,
-            create_protocol=ReportingProtocol,
-            session_ticket_fetcher=tickets.pop,
-            session_ticket_handler=lambda ticket: tickets.__setitem__(
-                ticket.ticket, ticket
-            ),
+    with tempfile.TemporaryDirectory(prefix="phantom-aioquic-versions-") as temporary:
+        directory = Path(temporary)
+        certificate = generate_loopback_certificate(directory)
+        args.root.write_bytes(certificate.root_der.read_bytes())
+        configuration = QuicConfiguration(
+            is_client=False,
+            alpn_protocols=H3_ALPN,
+            max_datagram_frame_size=65_536,
         )
-    )
-    port = server._transport.get_extra_info("sockname")[1]
-    args.port_file.write_text(str(port), encoding="utf-8")
-    try:
-        await asyncio.wait_for(ReportingProtocol.done.wait(), REQUEST_TIMEOUT_SECONDS)
-        # Let the last response reach the client before closing.
-        await asyncio.sleep(0.5)
-    finally:
-        server.close()
+        configuration.load_cert_chain(
+            certificate.certificate_pem, certificate.private_key_pem
+        )
+        tickets: dict[bytes, object] = {}
+        ReportingProtocol.requests = []
+        ReportingProtocol.done = asyncio.Event()
+        ReportingProtocol.expected = args.requests
+        server = await serve_past_reserved_ports(
+            lambda: serve(
+                args.listen,
+                0,
+                configuration=configuration,
+                create_protocol=ReportingProtocol,
+                session_ticket_fetcher=tickets.pop,
+                session_ticket_handler=lambda ticket: tickets.__setitem__(
+                    ticket.ticket, ticket
+                ),
+            )
+        )
+        try:
+            port = server._transport.get_extra_info("sockname")[1]
+            args.port_file.write_text(str(port), encoding="utf-8")
+            await asyncio.wait_for(
+                ReportingProtocol.done.wait(), REQUEST_TIMEOUT_SECONDS
+            )
+            # Let the last response reach the client before closing.
+            await asyncio.sleep(0.5)
+        finally:
+            server.close()
 
 
 def main(argv: list[str] | None = None) -> None:
