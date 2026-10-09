@@ -106,22 +106,22 @@ impl Drop for Server {
     }
 }
 
-fn query(name: &str, record_type: u16) -> Vec<u8> {
+fn query(name: &str, record_type: u16) -> CaptureResult<Vec<u8>> {
     let mut wire = vec![0x12, 0x34, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0];
     for label in name.split('.') {
         assert!(!label.is_empty() && label.len() <= 63);
-        wire.push(u8::try_from(label.len()).unwrap());
+        wire.push(u8::try_from(label.len())?);
         wire.extend_from_slice(label.as_bytes());
     }
     wire.push(0);
     wire.extend_from_slice(&record_type.to_be_bytes());
     wire.extend_from_slice(&1_u16.to_be_bytes());
-    wire
+    Ok(wire)
 }
 
 async fn exchange(client: &mut Client, name: &str, record_type: u16) -> CaptureResult<Vec<u8>> {
     timeout(IO_TIMEOUT, async {
-        let message = query(name, record_type);
+        let message = query(name, record_type)?;
         let mut request = format!(
             "POST /dns-query HTTP/1.1\r\nhost: {HOSTNAME}\r\ncontent-length: {}\r\n\r\n",
             message.len()
@@ -173,6 +173,21 @@ async fn assert_closed(client: &mut Client) -> TestResult {
     Ok(())
 }
 
+async fn record_large_descriptions(client: &mut Client) -> TestResult {
+    let name = [
+        "a".repeat(63),
+        "b".repeat(63),
+        "c".repeat(63),
+        "d".repeat(61),
+    ]
+    .join(".");
+    assert_eq!(name.len(), 253);
+    for _ in 0..253 {
+        exchange(client, &name, 65).await?;
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn ninth_live_doh_connection_fails_capture_without_detaching_children() -> TestResult {
     let mut server = Server::start(ServerMode::Capture).await?;
@@ -186,7 +201,11 @@ async fn ninth_live_doh_connection_fails_capture_without_detaching_children() ->
 
     let ninth = server.client().await;
     assert!(ninth.is_err(), "ninth live DNS child was admitted");
-    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("ninth live DNS child did not fail the capture")?;
     assert!(failure.to_string().contains("connection limit"));
     for peer in &mut peers {
         assert_closed(peer).await?;
@@ -208,27 +227,21 @@ async fn doh_query_count_accepts_256_then_fails_without_retaining_the_next() -> 
         overflow.is_err(),
         "257th query produced a successful response"
     );
-    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("query count overflow did not fail the handler")?;
     assert!(failure.to_string().contains("query count"));
     assert_eq!(server.descriptions().len(), 256);
     Ok(())
 }
 
 #[tokio::test]
-async fn doh_query_bytes_accept_64_kib_then_fail_below_the_count_limit() -> TestResult {
+async fn doh_query_bytes_accept_64_kib_then_reject_three_excess_bytes() -> TestResult {
     let mut server = Server::start(ServerMode::Connection).await?;
     let mut client = server.client().await?;
-    let name = [
-        "a".repeat(63),
-        "b".repeat(63),
-        "c".repeat(63),
-        "d".repeat(61),
-    ]
-    .join(".");
-    assert_eq!(name.len(), 253);
-    for _ in 0..253 {
-        exchange(&mut client, &name, 65).await?;
-    }
+    record_large_descriptions(&mut client).await?;
     exchange(&mut client, "abc.def", 1).await?;
     let descriptions = server.descriptions();
     assert_eq!(descriptions.len(), 254);
@@ -239,9 +252,53 @@ async fn doh_query_bytes_accept_64_kib_then_fail_below_the_count_limit() -> Test
         overflow.is_err(),
         "query metadata exceeded 64 KiB successfully"
     );
-    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("query metadata overflow did not fail the handler")?;
     assert!(failure.to_string().contains("query metadata"));
     assert_eq!(server.descriptions(), descriptions);
+    Ok(())
+}
+
+#[tokio::test]
+async fn doh_query_metadata_accepts_65536_bytes_and_rejects_65537() -> TestResult {
+    let mut accepted = Server::start(ServerMode::Connection).await?;
+    let mut client = accepted.client().await?;
+    record_large_descriptions(&mut client).await?;
+    exchange(&mut client, "ab.c", 1).await?;
+    let before = accepted.descriptions();
+    assert_eq!(before.len(), 254);
+    assert_eq!(before.iter().map(String::len).sum::<usize>(), 65_533);
+
+    exchange(&mut client, "x", 1).await?;
+    let inclusive = accepted.descriptions();
+    assert_eq!(inclusive.len(), 255);
+    assert_eq!(inclusive.iter().map(String::len).sum::<usize>(), 65_536);
+    client.shutdown().await?;
+    drop(client);
+    accepted.finish(IO_TIMEOUT).await?;
+
+    let mut rejected = Server::start(ServerMode::Connection).await?;
+    let mut client = rejected.client().await?;
+    record_large_descriptions(&mut client).await?;
+    exchange(&mut client, "abc.d", 1).await?;
+    let before = rejected.descriptions();
+    assert_eq!(before.len(), 254);
+    assert!(before.len() + 1 < 256);
+    assert_eq!(before.iter().map(String::len).sum::<usize>(), 65_534);
+    assert_eq!(65_534 + "A x".len(), 65_537);
+
+    let overflow = exchange(&mut client, "x", 1).await;
+    assert!(overflow.is_err(), "65,537 metadata bytes were accepted");
+    let failure = rejected
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("one-byte metadata overflow did not fail the handler")?;
+    assert!(failure.to_string().contains("query metadata"));
+    assert_eq!(rejected.descriptions(), before);
     Ok(())
 }
 
@@ -250,7 +307,11 @@ async fn stalled_doh_tls_handshake_has_a_server_deadline() -> TestResult {
     let mut server = Server::start(ServerMode::Connection).await?;
     let tcp = TcpStream::connect(server.address).await?;
 
-    let failure = server.finish(DEADLINE_TEST_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(DEADLINE_TEST_TIMEOUT)
+        .await
+        .err()
+        .ok_or("stalled TLS handshake completed without a deadline failure")?;
     assert!(
         failure.to_string().contains("TLS handshake") && failure.to_string().contains("timed out"),
         "TLS deadline did not surface its operation: {failure}"
@@ -266,7 +327,11 @@ async fn incomplete_doh_request_head_has_a_whole_exchange_deadline() -> TestResu
     client.write_all(b"POST /dns-query HTTP/1.1\r\n").await?;
     client.flush().await?;
 
-    let failure = server.finish(DEADLINE_TEST_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(DEADLINE_TEST_TIMEOUT)
+        .await
+        .err()
+        .ok_or("incomplete request head completed without a deadline failure")?;
     assert!(
         failure.to_string().contains("request") && failure.to_string().contains("timed out"),
         "request-head deadline did not surface its operation: {failure}"
@@ -284,7 +349,11 @@ async fn incomplete_doh_request_body_has_a_whole_exchange_deadline() -> TestResu
         .await?;
     client.flush().await?;
 
-    let failure = server.finish(DEADLINE_TEST_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(DEADLINE_TEST_TIMEOUT)
+        .await
+        .err()
+        .ok_or("incomplete request body completed without a deadline failure")?;
     assert!(
         failure.to_string().contains("request") && failure.to_string().contains("timed out"),
         "request-body deadline did not surface its operation: {failure}"
@@ -355,7 +424,11 @@ async fn malformed_doh_child_request_fails_the_capture_owner() -> TestResult {
         .write_all(b"POST /dns-query HTTP/1.1\r\ncontent-length: 1\r\n\r\nx")
         .await?;
     client.flush().await?;
-    let failure = server.finish(IO_TIMEOUT).await.unwrap_err();
+    let failure = server
+        .finish(IO_TIMEOUT)
+        .await
+        .err()
+        .ok_or("malformed DNS query did not fail the capture")?;
     assert!(failure.to_string().contains("malformed DNS query"));
     assert_eq!(server.descriptions().len(), 1);
     Ok(())

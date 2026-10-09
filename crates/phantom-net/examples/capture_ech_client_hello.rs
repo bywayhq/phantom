@@ -1078,4 +1078,5 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
+#[path = "capture_ech_client_hello/tests.rs"]
 mod tests;
