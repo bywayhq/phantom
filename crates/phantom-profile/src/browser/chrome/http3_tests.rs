@@ -7,25 +7,25 @@ use crate::{
 use super::{v154_http3, v154_http3_request};
 
 const EDGE_154_WINDOWS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt"
+    "../../../../../fixtures/http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt"
 );
 const BRAVE_154_WINDOWS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
+    "../../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt"
 );
 const BRAVE_154_DEVTOOLS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/client-startup-devtools.txt"
+    "../../../../../fixtures/http3/brave/154.1.96.59/windows-11-26200/launch-mode/client-startup-devtools.txt"
 );
 const OPERA_136_WINDOWS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt"
+    "../../../../../fixtures/http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt"
 );
 const CHROME_ANDROID_154_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt"
+    "../../../../../fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt"
 );
 const EDGE_ANDROID_153_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt"
+    "../../../../../fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt"
 );
 const V154_WINDOWS_FIXTURE: &str = include_str!(
-    "../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
+    "../../../../../fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt"
 );
 
 #[test]
@@ -130,7 +130,7 @@ fn opera_136_h3_capture_matches_the_chromium_recipe() -> Result<(), Box<dyn std:
 fn brave_android_153_h3_capture_matches_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     let fixture = include_str!(
-        "../../../../fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt"
+        "../../../../../fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt"
     );
     assert_eq!(fixture_field(fixture, "client")?, "Brave");
     assert_eq!(crate::browser::brave::v153_android_http3(), v154_http3());
@@ -615,13 +615,13 @@ fn brave_captures_use_the_recipe_s_qpack_stream_numbers() -> Result<(), Box<dyn 
 fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
 -> Result<(), Box<dyn std::error::Error>> {
     const CHROME: &str = include_str!(
-        "../../../../fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt"
+        "../../../../../fixtures/http3/chrome/154.0.8037.95/macos-15.5-arm64/client-startup.txt"
     );
     const EDGE: &str = include_str!(
-        "../../../../fixtures/http3/edge/154.0.4258.48/macos-15.5-arm64/client-startup.txt"
+        "../../../../../fixtures/http3/edge/154.0.4258.48/macos-15.5-arm64/client-startup.txt"
     );
     const OPERA: &str = include_str!(
-        "../../../../fixtures/http3/opera/136.0.6008.52/macos-15.5-arm64/client-startup.txt"
+        "../../../../../fixtures/http3/opera/136.0.6008.52/macos-15.5-arm64/client-startup.txt"
     );
     for fixture in [CHROME, EDGE, OPERA] {
         assert_eq!(
