@@ -19,6 +19,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -928,19 +929,28 @@ def schedule(
         dispatch()
         join()
     except KeyboardInterrupt:
-        stopped.set()
-        with condition:
-            interrupted_indices = [
-                index
-                for index, thread in enumerate(threads)
-                if thread.ident is not None and index not in results
-            ]
+        # Cancellation is established. Another Ctrl+C must not interrupt the
+        # bounded owner cleanup or leave workers running outside its result.
+        previous_handler = None
+        if threading.current_thread() is threading.main_thread():
+            previous_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
         try:
-            on_interrupt()
-        except Exception as error:  # noqa: BLE001 - joined and reported below
-            cleanup_error = error
+            stopped.set()
+            with condition:
+                interrupted_indices = [
+                    index
+                    for index, thread in enumerate(threads)
+                    if thread.ident is not None and index not in results
+                ]
+            try:
+                on_interrupt()
+            except Exception as error:  # noqa: BLE001 - joined and reported below
+                cleanup_error = error
+            finally:
+                join()
         finally:
-            join()
+            if previous_handler is not None:
+                signal.signal(signal.SIGINT, previous_handler)
 
     if cleanup_error is not None:
         failures = dict.fromkeys(interrupted_indices, cleanup_error)
@@ -948,9 +958,9 @@ def schedule(
             named_failures = {}
             matched_names = set()
             for index in interrupted_indices:
-                prefix = slug(jobs[index].id) + "."
+                owner = slug(jobs[index].id)
                 for name, error in cleanup_error.failures:
-                    if name.startswith(prefix):
+                    if name.rpartition(".")[0] == owner:
                         named_failures[index] = error
                         matched_names.add(name)
             # Unknown callback failures cannot be attributed to one owner.
