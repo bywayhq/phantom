@@ -460,11 +460,12 @@ mod tests {
     async fn truncated_frame_cannot_prove_absence() -> TestResult<()> {
         let error = observed_h2_frames(&[0, 0])
             .await
-            .expect_err("truncated frame");
+            .err()
+            .ok_or("truncated frame was accepted")?;
         assert_eq!(
             error
                 .downcast_ref::<std::io::Error>()
-                .expect("I/O error")
+                .ok_or("expected an I/O error")?
                 .kind(),
             std::io::ErrorKind::UnexpectedEof
         );
@@ -476,11 +477,12 @@ mod tests {
         // PING payloads must contain eight bytes, not one.
         let error = observed_h2_frames(&[0, 0, 1, 6, 0, 0, 0, 0, 0, 0])
             .await
-            .expect_err("invalid PING length");
+            .err()
+            .ok_or("invalid PING length was accepted")?;
         assert_eq!(
             error
                 .downcast_ref::<std::io::Error>()
-                .expect("I/O error")
+                .ok_or("expected an I/O error")?
                 .kind(),
             std::io::ErrorKind::InvalidData
         );
@@ -515,17 +517,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_incomplete_live_frame_cannot_satisfy_the_quiet_window() {
+    async fn an_incomplete_live_frame_cannot_satisfy_the_quiet_window() -> TestResult<()> {
         let error = observe_live_h2_peer(&[0, 0])
             .await
-            .expect_err("incomplete frame");
+            .err()
+            .ok_or("incomplete frame was accepted")?;
         assert_eq!(
             error
                 .downcast_ref::<std::io::Error>()
-                .expect("I/O error")
+                .ok_or("expected an I/O error")?
                 .kind(),
             std::io::ErrorKind::InvalidData
         );
+        Ok(())
     }
 
     #[tokio::test]
@@ -562,11 +566,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn h1_echo_rejects_ping_in_place_of_close() {
+    async fn h1_echo_rejects_ping_in_place_of_close() -> TestResult<()> {
         let error = observed_h1_second_frame(9)
             .await
-            .expect_err("Ping is not Close");
+            .err()
+            .ok_or("Ping was accepted as Close")?;
         assert_eq!(error.to_string(), "client sent a non-Close second frame");
+        Ok(())
     }
 
     #[tokio::test]

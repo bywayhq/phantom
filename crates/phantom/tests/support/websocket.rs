@@ -162,7 +162,7 @@ where
 mod tests {
     use std::io;
 
-    use super::accept_relay_result;
+    use super::{TestResult, accept_relay_result};
 
     #[test]
     fn https_relay_accepts_all_normal_peer_teardown_errors() {
@@ -179,14 +179,16 @@ mod tests {
     }
 
     #[test]
-    fn https_relay_preserves_unrelated_failure() {
+    fn https_relay_preserves_unrelated_failure() -> TestResult<()> {
         let error = accept_relay_result(Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             "denied",
         )))
-        .expect_err("unrelated failure must propagate");
+        .err()
+        .ok_or("unrelated failure was accepted")?;
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
         assert_eq!(error.to_string(), "denied");
         assert!(accept_relay_result(Ok((3, 5))).is_ok());
+        Ok(())
     }
 }

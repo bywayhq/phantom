@@ -898,8 +898,9 @@ mod tests {
             owners
                 .join_next()
                 .await
-                .expect("owner task")
-                .expect_err("cancelled owner")
+                .ok_or("missing owner task")?
+                .err()
+                .ok_or("owner was not cancelled")?
                 .is_cancelled()
         );
         assert_peer_closed(&mut peer).await
@@ -944,8 +945,9 @@ mod tests {
             owners
                 .join_next()
                 .await
-                .expect("relay task")
-                .expect_err("cancelled relay")
+                .ok_or("missing relay task")?
+                .err()
+                .ok_or("relay was not cancelled")?
                 .is_cancelled()
         );
         assert_peer_closed(&mut peer).await
@@ -1005,8 +1007,9 @@ mod tests {
             owners
                 .join_next()
                 .await
-                .expect("relay task")
-                .expect_err("cancelled relay")
+                .ok_or("missing relay task")?
+                .err()
+                .ok_or("relay was not cancelled")?
                 .is_cancelled()
         );
         // Keep both stream halves and the request handle live. Only release of
