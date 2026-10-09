@@ -143,7 +143,7 @@ built_in_chrome_recipe() {
     || die "latest built-in Chrome TLS and HTTP/2 recipes must name one version/platform"
   IFS=$'\t' read -r chrome_recipe_version chrome_platform <<<"$tls_recipe"
   chrome_major=${chrome_recipe_version%%.*}
-  grep -F -q "pub fn v${chrome_major}_tls()" \
+  grep -F -q "pub fn v${chrome_major}_tcp_tls()" \
     crates/phantom-profile/src/browser/chrome.rs \
     || die "missing TLS function for the latest Chrome recipe"
   grep -F -q "pub fn v${chrome_major}_http2()" \
