@@ -947,9 +947,10 @@ mod tests {
             StreamMode::Relay,
             Arc::new(Mutex::new(StreamLog::default())),
         ));
-        let (mut client, connection) = ::http2::client::handshake(peer).await?;
+        let (client, connection) = timeout(DEADLINE, ::http2::client::handshake(peer)).await??;
         let mut drivers = JoinSet::new();
         drivers.spawn(connection);
+        let mut client = timeout(DEADLINE, client.ready()).await??;
         timeout(DEADLINE, async {
             while !client.is_extended_connect_protocol_enabled() {
                 tokio::task::yield_now().await;
@@ -962,6 +963,7 @@ mod tests {
         );
         let mut request = http::Request::builder()
             .method("CONNECT")
+            .version(http::Version::HTTP_2)
             .uri(uri)
             .body(())?;
         request
