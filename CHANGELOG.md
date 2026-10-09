@@ -25,7 +25,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Migrate: handle `quinn_proto::ConnectError::CryptoProvider` when matching
   startup errors. Invalid names, versions and local transport parameters
   keep their dedicated categories. The renamed Quinn forks move to
-  `-phantom.4`, and their H3 dependents move to `-phantom.10`.
+  `-phantom.4`, and their H3 dependents move to `-phantom.11`.
 
 - Validate custom Android model hints. Migrate: handle the `Result` from
   `chrome::v154_android_client_hints_for_model`,
@@ -2450,6 +2450,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Correct H3 vendor notes and the roadmap's server header-limit claim.
+  Real peer-settings tests verify the existing response and trailer checks,
+  including sections exactly at the limit.
 - Reject complete malformed HTTP/3 frame payloads before dispatch. Single-ID
   frames cannot leave payload bytes to be parsed as another frame. Valid
   fragmented frames and variable-length identifiers remain accepted.

@@ -353,6 +353,12 @@ case "${1:-}" in
       --locked proto::frame::tests
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
       --locked proto::headers::tests
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked header_too_big_server_error
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked peer_field_section_limit
+    cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \
+      --locked tests::socket
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack::
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 --locked qpack_
     cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 \

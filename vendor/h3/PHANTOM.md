@@ -25,9 +25,9 @@ and focused package tests work without packaging rewrites.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.10`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.10`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.10`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.11`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.11`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.11`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -516,6 +516,9 @@ cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 qpack_
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 remembered_settings
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 reserved_frame
 cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 proto::headers::tests
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 header_too_big_server_error
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 peer_field_section_limit
+cargo test --manifest-path vendor/h3/Cargo.toml -p phantom-h3 tests::socket
 cargo clippy --manifest-path vendor/h3/Cargo.toml --workspace --all-targets --all-features -- -D warnings
 cargo check --manifest-path vendor/h3/Cargo.toml -p phantom-h3-quinn --all-features
 cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-features
@@ -523,11 +526,20 @@ cargo check --manifest-path vendor/h3/Cargo.toml -p h3-webtransport --all-featur
 
 The integration checkout owns workspace-wide checks and lockfile verification.
 
-Two upstream tests fail on this copy and are not run by
-`scripts/ci/check-vendor.sh`: `tests::request::header_too_big_server_error`
-and `header_too_big_server_error_trailers`. Each expects a server's
-`send_response` to refuse a field section larger than the client's
-`SETTINGS_MAX_FIELD_SECTION_SIZE`, and the send succeeds. Both fail the same
-way on `main` without the Firefox HTTP/3 patches and with them, so the
-cause is an earlier patch; the [roadmap](../../docs/roadmap.md#phase-3-hardening)
-tracks it.
+`peer-field-section-tests.patch` corrects two upstream server tests that
+installed simulated peer limits before receiving real client SETTINGS.
+The application-settings patch makes peer settings replaceable, so real
+SETTINGS overwrite those simulated values. The server's response and trailer
+checks remain present.
+
+The corrected tests advertise limits through the client, verify their receipt,
+and keep both peers alive through their assertions. They reject response and
+trailer sections above the peer limit and accept sections exactly at it.
+The vendor check runs both rejection tests and both inclusive-boundary tests.
+
+`test-sockets.patch` binds both endpoints of the shared `Pair` fixture to
+IPv6 loopback. It retries socket binding only for Windows error 10055, up to
+four attempts. Every other bind error is returned unchanged, and endpoint
+configuration errors are not retried. The local helper keeps the standalone
+vendor tests independent of first-party workspace packages. Seven controls
+check actual bound addresses, retry limits and error preservation.
