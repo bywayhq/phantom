@@ -118,6 +118,26 @@ impl std::fmt::Debug for Http3SendOptions {
 /// Returns a typed error for invalid request or profile settings, an
 /// unavailable runtime, connection failure, or request failure. With qlog,
 /// a capture that was already attached is a configuration error.
+///
+/// ```no_run
+/// use std::{net::SocketAddr, sync::Arc};
+/// use phantom_net::{http3::{Http3SendOptions, send_with_config}, request::OriginForm};
+/// use phantom_profile::browser::chrome;
+/// use phantom_quic_btls::QuicClientConfig;
+///
+/// // Configure trust, QUIC TLS, and context controls as in QuicClientConfig's example.
+/// async fn request(remote: SocketAddr, crypto: Arc<QuicClientConfig>)
+///     -> Result<(), Box<dyn std::error::Error>> {
+///     let response = send_with_config(
+///         remote, "example.com", crypto,
+///         &chrome::v154_http3(), &chrome::v154_http3_request(),
+///         http::Method::GET, "example.com", OriginForm::parse("/")?,
+///         Vec::new(), Http3SendOptions::default(),
+///     ).await?;
+///     drop(response);
+///     Ok(())
+/// }
+/// ```
 #[allow(clippy::too_many_arguments)]
 pub async fn send_with_config(
     remote: SocketAddr,
