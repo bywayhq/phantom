@@ -62,6 +62,18 @@
 //! that lookup. `AddressResolver::system_nameservers` sends DNS queries
 //! that report record TTLs, the time each result can stay cached.
 //!
+//! # Public dependencies
+//!
+//! The client API uses `bytes` buffers, `http` request and response types,
+//! and `http-body` streaming traits. SSE implements `futures-core::Stream`;
+//! WebSocket implements that trait and `futures-sink::Sink`. The optional
+//! JSON and cookie snapshot APIs use `serde` traits.
+//!
+//! Re-exported settings and transport types come from `phantom-profile` and
+//! `phantom-net`. HTTP engine and TLS backend types stay behind those types
+//! and their error source chains. Run the client in Tokio with I/O and the
+//! timers its operations require.
+//!
 //! # Further reading
 //!
 //! The repository's `docs/` directory holds the documentation;
