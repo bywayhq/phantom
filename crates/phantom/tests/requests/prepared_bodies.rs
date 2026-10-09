@@ -1,5 +1,9 @@
 //! Prepared-body placement, reachability, and redirect provenance.
 
+mod slots;
+mod trailers;
+mod uploads;
+
 use std::{net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
 use phantom::{
