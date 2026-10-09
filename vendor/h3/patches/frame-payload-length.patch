@@ -1,0 +1,228 @@
+diff --git a/h3/src/frame.rs b/h3/src/frame.rs
+--- a/h3/src/frame.rs
++++ b/h3/src/frame.rs
+@@ -1264,6 +1264,141 @@
+         panic!("following HEADERS did not become ready");
+     }
+ 
++    const ZERO_IDENTIFIERS: [&[u8]; 4] = [
++        &[0x00],
++        &[0x40, 0x00],
++        &[0x80, 0x00, 0x00, 0x00],
++        &[0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
++    ];
++
++    fn assert_zero_identifier(frame: Frame<PayloadLen>, ty: FrameType) {
++        match frame {
++            Frame::Goaway(id) if ty == FrameType::GOAWAY => assert_eq!(id.into_inner(), 0),
++            Frame::CancelPush(id) if ty == FrameType::CANCEL_PUSH => assert_eq!(id.0, 0),
++            Frame::MaxPushId(id) if ty == FrameType::MAX_PUSH_ID => assert_eq!(id.0, 0),
++            other => panic!("unexpected identifier frame for {ty:?}: {other:?}"),
++        }
++    }
++
++    #[test]
++    fn identifier_frames_reject_trailing_payload_before_publishing_a_frame() {
++        for ty in [
++            FrameType::CANCEL_PUSH,
++            FrameType::GOAWAY,
++            FrameType::MAX_PUSH_ID,
++        ] {
++            for identifier in ZERO_IDENTIFIERS {
++                for extra in [&[0x00][..], &[0x04, 0x00][..]] {
++                    let mut wire = BytesMut::new();
++                    ty.encode(&mut wire);
++                    VarInt::from((identifier.len() + extra.len()) as u32).encode(&mut wire);
++                    wire.extend_from_slice(identifier);
++                    wire.extend_from_slice(extra);
++                    // A genuine next frame is outside the malformed payload.
++                    wire.extend_from_slice(&[0x07, 0x01, 0x00]);
++                    let chunks = Rc::new(std::cell::RefCell::new(VecDeque::from([wire.freeze()])));
++                    let recv = PausedControlRecv { chunks };
++                    let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
++                    let mut cx = Context::from_waker(noop_waker_ref());
++                    assert_matches!(
++                        stream.poll_next(&mut cx),
++                        Poll::Ready(Err(FrameStreamError::Proto(FrameProtocolError::Malformed)))
++                    );
++                }
++            }
++        }
++    }
++
++    #[test]
++    fn fully_present_truncated_identifier_is_not_incomplete_outer_input() {
++        for ty in [
++            FrameType::CANCEL_PUSH,
++            FrameType::GOAWAY,
++            FrameType::MAX_PUSH_ID,
++            FrameType::PUSH_PROMISE,
++        ] {
++            for payload in [
++                &[][..],
++                &[0x40][..],
++                &[0x80, 0x00][..],
++                &[0xc0, 0x00, 0x00][..],
++            ] {
++                let mut wire = BytesMut::new();
++                ty.encode(&mut wire);
++                VarInt::from(payload.len() as u32).encode(&mut wire);
++                wire.extend_from_slice(payload);
++                let chunks = Rc::new(std::cell::RefCell::new(VecDeque::from([wire.freeze()])));
++                let recv = PausedControlRecv { chunks };
++                let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
++                let mut cx = Context::from_waker(noop_waker_ref());
++                assert_matches!(
++                    stream.poll_next(&mut cx),
++                    Poll::Ready(Err(FrameStreamError::Proto(FrameProtocolError::Malformed)))
++                );
++            }
++        }
++    }
++
++    #[test]
++    fn identifier_frames_accept_every_varint_width_and_keep_the_next_frame() {
++        for ty in [
++            FrameType::CANCEL_PUSH,
++            FrameType::GOAWAY,
++            FrameType::MAX_PUSH_ID,
++        ] {
++            for identifier in ZERO_IDENTIFIERS {
++                let mut wire = BytesMut::new();
++                ty.encode(&mut wire);
++                VarInt::from(identifier.len() as u32).encode(&mut wire);
++                wire.extend_from_slice(identifier);
++                wire.extend_from_slice(&[0x07, 0x01, 0x00]);
++                let mut recv = FakeRecv::default();
++                recv.chunk(wire.freeze());
++                let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
++                let mut cx = Context::from_waker(noop_waker_ref());
++                let Poll::Ready(Ok(Some(frame))) = stream.poll_next(&mut cx) else {
++                    panic!("valid {ty:?} with identifier {identifier:?} was not ready");
++                };
++                assert_zero_identifier(frame, ty);
++                assert_matches!(stream.poll_next(&mut cx),
++                    Poll::Ready(Ok(Some(Frame::Goaway(id)))) if id.into_inner() == 0);
++                assert_eq!(stream.stream.buf().remaining(), 0);
++            }
++        }
++    }
++
++    #[test]
++    fn fragmented_outer_identifier_frame_waits_for_its_remaining_bytes() {
++        for ty in [
++            FrameType::CANCEL_PUSH,
++            FrameType::GOAWAY,
++            FrameType::MAX_PUSH_ID,
++        ] {
++            let mut wire = BytesMut::new();
++            ty.encode(&mut wire);
++            // A nonminimal two-byte length, followed by an eight-byte zero ID.
++            wire.extend_from_slice(&[0x40, 0x08]);
++            wire.extend_from_slice(ZERO_IDENTIFIERS[3]);
++            let chunks = Rc::new(std::cell::RefCell::new(VecDeque::new()));
++            let recv = PausedControlRecv {
++                chunks: Rc::clone(&chunks),
++            };
++            let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
++            let mut cx = Context::from_waker(noop_waker_ref());
++            for byte in &wire[..wire.len() - 1] {
++                chunks.borrow_mut().push_back(Bytes::from(vec![*byte]));
++                assert!(stream.poll_next(&mut cx).is_pending());
++            }
++            chunks
++                .borrow_mut()
++                .push_back(Bytes::copy_from_slice(&wire[wire.len() - 1..]));
++            let Poll::Ready(Ok(Some(frame))) = stream.poll_next(&mut cx) else {
++                panic!("complete fragmented {ty:?} was not ready");
++            };
++            assert_zero_identifier(frame, ty);
++        }
++    }
++
+     // Helpers
+ 
+     #[derive(Default)]
+diff --git a/h3/src/proto/frame.rs b/h3/src/proto/frame.rs
+--- a/h3/src/proto/frame.rs
++++ b/h3/src/proto/frame.rs
+@@ -879,4 +879,30 @@
+         let decoded = Frame::decode(&mut buf);
+         assert_matches!(decoded, Err(FrameError::UnknownFrame(95)));
+     }
+-}
++    #[test]
++    fn push_promise_accepts_every_identifier_width_and_preserves_following_frame() {
++        for identifier in [
++            &[0x00][..],
++            &[0x40, 0x00][..],
++            &[0x80, 0x00, 0x00, 0x00][..],
++            &[0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00][..],
++        ] {
++            let mut wire = Vec::new();
++            FrameType::PUSH_PROMISE.encode(&mut wire);
++            VarInt::from((identifier.len() + 2) as u32).encode(&mut wire);
++            wire.extend_from_slice(identifier);
++            wire.extend_from_slice(&[0x00, 0x00]);
++            let first_frame_len = wire.len() as u64;
++            wire.extend_from_slice(&[0x07, 0x01, 0x00]);
++            let mut cursor = Cursor::new(&wire);
++            let Frame::PushPromise(promise) = Frame::decode(&mut cursor).unwrap() else {
++                panic!("valid PUSH_PROMISE identifier was not decoded");
++            };
++            assert_eq!(promise.id, 0);
++            assert_eq!(promise.encoded.as_ref(), &[0x00, 0x00]);
++            assert_eq!(cursor.position(), first_frame_len);
++            assert_matches!(Frame::decode(&mut cursor), Ok(Frame::Goaway(id)) if id.into_inner() == 0);
++            assert_eq!(cursor.position(), wire.len() as u64);
++        }
++    }
++}
+diff --git a/h3/src/tests/connection.rs b/h3/src/tests/connection.rs
+--- a/h3/src/tests/connection.rs
++++ b/h3/src/tests/connection.rs
+@@ -2708,3 +2708,44 @@
+     .await
+     .expect("unknown frame before SETTINGS did not close the connection");
+ }
++
++#[tokio::test]
++async fn malformed_identifier_control_payload_closes_before_publishing_goaway() {
++    for malformed in [&[0x07, 0x03, 0x00, 0x04, 0x00][..], &[0x07, 0x01, 0x40][..]] {
++        let mut pair = Pair::default();
++        let server = pair.server_inner();
++        let client_fut = async {
++            let connection = pair.client_inner().await;
++            let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
++                .await
++                .unwrap();
++            assert_matches!(
++                future::poll_fn(|cx| driver.inner.poll_control(cx)).await,
++                Ok(Frame::Settings(_))
++            );
++            assert_matches!(
++                future::poll_fn(|cx| driver.inner.poll_control(cx)).await,
++                Err(ConnectionError::Local {
++                    error: LocalError::Application {
++                        code: Code::H3_FRAME_ERROR,
++                        ..
++                    }
++                })
++            );
++        };
++        let server_fut = async {
++            let connection = server.accept().await.unwrap().await.unwrap();
++            let mut control = connection.open_uni().await.unwrap();
++            control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
++            control.write_all(malformed).await.unwrap();
++            assert_matches!(connection.closed().await,
++                quinn::ConnectionError::ApplicationClosed(close)
++                    if close.error_code.into_inner() == Code::H3_FRAME_ERROR.value());
++        };
++        tokio::time::timeout(Duration::from_secs(5), async {
++            tokio::join!(server_fut, client_fut);
++        })
++        .await
++        .expect("malformed control payload did not close with H3_FRAME_ERROR");
++    }
++}

@@ -1264,6 +1264,141 @@ mod tests {
         panic!("following HEADERS did not become ready");
     }
 
+    const ZERO_IDENTIFIERS: [&[u8]; 4] = [
+        &[0x00],
+        &[0x40, 0x00],
+        &[0x80, 0x00, 0x00, 0x00],
+        &[0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+    ];
+
+    fn assert_zero_identifier(frame: Frame<PayloadLen>, ty: FrameType) {
+        match frame {
+            Frame::Goaway(id) if ty == FrameType::GOAWAY => assert_eq!(id.into_inner(), 0),
+            Frame::CancelPush(id) if ty == FrameType::CANCEL_PUSH => assert_eq!(id.0, 0),
+            Frame::MaxPushId(id) if ty == FrameType::MAX_PUSH_ID => assert_eq!(id.0, 0),
+            other => panic!("unexpected identifier frame for {ty:?}: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn identifier_frames_reject_trailing_payload_before_publishing_a_frame() {
+        for ty in [
+            FrameType::CANCEL_PUSH,
+            FrameType::GOAWAY,
+            FrameType::MAX_PUSH_ID,
+        ] {
+            for identifier in ZERO_IDENTIFIERS {
+                for extra in [&[0x00][..], &[0x04, 0x00][..]] {
+                    let mut wire = BytesMut::new();
+                    ty.encode(&mut wire);
+                    VarInt::from((identifier.len() + extra.len()) as u32).encode(&mut wire);
+                    wire.extend_from_slice(identifier);
+                    wire.extend_from_slice(extra);
+                    // A genuine next frame is outside the malformed payload.
+                    wire.extend_from_slice(&[0x07, 0x01, 0x00]);
+                    let chunks = Rc::new(std::cell::RefCell::new(VecDeque::from([wire.freeze()])));
+                    let recv = PausedControlRecv { chunks };
+                    let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+                    let mut cx = Context::from_waker(noop_waker_ref());
+                    assert_matches!(
+                        stream.poll_next(&mut cx),
+                        Poll::Ready(Err(FrameStreamError::Proto(FrameProtocolError::Malformed)))
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fully_present_truncated_identifier_is_not_incomplete_outer_input() {
+        for ty in [
+            FrameType::CANCEL_PUSH,
+            FrameType::GOAWAY,
+            FrameType::MAX_PUSH_ID,
+            FrameType::PUSH_PROMISE,
+        ] {
+            for payload in [
+                &[][..],
+                &[0x40][..],
+                &[0x80, 0x00][..],
+                &[0xc0, 0x00, 0x00][..],
+            ] {
+                let mut wire = BytesMut::new();
+                ty.encode(&mut wire);
+                VarInt::from(payload.len() as u32).encode(&mut wire);
+                wire.extend_from_slice(payload);
+                let chunks = Rc::new(std::cell::RefCell::new(VecDeque::from([wire.freeze()])));
+                let recv = PausedControlRecv { chunks };
+                let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+                let mut cx = Context::from_waker(noop_waker_ref());
+                assert_matches!(
+                    stream.poll_next(&mut cx),
+                    Poll::Ready(Err(FrameStreamError::Proto(FrameProtocolError::Malformed)))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn identifier_frames_accept_every_varint_width_and_keep_the_next_frame() {
+        for ty in [
+            FrameType::CANCEL_PUSH,
+            FrameType::GOAWAY,
+            FrameType::MAX_PUSH_ID,
+        ] {
+            for identifier in ZERO_IDENTIFIERS {
+                let mut wire = BytesMut::new();
+                ty.encode(&mut wire);
+                VarInt::from(identifier.len() as u32).encode(&mut wire);
+                wire.extend_from_slice(identifier);
+                wire.extend_from_slice(&[0x07, 0x01, 0x00]);
+                let mut recv = FakeRecv::default();
+                recv.chunk(wire.freeze());
+                let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+                let mut cx = Context::from_waker(noop_waker_ref());
+                let Poll::Ready(Ok(Some(frame))) = stream.poll_next(&mut cx) else {
+                    panic!("valid {ty:?} with identifier {identifier:?} was not ready");
+                };
+                assert_zero_identifier(frame, ty);
+                assert_matches!(stream.poll_next(&mut cx),
+                    Poll::Ready(Ok(Some(Frame::Goaway(id)))) if id.into_inner() == 0);
+                assert_eq!(stream.stream.buf().remaining(), 0);
+            }
+        }
+    }
+
+    #[test]
+    fn fragmented_outer_identifier_frame_waits_for_its_remaining_bytes() {
+        for ty in [
+            FrameType::CANCEL_PUSH,
+            FrameType::GOAWAY,
+            FrameType::MAX_PUSH_ID,
+        ] {
+            let mut wire = BytesMut::new();
+            ty.encode(&mut wire);
+            // A nonminimal two-byte length, followed by an eight-byte zero ID.
+            wire.extend_from_slice(&[0x40, 0x08]);
+            wire.extend_from_slice(ZERO_IDENTIFIERS[3]);
+            let chunks = Rc::new(std::cell::RefCell::new(VecDeque::new()));
+            let recv = PausedControlRecv {
+                chunks: Rc::clone(&chunks),
+            };
+            let mut stream: FrameStream<_, ()> = FrameStream::new(BufRecvStream::new(recv));
+            let mut cx = Context::from_waker(noop_waker_ref());
+            for byte in &wire[..wire.len() - 1] {
+                chunks.borrow_mut().push_back(Bytes::from(vec![*byte]));
+                assert!(stream.poll_next(&mut cx).is_pending());
+            }
+            chunks
+                .borrow_mut()
+                .push_back(Bytes::copy_from_slice(&wire[wire.len() - 1..]));
+            let Poll::Ready(Ok(Some(frame))) = stream.poll_next(&mut cx) else {
+                panic!("complete fragmented {ty:?} was not ready");
+            };
+            assert_zero_identifier(frame, ty);
+        }
+    }
+
     // Helpers
 
     #[derive(Default)]

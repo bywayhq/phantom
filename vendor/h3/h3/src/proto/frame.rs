@@ -879,4 +879,30 @@ mod tests {
         let decoded = Frame::decode(&mut buf);
         assert_matches!(decoded, Err(FrameError::UnknownFrame(95)));
     }
+    #[test]
+    fn push_promise_accepts_every_identifier_width_and_preserves_following_frame() {
+        for identifier in [
+            &[0x00][..],
+            &[0x40, 0x00][..],
+            &[0x80, 0x00, 0x00, 0x00][..],
+            &[0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00][..],
+        ] {
+            let mut wire = Vec::new();
+            FrameType::PUSH_PROMISE.encode(&mut wire);
+            VarInt::from((identifier.len() + 2) as u32).encode(&mut wire);
+            wire.extend_from_slice(identifier);
+            wire.extend_from_slice(&[0x00, 0x00]);
+            let first_frame_len = wire.len() as u64;
+            wire.extend_from_slice(&[0x07, 0x01, 0x00]);
+            let mut cursor = Cursor::new(&wire);
+            let Frame::PushPromise(promise) = Frame::decode(&mut cursor).unwrap() else {
+                panic!("valid PUSH_PROMISE identifier was not decoded");
+            };
+            assert_eq!(promise.id, 0);
+            assert_eq!(promise.encoded.as_ref(), &[0x00, 0x00]);
+            assert_eq!(cursor.position(), first_frame_len);
+            assert_matches!(Frame::decode(&mut cursor), Ok(Frame::Goaway(id)) if id.into_inner() == 0);
+            assert_eq!(cursor.position(), wire.len() as u64);
+        }
+    }
 }

@@ -2708,3 +2708,44 @@ async fn unknown_control_before_settings_closes_without_waiting_for_payload() {
     .await
     .expect("unknown frame before SETTINGS did not close the connection");
 }
+
+#[tokio::test]
+async fn malformed_identifier_control_payload_closes_before_publishing_goaway() {
+    for malformed in [&[0x07, 0x03, 0x00, 0x04, 0x00][..], &[0x07, 0x01, 0x40][..]] {
+        let mut pair = Pair::default();
+        let server = pair.server_inner();
+        let client_fut = async {
+            let connection = pair.client_inner().await;
+            let (mut driver, _send) = client::new(h3_quinn::Connection::new(connection))
+                .await
+                .unwrap();
+            assert_matches!(
+                future::poll_fn(|cx| driver.inner.poll_control(cx)).await,
+                Ok(Frame::Settings(_))
+            );
+            assert_matches!(
+                future::poll_fn(|cx| driver.inner.poll_control(cx)).await,
+                Err(ConnectionError::Local {
+                    error: LocalError::Application {
+                        code: Code::H3_FRAME_ERROR,
+                        ..
+                    }
+                })
+            );
+        };
+        let server_fut = async {
+            let connection = server.accept().await.unwrap().await.unwrap();
+            let mut control = connection.open_uni().await.unwrap();
+            control.write_all(&[0x00, 0x04, 0x00]).await.unwrap();
+            control.write_all(malformed).await.unwrap();
+            assert_matches!(connection.closed().await,
+                quinn::ConnectionError::ApplicationClosed(close)
+                    if close.error_code.into_inner() == Code::H3_FRAME_ERROR.value());
+        };
+        tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::join!(server_fut, client_fut);
+        })
+        .await
+        .expect("malformed control payload did not close with H3_FRAME_ERROR");
+    }
+}
