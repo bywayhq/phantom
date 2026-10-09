@@ -74,9 +74,8 @@ async fn failed_redirect_hop_reports_its_origin_and_setup_observation() -> TestR
     timeout(Duration::from_secs(10), async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let initial = listener.local_addr()?;
-        let refused = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let destination = refused.local_addr()?;
-        drop(refused);
+        let refused = phantom_testkit::tcp::ReservedPort::bind()?;
+        let destination = refused.address();
         let peer = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let observed = head(&mut stream).await?;
@@ -106,6 +105,7 @@ async fn failed_redirect_hop_reports_its_origin_and_setup_observation() -> TestR
         let formatted = format!("{error} {error:?}");
         assert!(!formatted.contains("private"));
         assert!(!formatted.contains("sentinel"));
+        drop(refused);
         Ok(())
     })
     .await?
