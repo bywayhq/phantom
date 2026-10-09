@@ -1,4 +1,4 @@
-use std::{future::poll_fn, net::Ipv4Addr, pin::Pin, time::Duration};
+use std::{future::poll_fn, net::Ipv4Addr, pin::Pin, task::Poll, time::Duration};
 
 use futures_core::Stream;
 use phantom::{
@@ -76,11 +76,17 @@ async fn pending_stream_poll_can_be_dropped_and_resumed_with_next_event() -> Tes
         fn require_send<T: Send>(_: T) {}
         require_send(stream.next_event());
         partial_received.await?;
-        assert!(
-            timeout(Duration::from_millis(25), next(&mut stream))
-                .await
-                .is_err()
-        );
+        // Cancel only after the decoder consumed the partial event. Socket
+        // delivery can take longer than a short timer on a busy runner.
+        poll_fn(|context| {
+            assert!(Pin::new(&mut stream).poll_next(context).is_pending());
+            if stream.retry_delay() == Some(Duration::from_millis(25)) {
+                Poll::Ready(())
+            } else {
+                Poll::Pending
+            }
+        })
+        .await;
         assert_eq!(stream.last_event_id(), "");
         assert_eq!(stream.retry_delay(), Some(Duration::from_millis(25)));
         assert!(!format!("{stream:?}").contains("private-event-id"));
