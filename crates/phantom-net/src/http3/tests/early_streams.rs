@@ -5,6 +5,7 @@
 use std::{
     future::poll_fn,
     net::Ipv4Addr,
+    num::NonZeroUsize,
     sync::{
         Arc,
         atomic::{AtomicU64, AtomicUsize, Ordering},
@@ -711,17 +712,83 @@ fn random_gate_delay(seed: u64) -> GateDelay {
     }))
 }
 
-fn stress_iterations() -> usize {
-    std::env::var("PHANTOM_H3_STRESS_ITERATIONS")
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(10)
+// An explicit override must leave at least one observed iteration. Only an
+// absent variable uses the default; invalid configuration must not hide a run.
+fn parse_stress_iterations(
+    value: Result<String, std::env::VarError>,
+) -> Result<NonZeroUsize, &'static str> {
+    let value = match value {
+        Ok(value) => value,
+        Err(std::env::VarError::NotPresent) => "10".to_owned(),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err("PHANTOM_H3_STRESS_ITERATIONS must be Unicode");
+        }
+    };
+    value
+        .parse()
+        .map_err(|_| "PHANTOM_H3_STRESS_ITERATIONS must be a positive integer that fits usize")
+}
+
+#[test]
+fn absent_stress_iterations_use_ten() -> TestResult<()> {
+    assert_eq!(
+        parse_stress_iterations(Err(std::env::VarError::NotPresent))?.get(),
+        10
+    );
+    Ok(())
+}
+
+#[test]
+fn positive_stress_iterations_keep_the_configured_count() -> TestResult<()> {
+    for count in [1, 37, usize::MAX] {
+        assert_eq!(parse_stress_iterations(Ok(count.to_string()))?.get(), count);
+    }
+    Ok(())
+}
+
+#[test]
+fn zero_and_malformed_stress_iterations_are_rejected() {
+    for value in ["0", "00", "", "-1", "1.5", "invalid", " 1", "1 "] {
+        assert_eq!(
+            parse_stress_iterations(Ok(value.to_owned())),
+            Err("PHANTOM_H3_STRESS_ITERATIONS must be a positive integer that fits usize")
+        );
+    }
+}
+
+#[test]
+fn overflowing_stress_iterations_are_rejected() {
+    assert_eq!(
+        parse_stress_iterations(Ok(format!("{}0", usize::MAX))),
+        Err("PHANTOM_H3_STRESS_ITERATIONS must be a positive integer that fits usize")
+    );
+}
+
+#[cfg(any(windows, unix))]
+#[test]
+fn non_unicode_stress_iterations_are_rejected() {
+    #[cfg(windows)]
+    let value = {
+        use std::os::windows::ffi::OsStringExt;
+        std::ffi::OsString::from_wide(&[0xd800])
+    };
+    #[cfg(unix)]
+    let value = {
+        use std::os::unix::ffi::OsStringExt;
+        std::ffi::OsString::from_vec(vec![0xff])
+    };
+    assert!(value.to_str().is_none());
+    assert_eq!(
+        parse_stress_iterations(Err(std::env::VarError::NotUnicode(value))),
+        Err("PHANTOM_H3_STRESS_ITERATIONS must be Unicode")
+    );
 }
 
 /// Repeats both rejection scenarios on a four-worker runtime, with a random
 /// delay between the driver receiving Quinn's answer and the stream gate
-/// seeing it. `PHANTOM_H3_STRESS_ITERATIONS` sets the repetitions (10 by
-/// default) and `PHANTOM_H3_STRESS_SEED` the delay seed, which every failure
+/// seeing it. `PHANTOM_H3_STRESS_ITERATIONS` must be a positive integer (10
+/// when absent); invalid values fail before any scenario runs.
+/// `PHANTOM_H3_STRESS_SEED` sets the delay seed, which every failure
 /// and the final counts report. The seed reproduces only the injected
 /// delays, not the scheduling of the runtime or the network. A connection
 /// whose rejection arrived while its early session was still starting is
@@ -732,7 +799,7 @@ fn stress_iterations() -> usize {
 /// the open; the hook-driven unit tests above cover those.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult<()> {
-    let iterations = stress_iterations();
+    let iterations = parse_stress_iterations(std::env::var("PHANTOM_H3_STRESS_ITERATIONS"))?;
     let seed = match std::env::var("PHANTOM_H3_STRESS_SEED") {
         Ok(value) => value
             .parse::<u64>()
@@ -748,7 +815,7 @@ async fn rejection_scenarios_hold_under_a_multi_threaded_runtime() -> TestResult
         Rejection::InFlight => 0,
         Rejection::AtStart => 1,
     };
-    for iteration in 0..iterations {
+    for iteration in 0..iterations.get() {
         let mixed = seed ^ (iteration as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
         let delay = random_gate_delay(mixed);
         let rejection = credit_wait_rejection(Some(delay.clone()))
