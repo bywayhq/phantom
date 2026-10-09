@@ -725,6 +725,63 @@ fn staging_cleanup_reports_unowned_entries_without_removing_them() -> TestResult
     directory.finish()
 }
 
+#[tokio::test]
+async fn concurrent_download_owners_publish_once_and_clean_only_their_staging() -> TestResult {
+    use tokio::io::AsyncWriteExt as _;
+
+    let directory = DownloadDirectory::create()?;
+    let legacy = directory.path()?.join(".first.part");
+    let output = directory.path()?.join("first");
+    let first_cleanup = CleanupFailures::default();
+    let second_cleanup = CleanupFailures::default();
+    let mut first = PartialDownload::create(legacy.clone(), first_cleanup.clone())?;
+    let mut second = PartialDownload::create(legacy.clone(), second_cleanup.clone())?;
+    let first_partial = first_cleanup.created_partial()?;
+    let second_partial = second_cleanup.created_partial()?;
+    let first_stage = first_partial.parent().ok_or("first stage has no parent")?;
+    let second_stage = second_partial
+        .parent()
+        .ok_or("second stage has no parent")?;
+
+    assert_ne!(first_stage, second_stage);
+    assert!(!legacy.exists());
+
+    first.file()?.write_all(WIRE_BODY).await?;
+    first.file()?.flush().await?;
+    second.file()?.write_all(SENTINEL).await?;
+    second.file()?.flush().await?;
+    first.publish(&output)?;
+
+    assert_eq!(std::fs::read(&output)?, WIRE_BODY);
+    assert!(!first_stage.exists());
+    assert_eq!(std::fs::read(&second_partial)?, SENTINEL);
+    assert!(second_stage.exists());
+
+    let error = second
+        .publish(&output)
+        .err()
+        .ok_or("second publication replaced the output")?;
+    assert_eq!(
+        error
+            .downcast_ref::<io::Error>()
+            .ok_or("publication changed the file error type")?
+            .kind(),
+        io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(std::fs::read(&output)?, WIRE_BODY);
+
+    drop(first);
+    drop(second);
+    first_cleanup.finish(Ok(()))?;
+    second_cleanup.finish(Ok(()))?;
+    assert!(!first_stage.exists());
+    assert!(!second_stage.exists());
+    assert!(!legacy.exists());
+    assert_eq!(std::fs::read(output)?, WIRE_BODY);
+
+    directory.finish()
+}
+
 #[cfg(unix)]
 #[test]
 fn distinct_staging_directories_have_owner_only_unix_permissions() -> TestResult {

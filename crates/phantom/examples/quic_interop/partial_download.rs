@@ -65,10 +65,12 @@ impl PartialDownload {
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
             Err(error) => return Err(error),
         }
+
         let parent = legacy_path
             .parent()
             .ok_or_else(|| io::Error::other("partial download has no parent directory"))?;
         let directory = create_staging_directory(parent)?;
+
         // Record directory ownership before opening a file or reaching any await.
         let mut owner = Self {
             directory: Some(directory.clone()),
@@ -90,6 +92,7 @@ impl PartialDownload {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(path);
+
         Ok(owner)
     }
 
@@ -165,9 +168,11 @@ fn create_staging_directory(parent: &Path) -> io::Result<PathBuf> {
     };
     #[cfg(not(unix))]
     let builder = fs::DirBuilder::new();
+
     for _ in 0..16 {
         let mut nonce = [0_u8; 16];
         btls::rand::rand_bytes(&mut nonce).map_err(io::Error::other)?;
+
         let mut suffix = String::with_capacity(32);
         for byte in nonce {
             suffix.push(char::from(b"0123456789abcdef"[usize::from(byte >> 4)]));
@@ -180,6 +185,7 @@ fn create_staging_directory(parent: &Path) -> io::Result<PathBuf> {
             Err(error) => return Err(error),
         }
     }
+
     Err(io::Error::new(
         io::ErrorKind::AlreadyExists,
         "could not create an exclusive download staging directory",
