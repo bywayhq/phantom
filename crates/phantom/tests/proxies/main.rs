@@ -8,6 +8,7 @@
 #[path = "../support.rs"]
 mod support;
 
+mod environment;
 mod forward_proxy;
 mod negotiated_proxy;
 mod proxy;
