@@ -33,11 +33,12 @@ No route item is complete until integration passes.
 
 Checkpoint `c8ede964` passed all 2,862 tests, workspace and Linux Clippy,
 rustdoc, doctests, and MSRV checks. Its full gate found an unused lint
-expectation in builds without qlog and a nested HTTP/3 future that exceeded
-the nightly compiler's type-checking limit. Both have source fixes awaiting
-verification. Reviewed follow-ups keep packet crypto private and replace
-legacy module filenames. Downstream checks, the final full gate, and CI
-remain required.
+expectation and nested setup futures that exceeded the nightly compiler's
+type-checking limit. The fixes passed the pinned nightly check at `989ec209`.
+Downstream API tests passed with default and optional features at `f7889bb6`;
+its default-feature rustdoc also passed with warnings denied. Reviewed
+follow-ups keep packet crypto private and replace legacy module filenames.
+The final full gate, path/git downstream checks, and CI remain required.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods
