@@ -187,7 +187,9 @@ async fn accepted_ech_carries_the_origin_inside_the_quic_client_hello() -> TestR
     let identity = identity()?;
     let (address, endpoint) = server(&identity, Some((1, &TEST_ECH_KEYS[0], PUBLIC_NAME)))?;
     let mut settings = chrome::v154_quic_tls();
-    settings.ech_from_https_records = true;
+    settings.ech = phantom_profile::EchSettings::HttpsRecords(
+        phantom_profile::EchGreaseSettings::backend_default(),
+    );
     let connector = connector_with(&settings, &identity)?;
     assert!(connector.ech_from_https_records());
 

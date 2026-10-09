@@ -430,7 +430,7 @@ pub enum ClientHelloExtensionOrder {
 }
 
 /// How the payload of a GREASE ECH extension is sized.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum EchGreasePayloadLength {
     /// Keep the TLS backend's policy, which draws a length per connection.
@@ -488,7 +488,7 @@ pub struct AlpsSettings {
 }
 
 /// An HPKE AEAD that a GREASE ECH extension may advertise.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum EchGreaseAead {
     /// AES-128-GCM.
@@ -508,6 +508,131 @@ impl EchGreaseAead {
             Self::Aes256Gcm => 0x0002,
             Self::ChaCha20Poly1305 => 0x0003,
         }
+    }
+}
+
+/// Checked payload sizing and AEAD choices for ECH GREASE.
+///
+/// Each connection draws one listed AEAD uniformly. A HelloRetryRequest keeps
+/// the first ClientHello's choice. An empty list keeps the backend's policy:
+/// AES-128-GCM with AES hardware, and ChaCha20-Poly1305 otherwise.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct EchGreaseSettings {
+    payload_length: EchGreasePayloadLength,
+    aeads: Vec<EchGreaseAead>,
+}
+
+impl EchGreaseSettings {
+    /// Checks payload sizing and AEAD choices.
+    ///
+    /// Exact lengths must be between 1 and 65_493 bytes, leaving room for ECH
+    /// framing in the TLS extension body. AEAD choices must not repeat. An
+    /// empty list and `BackendDefault` keep the backend's choices.
+    pub fn new(
+        payload_length: EchGreasePayloadLength,
+        aeads: Vec<EchGreaseAead>,
+    ) -> Result<Self, InvalidTlsSettings> {
+        if let EchGreasePayloadLength::Exact(length) = payload_length {
+            if length == 0 {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease_payload_length",
+                    "an exact ECH GREASE payload length must be nonzero",
+                ));
+            }
+            if length > MAX_ECH_GREASE_PAYLOAD_LENGTH {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease_payload_length",
+                    "ECH GREASE payload and framing exceed the TLS extension body limit",
+                ));
+            }
+        }
+        for (index, aead) in aeads.iter().enumerate() {
+            if aeads[..index].contains(aead) {
+                return Err(InvalidTlsSettings::new(
+                    "ech_grease_aeads",
+                    "ECH GREASE AEAD choices must not repeat",
+                ));
+            }
+        }
+        Ok(Self {
+            payload_length,
+            aeads,
+        })
+    }
+
+    /// Keeps the backend's payload sizing and AEAD choices.
+    #[must_use]
+    pub const fn backend_default() -> Self {
+        Self {
+            payload_length: EchGreasePayloadLength::BackendDefault,
+            aeads: Vec::new(),
+        }
+    }
+
+    /// Returns the checked payload sizing policy.
+    #[must_use]
+    pub const fn payload_length(&self) -> EchGreasePayloadLength {
+        self.payload_length
+    }
+
+    /// Returns the AEAD choices, or an empty slice for the backend's policy.
+    #[must_use]
+    pub fn aeads(&self) -> &[EchGreaseAead] {
+        &self.aeads
+    }
+}
+
+// The built-in recipe has a valid payload policy and two distinct AEADs.
+pub(crate) fn firefox_ech_grease() -> EchGreaseSettings {
+    EchGreaseSettings {
+        payload_length: EchGreasePayloadLength::FromClientHello {
+            maximum_name_length: 100,
+        },
+        aeads: vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
+    }
+}
+
+/// How you offer Encrypted ClientHello (ECH).
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum EchSettings {
+    /// Omits ECH and ECH GREASE.
+    Disabled,
+    /// Sends ECH GREASE without looking up ECH configurations.
+    Grease(EchGreaseSettings),
+    /// Uses an origin's HTTPS record when it has a usable ECH configuration.
+    ///
+    /// Direct TCP requests and secure WebSocket openings overlap the lookup
+    /// with address resolution. They wait at most 5–50 ms after the address
+    /// answers, select the first record compatible with their ALPN offer,
+    /// and retry once after an authenticated ECH rejection.
+    ///
+    /// QUIC connections to the origin's own host and port use the first
+    /// record listing `h3`, with the same wait bound. They do not retry an
+    /// ECH rejection. A stale configuration keeps failing until the cached
+    /// record expires. Choose `Grease` to stop using HTTPS records.
+    ///
+    /// The supplied GREASE settings apply when no usable configuration is
+    /// available. Proxy routes and Alt-Svc alternatives at another location
+    /// use GREASE without waiting for HTTPS records. Connector operations
+    /// use records only when you supply an ECH lookup or configuration.
+    HttpsRecords(EchGreaseSettings),
+}
+
+impl EchSettings {
+    /// Returns GREASE settings when ECH is enabled.
+    #[must_use]
+    pub const fn grease(&self) -> Option<&EchGreaseSettings> {
+        match self {
+            Self::Disabled => None,
+            Self::Grease(settings) | Self::HttpsRecords(settings) => Some(settings),
+        }
+    }
+
+    /// Returns whether direct connections may use HTTPS record configurations.
+    #[must_use]
+    pub const fn uses_https_records(&self) -> bool {
+        matches!(self, Self::HttpsRecords(_))
     }
 }
 
@@ -687,50 +812,9 @@ pub struct TlsSettings {
     pub grease_signature_algorithms: bool,
     /// Ordering policy for known ClientHello extensions.
     pub extension_order: ClientHelloExtensionOrder,
-    /// Whether to emit a GREASE ECH extension without an ECH configuration.
-    pub ech_grease: bool,
-    /// How the random GREASE ECH payload is sized.
-    ///
-    /// Any value other than [`EchGreasePayloadLength::BackendDefault`]
-    /// requires [`Self::ech_grease`].
-    pub ech_grease_payload_length: EchGreasePayloadLength,
-    /// HPKE AEADs from which each connection's GREASE ECH extension draws one.
-    ///
-    /// Every connection selects one listed AEAD uniformly at random; a
-    /// HelloRetryRequest keeps the first ClientHello's choice. An empty vector
-    /// retains the TLS backend's policy, which advertises AES-128-GCM when
-    /// [`Self::aes_hardware`] is set and ChaCha20-Poly1305 otherwise. A
-    /// non-empty list requires [`Self::ech_grease`] and must not repeat an
-    /// AEAD.
-    pub ech_grease_aeads: Vec<EchGreaseAead>,
-    /// Whether a direct TLS connection offers Encrypted Client Hello with the
-    /// `ech` value of the origin's HTTPS record, as Chrome 154, Edge 153, and
-    /// Brave 154 do.
-    ///
-    /// On a client that looks up HTTPS records, this covers the TCP
-    /// connections of negotiated and exact-protocol HTTP/1.1 and HTTP/2
-    /// requests and of `wss://` WebSocket openings. Such a connection holds
-    /// its ClientHello until the lookup ends, for at most 5-50 ms after the
-    /// address answers, and retries once after an ECH rejection. The record
-    /// it uses is the first one that supports a protocol in the connection's
-    /// own ALPN offer.
-    ///
-    /// In an HTTP/3 profile it covers the QUIC connections to the origin's
-    /// own host and port: an HTTP/3 alternative found through HTTPS records
-    /// and an exact HTTP/3 request. Such a connection starts once the lookup
-    /// ends, within the same bound, and uses the first record that lists
-    /// `h3`. After an ECH rejection it fails and is not repeated. Exact
-    /// HTTP/3 requests, and negotiated ones under the sequential Alt-Svc
-    /// policy, therefore keep failing on a stale configuration until the
-    /// cached record expires; set this field to `false` to send ECH GREASE
-    /// instead.
-    ///
-    /// Without a record, or when that record has no usable `ech`, the
-    /// connection sends ECH GREASE. Proxy routes, Alt-Svc alternatives at
-    /// another location, and connector methods without `with_ech` in their
-    /// name send ECH GREASE and never wait. Requires [`Self::ech_grease`],
-    /// which Chrome always enables beside a configuration.
-    pub ech_from_https_records: bool,
+    /// Whether you disable ECH, send GREASE, or use HTTPS records with GREASE
+    /// when no usable configuration is available.
+    pub ech: EchSettings,
     /// Whether to request an OCSP staple.
     pub request_ocsp_staple: bool,
     /// Whether to request signed certificate timestamps.
@@ -776,48 +860,6 @@ impl TlsSettings {
                 "record size limit must be between 64 and 16385 bytes",
             ));
         }
-        if self.ech_grease_payload_length != EchGreasePayloadLength::BackendDefault
-            && !self.ech_grease
-        {
-            return Err(InvalidTlsSettings::new(
-                "ech_grease_payload_length",
-                "an ECH GREASE payload length policy requires ECH GREASE to be enabled",
-            ));
-        }
-        if let EchGreasePayloadLength::Exact(length) = self.ech_grease_payload_length {
-            if length == 0 {
-                return Err(InvalidTlsSettings::new(
-                    "ech_grease_payload_length",
-                    "an exact ECH GREASE payload length must be nonzero",
-                ));
-            }
-            if length > MAX_ECH_GREASE_PAYLOAD_LENGTH {
-                return Err(InvalidTlsSettings::new(
-                    "ech_grease_payload_length",
-                    "ECH GREASE payload and framing exceed the TLS extension body limit",
-                ));
-            }
-        }
-        if !self.ech_grease_aeads.is_empty() && !self.ech_grease {
-            return Err(InvalidTlsSettings::new(
-                "ech_grease_aeads",
-                "ECH GREASE AEAD choices require ECH GREASE to be enabled",
-            ));
-        }
-        if self.ech_from_https_records && !self.ech_grease {
-            return Err(InvalidTlsSettings::new(
-                "ech_from_https_records",
-                "ECH from HTTPS records requires ECH GREASE to be enabled",
-            ));
-        }
-        for (index, aead) in self.ech_grease_aeads.iter().enumerate() {
-            if self.ech_grease_aeads[..index].contains(aead) {
-                return Err(InvalidTlsSettings::new(
-                    "ech_grease_aeads",
-                    "ECH GREASE AEAD choices must not repeat",
-                ));
-            }
-        }
         if self.tcp_early_data && !self.session_tickets.is_enabled() {
             return Err(InvalidTlsSettings::new(
                 "tcp_early_data",
@@ -837,10 +879,10 @@ impl TlsSettings {
                     "initial key shares require TLS 1.3 to be enabled",
                 ));
             }
-            if self.ech_grease {
+            if self.ech.grease().is_some() {
                 return Err(InvalidTlsSettings::new(
-                    "ech_grease",
-                    "ECH GREASE requires TLS 1.3 to be enabled",
+                    "ech",
+                    "ECH requires TLS 1.3 to be enabled",
                 ));
             }
             if self.requested_trust_anchor_ids.is_some() {

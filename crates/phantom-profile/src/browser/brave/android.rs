@@ -33,25 +33,26 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 /// Returns TLS settings captured from Brave 1.95.104 for Android.
 ///
 /// The retained TCP ClientHello of each emulator equals the desktop Brave
-/// ClientHello of [`brave::v154_tcp_tls`], with no trust-anchor
-/// IDs. [`TlsSettings::ech_from_https_records`] is unset: no Android capture
+/// ClientHello of [`brave::v154_tcp_tls`], with no trust-anchor IDs.
+/// [`TlsSettings::ech`] uses GREASE without HTTPS records: no Android capture
 /// shows Brave using an HTTPS record's `ech`, because the device cannot be
 /// given a DNS-over-HTTPS resolver.
 #[must_use]
 pub fn v153_android_tcp_tls() -> TlsSettings {
     let mut settings = brave::v154_tcp_tls();
-    settings.ech_from_https_records = false;
+    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     settings
 }
 
 /// Returns TLS settings for the Brave 1.95.104 for Android HTTP/3 offer.
 ///
 /// The retained Android QUIC ClientHellos equal [`brave::v154_quic_tls`].
-/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v153_android_tcp_tls`].
+/// [`TlsSettings::ech`] uses GREASE without HTTPS records, as in
+/// [`v153_android_tcp_tls`].
 #[must_use]
 pub fn v153_android_quic_tls() -> TlsSettings {
     let mut settings = brave::v154_quic_tls();
-    settings.ech_from_https_records = false;
+    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     settings
 }
 

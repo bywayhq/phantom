@@ -54,10 +54,10 @@ fn brave_android_153_reuses_the_desktop_recipes() -> TestResult {
     let tls = v153_android_tcp_tls();
     tls.validate()?;
     let mut desktop = brave::v154_tcp_tls();
-    desktop.ech_from_https_records = false;
+    desktop.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     assert_eq!(tls, desktop);
     let mut desktop_http3 = brave::v154_quic_tls();
-    desktop_http3.ech_from_https_records = false;
+    desktop_http3.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     assert_eq!(v153_android_quic_tls(), desktop_http3);
     assert_eq!(v153_android_http2(), chrome::v154_http2());
     assert_eq!(v153_android_quic(), chrome::v154_quic());

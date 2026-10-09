@@ -66,9 +66,8 @@ use crate::{
     },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::{
-        AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder,
-        EchGreasePayloadLength, NamedGroup, SessionTicketOrder, SignatureScheme, TlsSettings,
-        TlsVersion, TrustAnchorIds,
+        AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
+        SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion, TrustAnchorIds,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -253,10 +252,9 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 /// processes. All 60 processes of the retained `trust-anchor-orders.txt`
 /// capture emit the one ascending order this recipe carries.
 ///
-/// Chrome 154 offers real Encrypted Client Hello on a direct connection
-/// whose HTTPS record carries `ech`, so
-/// [`TlsSettings::ech_from_https_records`] is set; it applies only on a
-/// client that looks up HTTPS records.
+/// Chrome 154 offers real Encrypted Client Hello on a direct connection whose
+/// HTTPS record carries `ech`, so [`TlsSettings::ech`] uses HTTPS records. It
+/// applies only on a client that looks up HTTPS records.
 ///
 /// Ticket resumption over TCP follows the retained `resumption-*.txt`
 /// captures. Chrome kept the two newest tickets for an origin, presented the
@@ -325,10 +323,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
         grease: true,
         grease_signature_algorithms: true,
         extension_order: ClientHelloExtensionOrder::Permuted,
-        ech_grease: true,
-        ech_grease_payload_length: EchGreasePayloadLength::BackendDefault,
-        ech_grease_aeads: Vec::new(),
-        ech_from_https_records: true,
+        ech: crate::EchSettings::HttpsRecords(crate::EchGreaseSettings::backend_default()),
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,
@@ -1228,7 +1223,7 @@ pub fn v154_http3() -> Http3Settings {
 /// `pre_shared_key`; [`v154_quic`] sets `early_data` so a resumed connection
 /// offers it too.
 ///
-/// [`TlsSettings::ech_from_https_records`] stays set from [`v154_tcp_tls`]:
+/// [`TlsSettings::ech`] keeps its HTTPS record policy from [`v154_tcp_tls`]:
 /// given an HTTPS record that lists `h3` and carries `ech`, Chrome 154
 /// encrypted its QUIC ClientHello with the record's configuration, under the
 /// public name, with the extension set of its ECH GREASE QUIC ClientHello.
@@ -1236,9 +1231,8 @@ pub fn v154_http3() -> Http3Settings {
 /// server's retry configurations; the request went over TCP instead.
 /// Phantom's exact HTTP/3 requests, and negotiated requests under the
 /// sequential Alt-Svc policy, have no such fallback and keep failing on a
-/// stale configuration until the cached record expires. Set
-/// `ech_from_https_records = false` on the returned value to send ECH
-/// GREASE instead.
+/// stale configuration until the cached record expires. Set the returned
+/// value's `ech` to `EchSettings::Grease` to send ECH GREASE instead.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
     let mut settings = v154_tcp_tls();

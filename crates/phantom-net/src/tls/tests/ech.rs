@@ -1,5 +1,5 @@
 use phantom_profile::{
-    EchGreaseAead, EchGreasePayloadLength,
+    EchGreaseAead, EchGreasePayloadLength, EchGreaseSettings, EchSettings,
     browser::chrome::{v154_quic_tls, v154_tcp_tls},
 };
 
@@ -10,7 +10,10 @@ use super::{
 #[tokio::test]
 async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<()> {
     let mut settings = v154_tcp_tls();
-    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
+    settings.ech = EchSettings::HttpsRecords(EchGreaseSettings::new(
+        EchGreasePayloadLength::Exact(239),
+        Vec::new(),
+    )?);
 
     let capture = capture_client_hello_from(&settings).await?;
     let ech_body_length =
@@ -29,7 +32,11 @@ async fn exact_ech_grease_payload_length_controls_the_wire_body() -> TestResult<
 async fn omitted_ech_grease_payload_length_retains_backend_policy() -> TestResult<()> {
     let settings = v154_tcp_tls();
     assert_eq!(
-        settings.ech_grease_payload_length,
+        settings
+            .ech
+            .grease()
+            .ok_or("ECH GREASE disabled")?
+            .payload_length(),
         EchGreasePayloadLength::BackendDefault
     );
 
@@ -44,26 +51,27 @@ async fn omitted_ech_grease_payload_length_retains_backend_policy() -> TestResul
     Ok(())
 }
 
-#[test]
-fn exact_ech_grease_payload_without_ech_fails_before_stream_io() -> TestResult<()> {
+#[tokio::test]
+async fn disabled_ech_omits_the_extension() -> TestResult<()> {
     let mut settings = v154_tcp_tls();
-    settings.ech_grease = false;
-    settings.ech_from_https_records = false;
-    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
-
-    let error = match TlsConnector::new(&settings) {
-        Ok(_) => return Err("ECH GREASE payload length unexpectedly built a connector".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), TlsErrorKind::InvalidConfiguration);
-    assert!(error.to_string().contains("ech_grease_payload_length"));
+    settings.ech = EchSettings::Disabled;
+    let capture = capture_client_hello_from(&settings).await?;
+    assert!(
+        !capture
+            .summary()?
+            .extension_layout()
+            .any(|(extension_type, _)| extension_type == 0xfe0d)
+    );
     Ok(())
 }
 
 #[tokio::test]
 async fn configured_ech_grease_aead_controls_the_wire_cipher_suite() -> TestResult<()> {
     let mut settings = v154_tcp_tls();
-    settings.ech_grease_aeads = vec![EchGreaseAead::Aes256Gcm];
+    settings.ech = EchSettings::HttpsRecords(EchGreaseSettings::new(
+        EchGreasePayloadLength::BackendDefault,
+        vec![EchGreaseAead::Aes256Gcm],
+    )?);
 
     let capture = capture_client_hello_from(&settings).await?;
 
@@ -76,25 +84,23 @@ async fn configured_ech_grease_aead_controls_the_wire_cipher_suite() -> TestResu
 }
 
 #[test]
-fn ech_grease_aeads_without_ech_fail_before_stream_io() -> TestResult<()> {
+fn ech_with_tls_12_fails_before_stream_io() -> TestResult<()> {
     let mut settings = v154_tcp_tls();
-    settings.ech_grease = false;
-    settings.ech_from_https_records = false;
-    settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
-
+    settings.versions = phantom_profile::TlsVersionRange::only(phantom_profile::TlsVersion::Tls12);
+    settings.key_shares.clear();
     let error = match TlsConnector::new(&settings) {
-        Ok(_) => return Err("ECH GREASE AEADs unexpectedly built a connector".into()),
+        Ok(_) => return Err("ECH unexpectedly built a TLS 1.2 connector".into()),
         Err(error) => error,
     };
     assert_eq!(error.kind(), TlsErrorKind::InvalidConfiguration);
-    assert!(error.to_string().contains("ech_grease_aeads"));
+    assert!(error.to_string().contains("ech"));
     Ok(())
 }
 
 #[test]
 fn quic_connector_accepts_ech_from_https_records() -> TestResult<()> {
     let mut settings = v154_quic_tls();
-    settings.ech_from_https_records = true;
+    settings.ech = EchSettings::HttpsRecords(EchGreaseSettings::backend_default());
     TlsConnector::new_quic_with_additional_roots(&settings, [], |_| {})?;
     Ok(())
 }

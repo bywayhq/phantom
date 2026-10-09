@@ -401,11 +401,10 @@ fn observed_orders(orders: &[(usize, [u8; 32])]) -> Vec<Vec<Box<[u8]>>> {
 /// [`chrome::v154_tcp_tls`] with [`TrustAnchorIds::PerClient`]: each client
 /// draws one of the 29 processes' orders, 16 distinct, and keeps it on every
 /// TCP connection, as a process does. The retained `client-hello.txt` is
-/// replayed against the result. It keeps
-/// [`TlsSettings::ech_from_https_records`] set: given an HTTPS record with
-/// `ech` from its DNS-over-HTTPS server, Opera 136 sent the configuration,
-/// and after a rejection it retried once with the server's retry
-/// configuration, as Chrome 154 does.
+/// replayed against the result. It keeps [`TlsSettings::ech`] on HTTPS
+/// records: given an HTTPS record with `ech` from its DNS-over-HTTPS server,
+/// Opera 136 sent the configuration, and after a rejection it retried once
+/// with the server's retry configuration, as Chrome 154 does.
 #[must_use]
 pub fn v136_tcp_tls() -> TlsSettings {
     let mut settings = chrome::v154_tcp_tls();
@@ -417,16 +416,15 @@ pub fn v136_tcp_tls() -> TlsSettings {
 /// Returns TLS settings for the Opera 136.0.6008.52 HTTP/3 offer on Windows 11.
 ///
 /// The QUIC ClientHellos match [`chrome::v154_quic_tls`] except in the
-/// trust-anchor IDs, which are the 32 IDs of [`v136_tcp_tls`] in an order drawn
-/// per connection: 20 retained QUIC ClientHellos carry 19 orders. This sends
-/// them with [`TrustAnchorIds::PerConnection`], drawing one of those 20
-/// ClientHellos' orders for each connection. It inherits that recipe's
-/// ticket resumption, whose Chromium source basis was read at 154, not at
-/// Opera's Chromium 152 base. It keeps
-/// [`TlsSettings::ech_from_https_records`], as [`v136_tcp_tls`] does: Opera 136
-/// sent an HTTPS record's `ech` over QUIC, and closed a rejected QUIC
-/// connection with `ech_required` without retrying it there, as Chrome 154
-/// does.
+/// trust-anchor IDs, which are the 32 IDs of [`v136_tcp_tls`] in an order
+/// drawn per connection: 20 retained QUIC ClientHellos carry 19 orders. This
+/// sends them with [`TrustAnchorIds::PerConnection`], drawing one of those 20
+/// ClientHellos' orders for each connection. It inherits that recipe's ticket
+/// resumption, whose Chromium source basis was read at 154, not at Opera's
+/// Chromium 152 base. It keeps [`TlsSettings::ech`], as [`v136_tcp_tls`]
+/// does: Opera 136 sent an HTTPS record's `ech` over QUIC, and closed a
+/// rejected QUIC connection with `ech_required` without retrying it there, as
+/// Chrome 154 does.
 #[must_use]
 pub fn v136_quic_tls() -> TlsSettings {
     let mut settings = chrome::v154_quic_tls();

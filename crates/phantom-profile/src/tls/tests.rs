@@ -68,10 +68,7 @@ fn minimal_settings() -> TlsSettings {
         grease: false,
         grease_signature_algorithms: false,
         extension_order: ClientHelloExtensionOrder::BackendDefault,
-        ech_grease: false,
-        ech_grease_payload_length: EchGreasePayloadLength::BackendDefault,
-        ech_grease_aeads: Vec::new(),
-        ech_from_https_records: false,
+        ech: crate::EchSettings::Disabled,
         request_ocsp_staple: false,
         request_signed_certificate_timestamps: false,
         aes_hardware: true,
@@ -349,51 +346,130 @@ fn tls_12_rejects_key_shares() {
 
 #[test]
 fn tls_12_rejects_ech_grease() {
-    let mut settings = minimal_settings();
-    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
-    settings.key_shares.clear();
-    settings.ech_grease = true;
-
-    let error = settings.validate().err();
-    assert_eq!(
-        error.as_ref().map(InvalidTlsSettings::field),
-        Some("ech_grease")
-    );
+    for ech in [
+        EchSettings::Grease(EchGreaseSettings::backend_default()),
+        EchSettings::HttpsRecords(EchGreaseSettings::backend_default()),
+    ] {
+        let mut settings = minimal_settings();
+        settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls12);
+        settings.key_shares.clear();
+        settings.ech = ech;
+        let error = settings.validate().err();
+        assert_eq!(error.as_ref().map(InvalidTlsSettings::field), Some("ech"));
+    }
 }
 
 #[test]
-fn ech_from_https_records_requires_ech_grease() {
-    let mut settings = minimal_settings();
-    settings.ech_from_https_records = true;
+fn ech_modes_keep_grease_options_only_when_enabled() -> Result<(), InvalidTlsSettings> {
+    let grease = EchGreaseSettings::new(
+        EchGreasePayloadLength::Exact(239),
+        vec![EchGreaseAead::Aes256Gcm],
+    )?;
+    assert!(EchSettings::Disabled.grease().is_none());
+    assert!(!EchSettings::Disabled.uses_https_records());
+    for ech in [
+        EchSettings::Grease(grease.clone()),
+        EchSettings::HttpsRecords(grease.clone()),
+    ] {
+        assert_eq!(ech.grease(), Some(&grease));
+        let mut settings = minimal_settings();
+        settings.ech = ech;
+        settings.validate()?;
+    }
+    assert!(!EchSettings::Grease(grease.clone()).uses_https_records());
+    assert!(EchSettings::HttpsRecords(grease).uses_https_records());
+    Ok(())
+}
 
-    let error = settings.validate().err();
-    assert_eq!(
-        error.as_ref().map(InvalidTlsSettings::field),
-        Some("ech_from_https_records")
-    );
-
-    settings.ech_grease = true;
-    assert!(settings.validate().is_ok());
+#[test]
+fn ech_value_types_are_hashable_send_and_sync() {
+    fn assert_traits<T: Clone + std::fmt::Debug + Eq + std::hash::Hash + Send + Sync>() {}
+    assert_traits::<EchGreaseSettings>();
+    assert_traits::<EchSettings>();
 }
 
 #[test]
 fn only_the_desktop_chromium_recipes_use_ech_from_https_records() {
-    assert!(crate::browser::chrome::v154_tcp_tls().ech_from_https_records);
-    assert!(crate::browser::chrome::v154_quic_tls().ech_from_https_records);
-    assert!(crate::browser::edge::v154_tcp_tls().ech_from_https_records);
-    assert!(crate::browser::edge::v154_quic_tls().ech_from_https_records);
-    assert!(crate::browser::brave::v154_tcp_tls().ech_from_https_records);
-    assert!(crate::browser::brave::v154_quic_tls().ech_from_https_records);
-    assert!(crate::browser::opera::v136_tcp_tls().ech_from_https_records);
-    assert!(crate::browser::opera::v136_quic_tls().ech_from_https_records);
-    assert!(!crate::browser::opera::v102_android_tcp_tls().ech_from_https_records);
-    assert!(!crate::browser::chrome::v154_android_tcp_tls().ech_from_https_records);
-    assert!(!crate::browser::chrome::v154_android_quic_tls().ech_from_https_records);
-    assert!(!crate::browser::edge::v153_android_tcp_tls().ech_from_https_records);
-    assert!(!crate::browser::edge::v153_android_quic_tls().ech_from_https_records);
-    assert!(!crate::browser::brave::v153_android_tcp_tls().ech_from_https_records);
-    assert!(!crate::browser::brave::v153_android_quic_tls().ech_from_https_records);
-    assert!(!crate::browser::firefox::v157_tcp_tls().ech_from_https_records);
+    assert!(
+        crate::browser::chrome::v154_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::chrome::v154_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::edge::v154_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::edge::v154_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::brave::v154_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::brave::v154_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::opera::v136_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        crate::browser::opera::v136_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::opera::v102_android_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::chrome::v154_android_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::chrome::v154_android_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::edge::v153_android_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::edge::v153_android_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::brave::v153_android_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::brave::v153_android_quic_tls()
+            .ech
+            .uses_https_records()
+    );
+    assert!(
+        !crate::browser::firefox::v157_tcp_tls()
+            .ech
+            .uses_https_records()
+    );
 }
 
 #[test]
@@ -404,28 +480,16 @@ fn ech_grease_aead_ids_match_rfc_9180() {
 }
 
 #[test]
-fn ech_grease_aead_choices_require_ech_grease() {
-    let mut settings = minimal_settings();
-    settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
-
-    let error = settings.validate().err();
-    assert_eq!(
-        error.as_ref().map(InvalidTlsSettings::field),
-        Some("ech_grease_aeads")
-    );
-}
-
-#[test]
 fn ech_grease_aead_choices_must_not_repeat() {
-    let mut settings = minimal_settings();
-    settings.ech_grease = true;
-    settings.ech_grease_aeads = vec![
-        EchGreaseAead::Aes128Gcm,
-        EchGreaseAead::ChaCha20Poly1305,
-        EchGreaseAead::Aes128Gcm,
-    ];
-
-    let error = settings.validate().err();
+    let error = EchGreaseSettings::new(
+        EchGreasePayloadLength::BackendDefault,
+        vec![
+            EchGreaseAead::Aes128Gcm,
+            EchGreaseAead::ChaCha20Poly1305,
+            EchGreaseAead::Aes128Gcm,
+        ],
+    )
+    .err();
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease_aeads")
@@ -434,36 +498,21 @@ fn ech_grease_aead_choices_must_not_repeat() {
 
 #[test]
 fn every_distinct_ech_grease_aead_choice_is_valid() -> Result<(), InvalidTlsSettings> {
-    let mut settings = minimal_settings();
-    settings.ech_grease = true;
-    settings.ech_grease_aeads = vec![
+    let aeads = vec![
         EchGreaseAead::ChaCha20Poly1305,
         EchGreaseAead::Aes256Gcm,
         EchGreaseAead::Aes128Gcm,
     ];
-
+    let grease = EchGreaseSettings::new(EchGreasePayloadLength::BackendDefault, aeads.clone())?;
+    assert_eq!(grease.aeads(), aeads);
+    let mut settings = minimal_settings();
+    settings.ech = EchSettings::Grease(grease);
     settings.validate()
 }
 
 #[test]
-fn exact_ech_grease_payload_length_requires_ech_grease() {
-    let mut settings = minimal_settings();
-    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(239);
-
-    let error = settings.validate().err();
-    assert_eq!(
-        error.as_ref().map(InvalidTlsSettings::field),
-        Some("ech_grease_payload_length")
-    );
-}
-
-#[test]
 fn exact_ech_grease_payload_length_must_be_nonzero() {
-    let mut settings = minimal_settings();
-    settings.ech_grease = true;
-    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(0);
-
-    let error = settings.validate().err();
+    let error = EchGreaseSettings::new(EchGreasePayloadLength::Exact(0), Vec::new()).err();
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease_payload_length")
@@ -471,38 +520,50 @@ fn exact_ech_grease_payload_length_must_be_nonzero() {
 }
 
 #[test]
-fn exact_ech_grease_payload_and_framing_must_fit_the_extension_body() {
-    let mut settings = minimal_settings();
-    settings.ech_grease = true;
-    settings.ech_grease_payload_length =
-        EchGreasePayloadLength::Exact(MAX_ECH_GREASE_PAYLOAD_LENGTH + 1);
-
-    let error = settings.validate().err();
+fn exact_ech_grease_payload_and_framing_must_fit_the_extension_body()
+-> Result<(), InvalidTlsSettings> {
+    for length in [1, MAX_ECH_GREASE_PAYLOAD_LENGTH] {
+        let grease = EchGreaseSettings::new(EchGreasePayloadLength::Exact(length), Vec::new())?;
+        assert_eq!(
+            grease.payload_length(),
+            EchGreasePayloadLength::Exact(length)
+        );
+    }
+    let error = EchGreaseSettings::new(
+        EchGreasePayloadLength::Exact(MAX_ECH_GREASE_PAYLOAD_LENGTH + 1),
+        Vec::new(),
+    )
+    .err();
     assert_eq!(
         error.as_ref().map(InvalidTlsSettings::field),
         Some("ech_grease_payload_length")
     );
+    Ok(())
 }
 
 #[test]
-fn ech_grease_payload_from_the_client_hello_requires_ech_grease() -> Result<(), Box<dyn Error>> {
-    let mut settings = minimal_settings();
-    settings.ech_grease_payload_length = EchGreasePayloadLength::FromClientHello {
-        maximum_name_length: 100,
-    };
-    let error = settings.validate().err();
-    assert_eq!(
-        error.as_ref().map(InvalidTlsSettings::field),
-        Some("ech_grease_payload_length")
-    );
-
-    settings.ech_grease = true;
+fn ech_grease_payload_from_the_client_hello_preserves_the_name_bound()
+-> Result<(), InvalidTlsSettings> {
     for maximum_name_length in [0, 100, u8::MAX] {
-        settings.ech_grease_payload_length = EchGreasePayloadLength::FromClientHello {
+        let payload = EchGreasePayloadLength::FromClientHello {
             maximum_name_length,
         };
+        let grease = EchGreaseSettings::new(payload, Vec::new())?;
+        assert_eq!(grease.payload_length(), payload);
+        let mut settings = minimal_settings();
+        settings.ech = EchSettings::Grease(grease);
         settings.validate()?;
     }
+    let default = EchGreaseSettings::backend_default();
+    assert_eq!(
+        default.payload_length(),
+        EchGreasePayloadLength::BackendDefault
+    );
+    assert!(default.aeads().is_empty());
+    assert_eq!(
+        EchGreaseSettings::new(EchGreasePayloadLength::BackendDefault, Vec::new())?,
+        default
+    );
     Ok(())
 }
 

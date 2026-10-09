@@ -102,13 +102,13 @@ pub fn v154_android_client_hints_for_model(model: &str) -> ClientHintSettings {
 /// GREASE, the permuted extension order, and the ECH GREASE payload length
 /// vary per connection, as on Windows.
 ///
-/// [`TlsSettings::ech_from_https_records`] is unset: no Android capture shows
-/// Chrome using an HTTPS record's `ech`, because the capture cannot give the
-/// device a DNS-over-HTTPS resolver.
+/// [`TlsSettings::ech`] uses GREASE without HTTPS records: no Android capture
+/// shows Chrome using an HTTPS record's `ech`, because the capture cannot
+/// give the device a DNS-over-HTTPS resolver.
 #[must_use]
 pub fn v154_android_tcp_tls() -> TlsSettings {
     let mut settings = chrome::v154_tcp_tls();
-    settings.ech_from_https_records = false;
+    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     settings
 }
 
@@ -127,12 +127,12 @@ pub fn v154_android_http2() -> Http2Settings {
 /// Returns TLS settings for the Chrome 154.0.8037.57 for Android HTTP/3 offer.
 ///
 /// The retained QUIC ClientHello equals [`chrome::v154_quic_tls`] on every
-/// compared field, the sorted trust-anchor IDs included.
-/// [`TlsSettings::ech_from_https_records`] is unset, as in [`v154_android_tcp_tls`].
+/// compared field, the sorted trust-anchor IDs included. [`TlsSettings::ech`]
+/// uses GREASE without HTTPS records, as in [`v154_android_tcp_tls`].
 #[must_use]
 pub fn v154_android_quic_tls() -> TlsSettings {
     let mut settings = chrome::v154_quic_tls();
-    settings.ech_from_https_records = false;
+    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     settings
 }
 

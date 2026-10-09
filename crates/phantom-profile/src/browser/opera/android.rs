@@ -27,19 +27,20 @@ use crate::{
 /// Returns TLS settings captured from Opera 102.1.5206.90382 for Android.
 ///
 /// The retained ClientHello, from a cleared profile, equals the
-/// [`crate::browser::chrome::v154_tcp_tls`] ClientHello without the trust-anchor IDs
-/// extension, signature-algorithm GREASE included. Desktop Opera 136, on the
-/// same Chromium 152 base, sends 32 trust-anchor IDs ([`crate::browser::opera::v136_tcp_tls`]);
-/// Opera for Android sends none. The captures reached `localhost`, the only
-/// name Opera could resolve to the listener, and a ClientHello to another
-/// name differs only in its server name.
-/// [`TlsSettings::ech_from_https_records`] is unset: no Android capture
-/// shows Opera using an HTTPS record's `ech`, though desktop Opera 136 does.
+/// [`crate::browser::chrome::v154_tcp_tls`] ClientHello without the
+/// trust-anchor IDs extension, signature-algorithm GREASE included. Desktop
+/// Opera 136, on the same Chromium 152 base, sends 32 trust-anchor IDs
+/// ([`crate::browser::opera::v136_tcp_tls`]); Opera for Android sends none.
+/// The captures reached `localhost`, the only name Opera could resolve to the
+/// listener, and a ClientHello to another name differs only in its server
+/// name. [`TlsSettings::ech`] uses GREASE without HTTPS records: no Android
+/// capture shows Opera using an HTTPS record's `ech`, though desktop Opera
+/// 136 does.
 #[must_use]
 pub fn v102_android_tcp_tls() -> TlsSettings {
     let mut settings = chrome::v154_tcp_tls();
     settings.requested_trust_anchor_ids = None;
-    settings.ech_from_https_records = false;
+    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     settings
 }
 

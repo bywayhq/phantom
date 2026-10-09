@@ -380,8 +380,9 @@ fn quic_tls_profile_rejects_adapted_tcp_semantics() {
 #[test]
 fn quic_tls_profile_accepts_ech_from_https_records() {
     let mut settings = h3_tls_settings();
-    settings.ech_grease = true;
-    settings.ech_from_https_records = true;
+    settings.ech = phantom_profile::EchSettings::HttpsRecords(
+        phantom_profile::EchGreaseSettings::backend_default(),
+    );
     let context = client_context(true);
     test_ok(
         QuicClientConfig::new(context.0).with_tls_profile(&settings),
@@ -394,9 +395,13 @@ fn quic_tls_profile_changes_raw_client_hello_key_shares_and_ech() {
     let mut settings = h3_tls_settings();
     settings.groups = vec![NamedGroup::X25519];
     settings.key_shares = settings.groups.clone();
-    settings.ech_grease = true;
-    settings.ech_grease_payload_length = EchGreasePayloadLength::Exact(64);
-    settings.ech_grease_aeads = vec![EchGreaseAead::ChaCha20Poly1305];
+    settings.ech = phantom_profile::EchSettings::Grease(test_ok(
+        phantom_profile::EchGreaseSettings::new(
+            EchGreasePayloadLength::Exact(64),
+            vec![EchGreaseAead::ChaCha20Poly1305],
+        ),
+        "checked ECH GREASE settings",
+    ));
 
     let context = client_context(true);
     let config = test_ok(

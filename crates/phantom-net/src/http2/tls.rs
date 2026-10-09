@@ -265,7 +265,7 @@ impl Http2TlsConnector {
 
     /// Returns whether the TLS settings offer Encrypted Client Hello from
     /// HTTPS records on direct connections
-    /// ([`TlsSettings::ech_from_https_records`]).
+    /// ([`TlsSettings::ech`]).
     #[must_use]
     pub fn ech_from_https_records(&self) -> bool {
         self.tls.ech_from_https_records()

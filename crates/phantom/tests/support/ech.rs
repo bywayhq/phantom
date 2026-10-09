@@ -93,8 +93,9 @@ pub(crate) fn ech_tls_settings() -> TlsSettings {
         .cipher_suites
         .insert(0, CipherSuite::Aes128GcmSha256);
     settings.key_shares = vec![NamedGroup::X25519];
-    settings.ech_grease = true;
-    settings.ech_from_https_records = true;
+    settings.ech = phantom_profile::EchSettings::HttpsRecords(
+        phantom_profile::EchGreaseSettings::backend_default(),
+    );
     settings
 }
 

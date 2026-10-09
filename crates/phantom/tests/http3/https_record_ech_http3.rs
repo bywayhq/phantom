@@ -314,10 +314,16 @@ async fn published_record() -> TestResult<DnsServer> {
     .await
 }
 
-/// Chrome 154's HTTP/3 recipe, with `ech_from_https_records` as given.
+/// Chrome 154's HTTP/3 recipe, with HTTPS record ECH enabled as given.
 fn profile(ech_from_https_records: bool) -> ClientProfile {
     let mut tls = chrome::v154_quic_tls();
-    tls.ech_from_https_records = ech_from_https_records;
+    tls.ech = if ech_from_https_records {
+        phantom_profile::EchSettings::HttpsRecords(
+            phantom_profile::EchGreaseSettings::backend_default(),
+        )
+    } else {
+        phantom_profile::EchSettings::Grease(phantom_profile::EchGreaseSettings::backend_default())
+    };
     ClientProfile::new(chrome::v154_tcp_tls())
         .with_http2(chrome::v154_http2())
         .with_http3(Http3ClientSettings::new(

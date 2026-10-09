@@ -166,8 +166,8 @@ fn android_factories_leave_uncaptured_policies_absent() {
         };
         assert_eq!(http3.tls(), &tls);
         assert_eq!(tls.alpn_protocols, vec![Box::<[u8]>::from(*b"h3")]);
-        assert!(!tls.ech_from_https_records);
-        assert!(!profile.tls().ech_from_https_records);
+        assert!(!tls.ech.uses_https_records());
+        assert!(!profile.tls().ech.uses_https_records());
     }
 }
 

@@ -78,10 +78,10 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_carry_the_edge_153
 #[test]
 fn edge_android_153_reuses_the_desktop_edge_and_chromium_recipes() -> TestResult {
     let mut tls = edge::v154_tcp_tls();
-    tls.ech_from_https_records = false;
+    tls.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     assert_eq!(v153_android_tcp_tls(), tls);
     let mut http3_tls = edge::v154_quic_tls();
-    http3_tls.ech_from_https_records = false;
+    http3_tls.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     assert_eq!(v153_android_quic_tls(), http3_tls);
     v153_android_tcp_tls().validate()?;
     v153_android_quic_tls().validate()?;

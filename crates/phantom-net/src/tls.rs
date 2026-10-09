@@ -281,7 +281,7 @@ impl TlsConnector {
     }
 
     /// Returns whether the profile uses an HTTPS record's `ech` on direct
-    /// TCP connections; see `TlsSettings::ech_from_https_records`.
+    /// TCP connections; see `TlsSettings::ech`.
     pub(crate) const fn ech_from_https_records(&self) -> bool {
         self.ech_from_https_records
     }
@@ -349,10 +349,16 @@ impl TlsConnector {
             record_size_limit_configured = settings.record_size_limit.is_some(),
             grease = settings.grease,
             extension_order = extension_order_trace_name(&settings.extension_order),
-            ech_grease = settings.ech_grease,
-            ech_grease_payload_length_configured =
-                settings.ech_grease_payload_length != EchGreasePayloadLength::BackendDefault,
-            ech_grease_aead_count = settings.ech_grease_aeads.len(),
+            ech_grease = settings.ech.grease().is_some(),
+            ech_grease_payload_length_configured = settings.ech.grease().map_or(
+                EchGreasePayloadLength::BackendDefault,
+                phantom_profile::EchGreaseSettings::payload_length
+            ) != EchGreasePayloadLength::BackendDefault,
+            ech_grease_aead_count = settings
+                .ech
+                .grease()
+                .map_or(&[][..], phantom_profile::EchGreaseSettings::aeads)
+                .len(),
             server_authentication = server_authentication.trace_name(),
             outcome = field::Empty,
             error_kind = field::Empty,
@@ -457,11 +463,18 @@ impl TlsConnector {
             alps: settings.alps.clone(),
             tls13_key_shares: (settings.versions.max() == TlsVersion::Tls13)
                 .then(|| settings.key_shares.clone().into_boxed_slice()),
-            ech_grease: settings.ech_grease,
-            ech_grease_payload_length: settings.ech_grease_payload_length,
-            ech_grease_aeads: settings.ech_grease_aeads.clone().into_boxed_slice(),
+            ech_grease: settings.ech.grease().is_some(),
+            ech_grease_payload_length: settings.ech.grease().map_or(
+                EchGreasePayloadLength::BackendDefault,
+                phantom_profile::EchGreaseSettings::payload_length,
+            ),
+            ech_grease_aeads: settings
+                .ech
+                .grease()
+                .map_or(&[][..], phantom_profile::EchGreaseSettings::aeads)
+                .into(),
             per_connection_trust_anchors,
-            ech_from_https_records: settings.ech_from_https_records,
+            ech_from_https_records: settings.ech.uses_https_records(),
             close_notify: settings.close_notify,
             scoped_sessions_enabled,
             session_tickets: settings.session_tickets,

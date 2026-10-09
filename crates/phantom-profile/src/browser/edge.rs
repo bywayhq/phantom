@@ -80,13 +80,13 @@ use crate::{
 /// 20 fresh processes, so this reuses [`chrome::v154_tcp_tls`] and removes the
 /// ID list; the retained Edge 154 ClientHello is replayed against the result.
 ///
-/// It keeps [`TlsSettings::ech_from_https_records`] from that recipe. Given
-/// an HTTPS record with `ech`, Edge 153.0.4234.48 encrypted its ClientHello
-/// with the record's configuration and retried a rejection with the
-/// server's retry configurations, with the same outer fields and extension
-/// set as Chrome 154, in three runs of each scenario. No Edge 154 capture
-/// repeats those scenarios; its ClientHello without an HTTPS record is
-/// unchanged from Edge 153's.
+/// It keeps the HTTPS record policy in [`TlsSettings::ech`] from that recipe.
+/// Given an HTTPS record with `ech`, Edge 153.0.4234.48 encrypted its
+/// ClientHello with the record's configuration and retried a rejection with
+/// the server's retry configurations, with the same outer fields and
+/// extension set as Chrome 154, in three runs of each scenario. No Edge 154
+/// capture repeats those scenarios; its ClientHello without an HTTPS record
+/// is unchanged from Edge 153's.
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
     let mut settings = chrome::v154_tcp_tls();
@@ -100,11 +100,11 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// trust-anchor IDs extension, so this reuses that recipe and removes only
 /// the ID list. It inherits that recipe's ticket resumption.
 ///
-/// It also keeps [`TlsSettings::ech_from_https_records`]. Given an HTTPS
-/// record that lists `h3` and carries `ech`, Edge 153.0.4234.48 encrypted its
-/// QUIC ClientHello with the record's configuration and did not repeat a
-/// rejected QUIC connection, as Chrome 154 does, in three runs of each
-/// scenario. No Edge 154 capture repeats those scenarios.
+/// It also keeps the HTTPS record policy in [`TlsSettings::ech`]. Given an
+/// HTTPS record that lists `h3` and carries `ech`, Edge 153.0.4234.48
+/// encrypted its QUIC ClientHello with the record's configuration and did not
+/// repeat a rejected QUIC connection, as Chrome 154 does, in three runs of
+/// each scenario. No Edge 154 capture repeats those scenarios.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
     let mut settings = chrome::v154_quic_tls();

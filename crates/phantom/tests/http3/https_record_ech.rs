@@ -180,7 +180,9 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
             async move { upstream.lookup(STAND_IN_NAME, port).await }
         });
         let mut settings = ech_tls_settings();
-        settings.ech_from_https_records = false;
+        settings.ech = phantom_profile::EchSettings::Grease(
+            phantom_profile::EchGreaseSettings::backend_default(),
+        );
         let profile = ClientProfile::new(settings)
             .with_http2(chrome::v154_http2())
             .with_http3(client_settings());

@@ -286,7 +286,13 @@ async fn chromium_recipes_emit_aes_128_gcm_ech_grease_on_every_connection() -> T
         brave::v153_android_tcp_tls(),
         opera::v102_android_tcp_tls(),
     ] {
-        assert!(settings.ech_grease_aeads.is_empty());
+        assert!(
+            settings
+                .ech
+                .grease()
+                .map_or(&[][..], phantom_profile::EchGreaseSettings::aeads)
+                .is_empty()
+        );
         for capture in capture_client_hellos_from(&settings, TEST_SERVER_NAME, 64).await? {
             assert_eq!(
                 client_hello_fixture::ech_cipher_suite(capture.handshake_bytes())?,

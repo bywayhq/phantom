@@ -58,8 +58,7 @@ use crate::{
     },
     tls::{
         CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-        EchGreaseAead, EchGreasePayloadLength, NamedGroup, SessionTicketOrder, SignatureScheme,
-        TlsSettings, TlsVersion,
+        NamedGroup, SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion,
     },
     websocket::{
         WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
@@ -110,7 +109,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 ///
 /// NSS sizes the ECH GREASE payload from the ClientHello that carries it,
 /// padded for a `maximum_name_length` of 100
-/// ([`EchGreasePayloadLength::FromClientHello`]). Every fresh ClientHello to a
+/// ([`crate::EchGreasePayloadLength::FromClientHello`]). Every fresh ClientHello to a
 /// host name in the captures carries 240 payload bytes, every resumed one
 /// 368, and a fresh one to `127.0.0.1` or `[::1]` 240. The recipe sends the
 /// same fresh lengths; a resumed length depends on the server's ticket, and
@@ -227,12 +226,7 @@ pub fn v157_tcp_tls() -> TlsSettings {
             ClientHelloExtension::CertificateCompression,
             ClientHelloExtension::EncryptedClientHello,
         ]),
-        ech_grease: true,
-        ech_grease_payload_length: EchGreasePayloadLength::FromClientHello {
-            maximum_name_length: 100,
-        },
-        ech_grease_aeads: vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
-        ech_from_https_records: false,
+        ech: crate::EchSettings::Grease(crate::tls::firefox_ech_grease()),
         request_ocsp_staple: true,
         request_signed_certificate_timestamps: true,
         aes_hardware: true,

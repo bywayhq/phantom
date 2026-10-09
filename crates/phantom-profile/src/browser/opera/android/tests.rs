@@ -46,11 +46,11 @@ fn opera_android_102_tls_is_chrome_without_trust_anchor_ids()
     settings.validate()?;
     let mut chrome = chrome::v154_tcp_tls();
     chrome.requested_trust_anchor_ids = None;
-    chrome.ech_from_https_records = false;
+    chrome.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     assert_eq!(settings, chrome);
     let mut desktop = opera::v136_tcp_tls();
     desktop.requested_trust_anchor_ids = None;
-    desktop.ech_from_https_records = false;
+    desktop.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
     assert_eq!(settings, desktop);
     Ok(())
 }

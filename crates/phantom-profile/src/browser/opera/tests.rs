@@ -61,8 +61,14 @@ fn opera_client_hints_share_the_chromium_names_order_and_delivery() {
 #[test]
 fn opera_136_recipes_keep_the_backend_ech_grease_aead_policy() {
     for settings in [v136_tcp_tls(), v136_quic_tls()] {
-        assert!(settings.ech_grease);
-        assert!(settings.ech_grease_aeads.is_empty());
+        assert!(settings.ech.grease().is_some());
+        assert!(
+            settings
+                .ech
+                .grease()
+                .map_or(&[][..], crate::EchGreaseSettings::aeads)
+                .is_empty()
+        );
         assert!(settings.aes_hardware);
     }
 }

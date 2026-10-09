@@ -57,8 +57,14 @@ fn edge_154_recipes_keep_the_backend_ech_grease_aead_policy() {
     // Edge advertises AES-128-GCM like Chrome; the backend default produces
     // that choice because `aes_hardware` is set.
     for settings in [v154_tcp_tls(), v154_quic_tls()] {
-        assert!(settings.ech_grease);
-        assert!(settings.ech_grease_aeads.is_empty());
+        assert!(settings.ech.grease().is_some());
+        assert!(
+            settings
+                .ech
+                .grease()
+                .map_or(&[][..], crate::EchGreaseSettings::aeads)
+                .is_empty()
+        );
         assert!(settings.aes_hardware);
     }
 }

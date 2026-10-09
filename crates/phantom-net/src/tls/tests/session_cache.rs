@@ -617,8 +617,7 @@ fn tls12_settings() -> TlsSettings {
     settings.alps = None;
     settings.key_shares.clear();
     settings.certificate_compression.clear();
-    settings.ech_grease = false;
-    settings.ech_from_https_records = false;
+    settings.ech = phantom_profile::EchSettings::Disabled;
     settings.requested_trust_anchor_ids = None;
     settings
 }

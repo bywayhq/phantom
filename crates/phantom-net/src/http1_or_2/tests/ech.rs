@@ -200,7 +200,7 @@ fn connector_with(
     settings: &TlsSettings,
     identity: &TestIdentity,
 ) -> TestResult<Http1Or2TlsConnector> {
-    assert!(settings.ech_from_https_records);
+    assert!(settings.ech.uses_https_records());
     Ok(Http1Or2TlsConnector::new_with_additional_roots(
         settings,
         &v154_http2(),

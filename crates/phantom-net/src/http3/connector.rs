@@ -148,7 +148,7 @@ impl Http3Connector {
 
         Ok(Self {
             crypto,
-            ech_from_https_records: tls.ech_from_https_records,
+            ech_from_https_records: tls.ech.uses_https_records(),
             settings: settings.clone(),
             request_settings: request_settings.clone(),
             max_datagram_frame_size: quic.max_datagram_frame_size,
@@ -340,7 +340,7 @@ impl Http3Connector {
 
     /// Returns whether the TLS settings offer Encrypted Client Hello from
     /// HTTPS records on direct connections
-    /// ([`TlsSettings::ech_from_https_records`]).
+    /// ([`TlsSettings::ech`]).
     #[must_use]
     pub const fn ech_from_https_records(&self) -> bool {
         self.ech_from_https_records

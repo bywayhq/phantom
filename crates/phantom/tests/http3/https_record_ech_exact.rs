@@ -67,10 +67,18 @@ impl Opening {
     }
 
     /// Chrome 154's HTTP/2 and WebSocket settings over test TLS settings
-    /// that set `ech_from_https_records` as given.
+    /// that set HTTPS record ECH enabled as given.
     fn profile(ech_from_https_records: bool) -> ClientProfile {
         let mut tls = ech_tls_settings();
-        tls.ech_from_https_records = ech_from_https_records;
+        tls.ech = if ech_from_https_records {
+            phantom_profile::EchSettings::HttpsRecords(
+                phantom_profile::EchGreaseSettings::backend_default(),
+            )
+        } else {
+            phantom_profile::EchSettings::Grease(
+                phantom_profile::EchGreaseSettings::backend_default(),
+            )
+        };
         let profile = ClientProfile::new(tls)
             .with_http2(chrome::v154_http2())
             .with_http3(client_settings());
@@ -329,7 +337,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
     .await
 }
 
-/// With `ech_from_https_records` unset, the client makes no HTTPS query for
+/// With HTTPS record ECH disabled, the client makes no HTTPS query for
 /// these connections, and every one of them sends GREASE and the origin's
 /// name.
 async fn unset_field_keeps_grease(opening: Opening) -> TestResult<()> {

@@ -38,14 +38,20 @@ pub(super) fn apply(
         settings.tls12_extensions_in_tls13_client_hello,
     );
     if !matches!(
-        settings.ech_grease_payload_length,
+        settings.ech.grease().map_or(
+            EchGreasePayloadLength::BackendDefault,
+            phantom_profile::EchGreaseSettings::payload_length
+        ),
         EchGreasePayloadLength::BackendDefault
             | EchGreasePayloadLength::Exact(_)
             | EchGreasePayloadLength::FromClientHello { .. }
     ) {
         return Err(TlsError::unsupported(
             "ech_grease_payload_length",
-            settings.ech_grease_payload_length,
+            settings.ech.grease().map_or(
+                EchGreasePayloadLength::BackendDefault,
+                phantom_profile::EchGreaseSettings::payload_length,
+            ),
         ));
     }
     builder.set_aes_hw_override(settings.aes_hardware);

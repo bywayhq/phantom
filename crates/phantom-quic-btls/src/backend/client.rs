@@ -822,7 +822,10 @@ impl ClientTlsProfile {
             .map(key_share)
             .collect::<Result<Vec<_>, _>>()?
             .into_boxed_slice();
-        let ech_grease_payload = match settings.ech_grease_payload_length {
+        let ech_grease_payload = match settings.ech.grease().map_or(
+            EchGreasePayloadLength::BackendDefault,
+            phantom_profile::EchGreaseSettings::payload_length,
+        ) {
             EchGreasePayloadLength::BackendDefault => EchGreasePayload::BackendDefault,
             EchGreasePayloadLength::Exact(length) => EchGreasePayload::Exact(length),
             EchGreasePayloadLength::FromClientHello {
@@ -849,10 +852,12 @@ impl ClientTlsProfile {
         };
         Ok(Self {
             key_shares: Some(key_shares),
-            ech_grease: settings.ech_grease,
+            ech_grease: settings.ech.grease().is_some(),
             ech_grease_payload,
             ech_grease_aeads: settings
-                .ech_grease_aeads
+                .ech
+                .grease()
+                .map_or(&[][..], phantom_profile::EchGreaseSettings::aeads)
                 .iter()
                 .map(|aead| aead.hpke_id())
                 .collect(),

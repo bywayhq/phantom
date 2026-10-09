@@ -77,7 +77,7 @@ image/avif,image/webp,image/apng,*/*;q=0.8";
 /// processes, so this reuses [`chrome::v154_tcp_tls`] and removes the ID list;
 /// the retained Brave ClientHello is replayed against the result.
 ///
-/// It keeps [`TlsSettings::ech_from_https_records`] set. The retained
+/// It keeps [`TlsSettings::ech`] on HTTPS records. The retained
 /// `ech-accept.txt` capture shows Brave encrypting its ClientHello with the
 /// configuration from an HTTPS record: outer name `public.phantom.test`,
 /// HKDF-SHA256 with AES-128-GCM, a 32-byte encapsulated key, and a 144-byte
@@ -98,11 +98,11 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// recipe's ticket resumption, which the retained Brave resumption captures
 /// show: a resumed connection offers early data.
 ///
-/// It also keeps [`TlsSettings::ech_from_https_records`]. Given an HTTPS
-/// record that lists `h3` and carries `ech`, Brave 154.1.96.59 encrypted its
-/// QUIC ClientHello with the record's configuration and did not repeat a
-/// rejected QUIC connection, as Chrome 154 does, in three runs of each
-/// scenario.
+/// It also keeps the HTTPS record policy in [`TlsSettings::ech`]. Given an
+/// HTTPS record that lists `h3` and carries `ech`, Brave 154.1.96.59
+/// encrypted its QUIC ClientHello with the record's configuration and did not
+/// repeat a rejected QUIC connection, as Chrome 154 does, in three runs of
+/// each scenario.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
     let mut settings = chrome::v154_quic_tls();

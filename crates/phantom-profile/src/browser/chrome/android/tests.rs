@@ -148,9 +148,9 @@ fn chrome_android_154_tls_recipes_differ_from_desktop_only_in_ech_lookup() -> Te
         (v154_android_quic_tls(), chrome::v154_quic_tls()),
     ] {
         android.validate()?;
-        assert!(!android.ech_from_https_records);
+        assert!(!android.ech.uses_https_records());
         let mut expected = desktop;
-        expected.ech_from_https_records = false;
+        expected.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
         assert_eq!(android, expected);
     }
     Ok(())

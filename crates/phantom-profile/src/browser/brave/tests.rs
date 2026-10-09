@@ -53,8 +53,14 @@ fn brave_154_client_hints_are_the_chromium_hints_without_two_names() {
 #[test]
 fn brave_154_recipes_keep_the_backend_ech_grease_aead_policy() {
     for settings in [v154_tcp_tls(), v154_quic_tls()] {
-        assert!(settings.ech_grease);
-        assert!(settings.ech_grease_aeads.is_empty());
+        assert!(settings.ech.grease().is_some());
+        assert!(
+            settings
+                .ech
+                .grease()
+                .map_or(&[][..], crate::EchGreaseSettings::aeads)
+                .is_empty()
+        );
         assert!(settings.aes_hardware);
     }
 }
@@ -74,8 +80,8 @@ fn brave_154_tls_recipes_remove_only_the_chromium_trust_anchor_ids()
     }
     // Both recipes keep Chrome's ECH from HTTPS records, which the retained
     // Brave ECH captures over TCP and QUIC show.
-    assert!(v154_tcp_tls().ech_from_https_records);
-    assert!(v154_quic_tls().ech_from_https_records);
+    assert!(v154_tcp_tls().ech.uses_https_records());
+    assert!(v154_quic_tls().ech.uses_https_records());
     Ok(())
 }
 

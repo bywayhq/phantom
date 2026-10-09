@@ -132,15 +132,21 @@ fn firefox_157_tls_settings_match_retained_vector() -> Result<(), Box<dyn std::e
             ClientHelloExtension::EncryptedClientHello,
         ])
     );
-    assert!(settings.ech_grease);
+    assert!(settings.ech.grease().is_some());
     assert_eq!(
-        settings.ech_grease_payload_length,
+        settings.ech.grease().map_or(
+            EchGreasePayloadLength::BackendDefault,
+            crate::EchGreaseSettings::payload_length
+        ),
         EchGreasePayloadLength::FromClientHello {
             maximum_name_length: 100
         }
     );
     assert_eq!(
-        settings.ech_grease_aeads,
+        settings
+            .ech
+            .grease()
+            .map_or(&[][..], crate::EchGreaseSettings::aeads),
         [EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305]
     );
     assert!(settings.request_ocsp_staple);
@@ -287,7 +293,10 @@ fn firefox_157_http3_tls_keeps_the_quic_tail_and_tcp_extensions() {
     assert_eq!(settings.record_size_limit, Some(16_385));
     assert!(settings.tls12_extensions_in_tls13_client_hello);
     assert_eq!(
-        settings.ech_grease_payload_length,
+        settings.ech.grease().map_or(
+            EchGreasePayloadLength::BackendDefault,
+            crate::EchGreaseSettings::payload_length
+        ),
         EchGreasePayloadLength::FromClientHello {
             maximum_name_length: 100
         }
