@@ -154,13 +154,18 @@ mod tests {
     #[test]
     fn basic_encoder_keeps_the_separator_and_round_trips_credentials()
     -> Result<(), Box<dyn std::error::Error>> {
-        let username = credential_canary()?;
+        let username = format!("u-{}", credential_canary()?);
         let password = credential_canary()?;
         let encoded =
             basic_value(&username, &password, 100).map_err(|error| format!("{error:?}"))?;
         assert_eq!(&encoded[..6], b"Basic ");
         let decoded = btls::base64::decode_block(std::str::from_utf8(&encoded[6..])?)?;
         assert_eq!(decoded, format!("{username}:{password}").as_bytes());
+        let mut empty_password = password;
+        empty_password.clear();
+        let header = RequestHeader::basic_authorization(&username, &empty_password)?;
+        let decoded = btls::base64::decode_block(std::str::from_utf8(&header.value()[6..])?)?;
+        assert_eq!(decoded, format!("{username}:").as_bytes());
         Ok(())
     }
 
