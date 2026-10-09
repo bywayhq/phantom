@@ -89,76 +89,105 @@ async fn http1_resolves_origins_proxies_and_local_socks5_targets_only() -> TestR
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                host: ORIGIN,
-                port: peer.port,
-            }),
-            ORIGIN,
-        )
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: peer.port,
+                }),
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
+            },
+        ))
         .await;
     assert_eq!(names(&recorder), [ORIGIN], "direct TLS");
 
     let (recorder, http1) = connector()?;
-    let _ = http1.connect_plaintext_direct(ORIGIN, peer.port).await;
+    let _ = http1
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Plaintext {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: peer.port,
+                }),
+                family: None,
+            },
+        ))
+        .await;
     assert_eq!(names(&recorder), [ORIGIN], "direct plaintext");
 
     let (recorder, http1) = connector()?;
-    let _ = http1.connect_forward_proxy(PROXY, peer.port).await;
+    let _ = http1
+        .connect(crate::route::Http1Route::Forward(
+            crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                host: PROXY,
+                port: peer.port,
+            }),
+        ))
+        .await;
     assert_eq!(names(&recorder), [PROXY], "forward proxy");
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_via(
-            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
-                proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
-                    host: PROXY,
-                    port: peer.port,
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    proxy: crate::route::ProxyTransport::Tcp(crate::route::Endpoint {
+                        host: PROXY,
+                        port: peer.port,
+                    }),
+                    authority: AUTHORITY,
+                    headers: &connect_headers,
+                    credentials: None,
                 }),
-                authority: AUTHORITY,
-                headers: &connect_headers,
-                credentials: None,
-            }),
-            ORIGIN,
-        )
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
+            },
+        ))
         .await;
     assert_eq!(names(&recorder), [PROXY], "HTTP CONNECT");
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_via(
-            crate::route::TcpRoute::Socks5 {
-                proxy: crate::route::Endpoint {
-                    host: PROXY,
-                    port: peer.port,
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Socks5 {
+                    proxy: crate::route::Endpoint {
+                        host: PROXY,
+                        port: peer.port,
+                    },
+                    target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                        host: ORIGIN,
+                        port: 443,
+                    }),
+                    auth: crate::proxy::Socks5Auth::None,
                 },
-                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
-                    host: ORIGIN,
-                    port: 443,
-                }),
-                auth: crate::proxy::Socks5Auth::None,
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
             },
-            ORIGIN,
-        )
+        ))
         .await;
     assert_eq!(names(&recorder), [PROXY], "SOCKS5 remote DNS");
 
     let (recorder, http1) = connector()?;
     let _ = http1
-        .connect_via(
-            crate::route::TcpRoute::Socks5 {
-                proxy: crate::route::Endpoint {
-                    host: PROXY,
-                    port: peer.port,
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Socks5 {
+                    proxy: crate::route::Endpoint {
+                        host: PROXY,
+                        port: peer.port,
+                    },
+                    target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
+                        host: ORIGIN,
+                        port: 443,
+                    }),
+                    auth: crate::proxy::Socks5Auth::None,
                 },
-                target: crate::route::Socks5Target::LocalDns(crate::route::Endpoint {
-                    host: ORIGIN,
-                    port: 443,
-                }),
-                auth: crate::proxy::Socks5Auth::None,
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
             },
-            ORIGIN,
-        )
+        ))
         .await;
     assert_eq!(names(&recorder), [ORIGIN, PROXY], "SOCKS5 local DNS");
     Ok(())
@@ -172,39 +201,46 @@ async fn http2_and_negotiated_connectors_resolve_through_the_cache() -> TestResu
         .with_host_resolver(cache);
 
     let _ = http2
-        .connect_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                host: ORIGIN,
-                port: peer.port,
-            }),
-            ORIGIN,
-        )
+        .connect(crate::route::Http2Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: ORIGIN,
+                    port: peer.port,
+                }),
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
+            },
+        ))
         .await;
     let _ = http2
-        .connect_via(
-            crate::route::TcpRoute::Socks5 {
-                proxy: crate::route::Endpoint {
-                    host: PROXY,
-                    port: peer.port,
+        .connect(crate::route::Http2Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Socks5 {
+                    proxy: crate::route::Endpoint {
+                        host: PROXY,
+                        port: peer.port,
+                    },
+                    target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
+                        host: ORIGIN,
+                        port: 443,
+                    }),
+                    auth: Socks5Auth::None,
                 },
-                target: crate::route::Socks5Target::RemoteDns(crate::route::Endpoint {
-                    host: ORIGIN,
-                    port: 443,
-                }),
-                auth: Socks5Auth::None,
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
             },
-            ORIGIN,
-        )
+        ))
         .await;
     let negotiated = Http1Or2TlsConnector::from_http2(&http2)?;
     let _ = negotiated
-        .connect_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+        .connect(crate::route::OriginRoute::Tls {
+            tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
                 host: ORIGIN,
                 port: peer.port,
             }),
-            ORIGIN,
-        )
+            server_name: ORIGIN,
+            setup: crate::route::DirectTlsSetup::Default,
+        })
         .await;
 
     assert_eq!(names(&recorder), [ORIGIN, PROXY], "each name resolved once");
@@ -222,22 +258,25 @@ async fn https_proxy_host_resolves_through_the_proxy_connector() -> TestResult {
     let connect_headers = [HttpConnectHeader::authority("Host")];
 
     let _ = origin
-        .connect_via(
-            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
-                proxy: crate::route::ProxyTransport::Tls {
-                    endpoint: crate::route::Endpoint {
-                        host: PROXY,
-                        port: peer.port,
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    proxy: crate::route::ProxyTransport::Tls {
+                        endpoint: crate::route::Endpoint {
+                            host: PROXY,
+                            port: peer.port,
+                        },
+                        server_name: PROXY,
+                        connector: &proxy,
                     },
-                    server_name: PROXY,
-                    connector: &proxy,
-                },
-                authority: AUTHORITY,
-                headers: &connect_headers,
-                credentials: None,
-            }),
-            ORIGIN,
-        )
+                    authority: AUTHORITY,
+                    headers: &connect_headers,
+                    credentials: None,
+                }),
+                server_name: ORIGIN,
+                setup: crate::route::DirectTlsSetup::Default,
+            },
+        ))
         .await;
 
     assert_eq!(names(&proxy_recorder), [PROXY]);
@@ -376,10 +415,7 @@ async fn connect_udp_over_http3_resolves_only_the_proxy() -> TestResult {
         QUIC_WAIT,
         h3.connect(
             crate::route::DatagramRoute::ConnectUdp(crate::route::ConnectUdpRoute {
-                proxy: crate::route::Endpoint {
-                    host: PROXY,
-                    port: port,
-                },
+                proxy: crate::route::Endpoint { host: PROXY, port },
                 transport: crate::route::ConnectUdpTransport::Http3(&proxy),
                 authority: &authority,
                 path: OriginForm::parse("/.well-known/masque/udp/origin.phantom.test/443/")?,

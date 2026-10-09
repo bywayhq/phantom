@@ -210,13 +210,16 @@ async fn http1_openings(second: Second) -> TestResult<Openings<Http1TlsError>> {
     let host = format!("{TEST_SERVER_NAME}:{port}");
     let target = OriginForm::parse("/socket")?;
     let open = || {
-        connector.upgrade_get_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                host: "127.0.0.1",
-                port,
+        connector.upgrade(
+            crate::route::Http1Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port,
+                }),
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default,
             }),
-            TEST_SERVER_NAME,
-            target.clone(),
+            crate::route::Http1Target::Origin(target.clone()),
             vec![
                 RequestHeader::new("Host", host.as_str()),
                 RequestHeader::new("Connection", "Upgrade"),
@@ -260,12 +263,15 @@ async fn http2_openings(second: Second) -> TestResult<Openings<Http2TlsError>> {
     let authority = format!("{TEST_SERVER_NAME}:{port}");
     let target = OriginForm::parse("/socket")?;
     let open = || {
-        connector.send_extended_connect_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                host: "127.0.0.1",
-                port,
+        connector.extended_connect(
+            crate::route::Http2Route::Origin(crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port,
+                }),
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default,
             }),
-            TEST_SERVER_NAME,
             &authority,
             target.clone(),
             vec![RequestHeader::new("sec-websocket-version", "13")],

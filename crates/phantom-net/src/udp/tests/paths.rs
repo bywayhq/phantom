@@ -125,7 +125,7 @@ async fn direct_quic_sockets_apply_the_udp_settings() -> TestResult {
         let sockets = sockets_bound_by(connector.connect(
             crate::route::DatagramRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
-                port: port,
+                port,
             }),
             SERVER_NAME,
         ))
@@ -136,7 +136,7 @@ async fn direct_quic_sockets_apply_the_udp_settings() -> TestResult {
         let sockets = sockets_bound_by(connector.connect(
             crate::route::DatagramRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
-                port: port,
+                port,
             }),
             SERVER_NAME,
         ))

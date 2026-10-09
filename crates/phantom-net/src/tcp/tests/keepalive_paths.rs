@@ -74,7 +74,15 @@ async fn plaintext_requests_keep_one_short_lived_schedule() -> TestResult<()> {
         Http1TlsConnector::new(&firefox::v157_tls())?.with_tcp_settings(&firefox::v157_tcp());
 
     let connection = connector
-        .connect_plaintext_direct("127.0.0.1", port)
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Plaintext {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: port,
+                }),
+                family: None,
+            },
+        ))
         .await?;
     let control = only_schedule()?;
     for _ in 0..2 {
@@ -151,15 +159,16 @@ async fn negotiated(alpn: TestServerAlpn) -> TestResult<TcpKeepaliveControl> {
     .with_tcp_settings(&firefox::v157_tcp());
 
     let connection = connector
-        .connect_via(
-            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+        .connect(crate::route::OriginRoute::Tls {
+            tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
                 host: "127.0.0.1",
                 port: address.port(),
             }),
-            "server.phantom.test",
-        )
+            server_name: "server.phantom.test",
+            setup: crate::route::DirectTlsSetup::Default,
+        })
         .await;
-    if let Ok(Http1Or2Connection::Http1(connection)) = &connection {
+    if let Ok((Http1Or2Connection::Http1(connection), _)) = &connection {
         let (target, headers) = get()?;
         let _ = connection.send_get(target, headers).await;
     }
@@ -195,7 +204,15 @@ async fn a_chromium_profile_opens_no_schedule() -> TestResult<()> {
         Http1TlsConnector::new(&chromium::v154_tls())?.with_tcp_settings(&chromium::v154_tcp());
 
     let connection = connector
-        .connect_plaintext_direct("127.0.0.1", port)
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Plaintext {
+                tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                    host: "127.0.0.1",
+                    port: port,
+                }),
+                family: None,
+            },
+        ))
         .await?;
     let (target, headers) = get()?;
     connection
@@ -250,22 +267,25 @@ async fn an_http2_proxy_connection_turns_keepalive_off() -> TestResult<()> {
     let origin = Http1TlsConnector::new(&firefox::v157_tls())?;
 
     let _ = origin
-        .connect_via(
-            crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
-                proxy: crate::route::ProxyTransport::Tls {
-                    endpoint: crate::route::Endpoint {
-                        host: "127.0.0.1",
-                        port: address.port(),
+        .connect(crate::route::Http1Route::Origin(
+            crate::route::OriginRoute::Tls {
+                tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
+                    proxy: crate::route::ProxyTransport::Tls {
+                        endpoint: crate::route::Endpoint {
+                            host: "127.0.0.1",
+                            port: address.port(),
+                        },
+                        server_name: TEST_SERVER_NAME,
+                        connector: &proxy,
                     },
-                    server_name: TEST_SERVER_NAME,
-                    connector: &proxy,
-                },
-                authority: "server.phantom.test:443",
-                headers: &[HttpConnectHeader::authority("Host")],
-                credentials: None,
-            }),
-            TEST_SERVER_NAME,
-        )
+                    authority: "server.phantom.test:443",
+                    headers: &[HttpConnectHeader::authority("Host")],
+                    credentials: None,
+                }),
+                server_name: TEST_SERVER_NAME,
+                setup: crate::route::DirectTlsSetup::Default,
+            },
+        ))
         .await;
     let _ = proxy_server.await;
 
