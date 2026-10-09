@@ -59,10 +59,10 @@ No finding is resolved by an assignment or a proposed fix.
 | A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Private staging and added two-owner test independently approved; eighteen tests pass on Windows and Linux; Linux Rust 1.88 check passes |
 | A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Zero baseline reproduced; count controls and actual default/one-request peers pass; independent source review approved |
 | A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Initial repair approved; report-interruption follow-up has two intended baseline failures; corrected composition independently approved and 88 Windows/Linux methods pass |
-| A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Signed baseline has five passes and twelve required contract failures on Windows; Linux also fails actual descendant-exit control; owned cleanup repair in progress |
+| A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Corrected composition passes applicable controls in 143-method Windows/Linux suites; actual Linux descendant control passes; independent review pending |
 | A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Repair independently approved; composed 51-method suite passes on Windows and Linux; actual loopback output and scratch controls pass |
 | A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent source review approved |
-| A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Initial remedy passes 25 controls; independent native acquisition reproduction requires changes; constructor and interruption repairs remain under review |
+| A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Acquisition and interruption repairs independently approved; composed 122-method Windows/Linux suites pass with explicit platform skips; final gates pending |
 | A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Source remedy and corrected shared composition independently approved; 37 focused methods and 88 composed Windows/Linux methods pass; final integration pending |
 
 ## Initial source evidence
@@ -661,6 +661,14 @@ container names make blind removal unsafe for concurrent owners. A remedy
 needs verifiable ownership and scoped cleanup; actual container survival
 has not been measured.
 
+The initial A53 composition at `cb935f2f` passes the applicable 143-method
+conformance controls on Windows and Linux, including an actual Linux
+descendant-exit observation. Independent review then reproduces two omitted
+recovery contracts. A denied log existence check bypasses restores and loses
+the primary timeout. A failed automatic-checkout removal drops previously
+retained scratch paths from the summary. These require additional repair;
+passing the earlier controls does not approve the composition.
+
 A54 executes the version-report Python runner with controlled certificate
 and server boundaries and actual filesystem publication. A normal run
 closes its server and retains caller outputs, but leaks internal certificate
@@ -690,6 +698,17 @@ server uses an unbounded shutdown wait and daemon request threads. The
 remedy places it in an owned child process with bounded startup and reaping,
 retains infrastructure errors separately from observed case failures, and
 keeps scratch until reaping. This is not a measured native thread leak.
+
+The final A56 correction at `91caf511` retains the acquired native process
+before CPython spawn initialization can raise. It preserves the first parent
+interruption and accompanying errors across construction, startup, shutdown,
+file removal and summary publication. Independent review approves that source.
+Composition at `d0ee3e97` passes the 122-method conformance suites on Windows
+and Linux, with one explicit platform skip each. Actual native controls cover
+Windows post-spawn serialization and Linux post-spawn bootstrap writing.
+Those fixtures establish child lifetime and reporting, without TLS sockets or
+live WPT acceptance. The breaking summary migration is documented. Final
+combined architecture review and integration gates remain open.
 
 A57's signed TLS-Anvil baseline observes the exact two required IDs and
 strict counts. Five methods pass; failed-removal and deadline controls fail.

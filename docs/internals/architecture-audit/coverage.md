@@ -329,8 +329,35 @@ of late daemon work, or bounded initial log memory. Final gates remain open.
 The [WPT acquisition review](a56-production-independent-review.json)
 records a required repair at `18319655`. Its actual Windows child control
 exposes files deleted before the acquired child exits. The existing 25
-methods passing does not approve that ownership boundary. Native acquisition,
-serialization and combined interruption repairs remain under review.
+methods passing does not approve that ownership boundary. The subsequent
+[acquisition review](a56-acquisition-independent-review.json) confirms the
+native ownership repair but requires another interruption correction. The
+[final review](a56-acquisition-followup-independent-review.json) approves
+the corrected source at `91caf511`. Twenty-eight source records passed hash,
+identity and range checks before import. Earlier request-changes reports
+remain retained at their original revisions.
+
+The WPT composition at `d0ee3e97` passes 122 conformance methods on each host,
+with one explicit platform skip per host. Native Windows serialization and
+Linux bootstrap-write controls observe child exit before file cleanup. These
+fixtures do not run TLS or live WPT scenarios. Private native fields rely on
+the inspected CPython 3.10 runtime. Failed OS termination can still leave an
+unreaped child and an interpreter finalizer waiting without a deadline.
+
+The QUIC runner composition at `cb935f2f` adds an owned Linux process group,
+verified Docker resources, independent byte restores and recovery backups.
+It preserves the image-input guard. The shared Docker helper now applies a
+caller-supplied environment, keeping cleanup on the launch's selected daemon.
+Two selected-daemon regressions fail before that addition and pass afterward.
+The combined suite runs 143 methods: Windows has two explicit platform skips;
+Linux has one. The actual Linux descendant control observes child exit before
+restoration. Controlled resource fixtures do not establish real Docker cleanup.
+Independent review of this composition remains pending.
+
+The reviewer reproduces two further recovery failures at `cb935f2f`. A log
+inspection error escapes before file restoration and reporting. A later
+automatic-checkout cleanup error omits previously retained scratch paths.
+Both require regression tests and correction before source approval.
 
 ## Limits of the record
 

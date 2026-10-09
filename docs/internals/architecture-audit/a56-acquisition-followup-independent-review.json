@@ -1,0 +1,442 @@
+{
+  "verdict": "approve exact signed final source; no actionable findings remain in this bounded review",
+  "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+  "records": [
+    {
+      "path": "scripts/conformance/wpt_eventsource.py",
+      "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+      "git_blob": "1f381a2e7a5bf9549db86bd15802a704f2b7934d",
+      "sha256": "d9eed1b72c14a5c7730ea8f14bf4ac412f932d959a252bae66716a0fd7d30085",
+      "lines": 834,
+      "ranges": [
+        [
+          1,
+          834
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "independent manual full source review; prior full 4eff source plus complete final diff; exact unchanged segments retained"
+    },
+    {
+      "path": "scripts/conformance/tests/test_wpt_eventsource.py",
+      "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+      "git_blob": "8d36e198f0b08cc534c3d895717c4fba0fba4b6b",
+      "sha256": "115edc8524d6b27b2444935f611b3442889331e27f75a7dfe637c251453c27a1",
+      "lines": 1299,
+      "ranges": [
+        [
+          1,
+          1299
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "independent manual full source review; prior full 4eff source plus complete final diff; exact unchanged segments retained"
+    },
+    {
+      "path": ".github/workflows/wpt-eventsource.yml",
+      "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+      "git_blob": "0c73dfc296b9a39e038d4fdc347e293e1a898c11",
+      "sha256": "2206f5d59e341cef42c2ea474f847a03cd9c65e7489cf166c30bfac0fd0eb007",
+      "lines": 111,
+      "ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "scope": "full source",
+      "disposition": "independent manual full source review; prior full 4eff source plus complete final diff; exact unchanged segments retained"
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/full.json",
+      "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+      "git_blob": "7656a54605fbfec404b6eda93276126d29208a9e",
+      "sha256": "d26eaa11652e2a76a6d49971ca332237a253e0b34baa7d14ad205f70ae741644",
+      "lines": 34,
+      "ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "scope": "full source",
+      "disposition": "independent manual full source review; prior full 4eff source plus complete final diff; exact unchanged segments retained"
+    },
+    {
+      "path": "scripts/conformance/wpt-eventsource/smoke.json",
+      "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+      "git_blob": "6e34ebb8a059e55e10ca3903f029682258d84ab3",
+      "sha256": "d3ce0383b15ff53ee3f1e9d38e36314eebe2a8a21af7b996f4e4314ea951ca34",
+      "lines": 16,
+      "ranges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "scope": "full source",
+      "disposition": "independent manual full source review; prior full 4eff source plus complete final diff; exact unchanged segments retained"
+    },
+    {
+      "path": "crates/phantom/examples/wpt_eventsource/main.rs",
+      "revision": "91caf511a80d1550b5d5d326195bf053143e4e16",
+      "git_blob": "81042c3f14ab58c78b4cdedd9717e8157f6ef9b2",
+      "sha256": "fcc345b0cf680d8dcd654bcf1830673a0c21f43033ca4b1c17da2acffba62216",
+      "lines": 237,
+      "ranges": [
+        [
+          1,
+          237
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "independent manual full source review; prior full 4eff source plus complete final diff; exact unchanged segments retained"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\wpt-pinned-source\\server.py",
+      "revision": "7dbbcb8bcbf62683e6ac095da7d95a84b3672ab5",
+      "git_blob": "e34cd3601d42dbee60ac318c251e27261d929499",
+      "sha256": "5f8c2d15018bdc9d0600cc3f3dfaac9db5a715e7ed3686e611f251f1c71f1dee",
+      "lines": 1062,
+      "ranges": [
+        [
+          171,
+          320
+        ],
+        [
+          899,
+          1016
+        ]
+      ],
+      "scope": "bounded upstream server construction, serving and shutdown methods"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\process.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "9a5f6ca49fb78452678bed74f9b09491c688571f9f09edb97758933294356513",
+      "lines": 438,
+      "ranges": [
+        [
+          1,
+          438
+        ]
+      ],
+      "scope": "full source"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\popen_spawn_win32.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "03dbaf94f9a13bc241ccd70453f1a68b1d90fea6095b53576605cfc2d379028d",
+      "lines": 131,
+      "ranges": [
+        [
+          1,
+          131
+        ]
+      ],
+      "scope": "full source"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\popen_spawn_posix.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "97b5d25aa479516894489877e6a7921252ee35f51e118c2f1f91f32919e7caa8",
+      "lines": 72,
+      "ranges": [
+        [
+          1,
+          72
+        ]
+      ],
+      "scope": "full source"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\popen_fork.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "0a09db57e7fab7061c01a61778feea6e2b6bb02ccbc150332f2960b05258ef95",
+      "lines": 83,
+      "ranges": [
+        [
+          1,
+          83
+        ]
+      ],
+      "scope": "full source"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\context.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "bd8628d1e140d933d40ed14b51009820c1b0b9b5b6c71971df5fc761da65bd08",
+      "lines": 376,
+      "ranges": [
+        [
+          261,
+          376
+        ]
+      ],
+      "scope": "bounded spawn contexts and native spawning state"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\lib\\multiprocessing\\util.py",
+      "revision": "installed Python 3.10 runtime",
+      "sha256": "027d6642308f741f94d44fc79c23e4d1a1c275159823720ccb05b0a8e705450a",
+      "lines": 489,
+      "ranges": [
+        [
+          320,
+          360
+        ]
+      ],
+      "scope": "bounded _exit_function ownership/finalization source"
+    },
+    {
+      "path": "scripts/conformance/wpt_eventsource.py",
+      "revision": "2cdeff1bd0592bb9fc18f12d04f633e4709f3274",
+      "git_blob": "c602b4667fd821e45aa87254bfa11a7efe114130",
+      "sha256": "04290409b0e836bbf7ff773c84a5cddc958b5f69a81031936a3b8c804e12f79b",
+      "lines": 797,
+      "ranges": [
+        [
+          1,
+          797
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "signed baseline: source blob identical to independently read 4eff production or final tests"
+    },
+    {
+      "path": "scripts/conformance/tests/test_wpt_eventsource.py",
+      "revision": "2cdeff1bd0592bb9fc18f12d04f633e4709f3274",
+      "git_blob": "8d36e198f0b08cc534c3d895717c4fba0fba4b6b",
+      "sha256": "115edc8524d6b27b2444935f611b3442889331e27f75a7dfe637c251453c27a1",
+      "lines": 1299,
+      "ranges": [
+        [
+          1,
+          1299
+        ]
+      ],
+      "scope": "full module",
+      "disposition": "signed baseline: source blob identical to independently read 4eff production or final tests"
+    }
+  ],
+  "logs": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-followup-independent-91caf511-windows.log",
+      "sha256": "f53d564d75b99dd70007d3f9fa740640c6115da270c81533423b422839683e94",
+      "scope": "reviewer executed clean exact final revision; full log read; 38 pass and one POSIX-only skip"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-followup-independent-91caf511-ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "scope": "reviewer executed clean exact final revision; full log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-followup-independent-91caf511-ruff-format.log",
+      "sha256": "97d85b4b6c185a05396e2d09a3c304ff0f7cc77f8b7b7bb7989ec6cd875b3898",
+      "scope": "reviewer executed clean exact final revision; full log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-construction-interrupt-independent-91caf511.log",
+      "sha256": "6d32c1bd3573f48b1f2c8df7ca5304fddb0710fca9953d2b04ad9d051b141dba",
+      "scope": "reviewer reran original confirmed construction identity reproduction; now passes; full log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-acquisition-handler-independent-91caf511.log",
+      "sha256": "6f2232cce69cf8bc6e66134f62dfff24a4460c291f89eaf0ed4366146017c37a",
+      "scope": "reviewer custom previous signal handler control; restored before fixture reset; full log read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a56-summary-signed-regression-windows.log",
+      "sha256": "410abd9f212d9849e3de4cc99cbc9a9344f6a817354ff4e38f8bc6d04f8696f2",
+      "scope": "integration owner executed immutable signed baseline; reviewer read full log and verified snapshot source identities; nine failures, one error and one skip"
+    }
+  ],
+  "resolved_findings": [
+    {
+      "id": "A56-independent-01",
+      "resolution": "native constructor retained before initialization; signal deferred until installed ownership; actual Windows spawn/signal and post-spawn serialization controls pass"
+    },
+    {
+      "id": "A56-independent-02",
+      "resolution": "first original parent interruption retained across construction and cleanup; initial and secondary causes retained; original independent reproduction now passes"
+    },
+    {
+      "id": "A56-aggregation-boundaries",
+      "resolution": "start/control/process close and temporary/log/summary failures preserve original interruption priority, including deferred summary SIGINT plus write error"
+    }
+  ],
+  "findings": [],
+  "limitations": [
+    "Windows native spawn/serialization and real signal controls are observed; no reviewer Linux/macOS execution and POSIX-only bootstrap control is skipped.",
+    "Fixtures use independent local server-interface and file markers; no TLS socket, browser parity or live WPT scenario acceptance claim.",
+    "Private native fields rely on exact inspected CPython 3.10 sources; other interpreter implementations are unverified.",
+    "Incomplete native state is explicit unobserved ownership with scratch preservation; OS termination failure and unbounded interpreter finalizer cannot establish an absolute exit deadline.",
+    "An unwritable/interrupted summary publication cannot guarantee a retained updated artifact; CLI retains all inspected causes and correct failed/interrupted outcome.",
+    "Main adapter/manifests/workflow and pinned server lifecycle boundary are reviewed; other scenario handlers/upstream config/router and combined full gates remain outside this review.",
+    "Root must compose migration/change documentation and native platform/full integration verification."
+  ],
+  "verification": {
+    "fresh_clean_final_windows": "39 methods, 38 passing and one explicit POSIX skip",
+    "signed_baseline": "26 raw snapshot hashes match execution metadata; 24 explicitly verified Windows CRLF renderings and two direct canonical matches; production Git blob identical to 4eff source and tests Git blob identical to final source",
+    "signed_baseline_renderings": [
+      {
+        "path": "scripts/conformance/__init__.py",
+        "snapshot_raw_sha256": "f19699906d34c308e461d07798584317aa14d084a2113c20a9b26b2e2e101fdf",
+        "canonical_sha256": "7fbdecb4938ee737aea09fd99a7995e608967bb7e2c030242a1b7fcaa71b0391",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/aioquic_versions.py",
+        "snapshot_raw_sha256": "b901e4be470bae0eaa3f59bcc2254123661dcb292566ac869708ff89781d2aea",
+        "canonical_sha256": "9d192af3600aed229150c4c44968c7dc356f9896bf395191eef80f0864133546",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/autobahn/compression.json",
+        "snapshot_raw_sha256": "05bd8a28e3aa6f06b269a4cbcf612dc1991bd57a546289b8bea231b7642f3e31",
+        "canonical_sha256": "55db08da098656d9e6150d453eac35834700dac2b63d305e7a9dd9f599668abf",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/autobahn/full.json",
+        "snapshot_raw_sha256": "651169befc7729260959ff9ed359ea6a637ae85b9721034a82f9dcd1b5577004",
+        "canonical_sha256": "222f5dad03774303349cd9927d1c8a760f4555fd4c3c3daaba0907f0a377e549",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/autobahn/smoke.json",
+        "snapshot_raw_sha256": "d1bca1c314ecc1e6a9f4b517a756ab4406970e817af564d913bb6e656a641629",
+        "canonical_sha256": "4089dfdd2a6508d213103842f5ac4520d74b5ea0d6ea340c1e368378cb066ee5",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/autobahn.py",
+        "snapshot_raw_sha256": "312664fac9584d5f8fc297492640f9274000a3fc90a3b78df3032a566c5b7ef6",
+        "canonical_sha256": "e13a33b67f068135946099771e1d56ceb07022f6cfb938736d0844dee67b8948",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/loopback_tls.py",
+        "snapshot_raw_sha256": "27fc7f9011c53b18f0b5a5ee19ed98d4e82d8310be3be6d55a2cc55c0f6c69e4",
+        "canonical_sha256": "96cb706298afd74f71e71363fbacb3295bbf069d7a73237eaf8816d84d8a2a84",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/quic-interop/Dockerfile",
+        "snapshot_raw_sha256": "56757eb7dbf594c7effa07e8a61a4b28ceedd944db2e2548324a1ed227dd53cb",
+        "canonical_sha256": "5d643165c36200dbb28f8afad9b4427e0d9cbc87462aefe33653822ecec17f91",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/quic-interop/requirements.txt",
+        "snapshot_raw_sha256": "22387c40c674b1314727cd8dae487d3ce03e753621c5c62fa3374b839a2cec69",
+        "canonical_sha256": "3c4be3015cfff4a0377f2e59ee4ea25bdb1fcb40492c48b15dd91b05c209c1fe",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/quic-interop/run_endpoint.sh",
+        "snapshot_raw_sha256": "eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02",
+        "canonical_sha256": "eb5c280c42034e8954f17f564edcfa95dbd246c1e74bd549a08746928a350f02",
+        "rendering": "canonical Git bytes"
+      },
+      {
+        "path": "scripts/conformance/quic_interop.py",
+        "snapshot_raw_sha256": "bbc26e9ac0269bce0a4c9f14524eaa7463287f8769a6e855b4ade2b2379dc171",
+        "canonical_sha256": "f7267bf8c71e29bee458394d03cc18a475de680170914d5806021fd57affdec0",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tests/__init__.py",
+        "snapshot_raw_sha256": "1f4d19c426bfb851ece626f34f0e5bb11f87191497d9767e258201de4d851cac",
+        "canonical_sha256": "b943aa84c59577a4cadc45a0221bfc9c5b96d1c004707bbaef16683a14f3a4fa",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tests/test_aioquic_versions.py",
+        "snapshot_raw_sha256": "5e55f348d091e8984cd9e390c02ad4e3001090fb1fce7e077f96be2e5380ea9a",
+        "canonical_sha256": "8c6cb775693de29bfd90b2b0a440b5cf83b2567d1272d13c6f9ae88375f02259",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tests/test_autobahn.py",
+        "snapshot_raw_sha256": "1a9a318f36623f2d4e2dde196c53266fd47dc83eeca7383176e133436f9a184e",
+        "canonical_sha256": "95165ee3bbbaea86e22d37523aeebf8acdbd429def91da6945e0786d47c30f29",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tests/test_quic_interop.py",
+        "snapshot_raw_sha256": "6dd6e07e0c86d6506ed8fe89548fb8d6c16913d8c2b10d61c9191c416185e290",
+        "canonical_sha256": "b49bd20a4e901c7ad531cb3568f635db924983f1febf0cab92bbb27bf5a83a03",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tests/test_tls_anvil.py",
+        "snapshot_raw_sha256": "e1612849ed33472f8b4828df7be3d434eaa1d124360c19fe3703ebc58d57816c",
+        "canonical_sha256": "b569f28e9a26e85337bcccd20e88f52981ac6ba90a3b2745c22872460aa30e7a",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tests/test_wpt_eventsource.py",
+        "snapshot_raw_sha256": "843aa8a722cf5c37286d6e6f63a46345acc7dc19482ef561a7086a82e0080e34",
+        "canonical_sha256": "115edc8524d6b27b2444935f611b3442889331e27f75a7dfe637c251453c27a1",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tls-anvil/client.json",
+        "snapshot_raw_sha256": "21ce7e768801cc19f38c0fcc328155efc05ba53b272c5320ec74eab263be3ccd",
+        "canonical_sha256": "c2446fea41e6e26d71214eb955a7f3b4733e54faff7b3868f7a8ca31395d6b49",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tls-anvil/Dockerfile",
+        "snapshot_raw_sha256": "29e88ac32ee7558db170ca13865b54447bc8d574fed7cc41b7082916023fdb9d",
+        "canonical_sha256": "038990c2cabafb33add4d82b447f90f3e53781c02c91f1ee2ed2fb4955ecc06a",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tls-anvil/expected.json",
+        "snapshot_raw_sha256": "a856c6122ee72dfbec5cfbcaf7b8395277726154a265fe9a376c3cfe14dab90f",
+        "canonical_sha256": "be8e0658d1725c407b6117a1fb12ac899d8cda7a4047e04860f4d93c47e4604a",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tls-anvil/profiles/phantom-smoke.json",
+        "snapshot_raw_sha256": "f1a03560fa13df3f8533a10f6e34a4f204130c5905f99ba64ce3d817facc7829",
+        "canonical_sha256": "11991eb37b041bedfe34e64518e26b1bf0640561697dfa270748913fb7d2939d",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tls-anvil/trigger.sh",
+        "snapshot_raw_sha256": "fba1cfaf5150cf730eef79ac929ef8192188c2e9847bdc3eb62b44dca25960a9",
+        "canonical_sha256": "fba1cfaf5150cf730eef79ac929ef8192188c2e9847bdc3eb62b44dca25960a9",
+        "rendering": "canonical Git bytes"
+      },
+      {
+        "path": "scripts/conformance/tls_anvil.py",
+        "snapshot_raw_sha256": "923caabbbc0f002f06a44652be8dfab70f1740395aeabe0963493ed880218d00",
+        "canonical_sha256": "f3e069683c19f2f6cd34985e7e5cfedfe90a7cbb4ba7ad98d023cf768305e247",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/wpt-eventsource/full.json",
+        "snapshot_raw_sha256": "454f42b6ec88c7fee30b04d5d4b2916c6e372646fa0767a6804af120bc9977b8",
+        "canonical_sha256": "d26eaa11652e2a76a6d49971ca332237a253e0b34baa7d14ad205f70ae741644",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/wpt-eventsource/smoke.json",
+        "snapshot_raw_sha256": "62be2b968ed2ac7a74d1cbc701106f363adb3ac5a81f4210d694e9627a7980ee",
+        "canonical_sha256": "d3ce0383b15ff53ee3f1e9d38e36314eebe2a8a21af7b996f4e4314ea951ca34",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      },
+      {
+        "path": "scripts/conformance/wpt_eventsource.py",
+        "snapshot_raw_sha256": "742729a2b3a19b018e17e1aa4eec18854784b6bd4267f698cb01d3858b77d89a",
+        "canonical_sha256": "04290409b0e836bbf7ff773c84a5cddc958b5f69a81031936a3b8c804e12f79b",
+        "rendering": "Windows CRLF rendering of canonical LF Git bytes"
+      }
+    ],
+    "signal_control": "two real signals coalesced; prior custom handler restored before return and invoked after acquired PID; original object retained",
+    "source_identity": "exact signed Git objects; clean HEAD verified before and after independent suite/Ruff; production signature G and required author/committer identity"
+  }
+}
