@@ -149,6 +149,85 @@ async fn a_failed_setup_fails_its_waiters_with_its_kind() -> TestResult {
     Ok(())
 }
 
+#[tokio::test]
+async fn a_later_setup_failure_does_not_replace_a_waiters_failure() -> TestResult {
+    let pool = Http2ProxyPool::new();
+    let settings = ConnectionSettingsId::default();
+    let opens = AtomicUsize::new(0);
+    let (release, gate) = oneshot::channel::<()>();
+    let mut first = Box::pin(pool.acquire(key(&settings), || async {
+        opens.fetch_add(1, Ordering::AcqRel);
+        gate.await
+            .map_err(|_| HttpConnectError::RuntimeUnavailable)?;
+        Err::<Http2Connection, _>(HttpConnectError::Connect(io::Error::from(
+            io::ErrorKind::ConnectionRefused,
+        )))
+    }));
+    assert!(!poll_once(&mut first).await);
+
+    let mut waiter = Box::pin(pool.acquire(key(&settings), || async {
+        opens.fetch_add(1, Ordering::AcqRel);
+        Err::<Http2Connection, _>(HttpConnectError::RuntimeUnavailable)
+    }));
+    assert!(!poll_once(&mut waiter).await);
+
+    release
+        .send(())
+        .map_err(|_| "the first setup gate closed")?;
+    assert!(matches!(first.await, Err(HttpConnectError::Connect(_))));
+
+    let second = pool
+        .acquire(key(&settings), || async {
+            opens.fetch_add(1, Ordering::AcqRel);
+            Err::<Http2Connection, _>(HttpConnectError::InvalidResponse)
+        })
+        .await;
+    assert!(matches!(second, Err(HttpConnectError::InvalidResponse)));
+
+    let waited = tokio::time::timeout(Duration::from_secs(5), waiter).await?;
+    assert!(matches!(
+        waited,
+        Err(HttpConnectError::PooledSetupFailed {
+            kind: HttpConnectErrorKind::Connect
+        })
+    ));
+    assert_eq!(opens.load(Ordering::Acquire), 2, "the waiter must not open");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_cancelled_setup_waiter_does_not_inherit_a_later_failure() -> TestResult {
+    let pool = Http2ProxyPool::new();
+    let settings = ConnectionSettingsId::default();
+    let peers = std::sync::Mutex::new(Vec::new());
+    let opens = AtomicUsize::new(0);
+    let mut first = Box::pin(pool.acquire(key(&settings), || async {
+        opens.fetch_add(1, Ordering::AcqRel);
+        pending::<Result<Http2Connection, HttpConnectError>>().await
+    }));
+    assert!(!poll_once(&mut first).await);
+
+    let mut waiter = Box::pin(pool.acquire(key(&settings), || async {
+        opens.fetch_add(1, Ordering::AcqRel);
+        connection(&peers).await
+    }));
+    assert!(!poll_once(&mut waiter).await);
+    drop(first);
+
+    let second = pool
+        .acquire(key(&settings), || async {
+            opens.fetch_add(1, Ordering::AcqRel);
+            Err::<Http2Connection, _>(HttpConnectError::InvalidResponse)
+        })
+        .await;
+    assert!(matches!(second, Err(HttpConnectError::InvalidResponse)));
+
+    let connection = tokio::time::timeout(Duration::from_secs(5), waiter).await??;
+    assert!(!connection.reused, "cancellation permits a fresh setup");
+    assert_eq!(opens.load(Ordering::Acquire), 3);
+    Ok(())
+}
+
 /// A connection's driver runs on the runtime that opened it, so a tunnel on
 /// another runtime opens its own connection instead of one that runtime no
 /// longer drives.
