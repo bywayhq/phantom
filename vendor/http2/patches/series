@@ -18,4 +18,5 @@ preface-ping.patch
 ping-timeout.patch
 sensitive-proxy-authorization.patch
 idle-ping.patch
+cookie-diagnostic-tests.patch
 publish-identity.patch

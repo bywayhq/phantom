@@ -1611,6 +1611,161 @@ mod test {
         }
     }
 
+    #[test]
+    fn index_all_cookie_debug_hides_sensitive_crumbs() {
+        check_sensitive_cookie_crumb_debug(CookieCrumbs::IndexAll);
+    }
+
+    #[test]
+    fn long_firefox_cookie_debug_hides_sensitive_crumbs() {
+        check_sensitive_cookie_crumb_debug(CookieCrumbs::NeverIndexShort);
+    }
+
+    #[test]
+    fn index_all_cookie_debug_hides_a_reused_sensitive_entry() {
+        check_reused_sensitive_cookie_debug(CookieCrumbs::IndexAll);
+    }
+
+    #[test]
+    fn long_firefox_cookie_debug_hides_a_reused_sensitive_entry() {
+        check_reused_sensitive_cookie_debug(CookieCrumbs::NeverIndexShort);
+    }
+
+    fn check_sensitive_cookie_crumb_debug(policy: CookieCrumbs) {
+        let (short, long, further) = diagnostic_cookies();
+        let profile = HpackEncoderProfile::new().cookie_crumbs(policy);
+        let mut encoder = Encoder::default();
+        encoder.set_profile(profile);
+        let mut control = Encoder::default();
+        control.set_profile(profile);
+        let mut decoder = Decoder::new(4096);
+        let expected = pairs(&[("cookie", &short), ("cookie", &long), ("cookie", &further)]);
+
+        // Named and nameless values retain the same crumb order and wire
+        // representations whether or not the caller marks them sensitive.
+        for _ in 0..2 {
+            let observed = encode(
+                &mut encoder,
+                diagnostic_cookie_fields(&short, &long, &further, true),
+            );
+            let unmarked = encode(
+                &mut control,
+                diagnostic_cookie_fields(&short, &long, &further, false),
+            );
+            assert_eq!(
+                observed, unmarked,
+                "diagnostic sensitivity changed wire bytes"
+            );
+            assert_eq!(decode(&mut decoder, observed), expected);
+        }
+        let retained = if policy == CookieCrumbs::IndexAll {
+            3
+        } else {
+            2
+        };
+        assert_eq!(
+            encoder.table.len(),
+            retained,
+            "wire indexing policy changed"
+        );
+        assert_cookie_debug_hides_values(&encoder, &[&short, &long, &further]);
+    }
+
+    fn check_reused_sensitive_cookie_debug(policy: CookieCrumbs) {
+        let (_, long, _) = diagnostic_cookies();
+        let profile = HpackEncoderProfile::new().cookie_crumbs(policy);
+        let mut encoder = Encoder::default();
+        encoder.set_profile(profile);
+        let mut control = Encoder::default();
+        control.set_profile(profile);
+        let mut decoder = Decoder::new(4096);
+        let initial = encode(&mut encoder, vec![header("cookie", &long)]);
+        assert_eq!(initial, encode(&mut control, vec![header("cookie", &long)]));
+        assert_eq!(decode(&mut decoder, initial), pairs(&[("cookie", &long)]));
+        assert_eq!(encoder.table.len(), 1);
+        assert!(format!("{:?}", encoder.table).contains(&long));
+
+        // An exact cached match must retain its indexed wire representation
+        // while respecting the later caller's diagnostic sensitivity.
+        let mut value = HeaderValue::from_bytes(long.as_bytes()).unwrap();
+        value.set_sensitive(true);
+        let repeated = encode(
+            &mut encoder,
+            vec![Header::Field {
+                name: Some(http::header::COOKIE),
+                value,
+            }],
+        );
+        assert_eq!(
+            repeated,
+            encode(&mut control, vec![header("cookie", &long)])
+        );
+        assert_eq!(
+            &repeated[..],
+            &[0x80 | 62],
+            "cached crumb stopped using its index"
+        );
+        assert_eq!(decode(&mut decoder, repeated), pairs(&[("cookie", &long)]));
+        assert_eq!(encoder.table.len(), 1);
+        assert_cookie_debug_hides_values(&encoder, &[&long]);
+    }
+
+    fn diagnostic_cookies() -> (String, String, String) {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let short = format!("s={}", std::process::id());
+        let long = format!("private-session-{nonce}=first");
+        let further = format!("private-session-{nonce}=second");
+        assert!(short.len() < 20);
+        assert!(long.len() >= 20 && further.len() >= 20);
+        (short, long, further)
+    }
+
+    fn diagnostic_cookie_fields(
+        short: &str,
+        long: &str,
+        further: &str,
+        sensitive: bool,
+    ) -> Vec<Header<Option<HeaderName>>> {
+        let mut first = HeaderValue::from_bytes(format!("{short}; {long}").as_bytes()).unwrap();
+        first.set_sensitive(sensitive);
+        let mut second = HeaderValue::from_bytes(further.as_bytes()).unwrap();
+        second.set_sensitive(sensitive);
+        vec![
+            Header::Field {
+                name: Some(http::header::COOKIE),
+                value: first,
+            },
+            Header::Field {
+                name: None,
+                value: second,
+            },
+        ]
+    }
+
+    fn assert_cookie_debug_hides_values(encoder: &Encoder, values: &[&str]) {
+        for debug in [
+            format!("{encoder:?}"),
+            format!("{encoder:#?}"),
+            format!("{:?}", encoder.table),
+            format!("{:#?}", encoder.table),
+        ] {
+            assert!(debug.contains("Table") && debug.contains("slots"));
+            for value in values {
+                assert!(
+                    !debug.contains(value),
+                    "sensitive cookie exposed in Debug: {debug}"
+                );
+            }
+            assert!(
+                debug.contains("Sensitive"),
+                "diagnostic marks were not retained: {debug}"
+            );
+        }
+    }
+
     /// Firefox announces every table size setting, even an unchanged one.
     #[test]
     fn every_setting_size_updates_announce_unchanged_sizes() {
