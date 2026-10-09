@@ -135,7 +135,7 @@ remain opt-in, with explicit route and `NO_PROXY` precedence.
 - [x] Query construction preserves order and duplicates. Authorization
   constructors validate values. `Link` parsing returns data only.
 - [x] JSON, form, and multipart bodies fill declared template slots.
-  Convenience APIs do not insert or reorder headers implicitly.
+  They add no fields outside declared slots and preserve template order.
   Fetch-upload templates preserve the recorded HTTP/1.1 and HTTP/2 header
   order. Multipart encoding has separate tests for framing and escaping.
 - [x] SSE implements `Stream`. Public APIs re-export the types callers
