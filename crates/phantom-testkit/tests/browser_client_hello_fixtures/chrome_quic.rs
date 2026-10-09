@@ -272,13 +272,15 @@ fn invalid(message: impl Into<String>) -> io::Error {
 #[test]
 fn capture_hex_rejects_signed_padded_and_non_ascii_pairs() -> io::Result<()> {
     for malformed in ["+1", "+f", "4a+1", "-1", " 1", "1 ", "é", "aéa", "a"] {
-        assert_eq!(
-            decode_hex(malformed)
-                .expect_err("malformed capture hex was accepted")
-                .kind(),
-            io::ErrorKind::InvalidData,
-            "{malformed:?}"
-        );
+        let error = match decode_hex(malformed) {
+            Err(error) => error,
+            Ok(_) => {
+                return Err(invalid(format!(
+                    "malformed capture hex was accepted: {malformed:?}"
+                )));
+            }
+        };
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{malformed:?}");
     }
 
     assert_eq!(decode_hex("4a00fF")?, [0x4a, 0x00, 0xff]);

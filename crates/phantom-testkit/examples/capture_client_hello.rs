@@ -227,8 +227,8 @@ mod tests {
             "application",
             launch_arguments,
         ]
-        .into_iter()
         .map(str::to_owned)
+        .into_iter()
     }
 
     #[test]
