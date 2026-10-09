@@ -16,6 +16,7 @@ use super::{
     PreparedRequest, RequestHeader, connection::early_data_error, send_prepared_upgrade,
 };
 use crate::{
+    SourceBinding,
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
@@ -24,12 +25,11 @@ use crate::{
         DirectTlsSetup, Http1Route, Http1Target, OriginRoute, ProxyTransport, Socks5Target,
         TcpRoute,
     },
-    source_binding::SourceBinding,
     tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
-pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
+use crate::tls::{EchFailure, TlsError};
 pub use error::{Http1TlsError, Http1TlsErrorKind};
 
 /// A reusable connector for profiled HTTP/1.1 TLS and proxy-forwarded requests.
@@ -38,7 +38,8 @@ pub use error::{Http1TlsError, Http1TlsErrorKind};
 ///
 /// ```no_run
 /// use phantom_net::{
-///     http1::{Http1TlsConnector, OriginForm, RequestHeader},
+///     http1::Http1TlsConnector,
+///     request::{OriginForm, RequestHeader},
 ///     route::{DirectTlsSetup, Endpoint, Http1Route, OriginRoute, TcpRoute},
 /// };
 /// use phantom_profile::browser::chrome;

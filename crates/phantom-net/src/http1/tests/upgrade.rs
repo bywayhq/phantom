@@ -10,10 +10,8 @@ use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
 use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
-    http1::{
-        AbsoluteForm, Http1Error, Http1UpgradeOutcome, PreparedGet, RequestHeader,
-        send_prepared_upgrade,
-    },
+    http1::{Http1Error, Http1UpgradeOutcome, PreparedGet, send_prepared_upgrade},
+    request::{AbsoluteForm, RequestHeader},
 };
 
 #[tokio::test]

@@ -35,7 +35,7 @@ use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 mod alps;
 mod early_data;
 mod early_streams;
-pub use crate::request::{OriginForm, RequestHeader};
+use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use connect_udp::{ConnectUdpError, ConnectUdpErrorKind};
 pub use connection::Http3Connection;
@@ -68,7 +68,7 @@ const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 ///
 /// ```
 /// use bytes::Bytes;
-/// use phantom_net::http3::{Http3SendOptions, RequestHeader};
+/// use phantom_net::{http3::Http3SendOptions, request::RequestHeader};
 ///
 /// let mut options = Http3SendOptions::default();
 /// options.body = Some(Bytes::from_static(b"payload"));

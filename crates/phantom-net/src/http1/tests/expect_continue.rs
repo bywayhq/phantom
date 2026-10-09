@@ -11,8 +11,8 @@ use tokio::{
 use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
 use crate::http1::PreparedRequest;
 use crate::{
-    http1::{Http1Error, RequestHeader},
-    request::RequestBody,
+    http1::Http1Error,
+    request::{RequestBody, RequestHeader},
 };
 
 /// Longer than any test runs, so only `100 Continue` releases the body.

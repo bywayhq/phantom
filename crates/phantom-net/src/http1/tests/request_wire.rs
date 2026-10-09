@@ -21,12 +21,11 @@ use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
     http1::{
-        AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS,
-        MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS, RequestHeader, validate_forward_request,
-        validate_request, validate_request_body, validate_request_body_source_with_trailers,
-        validate_request_body_with_trailers,
+        Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, MAX_REQUEST_TRAILER_BYTES,
+        MAX_REQUEST_TRAILERS, validate_forward_request, validate_request, validate_request_body,
+        validate_request_body_source_with_trailers, validate_request_body_with_trailers,
     },
-    request::{RequestBody, RequestTrailerName},
+    request::{AbsoluteForm, RequestBody, RequestHeader, RequestTrailerName},
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
 

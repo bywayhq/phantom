@@ -15,7 +15,7 @@ use http::{HeaderMap, HeaderValue, Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom_profile::{
     Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
-    Http3Setting, Http3SettingOrder, Http3Settings, browser::chrome, quic::QuicTransportSettings,
+    Http3Setting, Http3SettingOrder, Http3Settings, QuicTransportSettings, browser::chrome,
 };
 use phantom_quic_btls::QuicClientConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};

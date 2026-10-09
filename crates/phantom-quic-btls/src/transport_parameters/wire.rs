@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use phantom_profile::quic::QuicVarIntWidth;
+use phantom_profile::QuicVarIntWidth;
 use quinn_proto::transport_parameters::TransportParameters;
 
 use super::{QuicTransportProfileError, entropy_error, field_for_identifier, profile_error};

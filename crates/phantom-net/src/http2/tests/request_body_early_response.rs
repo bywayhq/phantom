@@ -7,7 +7,10 @@ use phantom_profile::browser::chrome::v154_http2;
 use tokio::time::timeout;
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
-use crate::http2::{Http2Connection, OriginForm, RequestBody};
+use crate::{
+    http2::Http2Connection,
+    request::{OriginForm, RequestBody},
+};
 
 #[tokio::test]
 async fn early_final_response_cancels_upload_and_preserves_connection() -> TestResult<()> {

@@ -10,7 +10,7 @@ use std::{io, net::SocketAddr};
 use phantom_profile::UdpSettings;
 use socket2::{Domain, Protocol, SockRef, Socket, Type};
 
-use crate::source_binding::{SourceBinding, bind_error};
+use crate::{SourceBinding, source_binding::bind_error};
 
 /// `WSAENOBUFS`, Windows' "no buffer space available".
 const WSAENOBUFS: i32 = 10_055;

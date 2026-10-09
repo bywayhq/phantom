@@ -14,11 +14,11 @@ use phantom_net::{
 use phantom_profile::CookiePlacement;
 #[cfg(feature = "websocket")]
 use phantom_profile::WebSocketSettings;
-use phantom_profile::quic::{QuicTransportParameterKind, QuicTransportSettings};
 use phantom_profile::{
     ClientHintSettings, ClientProfile, DnsCacheSettings, Http2ProxyConnections,
     ProxyConnectTemplate, TcpSettings, UdpSettings,
 };
+use phantom_profile::{QuicTransportParameterKind, QuicTransportSettings};
 
 use crate::{
     BuildError, PreparedRequestTemplate, RequestBuilder, Route,

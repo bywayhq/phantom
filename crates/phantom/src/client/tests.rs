@@ -38,7 +38,7 @@ fn invalid_default_request_template_is_an_invalid_profile() {
 
 #[test]
 fn connect_udp_proxy_connection_omits_resumption_additions() {
-    use phantom_profile::quic::QuicTransportParameterKind;
+    use phantom_profile::QuicTransportParameterKind;
 
     let recipe = chrome::v154_quic();
     let outer = super::connect_udp_proxy_quic(&recipe);

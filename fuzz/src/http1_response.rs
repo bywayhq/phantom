@@ -28,7 +28,10 @@ use std::{
 };
 
 use http_body::Body;
-use phantom_net::http1::{Http1Connection, Http1Error, OriginForm, RequestHeader};
+use phantom_net::{
+    http1::{Http1Connection, Http1Error},
+    request::{OriginForm, RequestHeader},
+};
 use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     runtime::Runtime,

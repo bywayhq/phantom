@@ -79,8 +79,8 @@ impl Body for MismatchedTrailerBody {
 use super::{TestResult, bounded_peer_test, host, read_head, target};
 use crate::{
     OrderedResponseHeaders,
-    http1::{Http1Connection, Http1Error, RequestHeader},
-    request::{RequestBody, RequestTrailerName},
+    http1::{Http1Connection, Http1Error},
+    request::{RequestBody, RequestHeader, RequestTrailerName},
 };
 
 #[test]

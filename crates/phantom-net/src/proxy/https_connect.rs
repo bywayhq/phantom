@@ -23,6 +23,7 @@ use super::{
     http2_pool::{ConnectionSettingsId, Http2ProxyPool, PooledConnection, RouteKey},
 };
 use crate::{
+    SourceBinding,
     direct::{Dialer, DirectConnectError, connect_tcp},
     host_resolver::HostResolver,
     http2::{
@@ -30,7 +31,6 @@ use crate::{
         connect_selected, connect_selected_extended, translate_proxy_extended_connect_settings,
         translate_proxy_settings, validate_http2,
     },
-    source_binding::SourceBinding,
     tls::{ServerAuthentication, TlsConnector, TlsStream},
 };
 

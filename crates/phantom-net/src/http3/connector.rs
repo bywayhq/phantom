@@ -10,8 +10,8 @@ use std::{
 use bytes::Bytes;
 use http::{Method, Response};
 use phantom_profile::{
-    Http3RequestSettings, Http3Settings, TcpSettings, TlsSettings, UdpSettings,
-    quic::QuicTransportSettings,
+    Http3RequestSettings, Http3Settings, QuicTransportSettings, TcpSettings, TlsSettings,
+    UdpSettings,
 };
 use tracing::Instrument;
 
@@ -30,6 +30,7 @@ use super::{
     prepare_traced_request, prepare_traced_request_body_with_trailers, settings,
 };
 use crate::{
+    SourceBinding,
     direct::{Dialer, RuntimeUnavailable, poll_tokio_io},
     host_resolver::{HostResolver, resolve},
     proxy::{
@@ -39,7 +40,6 @@ use crate::{
     },
     request::{RequestBody, RequestBodyMetadata},
     route::{ConnectUdpTransport, DatagramRoute, Socks5Target},
-    source_binding::SourceBinding,
     tls::{ClientCertificate, EchFailure, TlsConnector, TlsError, TlsErrorKind},
 };
 

@@ -1,7 +1,8 @@
 use std::{error::Error as StdError, fmt};
 
 use phantom_net::{
-    http1::{Http1Error, Http1TlsError, TlsErrorKind},
+    TlsErrorKind,
+    http1::{Http1Error, Http1TlsError},
     http1_or_2::{Http1Or2TlsError, Http1Or2TlsErrorKind},
     http2::{Http2Error, Http2ProtocolErrorKind, Http2TlsError},
     http3::{
@@ -174,7 +175,7 @@ impl BuildError {
         let kind = match source.kind() {
             Http1Or2TlsErrorKind::Tls => source
                 .source()
-                .and_then(|source| source.downcast_ref::<phantom_net::http1::TlsError>())
+                .and_then(|source| source.downcast_ref::<phantom_net::TlsError>())
                 .map_or(BuildErrorKind::ProtocolConfiguration, |error| {
                     tls_build_error_kind(error.kind())
                 }),

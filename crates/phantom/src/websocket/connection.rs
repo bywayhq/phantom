@@ -570,8 +570,8 @@ mod tests {
 
     use bytes::Bytes;
     use phantom_net::{
-        http1::OriginForm,
         http2::{Http2Connection, Http2ExtendedConnectOutcome},
+        request::OriginForm,
     };
     use phantom_profile::browser::chrome;
     use tokio::{io::AsyncReadExt, sync::oneshot, time::timeout};

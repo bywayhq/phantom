@@ -8,8 +8,8 @@ use phantom_profile::{TcpSettings, UdpSettings};
 use tokio::net::TcpStream;
 
 use crate::{
+    SourceBinding,
     host_resolver::{HostResolver, resolve},
-    source_binding::SourceBinding,
     tcp::{AddressFamilyMemory, ProfileTcpStream, SlowerAttempt},
 };
 

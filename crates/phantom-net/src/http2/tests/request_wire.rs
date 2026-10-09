@@ -20,8 +20,11 @@ use super::{
     send_once, target,
 };
 use crate::http2::PreparedRequest;
-use crate::http2::{Http2Error, Http2ProtocolErrorKind, OriginForm, RequestHeader};
 use crate::tracing_test::OutcomeSubscriber;
+use crate::{
+    http2::{Http2Error, Http2ProtocolErrorKind},
+    request::{OriginForm, RequestHeader},
+};
 
 #[test]
 fn protocol_errors_expose_stable_metadata_and_retain_backend_source() {

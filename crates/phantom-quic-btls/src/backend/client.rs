@@ -35,7 +35,7 @@ use crate::key_schedule::{
 use crate::resumption::{ApplicationState, ResumptionTicket, SessionCache};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
-use phantom_profile::quic::QuicTransportSettings;
+use phantom_profile::QuicTransportSettings;
 use quinn_proto::{EndpointConfig, TransportConfig};
 
 const H3_PROTOCOL: &[u8] = b"h3";

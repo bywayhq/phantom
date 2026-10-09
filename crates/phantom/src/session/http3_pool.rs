@@ -10,16 +10,19 @@ use std::{
 };
 
 use http::Method;
-use phantom_net::http3::{
-    ConnectUdpError, ConnectUdpErrorKind, Http3Connection, Http3Connector, Http3ConnectorError,
-    Http3ConnectorErrorKind, OriginForm, RequestHeader,
-};
 #[cfg(feature = "websocket")]
 use phantom_net::http3::{
     Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol,
 };
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
+use phantom_net::{
+    http3::{
+        ConnectUdpError, ConnectUdpErrorKind, Http3Connection, Http3Connector, Http3ConnectorError,
+        Http3ConnectorErrorKind,
+    },
+    request::{OriginForm, RequestHeader},
+};
 use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
 use tracing::debug;
 
@@ -1638,8 +1641,8 @@ mod tests {
     #[test]
     fn only_bodiless_safe_requests_without_trailers_are_replay_safe() {
         use http::Method;
-        use phantom_net::http3::RequestHeader;
         use phantom_net::request::RequestBody;
+        use phantom_net::request::RequestHeader;
 
         use super::is_replay_safe;
 

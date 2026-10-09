@@ -17,8 +17,9 @@ use crate::{
     http1::Http1TlsConnector,
     http1_or_2::Http1Or2TlsConnector,
     http2::Http2TlsConnector,
-    http3::{Http3Connector, OriginForm},
+    http3::Http3Connector,
     proxy::{HttpConnectHeader, HttpsProxyConnector, HttpsProxyProtocol, Socks5Auth},
+    request::OriginForm,
 };
 
 const ORIGIN: &str = "origin.phantom.test";

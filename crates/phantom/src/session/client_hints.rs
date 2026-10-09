@@ -6,7 +6,7 @@ use std::{
 
 use http::{HeaderMap, header::HeaderName};
 use phantom_net::request::{RequestBody, RequestHeader};
-use phantom_profile::{ClientHintDelivery, ClientHintSettings, request_template::ClientHintSlot};
+use phantom_profile::{ClientHintDelivery, ClientHintSettings, ClientHintSlot};
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
 

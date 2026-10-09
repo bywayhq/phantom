@@ -9,8 +9,8 @@ use tokio::{sync::oneshot, time::timeout};
 
 use super::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, client_config, join_server};
 use crate::{
-    http3::{Http3ErrorKind, OriginForm, RequestHeader},
-    request::RequestBody,
+    http3::Http3ErrorKind,
+    request::{OriginForm, RequestBody, RequestHeader},
 };
 
 /// Longer than any test runs, so only `100 Continue` releases the body.

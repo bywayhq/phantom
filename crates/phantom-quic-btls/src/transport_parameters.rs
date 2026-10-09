@@ -2,7 +2,7 @@ use std::{
     collections::BTreeSet, error::Error as StdError, fmt, net::IpAddr, sync::Arc, time::Duration,
 };
 
-use phantom_profile::quic::{
+use phantom_profile::{
     GoogleConnectionOption, QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportParameter,
     QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
     QuicVarIntWidth, QuicVersionGrease,

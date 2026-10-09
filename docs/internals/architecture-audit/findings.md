@@ -64,6 +64,14 @@ No finding is resolved by an assignment or a proposed fix.
 | A55 | P2 | WebSocket offer iterators stop at their parameter bound | Full collection and profile copying precede the four-parameter check | Signed baseline has four passes and one intended sixth-read failure; six corrected controls pass on Windows and Linux; Linux Rust 1.88 check passes; independent source review approved |
 | A56 | P2 | WPT shutdown retains resources and reports failures | Success is published before cleanup, which loses simultaneous causes and has unbounded stop | Acquisition and interruption repairs independently approved; composed 122-method Windows/Linux suites pass with explicit platform skips; final gates pending |
 | A57 | P2 | TLS-Anvil cleanup has verified ownership and a deadline | Removal failure is ignored and cleanup has no deadline | Source remedy and corrected shared composition independently approved; 37 focused methods and 88 composed Windows/Linux methods pass; final integration pending |
+| A58 | P3 | Shared settings and request types have one public path | Public protocol aliases duplicate their root or request-module names | Source migration independently approved; Windows Clippy, 339 selected tests, 143 doctests and rustdoc pass; all eight API inventories regenerated; Linux and final gates pending |
+| A59 | P3 | Runtime documentation describes the existing deadline service | Design denies a global runtime although shutdown_timer owns one | Prose correction independently approved; no runtime change |
+| A60 | P2 | The excluded fuzz workspace resolves the current local forks | Its exact Quinn requirement and four lock entries retain older fork versions | Manifest failure reproduced; pin and four local lock versions corrected; Windows fuzz Clippy and nineteen tests pass; Linux and final gates pending |
+| A61 | P2 | Trailer tests observe interleaved names and sensitivity on the wire | Decoded header maps cannot prove the order claimed by their names | Six raw H2/H3 upload cases drafted in a signed lane; independent review and transport execution pending |
+| A62 | P2 | Stream MASQUE test proxies own accepted and relay tasks | Drop aborts the listener while accepted connections and relay children detach | Full support source review confirms the ownership gap; repair and regression controls in progress |
+| A63 | P2 | An H2 no-request assertion distinguishes parser failure from absence | Capability helper converts any protocol error into a successful absence observation | Full support source review and selected callers confirm the weak oracle; repair and injected controls in progress |
+| A64 | P2 | H1 WebSocket Close tests verify the observed opcode | Echo helper replies with Close for any second frame | Full support source review confirms a false positive for non-Close input; repair and independent controls in progress |
+| A65 | P3 | HTTPS WebSocket teardown accepts a Windows peer abort | Relay accepts reset and broken pipe but rejects ConnectionAborted | Source and repository platform contract confirm the mismatch; classification and real proxy controls pending |
 
 ## Initial source evidence
 
@@ -762,6 +770,38 @@ and fails thirteen, including the actual held descendant remaining alive
 when restoration begins. The fixture owns and reaps only its harmless child.
 No Docker resource survival is measured. Production repair remains in its
 owned lane, and composition must retain the separate image-input guard.
+
+## Crate boundaries
+
+The bounded crate review finds supported consumers for all five crates,
+with no runtime dependency cycle or testkit dependency in production. It
+does not justify a crate split or merge. Shared request, TLS-error and
+source-binding types instead have redundant public paths within the network
+crate. Profile settings also have module and root paths.
+
+A58 makes shared request syntax canonical under `phantom_net::request` and
+shared TLS errors and source bindings canonical at the network crate root.
+Profile settings become root exports, including the twelve QUIC types and
+five existing TCP bounds. Three hidden client-hint placement items remain
+available for the facade. Browser recipes keep their public modules.
+Callers, compile-check tests and examples migrate together. This changes
+import paths without changing transport operation bodies.
+
+Windows workspace Clippy passes with warnings denied. The selected profile
+and transport error-category suite passes all 339 tests. Workspace doctests
+pass 143 cases and retain five ignored peer-library examples. All-feature
+rustdoc and both workspace format checks pass. The eight inventories use
+the pinned generator and nightly. After canonicalizing the deliberately
+retired aliases, the network inventory has no added or removed signatures.
+The profile changes beyond aliases record earlier reviewed fallible Android
+factories and redacted Debug implementations. Provider and testkit snapshots
+are unchanged. These are focused Windows checks; Linux, downstream builds
+and the final combined gate remain pending.
+
+A59 corrects the design statement about runtime ownership. The existing
+deadline service starts lazily and lives for the process. Request I/O still
+uses the caller's Tokio runtime. Runtime implementation changes are outside
+this audit's scope.
 
 ## Rejected candidates
 

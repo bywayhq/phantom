@@ -2,7 +2,7 @@
 
 use crate::proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth};
 use crate::{
-    http1::{AbsoluteForm, OriginForm},
+    request::{AbsoluteForm, OriginForm},
     tcp::AddressFamilyMemory,
 };
 

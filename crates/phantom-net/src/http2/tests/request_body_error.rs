@@ -14,8 +14,8 @@ use tokio::time::timeout;
 
 use super::{PEER_TEST_TIMEOUT, TestResult, bounded_peer_test};
 use crate::{
-    http2::{Http2Connection, Http2Error, OriginForm, RequestBody, RequestHeader},
-    request::RequestBodyErrorKind,
+    http2::{Http2Connection, Http2Error},
+    request::{OriginForm, RequestBody, RequestBodyErrorKind, RequestHeader},
 };
 
 struct FailingBody;

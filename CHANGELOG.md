@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Give shared support-crate types one public path. Migrate: import settings
+  and TCP bounds from `phantom_profile` instead of its protocol modules.
+  Import shared request types from `phantom_net::request` instead of
+  `phantom_net::http1`, `http2` or `http3`. Import `SourceBinding`,
+  `InvalidSourceBinding`, `TlsError`, `TlsErrorKind` and `EchFailure` from
+  `phantom_net`. Browser recipes remain under `phantom_profile::browser`.
+
 - Require Linux for the full QUIC Interop Runner. Migrate: run
   `scripts/conformance/quic_interop.py` on Linux, with exclusive use of its
   Docker daemon and runner checkout. Other hosts now fail before mutation.

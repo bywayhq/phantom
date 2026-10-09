@@ -23,8 +23,9 @@ use super::{
     },
     target,
 };
-use crate::http2::{
-    Http2Connection, Http2Error, Http2ExtendedConnectOutcome, RequestHeader, translate_settings,
+use crate::{
+    http2::{Http2Connection, Http2Error, Http2ExtendedConnectOutcome, translate_settings},
+    request::RequestHeader,
 };
 
 const END_STREAM: u8 = 0x1;

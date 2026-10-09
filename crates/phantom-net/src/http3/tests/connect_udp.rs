@@ -16,9 +16,10 @@ use tokio::{sync::oneshot, time::timeout};
 use super::{TestResult, join_server, server_endpoint_with_transport};
 use crate::{
     http3::{
-        ConnectUdpErrorKind, Http3Connector, OriginForm, capsule,
+        ConnectUdpErrorKind, Http3Connector, capsule,
         connect_udp::{self, OUTER_PATH_MTU},
     },
+    request::OriginForm,
     tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity},
 };
 

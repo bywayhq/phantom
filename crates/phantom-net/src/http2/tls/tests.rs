@@ -25,7 +25,6 @@ use tokio_btls::SslStream as BoringStream;
 use tracing::{Dispatch, instrument::WithSubscriber};
 
 use super::{Http2TlsConnector, Http2TlsError};
-use crate::http2::{Http2Error, OriginForm, RequestHeader};
 use crate::proxy::HttpConnectHeader;
 use crate::route::{Endpoint, HttpConnectRoute, ProxyTransport, Socks5Target, TcpRoute};
 use crate::tls::test_support::{
@@ -33,6 +32,10 @@ use crate::tls::test_support::{
     TouchCountingStream, accept_tls, loopback_listener,
 };
 use crate::tracing_test::OutcomeSubscriber;
+use crate::{
+    http2::Http2Error,
+    request::{OriginForm, RequestHeader},
+};
 
 mod alps_concurrency_gate;
 mod alps_hpack_last_wins;

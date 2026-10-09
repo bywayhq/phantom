@@ -3,9 +3,8 @@ use std::{error::Error as StdError, fmt};
 use bytes::Bytes;
 use http::{Method, Response, Uri};
 use http_body::Body;
-use phantom_net::{
-    http1::{AbsoluteForm, OriginForm},
-    request::{RequestBody, RequestHeader, RequestTrailerName},
+use phantom_net::request::{
+    AbsoluteForm, OriginForm, RequestBody, RequestHeader, RequestTrailerName,
 };
 use tracing::{Instrument, Span, debug, debug_span, field};
 

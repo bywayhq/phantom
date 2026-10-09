@@ -1,11 +1,9 @@
 use std::{collections::BTreeSet, error::Error, time::Duration};
 
 use phantom_profile::{
+    QuicConnectionIdLength, QuicTransportParameterKind, QuicTransportParameterOrder,
+    QuicTransportSettings, QuicVarIntWidth,
     browser::{chrome, firefox},
-    quic::{
-        QuicConnectionIdLength, QuicTransportParameterKind, QuicTransportParameterOrder,
-        QuicTransportSettings, QuicVarIntWidth,
-    },
 };
 use quinn_proto::{Side, transport_parameters::TransportParameters};
 
@@ -335,7 +333,7 @@ fn version_information_lists_v2_then_v1_after_a_leading_reserved_version()
         let mut entropy = fixture_entropy();
         let value = profile.version_information(
             version,
-            phantom_profile::quic::QuicVersionGrease::First,
+            phantom_profile::QuicVersionGrease::First,
             2,
             &mut entropy,
         )?;
@@ -355,7 +353,7 @@ fn version_information_lists_v2_then_v1_after_a_leading_reserved_version()
     let mut entropy = fixture_entropy();
     let error = match chrome.version_information(
         QuicVersion::V2,
-        phantom_profile::quic::QuicVersionGrease::Permuted,
+        phantom_profile::QuicVersionGrease::Permuted,
         1,
         &mut entropy,
     ) {

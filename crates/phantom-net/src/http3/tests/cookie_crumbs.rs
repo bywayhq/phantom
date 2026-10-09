@@ -18,7 +18,7 @@ use phantom_profile::{
 };
 
 use super::TestResult;
-use crate::http3::{OriginForm, RequestHeader};
+use crate::request::{OriginForm, RequestHeader};
 
 use crate::http3::request::{
     MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, prepare_profiled_request_body,

@@ -4,9 +4,9 @@ use std::{fmt, sync::Arc};
 
 use phantom_net::request::RequestHeader;
 use phantom_profile::{
-    ClientHintDelivery, ClientHintSettings, Http2Priority, InvalidRequestTemplate,
-    ProxyAuthorizationAttempt, RequestField, RequestTemplate,
-    request_template::{ClientHintSlot, client_hint_placement, restart_client_hint_placement},
+    ClientHintDelivery, ClientHintSettings, ClientHintSlot, Http2Priority, InvalidRequestTemplate,
+    ProxyAuthorizationAttempt, RequestField, RequestTemplate, client_hint_placement,
+    restart_client_hint_placement,
 };
 
 use crate::{HttpProtocol, RequestError};

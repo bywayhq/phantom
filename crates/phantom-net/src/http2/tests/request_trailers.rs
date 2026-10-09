@@ -14,11 +14,8 @@ use phantom_profile::browser::chrome::v154_http2;
 
 use super::{TestResult, bounded_peer_test};
 use crate::{
-    http2::{
-        Http2Connection, Http2Error, OriginForm, RequestBody, RequestHeader,
-        validate_request_body_with_trailers,
-    },
-    request::{RequestBodyErrorKind, RequestTrailerName},
+    http2::{Http2Connection, Http2Error, validate_request_body_with_trailers},
+    request::{OriginForm, RequestBody, RequestBodyErrorKind, RequestHeader, RequestTrailerName},
 };
 
 #[tokio::test]

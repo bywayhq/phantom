@@ -4,8 +4,9 @@
 use std::sync::Arc;
 
 use http::Response;
-use phantom_net::http2::{
-    Http2ExtendedConnectOutcome, Http2TlsConnector, Http2TlsError, OriginForm, RequestHeader,
+use phantom_net::{
+    http2::{Http2ExtendedConnectOutcome, Http2TlsConnector, Http2TlsError},
+    request::{OriginForm, RequestHeader},
 };
 use phantom_profile::WebSocketRefusedStreamRetry;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;

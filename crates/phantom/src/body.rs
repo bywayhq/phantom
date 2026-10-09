@@ -447,7 +447,10 @@ mod tests {
     };
 
     use http_body::Body;
-    use phantom_net::http1::{Http1Connection, OriginForm, RequestHeader};
+    use phantom_net::{
+        http1::Http1Connection,
+        request::{OriginForm, RequestHeader},
+    };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::checked_body_length;

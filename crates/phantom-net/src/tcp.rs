@@ -24,7 +24,7 @@ use tokio::{
     net::{TcpSocket, TcpStream},
 };
 
-use crate::{host_resolver::HostResolver, source_binding::SourceBinding};
+use crate::{SourceBinding, host_resolver::HostResolver};
 
 mod address_racing;
 mod backup_connection;

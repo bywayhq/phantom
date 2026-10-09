@@ -721,6 +721,8 @@ pub fn phantom::PreparedRequestBody::fmt(&self, &mut core::fmt::Formatter<'_>) -
 pub struct phantom::PreparedRequestTemplate(_)
 impl phantom::PreparedRequestTemplate
 pub fn phantom::PreparedRequestTemplate::new(phantom_profile::request_template::RequestTemplate) -> core::result::Result<Self, phantom_profile::request_template::InvalidRequestTemplate>
+impl core::fmt::Debug for phantom::PreparedRequestTemplate
+pub fn phantom::PreparedRequestTemplate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ProxyConfigError
 impl phantom::ProxyConfigError
 pub fn phantom::ProxyConfigError::kind(&self) -> phantom::ProxyConfigErrorKind

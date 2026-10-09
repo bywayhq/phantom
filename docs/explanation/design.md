@@ -520,10 +520,14 @@ flowchart LR
 
 ### Async and features
 
-Phantom is async-first and targets Tokio. Library code does not create a
-global runtime or install a tracing subscriber. Supporting another runtime
-would need a second implementation that preserves cancellation, timer,
-socket, DNS, and driver-lifecycle behavior.
+Requests run on the caller's Tokio runtime. A deadline service starts lazily
+on a separate thread and runs for the life of the process. It owns shutdown,
+fallback, keepalive and discovery deadlines, plus idle-connection cleanup.
+The service runs independently of the caller's timer driver. Dropping a
+deadline receiver cancels that timer. Phantom does not install a tracing
+subscriber. Supporting another runtime would need an
+implementation that preserves cancellation, timers, sockets, DNS and driver
+ownership.
 
 Each optional Cargo feature adds a coherent public capability. Features are
 not backend toggles.

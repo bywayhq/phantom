@@ -114,7 +114,7 @@ async fn static_trailers_follow_data_and_support_trailer_only_requests() -> Test
             &phantom_profile::browser::chrome::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
-            crate::http3::OriginForm::parse(path)?,
+            crate::request::OriginForm::parse(path)?,
             Vec::new(),
             body,
             vec![
@@ -171,7 +171,7 @@ async fn raw_custom_config_send_emits_body_and_duplicate_trailers() -> TestResul
             &phantom_profile::browser::chrome::v154_http3_request(),
             http::Method::POST,
             TEST_SERVER_NAME,
-            crate::http3::OriginForm::parse("/raw-trailers")?,
+            crate::request::OriginForm::parse("/raw-trailers")?,
             Vec::new(),
             crate::http3::Http3SendOptions {
                 body: Some(Bytes::from_static(b"payload")),
