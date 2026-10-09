@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -12,7 +13,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.conformance import quic_interop
+from scripts.conformance import docker_owner, quic_interop
 
 SUCCESS_RESULT = b'{"clients":["phantom"],"servers":["controlled"],"tests":{"3":{"name":"http3","desc":"HTTP/3"}},"results":[[{"abbr":"3","name":"http3","result":"succeeded"}]]}'
 OWNED_CONTAINER = "1" * 64
@@ -47,6 +48,9 @@ class ControlledRunner:
         self.reap_failure = False
         self.foreign_endpoint = False
         self.foreign_name = False
+        self.foreign_container_label = False
+        self.interrupt_on_launch = False
+        self.cleanup_sigint_handlers = []
         self.change_daemon_after_launch = False
         self.events = []
         self.removed = []
@@ -108,6 +112,8 @@ class ControlledRunner:
         return self.docker(command, options)
 
     def docker(self, command, options):
+        if self.launches:
+            self.cleanup_sigint_handlers.append(signal.getsignal(signal.SIGINT))
         if self.launch_environment is not None and options.get("env", {}).get(
             "DOCKER_HOST"
         ) != self.launch_environment.get("DOCKER_HOST"):
@@ -128,9 +134,13 @@ class ControlledRunner:
                     command, 0, json.dumps([document]), ""
                 )
             if identity not in {OWNED_CONTAINER, OWNED_HELPER, OWNED_NETWORK}:
-                return subprocess.CompletedProcess(command, 1, "", "No such object")
+                return subprocess.CompletedProcess(
+                    command, 1, "", f"Error: No such object: {identity}"
+                )
             self.events.append("inspect:" + identity)
             labels = {OWNER_LABEL: owner}
+            if self.foreign_container_label and identity == OWNED_CONTAINER:
+                labels = {OWNER_LABEL: "foreign"}
             document = {"Id": identity, "Config": {"Labels": labels}}
             if is_network:
                 document = {
@@ -140,6 +150,10 @@ class ControlledRunner:
                     if self.foreign_endpoint
                     else {},
                 }
+            if "--format" in command:
+                return subprocess.CompletedProcess(
+                    command, 0, identity + "\n" + json.dumps(labels) + "\n", ""
+                )
             return subprocess.CompletedProcess(command, 0, json.dumps([document]), "")
         if "ls" in command or "ps" in command:
             ids = {OWNED_NETWORK} if is_network else {OWNED_CONTAINER, OWNED_HELPER}
@@ -185,6 +199,8 @@ class ControlledRunner:
             stream = options["stdout"]
             if hasattr(stream, "write"):
                 stream.write(b"literal stdout\nliteral stderr\n")
+        if self.interrupt_on_launch:
+            signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
         return Process()
 
     def end_group(self, group, signum):
@@ -227,6 +243,7 @@ class ControlledRunner:
             run=self.run_command,
             Popen=self.popen,
             SubprocessError=subprocess.SubprocessError,
+            CalledProcessError=subprocess.CalledProcessError,
             TimeoutExpired=subprocess.TimeoutExpired,
             PIPE=subprocess.PIPE,
             STDOUT=subprocess.STDOUT,
@@ -245,9 +262,17 @@ class ControlledRunner:
         error = None
         with (
             mock.patch.object(quic_interop, "subprocess", commands),
+            mock.patch.object(docker_owner, "subprocess", commands),
+            mock.patch.object(quic_interop, "checkout_runner", self.checkout),
             mock.patch.object(quic_interop, "tempfile", temporary),
             mock.patch.object(sys, "platform", system),
             mock.patch.object(os, "killpg", self.end_group, create=True),
+            mock.patch.object(signal, "SIGKILL", 9, create=True),
+            mock.patch.object(
+                quic_interop,
+                "_group_has_live_members",
+                lambda identity: self.active_process,
+            ),
             mock.patch.object(
                 Path,
                 "write_bytes",
@@ -284,6 +309,8 @@ class ControlledRunner:
                         "--server",
                         "controlled",
                     ]
+                    if entry == "checkout":
+                        del argv[1:3]
                     with mock.patch.object(sys, "argv", argv):
                         quic_interop.main()
             except BaseException as caught:
@@ -291,6 +318,13 @@ class ControlledRunner:
         reports = list((self.root / "reports").glob("*/summary.json"))
         summary = json.loads(reports[0].read_text()) if reports else None
         return error, summary
+
+    def checkout(self, destination):
+        destination.mkdir()
+        for name, content in self.original.items():
+            (destination / name).write_bytes(content)
+        (destination / "run.py").write_text("# never executed\n", encoding="utf-8")
+        self.runner = destination
 
 
 class QuicInteropLifecycleTests(unittest.TestCase):
@@ -402,6 +436,10 @@ class QuicInteropLifecycleTests(unittest.TestCase):
         self.assertIn("controlled cleanup failure", detail)
         self.assertIn("controlled restoration failure", detail)
         self.assertEqual(set(control.restores), set(control.original))
+        self.assertIs(error.__cause__, control.primary)
+        self.assertTrue(
+            all(isinstance(cause, BaseException) for _, cause in error.failures)
+        )
 
     def test_alpine_helper_and_compose_have_private_owner_not_ambient_project(self):
         control = self.fixture()
@@ -435,6 +473,10 @@ class QuicInteropLifecycleTests(unittest.TestCase):
             (control.runner / "docker-compose.yml").read_bytes(),
             control.original["docker-compose.yml"],
         )
+        for name, content in control.original.items():
+            self.assertEqual(
+                (control.scratch[0] / "originals" / name).read_bytes(), content
+            )
 
     def test_network_with_foreign_endpoint_is_not_removed(self):
         control = self.fixture("timeout")
@@ -476,3 +518,73 @@ class QuicInteropLifecycleTests(unittest.TestCase):
         self.assertEqual(control.restores, [])
         for name, content in control.original.items():
             self.assertEqual((control.runner / name).read_bytes(), content)
+
+    def test_launch_interruption_records_owner_then_finishes_and_restores_handler(self):
+        control = self.fixture()
+        control.interrupt_on_launch = True
+        previous = signal.getsignal(signal.SIGINT)
+
+        error, summary = control.invoke()
+
+        self.assertIsInstance(error, KeyboardInterrupt)
+        self.assertEqual(summary["status"], "failed")
+        self.assert_safe_finish(control)
+        self.assertTrue(control.cleanup_sigint_handlers)
+        self.assertTrue(
+            all(
+                handler == signal.SIG_IGN for handler in control.cleanup_sigint_handlers
+            )
+        )
+        self.assertIs(signal.getsignal(signal.SIGINT), previous)
+
+    def test_auto_checkout_is_retained_when_owned_runner_cannot_be_reaped(self):
+        control = self.fixture("timeout")
+        control.reap_failure = True
+
+        error, summary = control.invoke("checkout")
+
+        self.assertIsNotNone(error)
+        self.assertEqual(control.launches, 1)
+        self.assertEqual(summary["status"], "failed")
+        self.assertEqual(control.restores, [])
+        self.assertTrue(control.runner.exists())
+        self.assertTrue(all(path.exists() for path in control.scratch))
+        self.assertIn(str(control.runner), summary["retained_paths"])
+
+    def test_failed_restoration_keeps_original_bytes_in_owned_scratch(self):
+        control = self.fixture("timeout", restore_failure=True)
+
+        error, summary = control.invoke()
+
+        self.assertIsNotNone(error)
+        self.assertEqual(set(control.restores), set(control.original))
+        self.assertIn(str(control.scratch[0]), summary["retained_paths"])
+        for name, content in control.original.items():
+            self.assertEqual(
+                (control.scratch[0] / "originals" / name).read_bytes(), content
+            )
+
+    def test_container_with_wrong_owner_label_is_left_untouched(self):
+        control = self.fixture()
+        control.foreign_container_label = True
+
+        error, summary = control.invoke()
+
+        self.assertIsNotNone(error)
+        self.assertEqual(summary["status"], "failed")
+        self.assertNotIn(OWNED_CONTAINER, control.removed)
+        self.assertIn(OWNED_HELPER, control.removed)
+        self.assertEqual(set(control.restores), set(control.original))
+
+    def test_windows_main_refuses_before_creating_an_automatic_checkout(self):
+        control = self.fixture()
+
+        error, summary = control.invoke("checkout", system="win32")
+
+        self.assertIsInstance(error, SystemExit)
+        self.assertEqual(error.code, 2)
+        self.assertEqual(control.launches, 0)
+        self.assertEqual(control.scratch, [])
+        self.assertEqual(control.restores, [])
+        self.assertIsNone(summary)
+        self.assertFalse((control.root / "reports").exists())

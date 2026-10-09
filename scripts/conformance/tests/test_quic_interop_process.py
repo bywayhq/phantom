@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.conformance import quic_interop
+from scripts.conformance import docker_owner, quic_interop
 from scripts.conformance.tests.test_quic_interop_lifecycle import ControlledRunner
 
 
@@ -103,6 +103,7 @@ class QuicInteropProcessTests(unittest.TestCase):
                 run=command_run,
                 Popen=command_popen,
                 SubprocessError=subprocess.SubprocessError,
+                CalledProcessError=subprocess.CalledProcessError,
                 TimeoutExpired=subprocess.TimeoutExpired,
                 PIPE=subprocess.PIPE,
                 STDOUT=subprocess.STDOUT,
@@ -114,6 +115,7 @@ class QuicInteropProcessTests(unittest.TestCase):
             try:
                 with (
                     mock.patch.object(quic_interop, "subprocess", commands),
+                    mock.patch.object(docker_owner, "subprocess", commands),
                     mock.patch.object(quic_interop, "RUN_TIMEOUT_SECONDS", 3),
                     mock.patch.object(Path, "write_bytes", observe_restore),
                     contextlib.redirect_stdout(io.StringIO()),
