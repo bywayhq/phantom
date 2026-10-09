@@ -6,6 +6,7 @@ use tokio::{
 };
 
 use super::{OriginForm, RequestHeader};
+use crate::http1::PreparedRequest;
 use crate::{request::InvalidOriginForm, tracing_test::OutcomeSubscriber};
 
 const PEER_TEST_TIMEOUT: Duration = Duration::from_secs(2);
@@ -84,3 +85,19 @@ mod response_body;
 mod response_limits;
 mod reuse;
 mod upgrade;
+
+// Prepare before raw setup so invalid requests cannot touch the stream or body.
+async fn send_once<T, F>(
+    stream: T,
+    prepare: F,
+) -> Result<http::Response<super::Http1Body>, super::Http1Error>
+where
+    T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    F: FnOnce() -> Result<PreparedRequest, super::Http1Error>,
+{
+    let prepared = prepare()?;
+    super::Http1Connection::connect(stream)
+        .await?
+        .send_prepared_request(prepared)
+        .await
+}

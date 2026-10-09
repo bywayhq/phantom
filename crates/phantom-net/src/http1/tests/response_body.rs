@@ -5,9 +5,12 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
-use super::{TestResult, bounded_peer_test, host, read_head, target, wait_for_driver_outcome};
+use super::{
+    TestResult, bounded_peer_test, host, read_head, send_once, target, wait_for_driver_outcome,
+};
+use crate::http1::PreparedRequest;
 use crate::{
-    http1::{Http1Connection, Http1Error, send_get},
+    http1::{Http1Connection, Http1Error},
     tracing_test::OutcomeSubscriber,
 };
 
@@ -25,7 +28,14 @@ async fn streams_first_data_before_later_data_exists() -> TestResult {
             server.write_all(b"later").await
         });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
+        let response = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?;
         let mut body = response.into_body();
         let first = body
             .frame()
@@ -60,7 +70,14 @@ async fn content_length_ends_without_socket_eof() -> TestResult {
         let target = target()?;
 
         let collected = async {
-            let body = send_get(client, target, vec![host()]).await?.into_body();
+            let body = send_once(client, {
+                let method = http::Method::GET;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?
+            .into_body();
             body.collect().await
         }
         .with_subscriber(subscriber.dispatch())
@@ -90,11 +107,17 @@ async fn content_length_does_not_expose_surplus_bytes() -> TestResult {
             server.read(&mut byte).await
         });
 
-        let body = send_get(client, target()?, vec![host()])
-            .await?
-            .into_body()
-            .collect()
-            .await?;
+        let body = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?
+        .into_body()
+        .collect()
+        .await?;
         assert_eq!(body.to_bytes(), "hello");
         assert_eq!(server_task.await??, 0);
         Ok(())
@@ -175,7 +198,14 @@ async fn reads_close_delimited_body() -> TestResult {
         let target = target()?;
 
         let bytes = async {
-            let body = send_get(client, target, vec![host()]).await?.into_body();
+            let body = send_once(client, {
+                let method = http::Method::GET;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?
+            .into_body();
             body.collect().await
         }
         .with_subscriber(subscriber.dispatch())
@@ -204,7 +234,14 @@ async fn reports_truncated_content_length() -> TestResult {
         let target = target()?;
 
         let collected = async {
-            let body = send_get(client, target, vec![host()]).await?.into_body();
+            let body = send_once(client, {
+                let method = http::Method::GET;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?
+            .into_body();
             body.collect().await
         }
         .with_subscriber(subscriber.dispatch())
@@ -238,7 +275,14 @@ async fn status_204_has_no_body_without_socket_eof() -> TestResult {
             server.read(&mut byte).await
         });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
+        let response = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?;
         assert_eq!(response.status(), 204);
         let body = response.into_body().collect().await?;
         assert!(body.to_bytes().is_empty());

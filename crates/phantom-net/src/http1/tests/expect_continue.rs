@@ -8,9 +8,10 @@ use tokio::{
     time::timeout,
 };
 
-use super::{TestResult, bounded_peer_test, host, read_head, target};
+use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
+use crate::http1::PreparedRequest;
 use crate::{
-    http1::{Http1Error, RequestHeader, send_request_body},
+    http1::{Http1Error, RequestHeader},
     request::RequestBody,
 };
 
@@ -27,13 +28,13 @@ fn waiting_body(bytes: &'static [u8]) -> RequestBody {
 async fn generated_expectation_follows_framing_and_the_body_waits_for_100() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request_body(
-            client,
-            Method::POST,
-            target()?,
-            vec![host(), RequestHeader::new("X-Order", "before-length")],
-            Some(waiting_body(b"payload")),
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+let method = Method::POST;
+let target = target()?;
+let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
+let body = Some(waiting_body(b"payload"));
+move || PreparedRequest::new_body(method, target, headers, body)
+}));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -65,17 +66,17 @@ async fn generated_expectation_follows_framing_and_the_body_waits_for_100() -> T
 async fn a_caller_expectation_keeps_its_spelling_and_position() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request_body(
-            client,
-            Method::PUT,
-            target()?,
-            vec![
+        let transaction = tokio::spawn(send_once(client, {
+let method = Method::PUT;
+let target = target()?;
+let headers = vec![
                 host(),
                 RequestHeader::new("EXPECT", "100-Continue"),
                 RequestHeader::new("X-After", "1"),
-            ],
-            Some(waiting_body(b"data")),
-        ));
+            ];
+let body = Some(waiting_body(b"data"));
+move || PreparedRequest::new_body(method, target, headers, body)
+}));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -99,13 +100,13 @@ async fn a_caller_expectation_keeps_its_spelling_and_position() -> TestResult {
 async fn an_empty_body_sends_no_expectation() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request_body(
-            client,
-            Method::POST,
-            target()?,
-            vec![host()],
-            Some(waiting_body(b"")),
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = Some(waiting_body(b""));
+            move || PreparedRequest::new_body(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert!(
@@ -135,13 +136,12 @@ async fn a_caller_expectation_other_than_100_continue_never_touches_the_stream()
     ] {
         let invalid_index = headers.len() - 1;
         let (client, mut server) = duplex(64);
-        let result = send_request_body(
-            client,
-            Method::POST,
-            target()?,
-            headers,
-            Some(waiting_body(b"data")),
-        )
+        let result = send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let body = Some(waiting_body(b"data"));
+            move || PreparedRequest::new_body(method, target, headers, body)
+        })
         .await;
         assert!(
             matches!(

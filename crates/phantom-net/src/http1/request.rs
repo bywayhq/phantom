@@ -22,7 +22,9 @@ use wreq_proto::ext::{
     on_preserve_trailer,
 };
 
-use super::{AbsoluteForm, Http1Error, OriginForm, RequestHeader};
+use tracing::{debug_span, field};
+
+use super::{AbsoluteForm, Http1Error, OperationOutcome, OriginForm, RequestHeader};
 use crate::request::{ContinueSignal, RequestBody, RequestBodyMetadata, is_continue_expectation};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
@@ -282,46 +284,66 @@ impl PreparedRequest {
         trailers: Vec<RequestHeader>,
         expected_host: Option<&str>,
     ) -> Result<Self, Http1Error> {
-        if method == Method::CONNECT {
-            return Err(Http1Error::ConnectUnsupported);
+        let body_bytes = body.metadata.and_then(RequestBodyMetadata::exact_length);
+        let span = debug_span!("http1.request.prepare", method = %method, protocol = "http/1.1",
+            body_bytes = field::Empty, has_body = body.has_body, outcome = field::Empty, error_kind = field::Empty);
+        if let Some(body_bytes) = body_bytes {
+            span.record("body_bytes", body_bytes);
         }
-        let PreparedBody {
-            mut body,
-            has_body,
-            metadata,
-        } = body;
-        let body_len = metadata.and_then(RequestBodyMetadata::exact_length);
-        let trailers = ValidatedTrailers::from_sources(trailers, Some(&body))?;
-        let headers = ValidatedHeaders::new(headers, metadata, expected_host, trailers.as_ref())?;
-        let static_trailer_marker = trailers.as_ref().is_some_and(|trailers| !trailers.dynamic);
-        let replay_safe = crate::request::is_replay_safe(&method, has_body, trailers.is_some());
-        let continue_signal = if has_body { body.arm_continue() } else { None };
-        let mut request = Request::new(Http1RequestBody::new(body, static_trailer_marker));
-        *request.method_mut() = method;
-        *request.uri_mut() = target;
-        *request.version_mut() = Version::HTTP_11;
-
-        headers.populate(request.headers_mut());
-        let allows_reuse = headers.allows_reuse();
-        on_preserve_header(&mut request, headers.order);
-        if let Some(trailers) = trailers {
-            on_preserve_trailer(&mut request, trailers);
-        }
-        if let Some(signal) = continue_signal.clone() {
-            on_informational(&mut request, move |response| {
-                if response.status() == http::StatusCode::CONTINUE {
-                    signal.proceed();
+        let outcome = OperationOutcome::new(&span);
+        let prepared = {
+            let _entered = span.enter();
+            (|| {
+                if method == Method::CONNECT {
+                    return Err(Http1Error::ConnectUnsupported);
                 }
-            });
+                let PreparedBody {
+                    mut body,
+                    has_body,
+                    metadata,
+                } = body;
+                let body_len = metadata.and_then(RequestBodyMetadata::exact_length);
+                let trailers = ValidatedTrailers::from_sources(trailers, Some(&body))?;
+                let headers =
+                    ValidatedHeaders::new(headers, metadata, expected_host, trailers.as_ref())?;
+                let static_trailer_marker =
+                    trailers.as_ref().is_some_and(|trailers| !trailers.dynamic);
+                let replay_safe =
+                    crate::request::is_replay_safe(&method, has_body, trailers.is_some());
+                let continue_signal = if has_body { body.arm_continue() } else { None };
+                let mut request = Request::new(Http1RequestBody::new(body, static_trailer_marker));
+                *request.method_mut() = method;
+                *request.uri_mut() = target;
+                *request.version_mut() = Version::HTTP_11;
+
+                headers.populate(request.headers_mut());
+                let allows_reuse = headers.allows_reuse();
+                on_preserve_header(&mut request, headers.order);
+                if let Some(trailers) = trailers {
+                    on_preserve_trailer(&mut request, trailers);
+                }
+                if let Some(signal) = continue_signal.clone() {
+                    on_informational(&mut request, move |response| {
+                        if response.status() == http::StatusCode::CONTINUE {
+                            signal.proceed();
+                        }
+                    });
+                }
+                Ok(Self {
+                    request,
+                    allows_reuse,
+                    body_len,
+                    has_body,
+                    replay_safe,
+                    continue_signal,
+                })
+            })()
+        };
+        match &prepared {
+            Ok(_) => outcome.finish("ok"),
+            Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
         }
-        Ok(Self {
-            request,
-            allows_reuse,
-            body_len,
-            has_body,
-            replay_safe,
-            continue_signal,
-        })
+        prepared
     }
 
     /// Returns the connection's side of the wait for `100 Continue`.

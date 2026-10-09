@@ -1,16 +1,14 @@
 //! HTTP/1.1 client transactions and reusable connection ownership.
 //!
-//! The core transaction accepts an already-connected byte stream, while
-//! [`Http1TlsConnector`] composes it with the crate's TLS transport. This
-//! module owns no connection pool. [`send_get`] remains a one-shot convenience;
-//! [`Http1Connection`] exposes sequential keep-alive reuse.
+//! [`Http1Connection`] uses an already-connected byte stream and supports
+//! sequential reuse. [`Http1TlsConnector`] opens profiled origin or proxy
+//! connections. This module owns no connection pool.
 
 use std::{error::Error as StdError, fmt};
 
 use bytes::Bytes;
-use http::{Method, Response};
-use tokio::io::{AsyncRead, AsyncWrite};
-use tracing::{Span, debug_span, field};
+use http::Method;
+use tracing::Span;
 
 use request::{PreparedGet, PreparedRequest};
 use upgrade::send_prepared_upgrade;
@@ -357,226 +355,6 @@ impl Http1Error {
     }
 }
 
-/// Sends one empty-body HTTP/1.1 GET over an already-connected stream.
-///
-/// Header spelling, ordering, and duplicates are emitted exactly as supplied.
-/// The stream is intentionally one-shot: completing or dropping the returned
-/// body schedules its teardown, as does a body error. Dropping this future
-/// after the driver starts also schedules cancellation. In both cases stream
-/// teardown is eventual rather than synchronously complete when `Drop` returns.
-pub async fn send_get<T>(
-    stream: T,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    send_request(stream, Method::GET, target, headers, None).await
-}
-
-/// Sends one HTTP/1.1 request over an already-connected stream.
-///
-/// Header spelling, ordering, and duplicates are emitted exactly as supplied.
-/// A missing `Content-Length` is appended only when the owned body is nonempty.
-/// The stream and cancellation behavior match [`send_get`].
-pub async fn send_request<T>(
-    stream: T,
-    method: Method,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let body_bytes = body.as_ref().map_or(0, Bytes::len);
-    let has_body = body.is_some();
-    let span = debug_span!(
-        "http1.request.prepare",
-        method = %method,
-        protocol = "http/1.1",
-        body_bytes,
-        has_body,
-        outcome = field::Empty,
-        error_kind = field::Empty,
-    );
-    let outcome = OperationOutcome::new(&span);
-    let prepared = {
-        let _entered = span.enter();
-        PreparedRequest::new(method, target, headers, body)
-    };
-    match &prepared {
-        Ok(_) => outcome.finish("ok"),
-        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
-    }
-    let prepared = prepared?;
-    send_prepared_request(stream, prepared).await
-}
-
-/// Sends one pull-driven HTTP/1.1 request body over an already-connected stream.
-///
-/// Exact initial size hints use `Content-Length`; unknown sizes use chunked
-/// transfer coding. Header and framing validation completes before the body is
-/// polled or the stream is touched.
-pub async fn send_request_body<T>(
-    stream: T,
-    method: Method,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<RequestBody>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let body_bytes = body
-        .as_ref()
-        .and_then(|body| body.metadata().exact_length());
-    let has_body = body.is_some();
-    let span = debug_span!(
-        "http1.request.prepare",
-        method = %method,
-        protocol = "http/1.1",
-        body_bytes = field::Empty,
-        has_body,
-        outcome = field::Empty,
-        error_kind = field::Empty,
-    );
-    if let Some(body_bytes) = body_bytes {
-        span.record("body_bytes", body_bytes);
-    }
-    let outcome = OperationOutcome::new(&span);
-    let prepared = {
-        let _entered = span.enter();
-        PreparedRequest::new_body(method, target, headers, body)
-    };
-    match &prepared {
-        Ok(_) => outcome.finish("ok"),
-        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
-    }
-    let prepared = prepared?;
-    send_prepared_request(stream, prepared).await
-}
-
-/// Sends one pull-driven HTTP/1.1 body followed by exact ordered trailers.
-///
-/// Validation completes before the body is polled or the stream is touched.
-pub async fn send_request_body_with_trailers<T>(
-    stream: T,
-    method: Method,
-    target: OriginForm,
-    headers: Vec<RequestHeader>,
-    body: Option<RequestBody>,
-    trailers: Vec<RequestHeader>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let prepared =
-        PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)?;
-    send_prepared_request(stream, prepared).await
-}
-
-/// Sends one HTTP/1.1 request with an absolute-form target over an
-/// already-connected forward-proxy stream.
-///
-/// The `Host` field must match the target authority. Validation completes
-/// before the supplied stream is touched.
-pub async fn send_forward_request<T>(
-    stream: T,
-    method: Method,
-    target: AbsoluteForm,
-    headers: Vec<RequestHeader>,
-    body: Option<Bytes>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let body_bytes = body.as_ref().map_or(0, Bytes::len);
-    let has_body = body.is_some();
-    let span = debug_span!(
-        "http1.request.prepare",
-        method = %method,
-        protocol = "http/1.1",
-        body_bytes,
-        has_body,
-        outcome = field::Empty,
-        error_kind = field::Empty,
-    );
-    let outcome = OperationOutcome::new(&span);
-    let prepared = {
-        let _entered = span.enter();
-        PreparedRequest::new_forward(method, target, headers, body)
-    };
-    match &prepared {
-        Ok(_) => outcome.finish("ok"),
-        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
-    }
-    let prepared = prepared?;
-    send_prepared_request(stream, prepared).await
-}
-
-/// Sends one pull-driven HTTP/1.1 body with an absolute-form proxy target.
-///
-/// Validation completes before the supplied stream or request body is touched.
-pub async fn send_forward_request_body<T>(
-    stream: T,
-    method: Method,
-    target: AbsoluteForm,
-    headers: Vec<RequestHeader>,
-    body: Option<RequestBody>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let body_bytes = body
-        .as_ref()
-        .and_then(|body| body.metadata().exact_length());
-    let has_body = body.is_some();
-    let span = debug_span!(
-        "http1.request.prepare",
-        method = %method,
-        protocol = "http/1.1",
-        body_bytes = field::Empty,
-        has_body,
-        outcome = field::Empty,
-        error_kind = field::Empty,
-    );
-    if let Some(body_bytes) = body_bytes {
-        span.record("body_bytes", body_bytes);
-    }
-    let outcome = OperationOutcome::new(&span);
-    let prepared = {
-        let _entered = span.enter();
-        PreparedRequest::new_forward_body(method, target, headers, body)
-    };
-    match &prepared {
-        Ok(_) => outcome.finish("ok"),
-        Err(error) => outcome.finish_with_error_kind("error", error.trace_kind()),
-    }
-    let prepared = prepared?;
-    send_prepared_request(stream, prepared).await
-}
-
-/// Sends an absolute-form body followed by exact ordered trailers.
-///
-/// Validation completes before the body is polled or the stream is touched.
-pub async fn send_forward_request_body_with_trailers<T>(
-    stream: T,
-    method: Method,
-    target: AbsoluteForm,
-    headers: Vec<RequestHeader>,
-    body: Option<RequestBody>,
-    trailers: Vec<RequestHeader>,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    let prepared =
-        PreparedRequest::new_forward_body_with_trailers(method, target, headers, body, trailers)?;
-    send_prepared_request(stream, prepared).await
-}
-
 /// Validates an empty-body HTTP/1.1 GET without performing I/O.
 pub fn validate_get(target: &OriginForm, headers: &[RequestHeader]) -> Result<(), Http1Error> {
     validate_request(&Method::GET, target, headers, None)
@@ -706,19 +484,6 @@ pub fn validate_forward_request_body_source_with_trailers(
         body,
         trailers.to_vec(),
     )
-}
-
-async fn send_prepared_request<T>(
-    stream: T,
-    prepared: PreparedRequest,
-) -> Result<Response<Http1Body>, Http1Error>
-where
-    T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-{
-    Http1Connection::connect(stream)
-        .await?
-        .send_prepared_request(prepared)
-        .await
 }
 
 struct OperationOutcome {

@@ -4,7 +4,10 @@ use http_body_util::BodyExt;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf, duplex};
 use tracing::{Dispatch, instrument::WithSubscriber};
 
-use super::{TestResult, bounded_peer_test, host, read_head, target, wait_for_driver_outcome};
+use super::{
+    TestResult, bounded_peer_test, host, read_head, send_once, target, wait_for_driver_outcome,
+};
+use crate::http1::PreparedRequest;
 use crate::{
     http1::{
         Http1Connection, Http1Error, PreparedGet,
@@ -13,7 +16,7 @@ use crate::{
             MAX_RESPONSE_HEADERS,
         },
         response_head::ResponseHeadObserver,
-        send_get, send_prepared_upgrade,
+        send_prepared_upgrade,
     },
     tracing_test::OutcomeSubscriber,
 };
@@ -59,12 +62,18 @@ async fn response_head_accepts_exact_limit_and_excludes_coalesced_body() -> Test
             server.write_all(&response).await
         });
 
-        let body = send_get(client, target()?, vec![host()])
-            .await?
-            .into_body()
-            .collect()
-            .await?
-            .to_bytes();
+        let body = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?
+        .into_body()
+        .collect()
+        .await?
+        .to_bytes();
         assert_eq!(body, "body");
         server_task.await??;
         Ok(())
@@ -88,9 +97,15 @@ async fn oversized_response_head_is_typed_and_discards_connection() -> TestResul
             server.read(&mut byte).await
         });
 
-        let result = send_get(client, target()?, vec![host()])
-            .with_subscriber(Dispatch::new(subscriber.clone()))
-            .await;
+        let result = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
         assert!(matches!(
             result,
             Err(Http1Error::ResponseHeadTooLarge {
@@ -118,7 +133,14 @@ async fn oversized_status_line_is_typed() -> TestResult {
             server.write_all(&response).await
         });
 
-        let result = send_get(client, target()?, vec![host()]).await;
+        let result = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await;
         assert!(matches!(
             result,
             Err(Http1Error::ResponseHeadTooLarge {
@@ -144,7 +166,14 @@ async fn response_field_count_has_exact_boundary_and_typed_overflow() -> TestRes
                 read_head(&mut server).await?;
                 server.write_all(&response).await
             });
-            let result = send_get(client, target()?, vec![host()]).await;
+            let result = send_once(client, {
+                let method = http::Method::GET;
+                let target = target()?;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await;
             if accepted {
                 assert_eq!(result?.status(), 204);
             } else {
@@ -179,7 +208,14 @@ async fn informational_response_resets_head_byte_budget() -> TestResult {
             server.write_all(&response).await
         });
 
-        let response = send_get(client, target()?, vec![host()]).await?;
+        let response = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?;
         assert_eq!(response.status(), 204);
         server_task.await??;
         Ok(())

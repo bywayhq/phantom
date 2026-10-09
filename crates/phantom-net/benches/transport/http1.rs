@@ -3,7 +3,7 @@ use std::hint::black_box;
 use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
-use phantom_net::http1::{Http1Connection, Http1TlsConnector, OriginForm, RequestHeader, send_get};
+use phantom_net::http1::{Http1Connection, Http1TlsConnector, OriginForm, RequestHeader};
 use phantom_profile::chromium::v154_tls;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
@@ -99,7 +99,12 @@ fn response_head(criterion: &mut Criterion) {
                 )
             },
             |(stream, target, headers)| async move {
-                let response = match send_get(stream, target, headers).await {
+                let response = match async {
+                    let connection = Http1Connection::connect(stream).await?;
+                    connection.send_get(target, headers).await
+                }
+                .await
+                {
                     Ok(response) => response,
                     Err(error) => panic!("HTTP/1 response-head benchmark failed: {error}"),
                 };
@@ -162,7 +167,12 @@ fn chunked(criterion: &mut Criterion) {
 async fn collect_response(
     (stream, target, headers): (ReplayStream, OriginForm, Vec<RequestHeader>),
 ) -> Bytes {
-    let response = match send_get(stream, target, headers).await {
+    let response = match async {
+        let connection = Http1Connection::connect(stream).await?;
+        connection.send_get(target, headers).await
+    }
+    .await
+    {
         Ok(response) => response,
         Err(error) => panic!("HTTP/1 benchmark failed before the body: {error}"),
     };

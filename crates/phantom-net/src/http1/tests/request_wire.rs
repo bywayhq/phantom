@@ -16,15 +16,14 @@ use tokio::io::{
 };
 use tracing::{Dispatch, instrument::WithSubscriber};
 
-use super::{TestResult, bounded_peer_test, host, read_head, target};
+use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
+use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
     http1::{
         AbsoluteForm, Http1Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS,
-        MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS, RequestHeader, send_forward_request,
-        send_forward_request_body, send_get, send_request, send_request_body,
-        send_request_body_with_trailers, validate_forward_request, validate_request,
-        validate_request_body, validate_request_body_source_with_trailers,
+        MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS, RequestHeader, validate_forward_request,
+        validate_request, validate_request_body, validate_request_body_source_with_trailers,
         validate_request_body_with_trailers,
     },
     request::{RequestBody, RequestTrailerName},
@@ -123,7 +122,13 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult {
     let subscriber = OutcomeSubscriber::default();
     let (client, _server) = duplex(4096);
     let pending = poll_once_then_drop(
-        send_get(client, target()?, vec![host()]),
+        send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        }),
         subscriber.clone(),
     )
     .await;
@@ -142,16 +147,18 @@ async fn cancelled_response_head_records_outcome_once() -> TestResult {
 async fn writes_exact_order_casing_and_duplicates() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_get(
-            client,
-            target()?,
-            vec![
+        let transaction = tokio::spawn(send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![
                 host(),
                 RequestHeader::new("X-First", "one"),
                 RequestHeader::new("x-repeat", "alpha"),
                 RequestHeader::new("X-Repeat", "beta"),
-            ],
-        ));
+            ];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        }));
 
         let request = read_head(&mut server).await?;
         assert_eq!(
@@ -173,13 +180,13 @@ async fn writes_exact_order_casing_and_duplicates() -> TestResult {
 async fn writes_method_body_and_generated_content_length() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request(
-            client,
-            Method::POST,
-            target()?,
-            vec![host(), RequestHeader::new("X-Order", "before-length")],
-            Some(Bytes::from_static(b"payload")),
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
+            let body = Some(Bytes::from_static(b"payload"));
+            move || PreparedRequest::new(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -207,13 +214,13 @@ async fn known_stream_preserves_generated_content_length_order() -> TestResult {
             Bytes::from_static(b"pay"),
             Bytes::from_static(b"load"),
         ]));
-        let transaction = tokio::spawn(send_request_body(
-            client,
-            Method::POST,
-            target()?,
-            vec![host(), RequestHeader::new("X-Order", "before-length")],
-            Some(body),
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
+            let body = Some(body);
+            move || PreparedRequest::new_body(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -240,13 +247,13 @@ async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResul
             Bytes::from_static(b"pay"),
             Bytes::from_static(b"load"),
         ]));
-        let transaction = tokio::spawn(send_request_body(
-            client,
-            Method::POST,
-            target()?,
-            vec![host(), RequestHeader::new("X-Order", "before-framing")],
-            Some(body),
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
+            let body = Some(body);
+            move || PreparedRequest::new_body(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -269,18 +276,18 @@ async fn unknown_stream_preserves_generated_chunked_framing_order() -> TestResul
 async fn writes_exact_order_casing_and_interleaved_duplicate_trailers() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request_body_with_trailers(
-            client,
-            Method::POST,
-            target()?,
-            vec![host(), RequestHeader::new("X-Order", "before-framing")],
-            Some(RequestBody::from_bytes(Bytes::from_static(b"payload"))),
-            vec![
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host(), RequestHeader::new("X-Order", "before-framing")];
+            let body = Some(RequestBody::from_bytes(Bytes::from_static(b"payload")));
+            let trailers = vec![
                 RequestHeader::new("X-Repeat", "alpha"),
                 RequestHeader::new("X-Middle", "between"),
                 RequestHeader::new("x-repeat", "omega"),
-            ],
-        ));
+            ];
+            move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -319,14 +326,14 @@ async fn body_produced_trailers_use_declared_order_and_spelling() -> TestResult 
                 RequestTrailerName::new("x-repeat"),
             ],
         );
-        let transaction = tokio::spawn(send_request_body_with_trailers(
-            client,
-            Method::POST,
-            target()?,
-            vec![host()],
-            Some(body),
-            Vec::new(),
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = Some(body);
+            let trailers = Vec::new();
+            move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -350,14 +357,14 @@ async fn body_produced_trailers_use_declared_order_and_spelling() -> TestResult 
 async fn trailer_only_request_still_uses_chunked_framing() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request_body_with_trailers(
-            client,
-            Method::POST,
-            target()?,
-            vec![host()],
-            None,
-            vec![RequestHeader::new("X-Final", "yes")],
-        ));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            let trailers = vec![RequestHeader::new("X-Final", "yes")];
+            move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -502,18 +509,18 @@ fn rejects_static_and_body_produced_trailers_together() -> TestResult {
 async fn forwarding_writes_exact_absolute_target_and_ordered_fields() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_forward_request(
-            client,
-            Method::POST,
-            AbsoluteForm::parse("http://example.test:8080/resource?item=1")?,
-            vec![
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = AbsoluteForm::parse("http://example.test:8080/resource?item=1")?;
+            let headers = vec![
                 RequestHeader::new("Host", "example.test:8080"),
                 RequestHeader::new("X-First", "one"),
                 RequestHeader::new("x-repeat", "alpha"),
                 RequestHeader::new("X-Repeat", "beta"),
-            ],
-            Some(Bytes::from_static(b"payload")),
-        ));
+            ];
+            let body = Some(Bytes::from_static(b"payload"));
+            move || PreparedRequest::new_forward(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -538,16 +545,16 @@ async fn forward_proxy_streams_unknown_body_with_absolute_form() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let body = RequestBody::streaming(Chunks::unknown([Bytes::from_static(b"proxy")]));
-        let transaction = tokio::spawn(send_forward_request_body(
-            client,
-            Method::POST,
-            AbsoluteForm::parse("http://example.test:8080/upload")?,
-            vec![
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::POST;
+            let target = AbsoluteForm::parse("http://example.test:8080/upload")?;
+            let headers = vec![
                 RequestHeader::new("Host", "example.test:8080"),
                 RequestHeader::new("X-Order", "before-framing"),
-            ],
-            Some(body),
-        ));
+            ];
+            let body = Some(body);
+            move || PreparedRequest::new_forward_body(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -570,17 +577,17 @@ async fn forward_proxy_streams_unknown_body_with_absolute_form() -> TestResult {
 async fn preserves_explicit_content_length_spelling_and_position() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_request(
-            client,
-            Method::PUT,
-            target()?,
-            vec![
+        let transaction = tokio::spawn(send_once(client, {
+            let method = Method::PUT;
+            let target = target()?;
+            let headers = vec![
                 host(),
                 RequestHeader::new("cOnTeNt-LeNgTh", "4"),
                 RequestHeader::new("X-After", "yes"),
-            ],
-            Some(Bytes::from_static(b"data")),
-        ));
+            ];
+            let body = Some(Bytes::from_static(b"data"));
+            move || PreparedRequest::new(method, target, headers, body)
+        }));
 
         let head = read_head(&mut server).await?;
         assert_eq!(
@@ -707,15 +714,18 @@ fn sensitive_fields_reach_semantic_input() -> TestResult {
 async fn invalid_content_length_never_touches_the_stream() -> TestResult {
     let writes = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
-    let result = send_request(
+    let result = send_once(
         WriteCountingStream {
             inner: client,
             writes: Arc::clone(&writes),
         },
-        Method::POST,
-        target()?,
-        vec![host(), RequestHeader::new("Content-Length", "3")],
-        Some(Bytes::from_static(b"data")),
+        {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host(), RequestHeader::new("Content-Length", "3")];
+            let body = Some(Bytes::from_static(b"data"));
+            move || PreparedRequest::new(method, target, headers, body)
+        },
     )
     .await;
 
@@ -733,15 +743,18 @@ async fn unknown_stream_framing_error_never_polls_body_or_touches_stream() -> Te
     let polls = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
     let body = RequestBody::streaming(PollCountingBody(Arc::clone(&polls)));
-    let result = send_request_body(
+    let result = send_once(
         WriteCountingStream {
             inner: client,
             writes: Arc::clone(&writes),
         },
-        Method::POST,
-        target()?,
-        vec![host(), RequestHeader::new("Content-Length", "1")],
-        Some(body),
+        {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host(), RequestHeader::new("Content-Length", "1")];
+            let body = Some(body);
+            move || PreparedRequest::new_body(method, target, headers, body)
+        },
     )
     .await;
 
@@ -760,16 +773,19 @@ async fn invalid_trailer_never_polls_body_or_touches_stream() -> TestResult {
     let polls = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
     let body = RequestBody::streaming(PollCountingBody(Arc::clone(&polls)));
-    let result = send_request_body_with_trailers(
+    let result = send_once(
         WriteCountingStream {
             inner: client,
             writes: Arc::clone(&writes),
         },
-        Method::POST,
-        target()?,
-        vec![host()],
-        Some(body),
-        vec![RequestHeader::new("X-Bad", b"ok\r\nInjected: yes")],
+        {
+            let method = Method::POST;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = Some(body);
+            let trailers = vec![RequestHeader::new("X-Bad", b"ok\r\nInjected: yes")];
+            move || PreparedRequest::new_body_with_trailers(method, target, headers, body, trailers)
+        },
     )
     .await;
 
@@ -797,15 +813,17 @@ async fn mismatched_forward_host_never_touches_the_stream() -> TestResult {
         Err(Http1Error::MismatchedHost { index: 0 })
     ));
 
-    let result = send_forward_request(
+    let result = send_once(
         WriteCountingStream {
             inner: client,
             writes: Arc::clone(&writes),
         },
-        Method::GET,
-        target,
-        vec![RequestHeader::new("Host", "other.test")],
-        None,
+        {
+            let method = Method::GET;
+            let headers = vec![RequestHeader::new("Host", "other.test")];
+            let body = None;
+            move || PreparedRequest::new_forward(method, target, headers, body)
+        },
     )
     .await;
     assert!(matches!(
@@ -830,7 +848,12 @@ async fn rejects_ambiguous_response_framing() -> TestResult {
                 .await
         });
 
-        let result = send_get(client, target()?, vec![host()])
+        let result = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body) })
             .with_subscriber(Dispatch::new(subscriber.clone()))
             .await;
         assert!(matches!(result, Err(Http1Error::AmbiguousResponseFraming)));
@@ -858,8 +881,14 @@ async fn accepts_interim_response_across_one_byte_reads() -> TestResult {
                 .await
         });
 
-        let response =
-            send_get(OneByteReadStream { inner: client }, target()?, vec![host()]).await?;
+        let response = send_once(OneByteReadStream { inner: client }, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?;
         assert_eq!(response.status(), 200);
         assert_eq!(response.headers().get("x-final"), Some(&"kept".parse()?));
         assert!(response.headers().get("x-interim").is_none());
@@ -885,7 +914,13 @@ async fn response_extension_retains_global_order_duplicates_and_casing() -> Test
         });
 
         let response =
-            send_get(OneByteReadStream { inner: client }, target()?, vec![host()]).await?;
+            send_once(OneByteReadStream { inner: client }, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+            }).await?;
         let ordered = response
             .extensions()
             .get::<OrderedResponseHeaders>()
@@ -929,8 +964,14 @@ async fn accepts_multiple_distinct_interim_responses() -> TestResult {
                 .await
         });
 
-        let response =
-            send_get(OneByteReadStream { inner: client }, target()?, vec![host()]).await?;
+        let response = send_once(OneByteReadStream { inner: client }, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?;
         assert_eq!(response.status(), 200);
         assert!(response.headers().get("link").is_none());
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
@@ -951,9 +992,15 @@ async fn protocol_failure_has_specific_response_head_outcome() -> TestResult {
             server.shutdown().await
         });
 
-        let result = send_get(client, target()?, vec![host()])
-            .with_subscriber(Dispatch::new(subscriber.clone()))
-            .await;
+        let result = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
         assert!(matches!(result, Err(Http1Error::Protocol(_))));
         assert_eq!(
             subscriber.outcomes_for("http1.response_head"),
@@ -970,17 +1017,48 @@ async fn invalid_request_is_traced_before_stream_io() -> TestResult {
     let subscriber = OutcomeSubscriber::default();
     let writes = Arc::new(AtomicUsize::new(0));
     let (client, _server) = duplex(128);
-    let result = send_get(
+    let result = send_once(
         WriteCountingStream {
             inner: client,
             writes: Arc::clone(&writes),
         },
-        target()?,
-        Vec::new(),
+        {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = Vec::new();
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        },
     )
     .with_subscriber(Dispatch::new(subscriber.clone()))
     .await;
 
+    assert!(matches!(result, Err(Http1Error::MissingHost)));
+    assert_eq!(writes.load(Ordering::SeqCst), 0);
+    assert_eq!(subscriber.outcomes_for("http1.request.prepare"), ["error"]);
+    assert_eq!(
+        subscriber.error_kinds_for("http1.request.prepare"),
+        ["missing_host"]
+    );
+    assert!(subscriber.outcomes_for("http1.response_head").is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn reusable_request_preparation_records_one_error_before_writing() -> TestResult {
+    OutcomeSubscriber::install_dynamic_callsite_fallback();
+    let subscriber = OutcomeSubscriber::default();
+    let writes = Arc::new(AtomicUsize::new(0));
+    let (client, _server) = duplex(128);
+    let connection = crate::http1::Http1Connection::connect(WriteCountingStream {
+        inner: client,
+        writes: Arc::clone(&writes),
+    })
+    .await?;
+    let result = connection
+        .send_get(target()?, Vec::new())
+        .with_subscriber(Dispatch::new(subscriber.clone()))
+        .await;
     assert!(matches!(result, Err(Http1Error::MissingHost)));
     assert_eq!(writes.load(Ordering::SeqCst), 0);
     assert_eq!(subscriber.outcomes_for("http1.request.prepare"), ["error"]);
@@ -1020,7 +1098,13 @@ async fn invalid_headers_never_touch_the_stream() -> TestResult {
                 inner: client,
                 writes: Arc::clone(&writes),
             };
-            let result = send_get(stream, target()?, headers).await;
+            let result = send_once(stream, {
+                let method = http::Method::GET;
+                let target = target()?;
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await;
             assert!(result.is_err());
             assert_eq!(writes.load(Ordering::SeqCst), 0);
         }
@@ -1033,7 +1117,13 @@ async fn invalid_headers_never_touch_the_stream() -> TestResult {
 async fn canceling_request_closes_stream() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_get(client, target()?, vec![host()]));
+        let transaction = tokio::spawn(send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        }));
         read_head(&mut server).await?;
 
         transaction.abort();

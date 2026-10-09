@@ -6,11 +6,12 @@ use tokio::{
     time::timeout,
 };
 
-use super::{TestResult, bounded_peer_test, host, read_head, target};
+use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
+use crate::http1::PreparedRequest;
 use crate::{
     OrderedResponseHeaders,
     http1::{
-        AbsoluteForm, Http1Error, Http1UpgradeOutcome, PreparedGet, RequestHeader, send_get,
+        AbsoluteForm, Http1Error, Http1UpgradeOutcome, PreparedGet, RequestHeader,
         send_prepared_upgrade,
     },
 };
@@ -140,7 +141,14 @@ async fn ordinary_get_rejects_unsolicited_switching_response() -> TestResult {
                 .await
         });
 
-        let result = send_get(client, target()?, vec![host()]).await;
+        let result = send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await;
         assert!(matches!(result, Err(Http1Error::UnexpectedUpgrade)));
         server_task.await??;
         Ok(())

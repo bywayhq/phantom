@@ -15,8 +15,11 @@ use tokio::{
 };
 use tracing::{dispatcher, instrument::WithSubscriber};
 
-use super::{TestResult, bounded_peer_test, host, read_head, target, wait_for_driver_outcome};
-use crate::{http1::send_get, tracing_test::OutcomeSubscriber};
+use super::{
+    TestResult, bounded_peer_test, host, read_head, send_once, target, wait_for_driver_outcome,
+};
+use crate::http1::PreparedRequest;
+use crate::tracing_test::OutcomeSubscriber;
 
 #[tokio::test]
 async fn dropping_body_closes_stream() -> TestResult {
@@ -33,7 +36,14 @@ async fn dropping_body_closes_stream() -> TestResult {
         });
 
         async {
-            let response = send_get(client, target()?, vec![host()]).await?;
+            let response = send_once(client, {
+                let method = http::Method::GET;
+                let target = target()?;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?;
             let mut body = response.into_body();
             let data = body
                 .frame()
@@ -74,7 +84,14 @@ async fn response_body_may_be_dropped_on_plain_thread() -> TestResult {
         });
 
         let body = async {
-            let response = send_get(client, target()?, vec![host()]).await?;
+            let response = send_once(client, {
+                let method = http::Method::GET;
+                let target = target()?;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?;
             let mut body = response.into_body();
             let data = body
                 .frame()
@@ -129,9 +146,15 @@ fn response_body_poll_uses_origin_dispatch_on_plain_thread() -> TestResult {
             });
             let request_target = target().map_err(|_| "test target should be valid")?;
             let body = async {
-                send_get(client, request_target, vec![host()])
-                    .await
-                    .map(|response| response.into_body())
+                send_once(client, {
+                    let method = http::Method::GET;
+                    let target = request_target;
+                    let headers = vec![host()];
+                    let body = None;
+                    move || PreparedRequest::new(method, target, headers, body)
+                })
+                .await
+                .map(|response| response.into_body())
             }
             .with_subscriber(origin_subscriber.dispatch())
             .await?;
@@ -191,7 +214,14 @@ async fn connection_driver_panic_records_task_error() -> TestResult {
         });
 
         let body = async {
-            let response = send_get(stream, target()?, vec![host()]).await?;
+            let response = send_once(stream, {
+                let method = http::Method::GET;
+                let target = target()?;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?;
             let mut body = response.into_body();
             let data = body
                 .frame()
@@ -231,7 +261,14 @@ fn runtime_shutdown_records_driver_outcome_once() -> TestResult {
                     .await?;
                 std::future::pending::<Result<(), std::io::Error>>().await
             });
-            let response = send_get(client, target()?, vec![host()]).await?;
+            let response = send_once(client, {
+                let method = http::Method::GET;
+                let target = target()?;
+                let headers = vec![host()];
+                let body = None;
+                move || PreparedRequest::new(method, target, headers, body)
+            })
+            .await?;
             let mut body = response.into_body();
             let data = body
                 .frame()
@@ -272,11 +309,17 @@ async fn completed_body_deliberately_prevents_reuse() -> TestResult {
             Ok::<_, std::io::Error>(remaining)
         });
 
-        send_get(client, target()?, vec![host()])
-            .await?
-            .into_body()
-            .collect()
-            .await?;
+        send_once(client, {
+            let method = http::Method::GET;
+            let target = target()?;
+            let headers = vec![host()];
+            let body = None;
+            move || PreparedRequest::new(method, target, headers, body)
+        })
+        .await?
+        .into_body()
+        .collect()
+        .await?;
         assert!(server_task.await??.is_empty());
         Ok(())
     })
@@ -329,7 +372,13 @@ impl AsyncWrite for PanicReadStream {
 #[test]
 fn polling_outside_tokio_returns_runtime_unavailable() -> TestResult {
     let (client, _server) = duplex(64);
-    let mut request = Box::pin(send_get(client, target()?, vec![host()]));
+    let mut request = Box::pin(send_once(client, {
+        let method = http::Method::GET;
+        let target = target()?;
+        let headers = vec![host()];
+        let body = None;
+        move || PreparedRequest::new(method, target, headers, body)
+    }));
     let mut context = Context::from_waker(std::task::Waker::noop());
 
     let Poll::Ready(result) = request.as_mut().poll(&mut context) else {
