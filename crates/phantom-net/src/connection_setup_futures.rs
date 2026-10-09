@@ -54,16 +54,16 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&HttpsProxyConnector::connect_udp_tunnel),
         ),
         (
-            "proxy::connect_http_tunnel_direct_with_basic_auth",
-            future_size(&crate::proxy::connect_http_tunnel_direct_with_basic_auth),
+            "proxy::http_connect_tunnel_with_basic_auth",
+            future_size(&crate::proxy::http_connect_tunnel_with_basic_auth),
         ),
         (
-            "proxy::connect_socks5_tunnel_direct_with_auth",
-            future_size(&crate::proxy::connect_socks5_tunnel_direct_with_auth),
+            "proxy::socks5_tunnel_remote_dns",
+            future_size(&crate::proxy::socks5_tunnel_remote_dns),
         ),
         (
-            "proxy::connect_socks5_tunnel_local_with_auth",
-            future_size(&crate::proxy::connect_socks5_tunnel_local_with_auth),
+            "proxy::socks5_tunnel_local_dns",
+            future_size(&crate::proxy::socks5_tunnel_local_dns),
         ),
         (
             "proxy::associate_socks5_udp_remote_with_auth",
