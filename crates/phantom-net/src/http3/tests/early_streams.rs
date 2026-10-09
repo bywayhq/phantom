@@ -724,6 +724,7 @@ fn parse_stress_iterations(
             return Err("PHANTOM_H3_STRESS_ITERATIONS must be Unicode");
         }
     };
+
     value
         .parse()
         .map_err(|_| "PHANTOM_H3_STRESS_ITERATIONS must be a positive integer that fits usize")

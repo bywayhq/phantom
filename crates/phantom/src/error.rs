@@ -356,7 +356,7 @@ pub enum RequestErrorKind {
     /// The selected route cannot carry the requested protocol.
     UnsupportedRoute,
     /// The URI has a fragment, or its target cannot be represented as
-    /// origin-form or absolute-form.
+    /// origin-form or absolute-form, or a CONNECT-UDP target uses port zero.
     InvalidTarget,
     /// Redirect policy rejected a response or target.
     Redirect,
