@@ -19,6 +19,7 @@ use rcgen::{
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{sync::oneshot, task::JoinSet, time::timeout};
 
+use super::partial_download::{CleanupFailures, PartialDownload};
 use super::{BoxError, Config, MAX_REQUESTS, download_all, download_one, target::DownloadTarget};
 
 type TestResult<T = ()> = Result<T, BoxError>;
@@ -85,6 +86,7 @@ async fn refused_pre_existing_partial_keeps_its_original_bytes() -> TestResult {
     assert_eq!(cause.kind(), io::ErrorKind::AlreadyExists);
     assert_eq!(std::fs::read(&partial)?, SENTINEL);
     assert!(!directory.path()?.join("first").exists());
+
     directory.finish()
 }
 
@@ -115,6 +117,7 @@ async fn batch_refusal_before_creation_preserves_pre_existing_partial() -> TestR
     );
     assert_eq!(std::fs::read(&partial)?, SENTINEL);
     assert_eq!(std::fs::read(&final_path)?, b"caller-owned completed bytes");
+
     directory.finish()
 }
 
@@ -141,6 +144,7 @@ impl LoopbackPeer {
         leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
         let leaf_key = KeyPair::generate()?;
         let leaf = leaf_params.signed_by(&leaf_key, &root)?;
+
         let provider = Arc::new(rustls::crypto::ring::default_provider());
         let mut tls = rustls::ServerConfig::builder_with_provider(provider)
             .with_protocol_versions(&[&rustls::version::TLS13])?
@@ -150,6 +154,7 @@ impl LoopbackPeer {
                 PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(leaf_key.serialize_der())),
             )?;
         tls.alpn_protocols = vec![b"h3".to_vec()];
+
         let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
         let endpoint = quinn::Endpoint::new(
             quinn::EndpointConfig::default(),
@@ -158,6 +163,7 @@ impl LoopbackPeer {
             Arc::new(quinn::TokioRuntime),
         )?;
         let address = endpoint.local_addr()?;
+
         let settings = Http3ClientSettings::new(
             chrome::v154_quic_tls(),
             chrome::v154_quic(),
@@ -168,9 +174,11 @@ impl LoopbackPeer {
         let client = Client::builder(profile)
             .add_root_certificate_der(root.der().to_vec())
             .build()?;
+
         let (observed, request) = oneshot::channel();
         let (respond, ready) = oneshot::channel();
         let (stop, stopped) = oneshot::channel();
+
         let mut tasks = JoinSet::new();
         tasks.spawn(async move {
             timeout(PEER_TIMEOUT, async {
@@ -181,9 +189,11 @@ impl LoopbackPeer {
                         .await?;
                 let resolver = connection.accept().await?.ok_or("client sent no request")?;
                 let (request, mut stream) = resolver.resolve_request().await?;
+
                 observed
                     .send((request.method().clone(), request.uri().path().to_owned()))
                     .map_err(|_| "observation receiver dropped")?;
+
                 ready.await?;
                 stream
                     .send_response(Response::builder().status(status).body(())?)
@@ -192,12 +202,14 @@ impl LoopbackPeer {
                     stream.send_data(Bytes::from_static(WIRE_BODY)).await?;
                     stream.finish().await?;
                 }
+
                 stopped.await?;
                 drop(connection);
                 Ok::<(), BoxError>(())
             })
             .await?
         });
+
         Ok(Self {
             address,
             client,
@@ -225,6 +237,18 @@ impl LoopbackPeer {
             .map_err(|()| "response peer stopped".into())
     }
 
+    async fn cancel(mut self) -> TestResult {
+        self.tasks.abort_all();
+        timeout(PEER_TIMEOUT, async {
+            while let Some(result) = self.tasks.join_next().await {
+                let error = result.err().ok_or("cancelled peer completed normally")?;
+                assert!(error.is_cancelled());
+            }
+            Ok::<(), BoxError>(())
+        })
+        .await?
+    }
+
     async fn finish(mut self) -> TestResult {
         self.stop
             .take()
@@ -246,23 +270,28 @@ async fn successful_download_renames_only_its_observed_partial() -> TestResult {
     let directory = DownloadDirectory::create()?;
     let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
     let target = DownloadTarget::loopback(peer.address)?;
+
     let mut tasks = JoinSet::new();
     tasks.spawn(download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
     ));
+
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
     assert!(directory.path()?.join(".first.part").exists());
     assert!(!directory.path()?.join("first").exists());
+
     peer.respond()?;
     let result = timeout(PEER_TIMEOUT, tasks.join_next())
         .await?
         .ok_or("download task missing")?;
     peer.finish().await?;
     result??;
+
     assert_eq!(std::fs::read(directory.path()?.join("first"))?, WIRE_BODY);
     assert!(!directory.path()?.join(".first.part").exists());
+
     directory.finish()
 }
 
@@ -271,19 +300,23 @@ async fn failed_observed_download_removes_its_created_partial() -> TestResult {
     let directory = DownloadDirectory::create()?;
     let mut peer = LoopbackPeer::bind(StatusCode::SERVICE_UNAVAILABLE)?;
     let target = DownloadTarget::loopback(peer.address)?;
+
     let mut tasks = JoinSet::new();
     tasks.spawn(download_one(
         peer.client.clone(),
         directory.path()?.to_owned(),
         target,
     ));
+
     assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
     assert!(directory.path()?.join(".first.part").exists());
+
     peer.respond()?;
     let result = timeout(PEER_TIMEOUT, tasks.join_next())
         .await?
         .ok_or("download task missing")?;
     peer.finish().await?;
+
     let failure = result?.err().ok_or("503 download was accepted")?;
     let cause = failure
         .downcast_ref::<io::Error>()
@@ -292,6 +325,233 @@ async fn failed_observed_download_removes_its_created_partial() -> TestResult {
     assert!(cause.to_string().contains("returned HTTP 503"));
     assert!(!directory.path()?.join(".first.part").exists());
     assert!(!directory.path()?.join("first").exists());
+
+    directory.finish()
+}
+
+#[test]
+fn cancelled_queued_write_cleans_its_exclusively_created_partial() -> TestResult {
+    use tokio::io::AsyncWriteExt as _;
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .max_blocking_threads(1)
+        .build()?;
+    let directory = DownloadDirectory::create()?;
+    let path = directory.path()?.join(".first.part");
+    let cleanup = CleanupFailures::default();
+    let (started, ready) = std::sync::mpsc::channel();
+    let (release, released) = std::sync::mpsc::channel();
+
+    // Occupy the only blocking worker so the file write remains queued when
+    // its owning future is dropped. Dropping release also ends this worker.
+    let blocker = runtime.spawn_blocking(move || -> TestResult {
+        started.send(())?;
+        released.recv_timeout(PEER_TIMEOUT)?;
+        Ok(())
+    });
+    ready.recv_timeout(PEER_TIMEOUT)?;
+    runtime.block_on(async {
+        let path = path.clone();
+        let task_cleanup = cleanup.clone();
+        let (written, queued) = oneshot::channel();
+        let mut tasks = JoinSet::new();
+        tasks.spawn(async move {
+            let mut partial = PartialDownload::create(path, task_cleanup)?;
+            partial.file()?.write_all(WIRE_BODY).await?;
+            written
+                .send(())
+                .map_err(|()| "queued-write observer dropped")?;
+            std::future::pending::<()>().await;
+            Ok::<(), BoxError>(())
+        });
+        timeout(PEER_TIMEOUT, queued).await??;
+        tasks.abort_all();
+        let joined = timeout(PEER_TIMEOUT, tasks.join_next())
+            .await?
+            .ok_or("file writer task missing")?;
+        assert!(
+            joined
+                .err()
+                .ok_or("cancelled writer completed normally")?
+                .is_cancelled()
+        );
+        cleanup.finish(Ok(()))
+    })?;
+    // The single worker consumes its FIFO queue; this marker runs after the
+    // queued file write releases its retained handle.
+    let drained = runtime.spawn_blocking(|| ());
+
+    release.send(())?;
+    runtime.block_on(async { timeout(PEER_TIMEOUT, blocker).await })???;
+    runtime.block_on(async { timeout(PEER_TIMEOUT, drained).await })??;
+    runtime.shutdown_timeout(PEER_TIMEOUT);
+    assert!(!path.exists());
+    directory.finish()
+}
+
+#[tokio::test]
+async fn cancelled_batch_cleans_observed_partial_without_touching_foreign_paths() -> TestResult {
+    let directory = DownloadDirectory::create()?;
+    let foreign = directory.path()?.join(".unrelated.part");
+    std::fs::write(&foreign, SENTINEL)?;
+    let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
+    let config = Config {
+        ca_pem: PathBuf::from("unused-ca.pem"),
+        download_directory: directory.path()?.to_owned(),
+        targets: vec![DownloadTarget::loopback(peer.address)?],
+    };
+
+    let mut tasks = JoinSet::new();
+    tasks.spawn(download_all(peer.client.clone(), config));
+
+    assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
+    let partial = directory.path()?.join(".first.part");
+    assert!(partial.exists());
+    tasks.abort_all();
+    let joined = timeout(PEER_TIMEOUT, tasks.join_next())
+        .await?
+        .ok_or("batch task missing")?;
+    assert!(
+        joined
+            .err()
+            .ok_or("cancelled batch completed")?
+            .is_cancelled()
+    );
+    peer.cancel().await?;
+
+    timeout(PEER_TIMEOUT, async {
+        while partial.exists() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await?;
+    assert_eq!(std::fs::read(foreign)?, SENTINEL);
+    assert!(!directory.path()?.join("first").exists());
+    directory.finish()
+}
+
+#[tokio::test]
+async fn output_created_during_download_is_preserved_and_owned_partial_removed() -> TestResult {
+    let directory = DownloadDirectory::create()?;
+    let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
+    let target = DownloadTarget::loopback(peer.address)?;
+    let output = directory.path()?.join("first");
+
+    let mut tasks = JoinSet::new();
+    tasks.spawn(download_one(
+        peer.client.clone(),
+        directory.path()?.to_owned(),
+        target,
+    ));
+
+    assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
+    assert!(directory.path()?.join(".first.part").exists());
+    std::fs::write(&output, SENTINEL)?;
+    peer.respond()?;
+    let result = timeout(PEER_TIMEOUT, tasks.join_next())
+        .await?
+        .ok_or("download task missing")?;
+    peer.finish().await?;
+
+    let error = result?.err().ok_or("late output was replaced")?;
+    assert_eq!(
+        error
+            .downcast_ref::<io::Error>()
+            .ok_or("publication lost its file error")?
+            .kind(),
+        io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(std::fs::read(output)?, SENTINEL);
+    assert!(!directory.path()?.join(".first.part").exists());
+    directory.finish()
+}
+
+#[tokio::test]
+async fn batch_failure_retains_http_cause_and_reports_partial_cleanup_failure() -> TestResult {
+    let directory = DownloadDirectory::create()?;
+    let mut peer = LoopbackPeer::bind(StatusCode::SERVICE_UNAVAILABLE)?;
+    let config = Config {
+        ca_pem: PathBuf::from("unused-ca.pem"),
+        download_directory: directory.path()?.to_owned(),
+        targets: vec![DownloadTarget::loopback(peer.address)?],
+    };
+
+    let mut tasks = JoinSet::new();
+    tasks.spawn(download_all(peer.client.clone(), config));
+
+    assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
+    let partial = directory.path()?.join(".first.part");
+    // Replace the observed owned file with a test-owned directory. remove_file
+    // must fail, so the cleanup diagnostic cannot silently disappear.
+    std::fs::rename(&partial, directory.path()?.join("moved-owned-file"))?;
+    std::fs::create_dir(&partial)?;
+    peer.respond()?;
+    let result = timeout(PEER_TIMEOUT, tasks.join_next())
+        .await?
+        .ok_or("batch task missing")?;
+    peer.finish().await?;
+
+    let error = result?.err().ok_or("failed batch was accepted")?;
+    let source = error
+        .source()
+        .ok_or("cleanup failure lost the original HTTP cause")?
+        .downcast_ref::<io::Error>()
+        .ok_or("original HTTP cause changed type")?;
+    assert_eq!(source.kind(), io::ErrorKind::InvalidData);
+    assert!(source.to_string().contains("returned HTTP 503"));
+    assert!(error.to_string().contains("cleanup of "));
+    assert!(error.to_string().contains(".first.part failed: "));
+    assert!(!directory.path()?.join("first").exists());
+    directory.finish()
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn removal_failure_after_publication_keeps_completed_file_and_reports_both_causes()
+-> TestResult {
+    use std::os::windows::fs::OpenOptionsExt as _;
+
+    let directory = DownloadDirectory::create()?;
+    let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
+    let target = DownloadTarget::loopback(peer.address)?;
+
+    let mut tasks = JoinSet::new();
+    tasks.spawn(download_one(
+        peer.client.clone(),
+        directory.path()?.to_owned(),
+        target,
+    ));
+
+    assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
+    let partial = directory.path()?.join(".first.part");
+    // Permit the active writer and hard-link creation, but deny deletion.
+    let blocker = std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0x1 | 0x2)
+        .open(&partial)?;
+    peer.respond()?;
+    let result = timeout(PEER_TIMEOUT, tasks.join_next())
+        .await?
+        .ok_or("download task missing")?;
+    peer.finish().await?;
+
+    let error = result?.err().ok_or("failed partial removal was ignored")?;
+    let publication = error
+        .source()
+        .ok_or("partial cleanup lost the publication failure")?;
+    assert!(publication.to_string().starts_with("published download "));
+    let source = publication
+        .source()
+        .ok_or("publication failure lost its original file cause")?
+        .downcast_ref::<io::Error>()
+        .ok_or("partial removal changed its error type")?;
+    assert_eq!(source.raw_os_error(), Some(32));
+    assert!(error.to_string().contains("cleanup of "));
+    assert_eq!(std::fs::read(directory.path()?.join("first"))?, WIRE_BODY);
+    assert_eq!(std::fs::read(&partial)?, WIRE_BODY);
+
+    drop(blocker);
     directory.finish()
 }
 
