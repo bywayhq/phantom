@@ -1,3 +1,5 @@
+//! Composed browser profiles preserve the available recipe layers.
+
 use phantom_profile::{
     ClientProfile, CookiePlacement, Http3ClientSettings, TlsVersion,
     browser::{brave, chrome, edge, firefox, opera},
