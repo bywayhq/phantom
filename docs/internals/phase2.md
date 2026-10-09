@@ -34,7 +34,9 @@ future-size budget, TCP settings/keepalive, TLS, ECH, route DNS ownership,
 source binding, and HTTP/3 WebSockets. The full workspace compile passed at
 `73164158`. Independent review approved both that refactor and the new
 source-binding/certificate tests after the probe fix. Later API migration
-commits require their own verification.
+commits require their own verification. Ordinary TCP connection methods are
+removed. HTTP/1.1 route-specific request and TLS Upgrade methods are removed
+in favor of route-taking operations; other operation families remain pending.
 
 - [ ] One route value for each transport path, accepted by protocol
   connection, send, and upgrade operations. Route-specific public methods

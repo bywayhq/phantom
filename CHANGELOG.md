@@ -23,7 +23,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `connect_https_connect[_with_basic_auth]` with `TcpRoute::HttpConnect`;
   and `connect_socks5_{local,remote}[_with_auth]` with `TcpRoute::Socks5`.
   The route holds ordered CONNECT headers, optional proxy credentials,
-  and local or remote SOCKS5 DNS selection.
+  and local or remote SOCKS5 DNS selection. HTTP/1.1 one-shot requests and
+  TLS Upgrade openings also take these routes. Migrate:
+  `send_get_{direct,http_connect,socks5_local,socks5_remote}` becomes
+  `send_get_via`; `send_request_*` for these routes, including HTTPS CONNECT
+  and authenticated forms, becomes `send_request_via`; and TLS
+  `upgrade_get_*` for these routes becomes `upgrade_get_via`. Pass the route
+  before the origin TLS name and request fields.
 
 - `Http2Settings` has a new field, `idle_timeout` (`Http2IdleTimeout`), so
   literals that list every field no longer compile.

@@ -57,8 +57,8 @@ fn connection_setup_futures_stay_within_the_stack_budget() {
             future_size(&H1::connect_plaintext_socks5_local_with_auth),
         ),
         (
-            "Http1TlsConnector::upgrade_get_https_connect_with_basic_auth",
-            future_size(&H1::upgrade_get_https_connect_with_basic_auth),
+            "Http1TlsConnector::upgrade_get_via",
+            future_size(&H1::upgrade_get_via),
         ),
         (
             "Http1TlsConnector::send_request_https_connect_with_basic_auth",

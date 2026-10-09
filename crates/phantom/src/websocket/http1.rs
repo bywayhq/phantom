@@ -46,9 +46,11 @@ async fn upgrade_direct(
             .await;
     }
     connector
-        .upgrade_get_direct(
-            endpoint.host(),
-            endpoint.port(),
+        .upgrade_get_via(
+            phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
+                host: endpoint.host(),
+                port: endpoint.port(),
+            }),
             endpoint.host(),
             target,
             headers,
@@ -331,30 +333,45 @@ impl WebSocketRequestBuilder {
                         if let Some(credentials) = proxy.basic_credentials() {
                             // Keep the challenge/retry state machine out of the
                             // ordinary WebSocket connection future's stack frame.
-                            crate::session::box_send(
-                                connector.upgrade_get_https_connect_with_basic_auth(
-                                    proxy_connector,
-                                    proxy.host(),
-                                    proxy.port(),
-                                    proxy.host(),
-                                    &authority,
-                                    proxy.ordered_connect_headers(),
-                                    credentials,
-                                    request.endpoint.host(),
-                                    request.target,
-                                    prepared.headers,
+                            crate::session::box_send(connector.upgrade_get_via(
+                                phantom_net::route::TcpRoute::HttpConnect(
+                                    phantom_net::route::HttpConnectRoute {
+                                        proxy: phantom_net::route::ProxyTransport::Tls {
+                                            endpoint: phantom_net::route::Endpoint {
+                                                host: proxy.host(),
+                                                port: proxy.port(),
+                                            },
+                                            server_name: proxy.host(),
+                                            connector: proxy_connector,
+                                        },
+                                        authority: &authority,
+                                        headers: proxy.ordered_connect_headers(),
+                                        credentials: Some(credentials),
+                                    },
                                 ),
-                            )
+                                request.endpoint.host(),
+                                request.target,
+                                prepared.headers,
+                            ))
                             .await
                         } else {
                             connector
-                                .upgrade_get_https_connect(
-                                    proxy_connector,
-                                    proxy.host(),
-                                    proxy.port(),
-                                    proxy.host(),
-                                    &authority,
-                                    proxy.ordered_connect_headers(),
+                                .upgrade_get_via(
+                                    phantom_net::route::TcpRoute::HttpConnect(
+                                        phantom_net::route::HttpConnectRoute {
+                                            proxy: phantom_net::route::ProxyTransport::Tls {
+                                                endpoint: phantom_net::route::Endpoint {
+                                                    host: proxy.host(),
+                                                    port: proxy.port(),
+                                                },
+                                                server_name: proxy.host(),
+                                                connector: proxy_connector,
+                                            },
+                                            authority: &authority,
+                                            headers: proxy.ordered_connect_headers(),
+                                            credentials: None,
+                                        },
+                                    ),
                                     request.endpoint.host(),
                                     request.target,
                                     prepared.headers,
@@ -363,26 +380,41 @@ impl WebSocketRequestBuilder {
                         }
                     } else {
                         if let Some(credentials) = proxy.basic_credentials() {
-                            crate::session::box_send(
-                                connector.upgrade_get_http_connect_with_basic_auth(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    &authority,
-                                    proxy.ordered_connect_headers(),
-                                    credentials,
-                                    request.endpoint.host(),
-                                    request.target,
-                                    prepared.headers,
+                            crate::session::box_send(connector.upgrade_get_via(
+                                phantom_net::route::TcpRoute::HttpConnect(
+                                    phantom_net::route::HttpConnectRoute {
+                                        proxy: phantom_net::route::ProxyTransport::Tcp(
+                                            phantom_net::route::Endpoint {
+                                                host: proxy.host(),
+                                                port: proxy.port(),
+                                            },
+                                        ),
+                                        authority: &authority,
+                                        headers: proxy.ordered_connect_headers(),
+                                        credentials: Some(credentials),
+                                    },
                                 ),
-                            )
+                                request.endpoint.host(),
+                                request.target,
+                                prepared.headers,
+                            ))
                             .await
                         } else {
                             connector
-                                .upgrade_get_http_connect(
-                                    proxy.host(),
-                                    proxy.port(),
-                                    &authority,
-                                    proxy.ordered_connect_headers(),
+                                .upgrade_get_via(
+                                    phantom_net::route::TcpRoute::HttpConnect(
+                                        phantom_net::route::HttpConnectRoute {
+                                            proxy: phantom_net::route::ProxyTransport::Tcp(
+                                                phantom_net::route::Endpoint {
+                                                    host: proxy.host(),
+                                                    port: proxy.port(),
+                                                },
+                                            ),
+                                            authority: &authority,
+                                            headers: proxy.ordered_connect_headers(),
+                                            credentials: None,
+                                        },
+                                    ),
                                     request.endpoint.host(),
                                     request.target,
                                     prepared.headers,
@@ -394,12 +426,20 @@ impl WebSocketRequestBuilder {
                 Route::Socks5(proxy) => match proxy.dns_mode() {
                     crate::Socks5DnsMode::Local => {
                         connector
-                            .upgrade_get_socks5_local_with_auth(
-                                proxy.host(),
-                                proxy.port(),
-                                proxy.auth(),
-                                request.endpoint.host(),
-                                request.endpoint.port(),
+                            .upgrade_get_via(
+                                phantom_net::route::TcpRoute::Socks5 {
+                                    proxy: phantom_net::route::Endpoint {
+                                        host: proxy.host(),
+                                        port: proxy.port(),
+                                    },
+                                    target: phantom_net::route::Socks5Target::LocalDns(
+                                        phantom_net::route::Endpoint {
+                                            host: request.endpoint.host(),
+                                            port: request.endpoint.port(),
+                                        },
+                                    ),
+                                    auth: proxy.auth(),
+                                },
                                 request.endpoint.host(),
                                 request.target,
                                 prepared.headers,
@@ -408,12 +448,20 @@ impl WebSocketRequestBuilder {
                     }
                     crate::Socks5DnsMode::Remote => {
                         connector
-                            .upgrade_get_socks5_remote_with_auth(
-                                proxy.host(),
-                                proxy.port(),
-                                proxy.auth(),
-                                request.endpoint.host(),
-                                request.endpoint.port(),
+                            .upgrade_get_via(
+                                phantom_net::route::TcpRoute::Socks5 {
+                                    proxy: phantom_net::route::Endpoint {
+                                        host: proxy.host(),
+                                        port: proxy.port(),
+                                    },
+                                    target: phantom_net::route::Socks5Target::RemoteDns(
+                                        phantom_net::route::Endpoint {
+                                            host: request.endpoint.host(),
+                                            port: request.endpoint.port(),
+                                        },
+                                    ),
+                                    auth: proxy.auth(),
+                                },
                                 request.endpoint.host(),
                                 request.target,
                                 prepared.headers,

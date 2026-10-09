@@ -210,9 +210,11 @@ async fn http1_openings(second: Second) -> TestResult<Openings<Http1TlsError>> {
     let host = format!("{TEST_SERVER_NAME}:{port}");
     let target = OriginForm::parse("/socket")?;
     let open = || {
-        connector.upgrade_get_direct(
-            "127.0.0.1",
-            port,
+        connector.upgrade_get_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: port,
+            }),
             TEST_SERVER_NAME,
             target.clone(),
             vec![

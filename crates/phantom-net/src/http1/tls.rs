@@ -356,62 +356,6 @@ impl Http1TlsConnector {
         .await
     }
 
-    /// Sends one empty-body GET over a new direct TCP and TLS connection.
-    ///
-    /// The complete request is validated before DNS resolution or TCP I/O.
-    /// This method never falls back to another HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when request preparation, connection setup,
-    /// TLS negotiation, or HTTP/1 processing fails.
-    ///
-    pub async fn send_get_direct(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_direct(host, port, server_name, Method::GET, target, headers, None)
-            .await
-    }
-
-    /// Sends one request over a new direct TCP and TLS connection.
-    ///
-    /// The complete request is validated before DNS resolution or TCP I/O.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_direct(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connect_tcp(host, port, self.dialer())
-                    .await
-                    .map_err(|error| match error {
-                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                    })?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
     /// Sends one absolute-form HTTP/1.1 request to a plaintext forward proxy.
     ///
     /// Request validation completes before DNS resolution or proxy I/O. The
@@ -440,434 +384,6 @@ impl Http1TlsConnector {
         .await
     }
 
-    /// Sends one empty-body GET through a plaintext HTTP CONNECT proxy.
-    ///
-    /// The origin request and CONNECT request are validated before DNS
-    /// resolution or TCP I/O. Proxy failure never falls back to a direct
-    /// connection or another HTTP protocol.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Http1TlsError`] when request preparation, proxy negotiation,
-    /// TLS negotiation, or HTTP/1 processing fails.
-    ///
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_get_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_http_connect(
-            proxy_host,
-            proxy_port,
-            connect_authority,
-            connect_headers,
-            server_name,
-            Method::GET,
-            target,
-            headers,
-            None,
-        )
-        .await
-    }
-
-    /// Sends one request through a plaintext HTTP CONNECT proxy.
-    ///
-    /// Origin and CONNECT requests are validated before proxy or origin I/O.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tcp(Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        }),
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: None,
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one request through a plaintext proxy using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_http_connect_with_basic_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tcp(Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        }),
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: Some(credentials),
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one request through an HTTP/1.1 CONNECT tunnel to an HTTPS proxy.
-    ///
-    /// Origin and CONNECT requests are validated before proxy or origin I/O.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_https_connect(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tls {
-                            endpoint: Endpoint {
-                                host: proxy_host,
-                                port: proxy_port,
-                            },
-                            server_name: proxy_server_name,
-                            connector: proxy_connector,
-                        },
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: None,
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one request through an HTTPS proxy using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_https_connect_with_basic_auth(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::HttpConnect(HttpConnectRoute {
-                        proxy: ProxyTransport::Tls {
-                            endpoint: Endpoint {
-                                host: proxy_host,
-                                port: proxy_port,
-                            },
-                            server_name: proxy_server_name,
-                            connector: proxy_connector,
-                        },
-                        authority: connect_authority,
-                        headers: connect_headers,
-                        credentials: Some(credentials),
-                    }),
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one empty-body GET through a SOCKS5 proxy using remote DNS.
-    ///
-    /// The origin request is validated before the proxy connection starts.
-    /// Proxy failure never falls back to a direct connection.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_get_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_socks5_remote(
-            proxy_host,
-            proxy_port,
-            target_host,
-            target_port,
-            server_name,
-            Method::GET,
-            target,
-            headers,
-            None,
-        )
-        .await
-    }
-
-    /// Sends one request through a SOCKS5 proxy using remote DNS.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_socks5_remote_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-            method,
-            target,
-            headers,
-            body,
-        )
-        .await
-    }
-
-    /// Sends one request through a remote-DNS proxy with configured credentials.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::Socks5 {
-                        proxy: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        target: Socks5Target::RemoteDns(Endpoint {
-                            host: target_host,
-                            port: target_port,
-                        }),
-                        auth,
-                    },
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
-    /// Sends one empty-body GET through a SOCKS5 proxy using local DNS.
-    ///
-    /// The origin request is validated before DNS or proxy I/O. Proxy failure
-    /// never falls back to a direct connection.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_get_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_socks5_local(
-            proxy_host,
-            proxy_port,
-            target_host,
-            target_port,
-            server_name,
-            Method::GET,
-            target,
-            headers,
-            None,
-        )
-        .await
-    }
-
-    /// Sends one request through a SOCKS5 proxy using local DNS.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        self.send_request_socks5_local_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-            method,
-            target,
-            headers,
-            body,
-        )
-        .await
-    }
-
-    /// Sends one request through a local-DNS proxy with configured credentials.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn send_request_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        method: Method,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-        body: Option<Bytes>,
-    ) -> Result<Response<Http1Body>, Http1TlsError> {
-        let trace_method = method.clone();
-        let body_bytes = body.as_ref().map_or(0, Bytes::len);
-        self.trace_response_head(
-            &trace_method,
-            body_bytes,
-            pin!(async {
-                let prepared = PreparedRequest::new(method, target, headers, body)?;
-                let stream = connection_leg::connect(
-                    TcpRoute::Socks5 {
-                        proxy: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        target: Socks5Target::LocalDns(Endpoint {
-                            host: target_host,
-                            port: target_port,
-                        }),
-                        auth,
-                    },
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-                let connection = self.connect_prepared(stream, server_name).await?;
-                self.send_prepared_request(&connection, prepared).await
-            }),
-        )
-        .await
-    }
-
     /// Establishes HTTP/1.1 over TLS on an already-connected byte stream.
     ///
     /// # Errors
@@ -885,6 +401,94 @@ impl Http1TlsConnector {
         self.trace_connect(pin!(
             self.connect_prepared(ForeignStream(stream), server_name)
         ))
+        .await
+    }
+
+    /// Sends an empty-body GET through `route` with origin TLS.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] for invalid fields, route, TLS, or HTTP failures.
+    pub async fn send_get_via(
+        &self,
+        route: TcpRoute<'_>,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        self.send_request_via(route, server_name, Method::GET, target, headers, None)
+            .await
+    }
+
+    /// Sends one request through `route` with origin TLS.
+    ///
+    /// Request fields are validated before DNS or socket I/O. This one-shot
+    /// operation performs an ordinary TLS handshake on every route.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] for invalid fields, route, TLS, or HTTP failures.
+    pub async fn send_request_via(
+        &self,
+        route: TcpRoute<'_>,
+        server_name: &str,
+        method: Method,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+        body: Option<Bytes>,
+    ) -> Result<Response<Http1Body>, Http1TlsError> {
+        let trace_method = method.clone();
+        let body_bytes = body.as_ref().map_or(0, Bytes::len);
+        self.trace_response_head(
+            &trace_method,
+            body_bytes,
+            pin!(async {
+                let prepared = PreparedRequest::new(method, target, headers, body)?;
+                let stream =
+                    connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
+                        .await?;
+                let connection = self.connect_prepared(stream, server_name).await?;
+                self.send_prepared_request(&connection, prepared).await
+            }),
+        )
+        .await
+    }
+
+    /// Opens an HTTP/1.1 Upgrade through `route` with origin TLS.
+    ///
+    /// The complete GET is validated before DNS or socket I/O. Direct routes
+    /// offer early data and replay a rejected opening on the same connection.
+    /// Proxy tunnels use an ordinary origin TLS handshake. A response other
+    /// than `101` retains its streaming body.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http1TlsError`] for invalid fields, route, TLS, or HTTP failures.
+    pub async fn upgrade_get_via(
+        &self,
+        route: TcpRoute<'_>,
+        server_name: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+        self.trace_upgrade(pin!(async {
+            let prepared = PreparedGet::new(target, headers)?;
+            let direct = matches!(route, TcpRoute::Direct(_));
+            let stream =
+                connection_leg::connect(route, self.dialer(), self.proxy_credentials.as_ref())
+                    .await?;
+            if direct {
+                debug!("HTTP/1 Upgrade request prepared");
+                let stream = self
+                    .tls
+                    .connect_offering_early_data(server_name, stream)
+                    .await?;
+                upgrade_over_tls(stream, prepared).await
+            } else {
+                self.send_prepared_upgrade(stream, server_name, prepared)
+                    .await
+            }
+        }))
         .await
     }
 
@@ -1267,58 +871,13 @@ impl Http1TlsConnector {
         result
     }
 
-    /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS connection.
-    ///
-    /// A `101 Switching Protocols` response yields the upgraded byte stream.
-    /// Any other status remains an ordinary streaming HTTP response. The
-    /// complete request is validated before DNS resolution or TCP I/O.
-    ///
-    /// The handshake offers early data as [`Self::connect_via`] does, and
-    /// the GET, which is replay safe, travels in it: Firefox 157 sends a
-    /// WebSocket opening as early data on a resumed connection
-    /// (`TlsHandshaker::Check0RttEnabled` and `nsHttpTransaction::Do0RTT`,
-    /// `netwerk/protocol/http/TlsHandshaker.cpp:304-320` and
-    /// `nsHttpTransaction.cpp:3383-3392` at tag `FIREFOX_157_0_RELEASE`).
-    /// After a rejection the GET goes out again on the same connection. A
-    /// handshake that then fails returns the [`Http1TlsError::Tls`] a fresh
-    /// connection returns, and a server that rejects the early data and
-    /// selects another ALPN protocol returns
-    /// [`Http1TlsError::UnsupportedAlpn`], as a fresh connection that selects
-    /// it does.
-    pub async fn upgrade_get_direct(
-        &self,
-        host: &str,
-        port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream =
-                connect_tcp(host, port, self.dialer())
-                    .await
-                    .map_err(|error| match error {
-                        DirectConnectError::RuntimeUnavailable => Http1TlsError::RuntimeUnavailable,
-                        DirectConnectError::Connect(error) => Http1TlsError::Connect(error),
-                    })?;
-            debug!("HTTP/1 Upgrade request prepared");
-            let stream = self
-                .tls
-                .connect_offering_early_data(server_name, stream)
-                .await?;
-            upgrade_over_tls(stream, prepared).await
-        }))
-        .await
-    }
-
     /// Sends one HTTP/1.1 Upgrade GET over a new direct TCP and TLS
     /// connection that offers Encrypted Client Hello with the
     /// `ECHConfigList` that `ech` yields, as Chrome 154 does when it opens a
     /// `wss://` connection to an origin with an HTTPS record.
     ///
     /// The connection is set up as [`Self::connect_direct_with_ech`] sets it
-    /// up, and the request is sent as [`Self::upgrade_get_direct`] sends it.
+    /// up, and the request is sent as [`Self::upgrade_get_via`] sends it.
     /// The complete request is validated before DNS resolution or TCP I/O.
     ///
     /// # Errors
@@ -1486,161 +1045,6 @@ impl Http1TlsConnector {
         .await;
         outcome_guard.finish(upgrade_outcome(&result));
         result
-    }
-
-    /// Sends one HTTP/1.1 Upgrade GET through a plaintext HTTP CONNECT proxy.
-    ///
-    /// Origin and proxy requests are validated before proxy or origin I/O.
-    /// Proxy failure never falls back to a direct connection.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_http_connect(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream = connection_leg::connect(
-                TcpRoute::HttpConnect(HttpConnectRoute {
-                    proxy: ProxyTransport::Tcp(Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    }),
-                    authority: connect_authority,
-                    headers: connect_headers,
-                    credentials: None,
-                }),
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-            )
-            .await?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
-        }))
-        .await
-    }
-
-    /// Sends an Upgrade GET through a plaintext proxy using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_http_connect_with_basic_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream = connection_leg::connect(
-                TcpRoute::HttpConnect(HttpConnectRoute {
-                    proxy: ProxyTransport::Tcp(Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    }),
-                    authority: connect_authority,
-                    headers: connect_headers,
-                    credentials: Some(credentials),
-                }),
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-            )
-            .await?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
-        }))
-        .await
-    }
-
-    /// Sends one HTTP/1.1 Upgrade GET through an HTTPS proxy using CONNECT.
-    ///
-    /// Origin and CONNECT requests are validated before proxy or origin I/O.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_https_connect(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream = connection_leg::connect(
-                TcpRoute::HttpConnect(HttpConnectRoute {
-                    proxy: ProxyTransport::Tls {
-                        endpoint: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        server_name: proxy_server_name,
-                        connector: proxy_connector,
-                    },
-                    authority: connect_authority,
-                    headers: connect_headers,
-                    credentials: None,
-                }),
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-            )
-            .await?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
-        }))
-        .await
-    }
-
-    /// Sends an Upgrade GET through an HTTPS proxy using challenge-driven Basic authentication.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_https_connect_with_basic_auth(
-        &self,
-        proxy_connector: &HttpsProxyConnector,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-        connect_authority: &str,
-        connect_headers: &[HttpConnectHeader],
-        credentials: &HttpBasicCredentials,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream = connection_leg::connect(
-                TcpRoute::HttpConnect(HttpConnectRoute {
-                    proxy: ProxyTransport::Tls {
-                        endpoint: Endpoint {
-                            host: proxy_host,
-                            port: proxy_port,
-                        },
-                        server_name: proxy_server_name,
-                        connector: proxy_connector,
-                    },
-                    authority: connect_authority,
-                    headers: connect_headers,
-                    credentials: Some(credentials),
-                }),
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-            )
-            .await?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
-        }))
-        .await
     }
 
     /// Sends one plaintext HTTP/1.1 Upgrade GET through a CONNECT tunnel on a
@@ -1963,136 +1367,6 @@ impl Http1TlsConnector {
                 Ok(outcome)
             }),
         )
-        .await
-    }
-
-    /// Sends one HTTP/1.1 Upgrade GET through a remote-DNS SOCKS5 proxy.
-    ///
-    /// The origin request is validated before proxy I/O. Proxy failure never
-    /// falls back to a direct connection.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_socks5_remote(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.upgrade_get_socks5_remote_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-            target,
-            headers,
-        )
-        .await
-    }
-
-    /// Sends one Upgrade GET through a remote-DNS proxy with configured credentials.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_socks5_remote_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream = connection_leg::connect(
-                TcpRoute::Socks5 {
-                    proxy: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    target: Socks5Target::RemoteDns(Endpoint {
-                        host: target_host,
-                        port: target_port,
-                    }),
-                    auth,
-                },
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-            )
-            .await?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
-        }))
-        .await
-    }
-
-    /// Sends one HTTP/1.1 Upgrade GET through a local-DNS SOCKS5 proxy.
-    ///
-    /// The origin request is validated before DNS or proxy I/O. Proxy failure
-    /// never falls back to a direct connection.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_socks5_local(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.upgrade_get_socks5_local_with_auth(
-            proxy_host,
-            proxy_port,
-            Socks5Auth::None,
-            target_host,
-            target_port,
-            server_name,
-            target,
-            headers,
-        )
-        .await
-    }
-
-    /// Sends one Upgrade GET through a local-DNS proxy with configured credentials.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upgrade_get_socks5_local_with_auth(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        auth: Socks5Auth<'_>,
-        target_host: &str,
-        target_port: u16,
-        server_name: &str,
-        target: OriginForm,
-        headers: Vec<RequestHeader>,
-    ) -> Result<Http1UpgradeOutcome, Http1TlsError> {
-        self.trace_upgrade(pin!(async {
-            let prepared = PreparedGet::new(target, headers)?;
-            let stream = connection_leg::connect(
-                TcpRoute::Socks5 {
-                    proxy: Endpoint {
-                        host: proxy_host,
-                        port: proxy_port,
-                    },
-                    target: Socks5Target::LocalDns(Endpoint {
-                        host: target_host,
-                        port: target_port,
-                    }),
-                    auth,
-                },
-                self.dialer(),
-                self.proxy_credentials.as_ref(),
-            )
-            .await?;
-            self.send_prepared_upgrade(stream, server_name, prepared)
-                .await
-        }))
         .await
     }
 

@@ -312,9 +312,11 @@ async fn direct_preparation_failure_has_tls_wrapper_outcome() -> TestResult<()> 
     let subscriber = OutcomeSubscriber::default();
 
     let result = connector
-        .send_get_direct(
-            "127.0.0.1",
-            9,
+        .send_get_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: 9,
+            }),
             TEST_SERVER_NAME,
             OriginForm::parse("/")?,
             Vec::new(),
@@ -335,9 +337,11 @@ fn direct_without_runtime_has_tls_wrapper_outcome() -> TestResult<()> {
     let connector = test_connector(&identity)?;
     let subscriber = OutcomeSubscriber::default();
     let future = connector
-        .send_get_direct(
-            "127.0.0.1",
-            9,
+        .send_get_via(
+            crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: "127.0.0.1",
+                port: 9,
+            }),
             TEST_SERVER_NAME,
             OriginForm::parse("/")?,
             vec![RequestHeader::new("Host", TEST_SERVER_NAME)],
