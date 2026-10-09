@@ -278,7 +278,7 @@ case "${1:-}" in
       Darwin|MINGW*|MSYS*|CYGWIN*) btls_features=(--features default) ;;
       *) btls_features=(--features prefix-symbols) ;;
     esac
-    cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
+    cargo fmt --manifest-path vendor/btls/Cargo.toml --package phantom-btls --check
     cargo clippy --manifest-path vendor/btls/Cargo.toml \
       --all-targets "${btls_features[@]}" --locked -- -D warnings
     cargo test --manifest-path vendor/btls/Cargo.toml \
@@ -304,7 +304,7 @@ case "${1:-}" in
     ;;
   http2)
     check_http2_patch_replay
-    cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
+    cargo fmt --manifest-path vendor/http2/Cargo.toml --package phantom-http2 --check
     cargo check --manifest-path vendor/http2/Cargo.toml \
       --all-targets --all-features --locked
     cargo test --manifest-path vendor/http2/Cargo.toml \
@@ -410,7 +410,7 @@ case "${1:-}" in
     ;;
   wreq-proto)
     check_wreq_proto_patch_replay
-    cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
+    cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --package phantom-wreq-proto --check
     cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml \
       --all-targets --all-features --locked -- \
       -D warnings \

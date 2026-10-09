@@ -129,7 +129,7 @@ The clippy allowances below cover warnings in the unmodified 0.2.5 source that
 were added after its release; all other warnings remain denied.
 
 ```sh
-cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --all --check
+cargo fmt --manifest-path vendor/wreq-proto/Cargo.toml --package phantom-wreq-proto --check
 cargo clippy --manifest-path vendor/wreq-proto/Cargo.toml \
   --all-targets --all-features --locked -- \
   -D warnings \

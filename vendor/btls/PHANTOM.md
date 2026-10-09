@@ -329,8 +329,9 @@ machine.
    without whitespace normalization, and update its pin in this file and the
    manifests. Do not copy the BoringSSL submodule into this directory.
 
-4. Prove Cargo selected one wrapper and that `btls-sys` and `tokio-btls` resolve
-   to the reviewed dependency-fork revision:
+4. Prove Cargo selected one local `phantom-btls` wrapper and one local
+   `phantom-tokio-btls` adapter. Their versions must match the current fork
+   pins. Only `btls-sys` resolves to the reviewed dependency-fork revision:
 
    ```sh
    cargo tree -i phantom-btls --locked
@@ -344,7 +345,7 @@ machine.
 dependency update.
 
 ```sh
-cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
+cargo fmt --manifest-path vendor/btls/Cargo.toml --package phantom-btls --check
 cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features prefix-symbols --locked -- -D warnings
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::key_update

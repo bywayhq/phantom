@@ -267,9 +267,11 @@ the patches.
    cargo tree -i phantom-quinn-proto --locked
    ```
 
-   The tree must select `quinn-proto v$quinn_proto_version` from
-   `vendor/quinn-proto`. The lockfile diff should only remove the registry
-   source and checksum from that package entry.
+   The tree must select `phantom-quinn-proto` from `vendor/quinn-proto` at
+   the fork version recorded above. When refreshing, update the final
+   identity patch and dependent pins together. Inspect the lockfile's
+   package name, fork version and dependent references; the local package
+   must have no registry source or checksum.
 
 ## Focused checks
 

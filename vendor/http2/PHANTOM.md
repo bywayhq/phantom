@@ -479,9 +479,10 @@ Sources:
 - `HuffmanCoding::AlwaysIncludingEmpty`: codes every string and flags an
   empty one.
 
-A caller's sensitive field is a never-indexed literal under every rule,
-though Chromium has no such form. Upstream sent a sensitive field that
-matched a static entry, or an entry inserted before the field was marked, as
+Except for the split-cookie rules and the explicit
+`SensitiveProxyAuthorization::FieldRule` override, a caller's sensitive field
+is a never-indexed literal under every field-indexing rule. Upstream sent a
+sensitive field that matched a static entry, or an entry inserted before the field was marked, as
 that entry's index; the patch sends a never-indexed literal naming the entry
 instead, under the default profile too. After an oversized field, a nameless
 further value names a static entry again and spells out a dynamic name, which
@@ -503,8 +504,8 @@ HEADERS block with the capture byte for byte.
 
 ## Sensitive proxy-authorization
 
-A caller marks a credential sensitive so that the encoder sends it as a
-never-indexed literal (RFC 7541 section 7.1.3) and so that `HeaderValue`'s
+By default, a caller marks a credential sensitive so that the encoder sends
+it as a never-indexed literal (RFC 7541 section 7.1.3) and so that `HeaderValue`'s
 `Debug` output hides it. Neither browser treats `proxy-authorization` that
 way. The retained `https-proxy-auth-*` captures under `fixtures/proxy/` show
 Chrome 154, Edge 154, Brave 154, Opera 135, and Firefox 157 sending it on an
@@ -901,7 +902,8 @@ directly.
 
    `cargo tree` must show `phantom-http2 v$http2_version-phantom.N` at
    `vendor/http2`, below `phantom-wreq-proto`. Confirm that the `Cargo.lock`
-   diff changes only the `phantom-http2` package entry before committing. If any check fails, move the failed
+   diff updates the fork's version and dependent package references without
+   unrelated changes. If any check fails, move the failed
    `vendor/http2` directory aside, move `$refresh_dir/http2.previous` back to
    `vendor/http2`, and restore the reviewed lockfile change before retrying.
 
@@ -909,7 +911,7 @@ directly.
 
 ```sh
 scripts/ci/check-vendor.sh http2
-cargo fmt --manifest-path vendor/http2/Cargo.toml --all --check
+cargo fmt --manifest-path vendor/http2/Cargo.toml --package phantom-http2 --check
 cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --all-features --locked
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features client::tests
 cargo test --manifest-path vendor/http2/Cargo.toml --all-features --lib -- --skip hpack::test::fixture

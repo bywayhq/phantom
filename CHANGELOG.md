@@ -2450,6 +2450,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Correct vendor-refresh instructions for renamed local packages and limit
+  formatter checks to the selected fork.
+
 - Reject CONNECT-UDP target port zero with `InvalidTarget` before connecting
   to the proxy, on every proxy protocol. Ports 1 through 65535 remain valid.
 
