@@ -2450,6 +2450,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject non-positive request counts in manual QUIC version-report tools
+  before starting an observation run.
+- Give Autobahn cleanup finite deadlines, verify container ownership, and
+  retain suite and cleanup failures together in diagnostics.
+
 - Avoid HTTP/2 HPACK indexing arithmetic overflow on 32-bit targets when a
   peer advertises a large legal header-table size.
 - Reject non-HTTP whitespace around WebSocket compression parameters.

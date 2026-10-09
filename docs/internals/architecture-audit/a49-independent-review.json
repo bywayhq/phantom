@@ -1,0 +1,228 @@
+{
+  "test_only_commit": "39f4377701cc90e82cfbf6552e6b621695c39895",
+  "verdict": "Source approved: no actionable findings",
+  "production_verdict": "Source approved at4aa8fa9031035c47cbb7b4b91963214af7c48aba; no actionable findings",
+  "records": [
+    {
+      "path": "vendor/tungstenite/src/protocol/deflate/tests/rfc_7692.rs",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "dd8b9b41e840fc6f629d315079a3c23b58efd6d97f4c1cf3cdd8731f56666ca4",
+      "blob_oid": "867d7d39ed5b440d4999e3247f4dd5f4b648e4c9",
+      "reviewed_ranges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "vendor/tungstenite/src/protocol/deflate/negotiate.rs",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "4e670488fef5d1b71c85f83c591973ef456c5a2cb57cfe278e1695edd2776b02",
+      "blob_oid": "eb024aa08745d01e0792c2392d201d196b5ed7ec",
+      "reviewed_ranges": [
+        [
+          1,
+          328
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "vendor/tungstenite/src/protocol/mod.rs",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "920734fa44a2043952a9e280cb1ed94b30c12fad8dfe103ed71e5493f809ea49",
+      "blob_oid": "15be11e8243688a38b1482ceb457ec7173f7e2a0",
+      "reviewed_ranges": [
+        [
+          280,
+          359
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "vendor/tungstenite/src/protocol/deflate/mod.rs",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "1d761767dbafc5120f42a6beef88cfbba9c60dc5b7b74ce40f545f3f9f2a0e5f",
+      "blob_oid": "05e3be2977b24d04df8c1bfa9c59695bdc6dac48",
+      "reviewed_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "vendor/tungstenite/src/protocol/deflate/tests/mod.rs",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "b15b2f56cac37229831a2df4077e1ac8f7fe9a40401fc29518b006492b4aea63",
+      "blob_oid": "904fde6af38ec655f9c8d10882b73ff0352e7b82",
+      "reviewed_ranges": [
+        [
+          1,
+          7
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "vendor/tungstenite/patches/deflate-http-whitespace-tests.patch",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "2b96b7eee6d02d51a60174b3edc7b247f3b8c90a6dad51741f0a580d141cac8b",
+      "blob_oid": "eba6abae322ceec72ba2ff9ca4909cdfa482766b",
+      "reviewed_ranges": [
+        [
+          1,
+          135
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "vendor/tungstenite/patches/series",
+      "basis": "39f4377701cc90e82cfbf6552e6b621695c39895",
+      "sha256": "c4a580126058d4521d4b0aee9e90d5251b562afb50290fa909509dea0d0dbc96",
+      "blob_oid": "3b4b8a02d13dd70bfb291da16f4a8b5e7cde330d",
+      "reviewed_ranges": [
+        [
+          1,
+          7
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "vendor/tungstenite/PHANTOM.md",
+      "basis": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "sha256": "12ecedb9eb0e27817ac56518f30ca5669f2635da2b1468d958ddf286c0e723ef",
+      "blob_oid": "adf6f08e1edc1defc33f23c0facefe26a07d1036",
+      "reviewed_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "crates/phantom/src/websocket/handshake/response.rs",
+      "basis": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "sha256": "a6602717580a7df894e155944b3e2ffddce9671a3addd361b82b9e40287af0d9",
+      "blob_oid": "4afc9341edd758db2dc6d7c500227805af677dd6",
+      "reviewed_ranges": [
+        [
+          1,
+          231
+        ]
+      ],
+      "status": "complete"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http1.rs",
+      "basis": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "sha256": "5146e819c5553ca83dc617a64088491ecfcbbb426955b89fd12057c2efc2a2c9",
+      "blob_oid": "2f919ac712871c8b57a2f08f9f11473fa9caffa3",
+      "reviewed_ranges": [
+        [
+          269,
+          344
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "basis": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "sha256": "5339cc01ec20f1e568497afa06af6982890fd5848726df84b3fab7054a8f167d",
+      "blob_oid": "2da5c69932ea8885cf7b47ea2a044272e406b6e3",
+      "reviewed_ranges": [
+        [
+          457,
+          521
+        ]
+      ],
+      "status": "partial"
+    },
+    {
+      "path": "crates/phantom/src/websocket/http3.rs",
+      "basis": "13e89d3a4ec8bb370255e02bb9919e2a25ac82f7",
+      "sha256": "8cb8b38255bc7f12fcffca5bda78e29e08ac8490cd8441452f646032be79b4d6",
+      "blob_oid": "51c4908a47cdb410ce5eb1caf2dc716ff4bc9318",
+      "reviewed_ranges": [
+        [
+          177,
+          240
+        ]
+      ],
+      "status": "partial"
+    }
+  ],
+  "contract": "RFC6455 section9.1 extension-param token/quoted-string uses HTTP LWS; nonASCII Unicode whitespace is not that grammar. Malformed client selection must fail.",
+  "primary_source": "https://www.rfc-editor.org/rfc/rfc6455.html#section-9.1",
+  "tests": "Real HeaderValue from byte input, actual WebSocketConfig.accept_deflate_response, typed InvalidHeader with exact field; four Unicode spaces around names and both role windows; SP/HTAB/quoted and escaped decimal positives assert effective settings; unrelated nonUTF8 obs-text server offer remains skipped.",
+  "callers": "H1 validate_response and H2/H3 validate_extended_connect_response delegate extension grammar to the shared engine API. Each accept_deflate_response error maps to WebSocketError invalid handshake and returns before engine/socket installation; enabled extensions do not bypass this call.",
+  "rejected_hypotheses": [
+    "Positive client window response is not unsolicited: default Offer carries ClientMaxWindowBits(None).",
+    "Escaped digit controls are valid quoted-pair inputs and unquote reduces them to decimal token values.",
+    "Server unrelated extension skip is deliberate separate classification, not acceptance of malformed selected permessage-deflate.",
+    "No source scope violation: test-only canonical patch and source are owned; publish identity remains last."
+  ],
+  "baseline": {
+    "sha256": "e92cbf2c7aac3ca770f90ce46cf419a5c7e1f72706df51dabc09f4f883dd35b1",
+    "observed_result": "Actual retained Windows log:7 passed,2 expected failures,0 ignored,69 filtered; both failures accept NBSP malformed parameter variants.",
+    "reviewer_execution": "None"
+  },
+  "replay": "Agent-reported seven-patch replay and48-file equality; independent reviewer verified retained archive and canonical test patch hashes, but did not rerun replay.",
+  "limits": [
+    "No real H1/H2/H3 peer opening regression was executed by reviewer.",
+    "No complete WebSocket opening, compression-backend or upstream audit claimed.",
+    "Source/API tests prove the common parser contract; transport callers are bounded source traces."
+  ],
+  "remaining_gates": [
+    "Production source review once exact SHA available",
+    "scripts/ci/check-vendor.sh tungstenite",
+    "Focused deflate grammar/config tests, workspace dependent WebSocket tests and full integration gate"
+  ],
+  "production": {
+    "commit": "4aa8fa9031035c47cbb7b4b91963214af7c48aba",
+    "signature": "G; requested human author and committer",
+    "paths": [
+      {
+        "path": "vendor/tungstenite/src/protocol/deflate/negotiate.rs",
+        "sha256": "b1efba5c658582b7cef171d2124f7c768c42bc24998bc43dcbd5c23533456539",
+        "basis": "4aa8fa9031035c47cbb7b4b91963214af7c48aba",
+        "changed_source_range": [
+          194,
+          213
+        ]
+      },
+      {
+        "path": "vendor/tungstenite/patches/deflate-http-whitespace.patch",
+        "sha256": "2d5b83ac9ba3e0d03e0aaadf73fc3cddfaeb0c40a4211f70f5120cc45e8d32c9",
+        "basis": "4aa8fa9031035c47cbb7b4b91963214af7c48aba",
+        "changed_source_range": [
+          1,
+          21
+        ]
+      },
+      {
+        "path": "vendor/tungstenite/patches/series",
+        "sha256": "35b18c6570a914627bd7f717f97fc5164e19513c9ff6dcf94df666c0c3855e65",
+        "basis": "4aa8fa9031035c47cbb7b4b91963214af7c48aba",
+        "changed_source_range": [
+          1,
+          8
+        ]
+      }
+    ],
+    "source_contract": "Only recognized deflate parameters are trimmed with SP/HTAB at parameter/name/value boundaries. Other Unicode spaces remain significant and fail known-token or decimal-token validation. Existing ASCII whitespace and quoted/escaped digit semantics remain intact.",
+    "error_flow": "Unrecognized name or malformed numeric parameter returns existing InvalidHeader. Client response acceptance propagates it; server offer selection skips an unsupported/malformed offer without changing unrelated obs-text classification.",
+    "source_limit": "Prior full328-line parser review plus exact changed block; unchanged source surrounding split/unquote and response/offer validation remains the same. No real protocol opening execution by reviewer.",
+    "replay": "Author-reported eight-patch replay and48-file equality; reviewer verified canonical patch hash but did not rerun replay.",
+    "format": "Inherited full-file formatting findings are author-reported; the focused block is formatted. Full vendor check remains integration-owned.",
+    "execution": "Not performed; root baseline7pass2fail verified separately; fixed execution pending root."
+  }
+}

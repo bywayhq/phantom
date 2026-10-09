@@ -54,12 +54,13 @@ No finding is resolved by an assignment or a proposed fix.
 | A45 | P2 | TLS message Debug omits message bytes | Derived Debug exposes an actual ClientHello canary as decimal bytes | Canary regression red/green; independent review approved; native vendor checks pass; Windows staging warning qualified below |
 | A46 | P2 | Sensitive cookie crumbs retain diagnostic protection | Crumb policy overwrites sensitivity before dynamic-table insertion | Four regressions red/green; independent review approved; 14 captured HPACK replays pass; Windows and Linux vendor checks pass |
 | A47 | P2 | Conformance image arguments cannot execute shell syntax | Whitespace-only validation forwards shell substitutions into the pinned runner | Marker reproduction and 18 failed baseline subcases; corrected eight-method suite passes; independent review approved |
-| A48 | P2 | HPACK indexing arithmetic accepts legal peer limits | Three-quarter selection multiplies a peer u32 table limit in usize | Actual 32-bit debug panic and release mismatch; all three corrected tests pass in both builds; independent review and packaging pending |
-| A49 | P2 | WebSocket compression negotiation follows HTTP grammar | Unicode trim accepts non-HTTP whitespace around parameters | Two intended baseline failures and seven passes; all nine corrected tests pass; independent review approved; packaging pending |
-| A50 | P2 | Failed downloads preserve files owned by another invocation | Failed create_new and batch cleanup remove planned partial paths | Source candidate; pre-existing sentinel regression pending |
-| A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Source candidate; positive-count controls pending |
-| A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Source candidate; controlled lifecycle regressions being prepared |
+| A48 | P2 | HPACK indexing arithmetic accepts legal peer limits | Three-quarter selection multiplies a peer u32 table limit in usize | Actual 32-bit debug panic and release mismatch; three corrected tests pass in debug and release; independent review and Windows/Linux vendor checks pass |
+| A49 | P2 | WebSocket compression negotiation follows HTTP grammar | Unicode trim accepts non-HTTP whitespace around parameters | Two intended baseline failures and seven passes; nine corrected tests pass; independent review and Windows/Linux vendor checks pass |
+| A50 | P2 | Failed downloads preserve files owned by another invocation | Planned cleanup and later path replacement lose file ownership | Initial repair passes fourteen Windows controls; both new path-replacement controls fail; repair remains open |
+| A51 | P3 | Manual QUIC version reports observe at least one request | Client accepts zero and returns without observations | Zero baseline reproduced; count controls and actual default/one-request peers pass; independent source review approved |
+| A52 | P2 | Autobahn failures retain finite owned cleanup | Removal exit status is ignored and cleanup operations have no deadline | Baseline has seven failures across six methods; twenty corrected methods and composed conformance suite pass; independent review approved |
 | A53 | P2 | QUIC runner exits clean up only owned external resources | Outer timeout and interruption restore files without owning container cleanup | Source candidate; ownership design and bounded reproduction pending |
+| A54 | P2 | Version-report servers own temporary files and close after publication failure | Certificate directory has no cleanup owner; port publication precedes close-finally | Actual controlled baseline has one pass and three intended failures; repair in progress |
 
 ## Initial source evidence
 
@@ -596,10 +597,27 @@ planned partial path, including paths this invocation never created.
 A pre-existing sentinel test can establish this without a network request.
 The remedy must retain exclusive creation and clean up only owned files.
 
+At `753ef8c0`, the actual Windows example test run passes seven controls and
+fails both sentinel-preservation regressions because the existing file was
+deleted. The passing controls include an authenticated loopback HTTP/3
+download and a 503 response that removes its created partial. The baseline
+establishes file-ownership defects. The first correction passes fourteen
+Windows controls. At `c34401e7`, two further real-peer tests replace an
+in-flight partial path. A 503 response deletes the replacement. A successful
+response publishes its bytes instead of the body written to the original
+file. Fourteen controls still pass; these two fail. Path ownership remains
+unresolved, and the first correction is not final approval.
+
 A51 is the manual Rust version-report client accepting a zero request count.
-It exits successfully without a request. The Python peer does not share that
-zero-pass path. Default three-request observations remain valid; a positive
-configuration bound and invalid-input controls are required.
+An authenticated baseline exits successfully without any request or report.
+The Rust correction parses `NonZeroUsize` before reading the CA or building
+the connector. The Python CLI also rejects non-positive counts before
+starting its runner. Two Rust parser tests and seven Python methods pass.
+The composed executable rejects zero before CA-file I/O, and actual
+loopback runs finish with three default observations and one explicit
+observation. Independent review approves the source. Ticket availability
+wording now describes the origin-wide cache rather than promising a ticket
+from the most recent connection. These runs do not refresh browser evidence.
 
 A52 traces successful Autobahn results into a finally block that ignores
 the force-removal exit code. Inspect, log collection and removal also lack
@@ -607,12 +625,36 @@ operation deadlines. A detached launch timeout occurs before the cleanup
 flag is set. Controlled subprocess failures must establish these paths
 before a remedy. No Docker failure or surviving-container claim is made.
 
+At `753ef8c0`, ten controlled test methods execute the real run, CLI and
+readiness orchestration. Four methods pass. Six fail, with seven reported
+failures because both log and removal deadline subcases fail separately.
+The results reproduce ignored cleanup statuses, missing deadlines, lost CLI
+cause text and omitted cleanup after uncertain launch. External commands
+are controlled fixtures; no real Docker execution is claimed.
+
+The correction verifies a run-specific ownership label and immutable
+container ID before collecting logs or removing a container. Cleanup
+operations have finite deadlines. Log failures still allow removal, and
+suite and cleanup failures survive together in diagnostics. Twenty focused
+methods and the composed forty-four-method conformance suite pass on
+Windows. Independent source review approves the correction. Real daemon
+cleanup, actual signals and late creation after a timeout remain unverified.
+
 A53 traces the outer QUIC runner timeout into file restoration without an
 external resource owner. The pinned runner's ordinary timeout does stop
 its case, but compliance can be interrupted before that path. Fixed global
 container names make blind removal unsafe for concurrent owners. A remedy
 needs verifiable ownership and scoped cleanup; actual container survival
 has not been measured.
+
+A54 executes the version-report Python runner with controlled certificate
+and server boundaries and actual filesystem publication. A normal run
+closes its server and retains caller outputs, but leaks internal certificate
+scratch space. Preparation failure also leaks it. A real port-file write
+failure after acquisition skips server close. One positive control passes
+and three intended ownership controls fail. The remedy must own scratch
+space for the server lifetime and cover publication with close-finally.
+These controls do not prove real QUIC shutdown.
 
 ## Rejected candidates
 

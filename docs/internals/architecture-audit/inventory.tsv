@@ -17,7 +17,7 @@ path	surface	review	evidence
 .github/codeql/codeql-config.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/dependabot.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/pull_request_template.md	documentation	pending	
-.github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml
+.github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml
 .github/workflows/benchmarks.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/boringssl-native.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/ci.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
@@ -55,7 +55,7 @@ crates/phantom-net/examples/capture_ech_client_hello/tests.rs	crate	source-compl
 crates/phantom-net/examples/capture_http2_tls.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http2_tls.rs
 crates/phantom-net/examples/capture_http2_tls/fixture.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http2_tls/fixture.rs
 crates/phantom-net/examples/capture_http3_request.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/capture_http3_request.rs
-crates/phantom-net/examples/quic_version_interop.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-04-coverage.json#crates/phantom-net/examples/quic_version_interop.rs
+crates/phantom-net/examples/quic_version_interop.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; new-tooling-source-pass-04-coverage.json#crates/phantom-net/examples/quic_version_interop.rs; a51-independent-review.json#crates/phantom-net/examples/quic_version_interop.rs
 crates/phantom-net/examples/tls_anvil_client.rs	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/examples/tls_anvil_client.rs
 crates/phantom-net/src/accept_ch.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/accept_ch.rs
 crates/phantom-net/src/accept_ch/tests.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/accept_ch/tests.rs
@@ -157,7 +157,7 @@ crates/phantom-net/src/http3/capsule.rs	crate	pending
 crates/phantom-net/src/http3/connect_udp.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp.rs
 crates/phantom-net/src/http3/connect_udp/tests.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http3/connect_udp/tests.rs
 crates/phantom-net/src/http3/connection.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/connection.rs
-crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs
+crates/phantom-net/src/http3/connector.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http3/connector.rs; a51-independent-review.json#crates/phantom-net/src/http3/connector.rs
 crates/phantom-net/src/http3/datagram.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/datagram.rs
 crates/phantom-net/src/http3/driver.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/driver.rs
 crates/phantom-net/src/http3/early_data.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http3/early_data.rs
@@ -342,7 +342,7 @@ crates/phantom-quic-btls/README.md	crate	source-complete	profile-quic-coverage.j
 crates/phantom-quic-btls/src/backend.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/callback_state.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/callback_state/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/backend/client.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-quic-btls/src/backend/client.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/backend/client.rs
 crates/phantom-quic-btls/src/backend/client/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/client_session.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/backend/client_session/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -368,7 +368,7 @@ crates/phantom-quic-btls/src/packet.rs	crate	source-complete	profile-quic-covera
 crates/phantom-quic-btls/src/quinn.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/reset.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/reset/tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
-crates/phantom-quic-btls/src/resumption.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
+crates/phantom-quic-btls/src/resumption.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed; a51-independent-review.json#crates/phantom-quic-btls/src/resumption.rs
 crates/phantom-quic-btls/src/retry.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/secret.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
 crates/phantom-quic-btls/src/suite_tests.rs	crate	source-complete	profile-quic-coverage.json: Entire file read in bounded chunks; source/test contract inspection only, not executed
@@ -417,13 +417,15 @@ crates/phantom-testkit/tests/browser_client_hello_fixtures/firefox.rs	crate	sour
 crates/phantom-testkit/tests/browser_client_hello_fixtures/fixture.rs	crate	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
 crates/phantom/Cargo.toml	crate	pending	
 crates/phantom/examples/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom/examples/README.md
-crates/phantom/examples/autobahn_client.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs
+crates/phantom/examples/autobahn_client.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/autobahn_client.rs; a52-production-independent-review.json#crates/phantom/examples/autobahn_client.rs
 crates/phantom/examples/cookies.rs	crate	pending	
 crates/phantom/examples/first_request.rs	crate	pending	
 crates/phantom/examples/http3.rs	crate	pending	
 crates/phantom/examples/proxy.rs	crate	pending	
 crates/phantom/examples/quic_interop/main.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/main.rs
+crates/phantom/examples/quic_interop/partial_download.rs	crate	pending	introduced source; review pending
 crates/phantom/examples/quic_interop/target.rs	crate	source-complete	new-tooling-source-pass-04-coverage.json#crates/phantom/examples/quic_interop/target.rs
+crates/phantom/examples/quic_interop/tests.rs	crate	pending	introduced source; review pending
 crates/phantom/examples/request_template.rs	crate	pending	
 crates/phantom/examples/sse.rs	crate	pending	
 crates/phantom/examples/websocket.rs	crate	pending	
@@ -519,11 +521,11 @@ crates/phantom/src/websocket/compression.rs	crate	pending
 crates/phantom/src/websocket/connection.rs	crate	pending	
 crates/phantom/src/websocket/error.rs	crate	pending	
 crates/phantom/src/websocket/handshake.rs	crate	pending	
-crates/phantom/src/websocket/handshake/response.rs	crate	pending	
+crates/phantom/src/websocket/handshake/response.rs	crate	source-complete	a49-independent-review.json#crates/phantom/src/websocket/handshake/response.rs
 crates/phantom/src/websocket/handshake/syntax.rs	crate	pending	
-crates/phantom/src/websocket/http1.rs	crate	pending	
-crates/phantom/src/websocket/http2.rs	crate	pending	
-crates/phantom/src/websocket/http3.rs	crate	source-partial	client-public-stream-continuation-coverage.json#crates/phantom/src/websocket/http3.rs
+crates/phantom/src/websocket/http1.rs	crate	source-partial	a49-independent-review.json#crates/phantom/src/websocket/http1.rs
+crates/phantom/src/websocket/http2.rs	crate	source-partial	a49-independent-review.json#crates/phantom/src/websocket/http2.rs
+crates/phantom/src/websocket/http3.rs	crate	source-partial	client-public-stream-continuation-coverage.json#crates/phantom/src/websocket/http3.rs; a49-independent-review.json#crates/phantom/src/websocket/http3.rs
 crates/phantom/src/websocket/message.rs	crate	pending	
 crates/phantom/src/websocket/retry.rs	crate	pending	
 crates/phantom/src/websocket/retry/tests.rs	crate	pending	
@@ -654,7 +656,7 @@ crates/phantom/tests/support/websocket_origin.rs	crate	pending
 deny.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#deny.toml
 docs/README.md	documentation	source-complete	docs-contract-coverage.json#docs/README.md
 docs/explanation/design.md	documentation	source-complete	docs-contract-coverage.json#docs/explanation/design.md
-docs/explanation/validation.md	documentation	source-partial	docs-contract-coverage.json#docs/explanation/validation.md; new-tooling-source-pass-04-coverage.json#docs/explanation/validation.md
+docs/explanation/validation.md	documentation	source-partial	docs-contract-coverage.json#docs/explanation/validation.md; new-tooling-source-pass-04-coverage.json#docs/explanation/validation.md; a51-independent-review.json#docs/explanation/validation.md
 docs/fingerprinting.md	documentation	source-complete	docs-contract-coverage.json#docs/fingerprinting.md
 docs/getting-started.md	documentation	source-complete	docs-contract-coverage.json#docs/getting-started.md
 docs/guides/client.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/client.md
@@ -1294,19 +1296,19 @@ scripts/ci/stage-btls-candidate.sh	tool	source-complete	tooling-coverage.json: W
 scripts/ci/test-changed-paths.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/ci/test-upstream-freshness.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/conformance/__init__.py	tool	pending	
-scripts/conformance/aioquic_versions.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/aioquic_versions.py
-scripts/conformance/autobahn.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn.py
+scripts/conformance/aioquic_versions.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/aioquic_versions.py; a51-independent-review.json#scripts/conformance/aioquic_versions.py
+scripts/conformance/autobahn.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn.py; a52-production-independent-review.json#scripts/conformance/autobahn.py
 scripts/conformance/autobahn/compression.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/compression.json
 scripts/conformance/autobahn/full.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/full.json
-scripts/conformance/autobahn/smoke.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/smoke.json
-scripts/conformance/loopback_tls.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/loopback_tls.py
+scripts/conformance/autobahn/smoke.json	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/autobahn/smoke.json; a52-production-independent-review.json#scripts/conformance/autobahn/smoke.json
+scripts/conformance/loopback_tls.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/loopback_tls.py; a52-production-independent-review.json#scripts/conformance/loopback_tls.py
 scripts/conformance/quic-interop/Dockerfile	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/Dockerfile
 scripts/conformance/quic-interop/requirements.txt	tool	pending	
 scripts/conformance/quic-interop/run_endpoint.sh	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh
 scripts/conformance/quic_interop.py	tool	source-complete	a47-production-independent-review.json#scripts/conformance/quic_interop.py; new-tooling-source-pass-04-coverage.json#scripts/conformance/quic_interop.py
 scripts/conformance/tests/__init__.py	tool	pending	
-scripts/conformance/tests/test_aioquic_versions.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/tests/test_aioquic_versions.py
-scripts/conformance/tests/test_autobahn.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/tests/test_autobahn.py
+scripts/conformance/tests/test_aioquic_versions.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/tests/test_aioquic_versions.py; a51-independent-review.json#scripts/conformance/tests/test_aioquic_versions.py
+scripts/conformance/tests/test_autobahn.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/tests/test_autobahn.py; a52-production-independent-review.json#scripts/conformance/tests/test_autobahn.py
 scripts/conformance/tests/test_quic_interop.py	tool	source-complete	a47-production-independent-review.json#scripts/conformance/tests/test_quic_interop.py; new-tooling-source-pass-04-coverage.json#scripts/conformance/tests/test_quic_interop.py
 scripts/conformance/tests/test_tls_anvil.py	tool	pending	
 scripts/conformance/tests/test_wpt_eventsource.py	tool	pending	
@@ -1407,9 +1409,9 @@ vendor/h3/patches/remembered-settings.patch	vendor-boundary	pending
 vendor/h3/patches/reset-unsent-request.patch	vendor-boundary	pending	
 vendor/h3/patches/series	vendor-boundary	pending	
 vendor/h3/patches/test-sockets.patch	vendor-boundary	pending	introduced source; review pending
-vendor/http2/Cargo.toml	vendor-boundary	pending	
+vendor/http2/Cargo.toml	vendor-boundary	source-partial	a48-hpack-arithmetic-independent-review.json#vendor/http2/Cargo.toml
 vendor/http2/Cargo.toml.orig	vendor-boundary	pending	
-vendor/http2/PHANTOM.md	vendor-boundary	pending	
+vendor/http2/PHANTOM.md	vendor-boundary	source-partial	a48-hpack-arithmetic-independent-review.json#vendor/http2/PHANTOM.md
 vendor/http2/patches/altsvc-frames.patch	vendor-boundary	pending	
 vendor/http2/patches/continuation-bounds.patch	vendor-boundary	pending	
 vendor/http2/patches/cookie-crumbs.patch	vendor-boundary	pending	
@@ -1420,7 +1422,8 @@ vendor/http2/patches/extended-connect-readiness.patch	vendor-boundary	pending
 vendor/http2/patches/headers-frame-overrides.patch	vendor-boundary	pending	
 vendor/http2/patches/hpack-encoder-profile.patch	vendor-boundary	pending	
 vendor/http2/patches/hpack-indexing-rules.patch	vendor-boundary	pending	
-vendor/http2/patches/hpack-size-arithmetic-tests.patch	vendor-boundary	pending	introduced source; review pending
+vendor/http2/patches/hpack-size-arithmetic-tests.patch	vendor-boundary	source-complete	introduced source; review pending; a48-hpack-arithmetic-independent-review.json#vendor/http2/patches/hpack-size-arithmetic-tests.patch
+vendor/http2/patches/hpack-size-arithmetic.patch	vendor-boundary	pending	introduced source; review pending
 vendor/http2/patches/idle-ping.patch	vendor-boundary	pending	
 vendor/http2/patches/informational-response-limit.patch	vendor-boundary	pending	
 vendor/http2/patches/local-header-list-limit.patch	vendor-boundary	pending	
@@ -1433,7 +1436,7 @@ vendor/http2/patches/publish-identity.patch	vendor-boundary	pending
 vendor/http2/patches/retained-stream-limit.patch	vendor-boundary	pending	
 vendor/http2/patches/rfc-error-codes.patch	vendor-boundary	pending	
 vendor/http2/patches/sensitive-proxy-authorization.patch	vendor-boundary	pending	
-vendor/http2/patches/series	vendor-boundary	source-complete	a46-cookie-production-independent-review.json#vendor/http2/patches/series
+vendor/http2/patches/series	vendor-boundary	source-complete	a46-cookie-production-independent-review.json#vendor/http2/patches/series; a48-hpack-arithmetic-independent-review.json#vendor/http2/patches/series
 vendor/http2/patches/stream-limit-cap.patch	vendor-boundary	pending	
 vendor/quinn-proto/Cargo.toml	vendor-boundary	pending	
 vendor/quinn-proto/Cargo.toml.orig	vendor-boundary	pending	
@@ -1468,16 +1471,16 @@ vendor/tokio-tungstenite/patches/publish-identity.patch	vendor-boundary	pending
 vendor/tokio-tungstenite/patches/series	vendor-boundary	pending	
 vendor/tungstenite/Cargo.toml	vendor-boundary	pending	
 vendor/tungstenite/Cargo.toml.orig	vendor-boundary	pending	
-vendor/tungstenite/PHANTOM.md	vendor-boundary	pending	
-vendor/tungstenite/patches/deflate-http-whitespace-tests.patch	vendor-boundary	pending	introduced source; review pending
-vendor/tungstenite/patches/deflate-http-whitespace.patch	vendor-boundary	pending	introduced source; review pending
+vendor/tungstenite/PHANTOM.md	vendor-boundary	source-complete	a49-independent-review.json#vendor/tungstenite/PHANTOM.md
+vendor/tungstenite/patches/deflate-http-whitespace-tests.patch	vendor-boundary	source-complete	introduced source; review pending; a49-independent-review.json#vendor/tungstenite/patches/deflate-http-whitespace-tests.patch
+vendor/tungstenite/patches/deflate-http-whitespace.patch	vendor-boundary	source-partial	introduced source; review pending; a49-independent-review.json#vendor/tungstenite/patches/deflate-http-whitespace.patch
 vendor/tungstenite/patches/deprecated-max-value.patch	vendor-boundary	pending	
 vendor/tungstenite/patches/message-fragment-limit.patch	vendor-boundary	pending	
 vendor/tungstenite/patches/permessage-deflate.patch	vendor-boundary	pending	
 vendor/tungstenite/patches/phantom-integration.patch	vendor-boundary	pending	
 vendor/tungstenite/patches/publish-identity.patch	vendor-boundary	pending	
 vendor/tungstenite/patches/redacted-fallible-masking.patch	vendor-boundary	pending	
-vendor/tungstenite/patches/series	vendor-boundary	pending	
+vendor/tungstenite/patches/series	vendor-boundary	source-complete	a49-independent-review.json#vendor/tungstenite/patches/series
 vendor/wreq-proto/Cargo.toml	vendor-boundary	pending	
 vendor/wreq-proto/Cargo.toml.orig	vendor-boundary	pending	
 vendor/wreq-proto/PHANTOM.md	vendor-boundary	pending	

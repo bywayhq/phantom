@@ -19,6 +19,25 @@ Pending means that discovery or assignment has not established review.
 | Repository configuration | Maintainer boundaries | Active callers and enforcement | Bounded source pass recorded; remaining configuration and enforcement pending |
 | Combined architecture | Independent final review | Cross-crate lifecycles and integrated changes | Pending |
 
+## Engineering standards
+
+The supplied standards apply throughout the audit. The source records below
+establish bounded reviews; they do not establish a whole-codebase sign-off.
+
+| Review concern | Recorded work | Remaining work |
+| --- | --- | --- |
+| Ownership, tasks and synchronization | Client and transport lifecycle reviews, capture cleanup regressions | Untouched paths and final composed ownership review |
+| Input bounds, failures and diagnostics | Parser, buffer, credential and failure-path repairs | Remaining tooling, platform paths and integrated regressions |
+| Design, visibility and dependencies | Workspace manifests, resolved crate direction and selected API callers | Canonical exports, unused layers and justified module boundaries |
+| Names and readable layout | Manual operation and invariant review in retained source reports | Full naming, function responsibility, grouping and test-placement pass |
+| Tests and verification | Independent contract reviews and recorded failing/passing regressions | Remaining assertions and exact final gates |
+| Documentation and enforcement | Bounded page, command and configuration reviews | Remaining public contracts, support claims and final roadmap reconciliation |
+
+Structural proposals need current source evidence and a complete caller
+design. A new crate needs an actual consumer, dependency isolation, or a
+compilation boundary. Repeated names, file sizes and passing lints alone
+do not establish that need.
+
 ## First pass evidence
 
 Client review traced request preparation, body deadlines, redirects, replay,
@@ -227,6 +246,33 @@ and its all-target, all-feature lint check passes. The QUIC provider passes
 checks pass for the Quinn, Quinn-proto and H3 forks, including their actual
 builds and selected tests. This verifies those changes and fork packaging,
 rather than every untouched upstream implementation.
+
+The HPACK and WebSocket parser corrections pass their complete vendor
+checks on Windows and native Linux at `4a16416d`. The checks validate
+checksummed archives, canonical patch replay, selected formatting and
+build/test contracts for HTTP/2 `.12`, wreq `.12`, and the WebSocket family
+`.3`. The three HPACK indexing regressions also pass on the composed
+32-bit fork in debug and release builds. Packaged upstream HTTP/2 fixture
+tests remain filtered where their assets are absent; this is not an
+exhaustive untouched-upstream audit or the final integration gate.
+
+Independent count-validation review covers the complete Rust version-report
+example, Python peer and tests, with bounded connector and cache traces.
+The composed Rust parser tests pass. Actual loopback runs reject zero before
+CA-file I/O and complete the default three-request and explicit one-request
+paths with matching peer observations. Independent Autobahn review covers
+its implementation, tests and actual workflow caller. Twenty focused
+methods and the composed forty-four-method conformance suite pass on
+Windows. Those controlled tests do not establish live Docker cleanup.
+
+The initial download-ownership repair passes fourteen Windows example
+controls. Two additional actual HTTP/3 peer regressions fail after an
+in-flight partial path is replaced: cleanup deletes the replacement and
+publication can use its bytes. This repair remains open. Four controlled
+version-report server tests also reproduce three scratch-space and
+publication-close failures, with one valid positive control. The server
+tests observe the actual runner and filesystem through controlled external
+boundaries, rather than real QUIC shutdown.
 
 ## Limits of the record
 

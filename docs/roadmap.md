@@ -686,23 +686,28 @@ not carry its renames. Until then, depend on a pinned git revision
 
 ## Phase 5: Architecture audit
 
-- Audit the workspace for readable, idiomatic Rust once functionality and
-  measured optimization have settled the real boundaries: naming, module
-  ownership, seams, and file layout. It changes no public API; the
-  structural changes that do open [Phase 2](#phase-2-ergonomics).
-- A readability pass by a human reviewer for code that passes the lints but
-  reads as generated: over-parameterized helpers, deeply nested `match`
+This work is underway before release preparation. The phase number remains
+for existing links. The [audit plan](internals/architecture-audit.md) defines
+the scope, and its [coverage record](internals/architecture-audit/coverage.md)
+states what has been reviewed. Hardening and profiling remain separate work.
+
+- Review all five crates, tests, examples, fuzz targets, tooling, configuration,
+  documentation, and maintained vendor changes. Trace ownership and failure
+  paths across their boundaries.
+- Apply the supplied engineering standards to naming, ownership, errors,
+  module layout, documentation, and manually assessed readability. Remove
+  redundant APIs and abstractions when the complete design is clearer.
+  Breaking changes update callers and migration notes together.
+- Reassess the historical candidates below against current source. Counts
+  prompt inspection; they do not establish defects or prescribe a refactor.
+- An independent manual readability pass for code that passes the lints:
+  over-parameterized helpers, deeply nested `match`
   blocks, defensive branches for states that cannot occur, and names that
   spell out a whole call path. 45 non-test functions exceed 100 lines and
   9 exceed 200, such as `connect_http1` in `phantom/src/websocket/http1.rs`
   (345 lines) and `ClientBuilder::build` (326); the deepest, the two proxy
   Basic authentication exchanges, nest 7 and 8 brace levels.
-- Inline comments where the code needs them. Counted over non-test,
-  non-blank lines with rustdoc excluded, Phantom's inline comments are
-  1.23% of lines, against 3.44% in quinn 0.11.12, 3.58% in rustls 0.23.45,
-  4.76% in hyper 1.11.1, 5.83% in quinn-proto 0.11.19, and 6.46% in h2
-  0.4.19. The pools already carry 3.7 to 5.0 comments per 100 code lines;
-  the gap is branchy functions with no invariant comment. Start with
+- Review whether comments explain non-obvious invariants. Start with
   `send_prepared_request` in `phantom-net/src/http1/connection.rs`, which
   holds a Tokio mutex across `.await` as an exception to a standing rule,
   then the `biased` select in `http3/body/task.rs`, the nested `Option` in
@@ -714,29 +719,25 @@ not carry its renames. Until then, depend on a pinned git revision
 - Decide retry, replay, and early-data handling from typed fields set where an
   error is created, instead of downcasting error chains to `phantom-net`
   types at 11 sites.
-- Give the five connection pools one core for origin entries, admission,
-  setup waiters, ECH choice, and lease guards: the four in
-  `phantom/src/session` (5,342 lines, each with its own `PoolState`,
-  `PoolKey`, `PoolEntry`, and `ConnectionLease`) and `Http2ProxyPool` in
-  `phantom-net`, whose crate docs say it owns no pools. Pass one request
-  context into the pools in place of the 15 to 17 inputs of each
-  `send_request`, which keep the 25 `too_many_arguments` allowances in
-  `phantom` that the Phase 2 route value leaves. Split functions longer
-  than 100 lines, and add invariant comments to the most deeply nested
-  state machines.
-- One runtime seam. 20 `Handle::try_current` checks in 12 files and 15
-  `RuntimeUnavailable` variants each check the runtime; probe it once when
-  the client is built, and route spawn, sleep, and dial through one module,
-  the seam the Phase 3 compio spike needs.
-- Test hooks out of production types: production files carry 225
-  `#[cfg(test)]` attributes outside `mod tests`, 67 of them on struct
-  fields, most in `phantom-net/src/http3`. Give each owner one test-only
-  hooks field.
-- One copy of each private helper: the span-outcome drop guard (11 copies
+- Compare pool admission, setup waiters, ECH selection, and lease guards.
+  Extract shared code only where current invariants agree. Review request
+  argument lists and state transitions before choosing a request context
+  or splitting a function.
+- Review runtime access at construction and operation boundaries, including
+  clients moved between runtimes. Consolidate repeated checks only when
+  their lifetime and failure contracts agree. Runtime replacement stays
+  outside the audit.
+- Review test hooks for ownership and production layout. Group them when
+  it improves navigation without obscuring the state under test.
+- Review crate boundaries for actual consumers, dependency isolation, and
+  compilation boundaries. Split modules by responsibility; file size alone
+  does not justify a new crate or module.
+- Compare repeated private helpers: the span-outcome drop guard (11 copies
   across `phantom` and `phantom-net`), `is_token_byte` (3 in
   `phantom-profile`), and the WebSocket handshake's nonce, base64, and
   SHA-1 calls, which reach `btls` directly and are the only reason the
-  `websocket` feature pulls `btls` into `phantom-http`.
+  `websocket` feature pulls `btls` into `phantom-http`. Share an implementation
+  only where callers need the same ownership and failure behavior.
 - Allowances that fail when stale: 23 `too_many_arguments` allowances sit
   on functions with 7 inputs, which the lint does not flag, and
   module-level `dead_code` allowances in `phantom-quic-btls` cover 1,884
@@ -746,20 +747,20 @@ not carry its renames. Until then, depend on a pinned git revision
   `bounded` in 49 and `const TEST_TIMEOUT` in 58 with four values, and a
   blanket `allow(dead_code)` on `tests/support` hides the unused ones.
 - Bring the file layout to the test-placement and module-file rules in
-  [AGENTS.md](../AGENTS.md#code-and-documentation): fold back inline the 31
-  of the 44 `tests.rs`-only directories whose tests are 300 lines or fewer,
-  and the 6 in `fuzz/src`; move the 3 inline test modules over 300 lines
-  (`retry.rs`, `client.rs`, `socks5_udp.rs`) to `tests.rs` files; drop the
-  22 redundant `#[path]` attributes of the 39; enforce the module-file rule with Clippy's `mod_module_files`; move test-only
-  code such as `tracing_test.rs` out of `src`; place the Windows FFI module
-  with its owner; and split source files over about 1,500 lines (9 today),
-  such as `client.rs`, along protocol lines. `http1/tls.rs` repeats 52% of
-  its lines within itself and should fall below 1,000 lines through the
-  Phase 2 route value rather than a split.
-- Keep capture history in [Validation](explanation/validation.md) rather
-  than in recipe rustdoc, which is 35.1% of `phantom-profile`'s lines
-  against 13.7 to 22.3% in the peers above, and split Validation into one
-  evidence page per browser.
+  [AGENTS.md](../AGENTS.md#code-and-documentation): review short companion
+  test files for inline placement, retaining separate files when fixtures
+  or helpers give them an independent responsibility. Review the inline
+  test modules over about 300 lines (`retry.rs`, `client.rs`,
+  `socks5_udp.rs`) for companion placement. Remove redundant `#[path]`
+  attributes after checking module resolution. Review enforcement of the
+  module-file rule with Clippy's `mod_module_files`. Keep private test
+  fixtures with their unit-test callers; `tracing_test.rs` has that role.
+  Place the Windows FFI module with its owner. Split large source files
+  only when their responsibilities and callers justify separate owners.
+  Reassess repeated TLS route handling after the Phase 2 route changes.
+- Keep capture history in [Validation](explanation/validation.md) and
+  behavior contracts in recipe rustdoc. Review whether separate browser
+  evidence pages improve navigation while preserving source references.
 - Give `phantom-profile` a crate page: one line covers its 23 public
   modules today. Explain the `<browser>::v<N>_<layer>` naming and which
   layers a `ClientProfile` takes, with one composed example.

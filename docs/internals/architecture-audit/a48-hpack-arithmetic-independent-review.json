@@ -1,0 +1,286 @@
+{
+  "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+  "test_commit": "14110f945448eec36776e52496948ecbc4c6766b",
+  "verdict": "approved source; no actionable findings",
+  "runtime_execution": "integration owner only; retained result logs read",
+  "composed_revision_not_reviewed": "a777",
+  "records": [
+    {
+      "path": "vendor/http2/src/hpack/table.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "67b0279724c890cc5acae97d60648b61fef22025",
+      "sha256": "c3f675ee654d4c16cf7177e8c381a05cab27fccf03fd0f9611b9a50e25d2fab6",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 1023,
+      "read_ranges": [
+        [
+          1,
+          1023
+        ]
+      ],
+      "coverage": "complete"
+    },
+    {
+      "path": "vendor/http2/src/hpack/encoder.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "56e7189ed140835aee4f6328d08334d11517f8f1",
+      "sha256": "a65d6742af609a2ece82746b6cc46df48917a066ffd34608c57608a64a564ba6",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 1863,
+      "read_ranges": [
+        [
+          1,
+          235
+        ],
+        [
+          230,
+          470
+        ],
+        [
+          1260,
+          1420
+        ],
+        [
+          1815,
+          1863
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/src/proto/settings.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "cdd7a75c2b910408b5292c3eddac56e2ff6655fc",
+      "sha256": "4b1367ff777629b44bbd41f79a7e3902588043cd50aa07bc8d865e092cd99c4f",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "coverage": "complete"
+    },
+    {
+      "path": "vendor/http2/src/frame/settings.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "a18f8574f31925c1f2834df049af75ecbff4179f",
+      "sha256": "c99ae48f80cb40ebad06f38b477ad7879eff234c363fd6d86709b62eccf17084",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 769,
+      "read_ranges": [
+        [
+          320,
+          420
+        ],
+        [
+          590,
+          650
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/src/codec/mod.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "8c9f42881d44b09f34368ec40573b7e9657b9673",
+      "sha256": "8994f1a4250e9a9f04fb7adef36addd9782604133eaa3fb3fdf44b7a3c9ad520",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 224,
+      "read_ranges": [
+        [
+          75,
+          111
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/src/codec/framed_write.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "0a27cbccda3c7e31de625cceb9b683c8407e2f63",
+      "sha256": "7de4b1391c3cebfb38cedc96de56e486a42e763791b6f6c71a64e4272b873276",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 382,
+      "read_ranges": [
+        [
+          305,
+          345
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/src/hpack/header.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "fa467ac36db0eb3e5114382f80bf7786bd8f3c60",
+      "sha256": "b41158784403037c347bfecb7de41b63acb46c825a9c15c4011859c418dc540d",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 308,
+      "read_ranges": [
+        [
+          1,
+          150
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/src/ext.rs",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "e67c245952be5b59917796d2ffec08c512c5f869",
+      "sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 608,
+      "read_ranges": [
+        [
+          180,
+          225
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "ed66fc98ff2dea8013d1ae0ba2a8bca3d00a23cf",
+      "sha256": "f0307617b9e18fd400da2d21ec88adbac169b5ecf7e814654cc4665414842a56",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 923,
+      "read_ranges": [
+        [
+          1,
+          34
+        ],
+        [
+          820,
+          923
+        ]
+      ],
+      "coverage": "partial"
+    },
+    {
+      "path": "vendor/http2/patches/hpack-size-arithmetic-tests.patch",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "6eb2246e89b8169eea67746095ca961382c0700d",
+      "sha256": "209d920f8e55b67f38864de890b2438768a9152201fc5211e18a9375c5fcdb9e",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 82,
+      "read_ranges": [
+        [
+          1,
+          82
+        ]
+      ],
+      "coverage": "complete"
+    },
+    {
+      "path": "vendor/http2/patches/hpack-size-arithmetic.patch",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "3c4cf852f82b7c3054a523dc913f6d3d5f3ac701",
+      "sha256": "9aa1794ecd2f49e73850d911664531edc442ceed8a5520749bd90cfe59b0eb5b",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 16,
+      "read_ranges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "coverage": "complete"
+    },
+    {
+      "path": "vendor/http2/patches/series",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "af9c1f4105991b211b0cf118250e1deff18d0d65",
+      "sha256": "663f554d856681c317bd8b6bc831e7f36f45c7b7b36efb4791cda081312ff67f",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "coverage": "complete"
+    },
+    {
+      "path": "vendor/http2/Cargo.toml",
+      "revision": "9f62282e3519e99d5e51799047ed657b0145930c",
+      "git_blob_oid": "4b7fa5a5236351689d0bd24c3a37ec702946bc8b",
+      "sha256": "9b444a0d4caeb2553edda869fe476a5a965fa6ab3e9640a51ea01de172b5f401",
+      "hash_basis": "exact committed Git blob bytes",
+      "line_count": 187,
+      "read_ranges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "coverage": "partial"
+    }
+  ],
+  "runtime_log_reads": [
+    {
+      "path": "a48-hpack-baseline-i686-debug.log",
+      "sha256": "d0537782b9500d829bee2185c44a89ab1b7e79d3dd90469fc0db67a88819f53d",
+      "line_count": 95,
+      "read_ranges": [
+        [
+          41,
+          95
+        ]
+      ],
+      "executed_by": "integration owner",
+      "reviewer_execution": false
+    },
+    {
+      "path": "a48-hpack-baseline-i686-release.log",
+      "sha256": "e635617a63f9feea4721d686f3c4ae2b2a36810759ee6536b5b4ecf6cefd5e22",
+      "line_count": 91,
+      "read_ranges": [
+        [
+          37,
+          91
+        ]
+      ],
+      "executed_by": "integration owner",
+      "reviewer_execution": false
+    },
+    {
+      "path": "a48-hpack-corrected-i686-debug.log",
+      "sha256": "aa7b22538f8eaf195807d72ba9d3cf2f61b780ff3e54888a773e0c053e0a826a",
+      "line_count": 11,
+      "read_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "executed_by": "integration owner",
+      "reviewer_execution": false
+    },
+    {
+      "path": "a48-hpack-corrected-i686-release.log",
+      "sha256": "a1c028e976246fae9e4dcb3fade9908ea4927cc8eef7cc50bf1473235fccde52",
+      "line_count": 11,
+      "read_ranges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "executed_by": "integration owner",
+      "reviewer_execution": false
+    }
+  ],
+  "patch_reconstruction": "exact incremental in-memory reconstruction; full upstream replay not performed",
+  "series_entries": 23,
+  "identity_last": true,
+  "remaining": [
+    "composed full gate",
+    "vendor upstream replay and identity/pin/lock refresh",
+    "central changelog/vendor notes"
+  ]
+}
