@@ -1,9 +1,17 @@
-use std::{error::Error as StdError, fmt, future::poll_fn, pin::Pin, task::Poll, time::Duration};
+use std::{
+    error::Error as StdError,
+    fmt,
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
+use futures_core::Stream;
 use http::{Response, StatusCode, header};
 use http_body::Body;
 use tokio::time::Instant;
-use tracing::{Instrument, debug_span, field};
+use tracing::{debug_span, field};
 
 use crate::{RequestError, ResponseBody, timeout::DeadlineTimer};
 
@@ -227,7 +235,7 @@ impl StdError for SseError {
     }
 }
 
-/// Pull-based decoder over Phantom's existing streaming response body.
+/// A pull-driven event decoder implementing [`Stream`].
 ///
 /// A stream reads one response and never reconnects; use
 /// [`Client::event_source`](crate::Client::event_source) for a source that
@@ -237,12 +245,17 @@ impl StdError for SseError {
 /// [`SseStream::next_event`] future leaves the decoder and response body ready
 /// for the next call; dropping the stream preserves the underlying protocol's
 /// cancellation behavior.
+///
+/// Polling yields one event at a time. A terminal error is returned once,
+/// followed by `None`. [`Self::next_event`] uses the same polling operation.
 #[must_use = "SSE streams must be read or deliberately dropped"]
 pub struct SseStream {
     body: Option<ResponseBody>,
     decoder: Decoder,
     idle_timeout: Option<Duration>,
     idle_deadline: Option<Instant>,
+    idle_timer: Option<DeadlineTimer>,
+    read_outcome: Option<SseOutcome>,
     finished: bool,
 }
 
@@ -282,6 +295,8 @@ impl SseStream {
                 decoder: Decoder::new(limits),
                 idle_timeout: None,
                 idle_deadline: None,
+                idle_timer: None,
+                read_outcome: None,
                 finished: false,
             },
         ))
@@ -310,6 +325,8 @@ impl SseStream {
                 decoder: Decoder::with_state(limits, last_event_id, Some(retry_delay)),
                 idle_timeout,
                 idle_deadline,
+                idle_timer: None,
+                read_outcome: None,
                 finished: false,
             },
         ))
@@ -328,21 +345,7 @@ impl SseStream {
     /// [`SseErrorKind::Body`] when the response body fails. After an error the
     /// body is released and later calls return `Ok(None)`.
     pub async fn next_event(&mut self) -> Result<Option<SseEvent>, SseError> {
-        let span = debug_span!("sse.next_event", outcome = field::Empty);
-        let outcome = SseOutcome::new(&span);
-        let result = self.next_event_inner().instrument(span.clone()).await;
-        outcome.finish(match &result {
-            Ok(Some(_)) => "event",
-            Ok(None) => "eof",
-            Err(error) => match error.kind() {
-                SseErrorKind::LineTooLong => "line_limit",
-                SseErrorKind::EventTooLarge => "event_limit",
-                SseErrorKind::Body => "body_error",
-                SseErrorKind::IdleTimeout => "idle_timeout",
-                _ => "error",
-            },
-        });
-        result
+        NextEvent { stream: self }.await
     }
 
     /// Returns the persistent last-event ID observed so far.
@@ -363,76 +366,87 @@ impl SseStream {
         self.decoder.limits
     }
 
-    async fn next_event_inner(&mut self) -> Result<Option<SseEvent>, SseError> {
+    fn poll_event(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<SseEvent, SseError>>> {
         if self.finished {
-            return Ok(None);
+            return Poll::Ready(None);
         }
-
         loop {
             match self.decoder.decode_available() {
-                Ok(Some(event)) => return Ok(Some(event)),
+                Ok(Some(event)) => return Poll::Ready(Some(Ok(event))),
                 Ok(None) => {}
                 Err(error) => {
                     self.finish();
-                    return Err(error);
+                    return Poll::Ready(Some(Err(error)));
                 }
             }
-
-            let Some(body) = self.body.as_mut() else {
+            if self.body.is_none() {
                 self.finish();
-                return Ok(None);
+                return Poll::Ready(None);
+            }
+            if self.idle_timer.is_none() {
+                self.idle_timer = match self.idle_deadline.map(DeadlineTimer::new).transpose() {
+                    Ok(timer) => timer,
+                    Err(error) => {
+                        self.finish();
+                        return Poll::Ready(Some(Err(SseError::request(error))));
+                    }
+                };
+            }
+            let frame = match self.body.as_mut() {
+                Some(body) => Pin::new(body).poll_frame(context),
+                None => Poll::Ready(None),
             };
-            let mut idle = match self.idle_deadline.map(DeadlineTimer::new).transpose() {
-                Ok(idle) => idle,
-                Err(error) => {
-                    self.finish();
-                    return Err(SseError::request(error));
-                }
-            };
-            let frame = poll_fn(|context| {
-                if let Poll::Ready(frame) = Pin::new(&mut *body).poll_frame(context) {
-                    return Poll::Ready(Ok(frame));
-                }
-                match idle.as_mut().map(|timer| timer.poll_expired(context)) {
-                    Some(Poll::Ready(result)) => Poll::Ready(Err(result.err())),
-                    Some(Poll::Pending) | None => Poll::Pending,
-                }
-            })
-            .await;
             match frame {
-                Err(None) => {
-                    self.finish();
-                    return Err(SseError::idle_timeout());
+                Poll::Pending => {
+                    match self
+                        .idle_timer
+                        .as_mut()
+                        .map(|timer| timer.poll_expired(context))
+                    {
+                        Some(Poll::Ready(result)) => {
+                            self.finish();
+                            let error = match result {
+                                Ok(()) => SseError::idle_timeout(),
+                                Err(error) => SseError::request(error),
+                            };
+                            return Poll::Ready(Some(Err(error)));
+                        }
+                        Some(Poll::Pending) | None => return Poll::Pending,
+                    }
                 }
-                Err(Some(error)) => {
-                    self.finish();
-                    return Err(SseError::request(error));
-                }
-                Ok(Some(Ok(frame))) => {
+                Poll::Ready(Some(Ok(frame))) => {
                     if let Ok(data) = frame.into_data() {
                         if let Err(error) = self.reset_idle_deadline() {
                             self.finish();
-                            return Err(error);
+                            return Poll::Ready(Some(Err(error)));
                         }
                         self.decoder.replace_chunk(data);
                     }
                 }
-                Ok(Some(Err(error))) => {
+                Poll::Ready(Some(Err(error))) => {
                     self.finish();
-                    return Err(SseError::body(error));
+                    return Poll::Ready(Some(Err(SseError::body(error))));
                 }
-                Ok(None) => {
+                Poll::Ready(None) => {
                     self.finish();
-                    return Ok(None);
+                    return Poll::Ready(None);
                 }
             }
         }
+    }
+
+    fn cancel_read_outcome(&mut self) {
+        self.read_outcome = None;
     }
 
     fn reset_idle_deadline(&mut self) -> Result<(), SseError> {
         let Some(timeout) = self.idle_timeout else {
             return Ok(());
         };
+        self.idle_timer = None;
         self.idle_deadline = Some(
             Instant::now()
                 .checked_add(timeout)
@@ -444,7 +458,60 @@ impl SseStream {
     fn finish(&mut self) {
         self.finished = true;
         self.body = None;
+        self.idle_timer = None;
         self.decoder.discard_pending();
+    }
+}
+
+impl Stream for SseStream {
+    type Item = Result<SseEvent, SseError>;
+
+    fn poll_next(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let stream = self.get_mut();
+        let span = stream
+            .read_outcome
+            .get_or_insert_with(|| {
+                SseOutcome::new(&debug_span!("sse.next_event", outcome = field::Empty))
+            })
+            .span
+            .clone();
+        let result = span.in_scope(|| stream.poll_event(context));
+        if let Poll::Ready(item) = &result {
+            if let Some(outcome) = stream.read_outcome.take() {
+                outcome.finish(match item {
+                    Some(Ok(_)) => "event",
+                    None => "eof",
+                    Some(Err(error)) => match error.kind() {
+                        SseErrorKind::LineTooLong => "line_limit",
+                        SseErrorKind::EventTooLarge => "event_limit",
+                        SseErrorKind::Body => "body_error",
+                        SseErrorKind::IdleTimeout => "idle_timeout",
+                        _ => "error",
+                    },
+                });
+            }
+        }
+        result
+    }
+}
+
+struct NextEvent<'a> {
+    stream: &'a mut SseStream,
+}
+
+impl Future for NextEvent<'_> {
+    type Output = Result<Option<SseEvent>, SseError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut *self.get_mut().stream)
+            .poll_next(context)
+            .map(Option::transpose)
+    }
+}
+
+impl Drop for NextEvent<'_> {
+    fn drop(&mut self) {
+        self.stream.cancel_read_outcome();
     }
 }
 

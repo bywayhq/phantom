@@ -1,10 +1,17 @@
-use std::{fmt, future::Future, pin::Pin, time::Duration};
+use std::{
+    fmt,
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
+use futures_core::Stream;
 use http::{HeaderValue, Response, StatusCode};
 use tokio::time::Instant;
-use tracing::{Instrument, debug, debug_span, field};
+use tracing::{debug, debug_span, field};
 
-use crate::{RequestError, RequestErrorKind, ResponseBody};
+use crate::{RequestError, RequestErrorKind, ResponseBody, timeout::DeadlineTimer};
 
 use super::{SseError, SseErrorKind, SseEvent, SseLimits, SseOutcome, SseStream};
 
@@ -54,7 +61,7 @@ enum ReconnectFailure {
     IdleTimeout,
 }
 
-/// Pull-driven server-sent event source with bounded reconnects.
+/// A pull-driven event [`Stream`] with bounded reconnects.
 ///
 /// Start one with [`Client::event_source`](crate::Client::event_source) and
 /// [`SseRequestBuilder::connect`]. After a disconnect, a body failure, or an
@@ -65,8 +72,11 @@ enum ReconnectFailure {
 /// may send an HTTP/3 connect over HTTP/2. Reconnects stop after the builder's
 /// [`max_reconnects`](SseRequestBuilder::max_reconnects) budget (3 by
 /// default); browsers reconnect without a limit. A 204 response closes the
-/// source. Nothing runs between calls to [`Self::next_event`]: there is no
-/// background task.
+/// source. Reads and reconnects run only while you poll the source. There is
+/// no background task or event queue.
+///
+/// Polling yields one event at a time. A terminal error is returned once,
+/// followed by `None`. [`Self::next_event`] uses the same polling operation.
 ///
 /// # Examples
 ///
@@ -102,6 +112,8 @@ pub struct SseEventSource {
     max_reconnects: usize,
     reconnects: usize,
     reconnect_at: Option<Instant>,
+    reconnect_timer: Option<DeadlineTimer>,
+    read_outcome: Option<SseOutcome>,
     reconnect_request: Option<ReconnectFuture>,
     last_failure: Option<ReconnectFailure>,
     closed: bool,
@@ -147,6 +159,8 @@ impl SseEventSource {
             max_reconnects,
             reconnects,
             reconnect_at: None,
+            reconnect_timer: None,
+            read_outcome: None,
             reconnect_request: None,
             last_failure: None,
             closed: false,
@@ -173,6 +187,8 @@ impl SseEventSource {
             max_reconnects,
             reconnects,
             reconnect_at: None,
+            reconnect_timer: None,
+            read_outcome: None,
             reconnect_request: None,
             last_failure: None,
             closed: true,
@@ -207,23 +223,7 @@ impl SseEventSource {
     ///
     /// Every error closes the source; later calls return `Ok(None)`.
     pub async fn next_event(&mut self) -> Result<Option<SseEvent>, SseError> {
-        let span = debug_span!(
-            "sse.event_source.next_event",
-            protocol = self.request.protocol.trace_name(),
-            reconnects = field::Empty,
-            outcome = field::Empty,
-        );
-        let outcome = SseOutcome::new(&span);
-        let result = self.next_event_inner().instrument(span.clone()).await;
-        span.record("reconnects", self.reconnects);
-        outcome.finish(match &result {
-            Ok(Some(_)) => "event",
-            Ok(None) => "closed",
-            Err(error) if error.kind() == SseErrorKind::IdleTimeout => "idle_timeout",
-            Err(error) if error.kind() == SseErrorKind::ReconnectLimit => "reconnect_limit",
-            Err(_) => "error",
-        });
-        result
+        NextEvent { source: self }.await
     }
 
     /// Returns the persistent last-event ID observed so far.
@@ -268,46 +268,68 @@ impl SseEventSource {
 
     /// Stops the source and releases an active response body.
     pub fn close(&mut self) {
+        self.cancel_read_outcome();
+        self.close_state();
+    }
+
+    fn close_state(&mut self) {
         self.sync_stream_state();
         self.stream = None;
         self.reconnect_at = None;
+        self.reconnect_timer = None;
         self.reconnect_request = None;
         self.last_failure = None;
         self.closed = true;
     }
 
-    async fn next_event_inner(&mut self) -> Result<Option<SseEvent>, SseError> {
+    fn poll_event(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<SseEvent, SseError>>> {
         loop {
             if self.closed {
-                return Ok(None);
+                return Poll::Ready(None);
             }
-
             if let Some(stream) = self.stream.as_mut() {
-                let result = stream.next_event().await;
+                let result = match Pin::new(stream).poll_next(context) {
+                    Poll::Pending => return Poll::Pending,
+                    Poll::Ready(result) => result,
+                };
                 self.sync_stream_state();
                 match result {
-                    Ok(Some(event)) => return Ok(Some(event)),
-                    Ok(None) => self.stream = None,
-                    Err(mut error) if error.kind() == SseErrorKind::Body => {
+                    Some(Ok(event)) => return Poll::Ready(Some(Ok(event))),
+                    None => self.stream = None,
+                    Some(Err(mut error)) if error.kind() == SseErrorKind::Body => {
                         self.last_failure = error.source.take().map(ReconnectFailure::Request);
                         self.stream = None;
                     }
-                    Err(error) if error.kind() == SseErrorKind::IdleTimeout => {
+                    Some(Err(error)) if error.kind() == SseErrorKind::IdleTimeout => {
                         self.last_failure = Some(ReconnectFailure::IdleTimeout);
                         self.stream = None;
                     }
-                    Err(error) => {
-                        self.closed = true;
-                        self.stream = None;
-                        return Err(error);
+                    Some(Err(error)) => {
+                        self.close_state();
+                        return Poll::Ready(Some(Err(error)));
                     }
                 }
             }
-
-            if !self.reconnect().await? {
-                return Ok(None);
+            match self.poll_reconnect(context) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Ok(true)) => {}
+                Poll::Ready(Ok(false)) => return Poll::Ready(None),
+                Poll::Ready(Err(error)) => {
+                    self.close_state();
+                    return Poll::Ready(Some(Err(error)));
+                }
             }
         }
+    }
+
+    fn cancel_read_outcome(&mut self) {
+        if let Some(stream) = self.stream.as_mut() {
+            stream.cancel_read_outcome();
+        }
+        self.read_outcome = None;
     }
 
     fn sync_stream_state(&mut self) {
@@ -319,17 +341,17 @@ impl SseEventSource {
         }
     }
 
-    async fn reconnect(&mut self) -> Result<bool, SseError> {
+    fn poll_reconnect(&mut self, context: &mut Context<'_>) -> Poll<Result<bool, SseError>> {
         if self.reconnect_request.is_none() {
             if self.reconnects >= self.max_reconnects {
                 self.closed = true;
-                return Err(match self.last_failure.take() {
+                return Poll::Ready(Err(match self.last_failure.take() {
                     Some(ReconnectFailure::IdleTimeout) => SseError::idle_timeout(),
                     Some(ReconnectFailure::Request(error)) => {
                         SseError::reconnect_limit(Some(error))
                     }
                     None => SseError::reconnect_limit(None),
-                });
+                }));
             }
 
             let deadline = match self.reconnect_at {
@@ -338,17 +360,27 @@ impl SseEventSource {
                     let delay = effective_retry(self.retry_delay, self.min_retry);
                     let Some(deadline) = Instant::now().checked_add(delay) else {
                         self.closed = true;
-                        return Err(SseError::invalid_reconnect_delay());
+                        return Poll::Ready(Err(SseError::invalid_reconnect_delay()));
                     };
                     self.reconnect_at = Some(deadline);
                     deadline
                 }
             };
-            if let Err(error) = crate::timeout::sleep_until(deadline).await {
-                self.closed = true;
-                return Err(SseError::request(error));
+            if self.reconnect_timer.is_none() {
+                self.reconnect_timer = match DeadlineTimer::new(deadline) {
+                    Ok(timer) => Some(timer),
+                    Err(error) => return Poll::Ready(Err(SseError::request(error))),
+                };
+            }
+            if let Some(timer) = self.reconnect_timer.as_mut() {
+                match timer.poll_expired(context) {
+                    Poll::Pending => return Poll::Pending,
+                    Poll::Ready(Err(error)) => return Poll::Ready(Err(SseError::request(error))),
+                    Poll::Ready(Ok(())) => {}
+                }
             }
             self.reconnect_at = None;
+            self.reconnect_timer = None;
             self.reconnects += 1;
             debug!(
                 attempt = self.reconnects,
@@ -357,16 +389,19 @@ impl SseEventSource {
             );
             if HeaderValue::from_bytes(self.last_event_id.as_bytes()).is_err() {
                 self.closed = true;
-                return Err(SseError::unrepresentable_last_event_id());
+                return Poll::Ready(Err(SseError::unrepresentable_last_event_id()));
             }
             self.reconnect_request = Some(self.request.send_owned(self.last_event_id.clone()));
         }
 
         let response = match self.reconnect_request.as_mut() {
-            Some(request) => request.await,
+            Some(request) => match request.as_mut().poll(context) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(response) => response,
+            },
             None => {
                 self.closed = true;
-                return Err(SseError::request_state());
+                return Poll::Ready(Err(SseError::request_state()));
             }
         };
         let response = match response {
@@ -374,18 +409,18 @@ impl SseEventSource {
             Err(error) if is_reconnectable(&error) => {
                 self.reconnect_request = None;
                 self.last_failure = Some(ReconnectFailure::Request(error));
-                return Ok(true);
+                return Poll::Ready(Ok(true));
             }
             Err(error) => {
                 self.reconnect_request = None;
                 self.closed = true;
-                return Err(SseError::request(error));
+                return Poll::Ready(Err(SseError::request(error)));
             }
         };
         self.reconnect_request = None;
         if response.status() == StatusCode::NO_CONTENT {
-            self.close();
-            return Ok(false);
+            self.close_state();
+            return Poll::Ready(Ok(false));
         }
 
         let response = match SseStream::from_response_with_state(
@@ -398,11 +433,68 @@ impl SseEventSource {
             Ok(response) => response,
             Err(error) => {
                 self.closed = true;
-                return Err(error);
+                return Poll::Ready(Err(error));
             }
         };
         self.stream = Some(response.into_body());
         self.last_failure = None;
-        Ok(true)
+        Poll::Ready(Ok(true))
+    }
+}
+
+impl Stream for SseEventSource {
+    type Item = Result<SseEvent, SseError>;
+
+    fn poll_next(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let source = self.get_mut();
+        let protocol = source.request.protocol.trace_name();
+        let span = source
+            .read_outcome
+            .get_or_insert_with(|| {
+                SseOutcome::new(&debug_span!(
+                    "sse.event_source.next_event",
+                    protocol,
+                    reconnects = field::Empty,
+                    outcome = field::Empty,
+                ))
+            })
+            .span
+            .clone();
+        let result = span.in_scope(|| source.poll_event(context));
+        if let Poll::Ready(item) = &result {
+            span.record("reconnects", source.reconnects);
+            if let Some(outcome) = source.read_outcome.take() {
+                outcome.finish(match item {
+                    Some(Ok(_)) => "event",
+                    None => "closed",
+                    Some(Err(error)) if error.kind() == SseErrorKind::IdleTimeout => "idle_timeout",
+                    Some(Err(error)) if error.kind() == SseErrorKind::ReconnectLimit => {
+                        "reconnect_limit"
+                    }
+                    Some(Err(_)) => "error",
+                });
+            }
+        }
+        result
+    }
+}
+
+struct NextEvent<'a> {
+    source: &'a mut SseEventSource,
+}
+
+impl Future for NextEvent<'_> {
+    type Output = Result<Option<SseEvent>, SseError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut *self.get_mut().source)
+            .poll_next(context)
+            .map(Option::transpose)
+    }
+}
+
+impl Drop for NextEvent<'_> {
+    fn drop(&mut self) {
+        self.source.cancel_read_outcome();
     }
 }
