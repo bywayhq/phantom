@@ -28,12 +28,11 @@ struct Prepared {
     /// The fields that follow the restart client-hints slot, the same on
     /// every protocol list, or `None` without one.
     restart_client_hint_slot: Option<Vec<Box<str>>>,
-    /// The HTTP/1.1 list's `Accept-Encoding` value for a URL that is not
-    /// potentially trustworthy, then for one that is.
-    accept_encoding: [Option<Box<str>>; 2],
+    /// The HTTP/1.1 list's values by forwarding state, then URL trust.
+    accept_encoding: [[Option<Box<str>>; 2]; 2],
     /// Whether every protocol list sends the same `Accept-Encoding` value to
-    /// both kinds of URL.
-    accept_encoding_agrees: bool,
+    /// both kinds of URL, separately for each forwarding state.
+    accept_encoding_agrees: [bool; 2],
 }
 
 impl PreparedRequestTemplate {
@@ -84,14 +83,19 @@ impl PreparedRequestTemplate {
     fn prepare(template: RequestTemplate) -> Self {
         let client_hint_slots = client_hint_placement(&template.http2_fields);
         let restart_client_hint_slot = restart_client_hint_placement(&template.http2_fields);
-        let mut accept_encoding: [Option<Box<str>>; 2] = [None, None];
-        let mut accept_encoding_agrees = true;
-        for trustworthy in [false, true] {
-            let mut codings = lists(&template)
-                .map(|fields| default_value(fields, "accept-encoding", trustworthy));
-            let first = codings.next().flatten();
-            accept_encoding_agrees &= codings.all(|coding| coding == first);
-            accept_encoding[usize::from(trustworthy)] = first.map(Box::from);
+        let mut accept_encoding = [[None, None], [None, None]];
+        let mut accept_encoding_agrees = [true; 2];
+        for forwarded in [false, true] {
+            for trustworthy in [false, true] {
+                let mut codings = lists(&template).map(|fields| {
+                    default_value_on_route(fields, "accept-encoding", trustworthy, forwarded)
+                });
+                let first = codings.next().flatten();
+                accept_encoding_agrees[usize::from(forwarded)] &=
+                    codings.all(|coding| coding == first);
+                accept_encoding[usize::from(forwarded)][usize::from(trustworthy)] =
+                    first.map(Box::from);
+            }
         }
         Self(Arc::new(Prepared {
             template,
@@ -142,9 +146,9 @@ impl PreparedRequestTemplate {
     }
 
     /// Returns the `Accept-Encoding` value the template sends to a URL of
-    /// this trust, for decoding decisions made before the protocol is chosen.
-    pub(crate) fn accept_encoding(&self, trustworthy: bool) -> Option<&str> {
-        self.0.accept_encoding[usize::from(trustworthy)].as_deref()
+    /// this trust and forwarding state, before the protocol is chosen.
+    pub(crate) fn accept_encoding(&self, trustworthy: bool, forwarded: bool) -> Option<&str> {
+        self.0.accept_encoding[usize::from(forwarded)][usize::from(trustworthy)].as_deref()
     }
 }
 
@@ -538,6 +542,7 @@ pub(crate) fn check(
     http2_fallback: bool,
     caller: &[RequestHeader],
     hints: Option<&ClientHintSettings>,
+    forwarded: bool,
 ) -> Result<(), RequestError> {
     check_with_managed_headers(
         prepared,
@@ -546,7 +551,7 @@ pub(crate) fn check(
         caller,
         hints,
         &[],
-        (false, false),
+        (false, forwarded),
     )
 }
 
@@ -572,7 +577,7 @@ pub(crate) fn check_with_managed_headers(
     if missing_http3 {
         return Err(RequestError::request_template_protocol());
     }
-    if scope.content_decoding && !prepared.0.accept_encoding_agrees {
+    if scope.content_decoding && !prepared.0.accept_encoding_agrees[usize::from(conditions.1)] {
         return Err(RequestError::request_template_accept_encoding());
     }
 
@@ -639,6 +644,15 @@ fn lists(template: &RequestTemplate) -> impl Iterator<Item = &[RequestField]> {
 /// Returns the value the first entry named `name` sends to a URL of this
 /// trust when the caller supplies no such field.
 fn default_value<'a>(fields: &'a [RequestField], name: &str, trustworthy: bool) -> Option<&'a str> {
+    default_value_on_route(fields, name, trustworthy, false)
+}
+
+fn default_value_on_route<'a>(
+    fields: &'a [RequestField],
+    name: &str,
+    trustworthy: bool,
+    forwarded: bool,
+) -> Option<&'a str> {
     fields
         .iter()
         .find(|field| {
@@ -646,12 +660,23 @@ fn default_value<'a>(fields: &'a [RequestField], name: &str, trustworthy: bool) 
                 .name()
                 .is_some_and(|field_name| field_name.eq_ignore_ascii_case(name))
         })
-        .and_then(|field| {
-            field.default_value(if trustworthy {
+        .and_then(|field| match field {
+            RequestField::ByForwarding {
+                unforwarded,
+                forwarded: value,
+                ..
+            } => {
+                if forwarded {
+                    value.as_deref()
+                } else {
+                    unforwarded.as_deref()
+                }
+            }
+            _ => field.default_value(if trustworthy {
                 phantom_profile::UrlTrust::PotentiallyTrustworthy
             } else {
                 phantom_profile::UrlTrust::Untrustworthy
-            })
+            }),
         })
 }
 
