@@ -1,7 +1,7 @@
 use std::{
     error::Error,
     future::{Future, poll_fn},
-    pin::Pin,
+    pin::{Pin, pin},
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -27,6 +27,7 @@ use tracing::{Dispatch, instrument::WithSubscriber};
 use super::{Http2TlsConnector, Http2TlsError};
 use crate::http2::{Http2Error, OriginForm, RequestHeader};
 use crate::proxy::HttpConnectHeader;
+use crate::route::{Endpoint, HttpConnectRoute, ProxyTransport, Socks5Target, TcpRoute};
 use crate::tls::test_support::{
     H2_ALPN_WIRE, TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity, TestResult, TestServerAlpn,
     TouchCountingStream, accept_tls, loopback_listener,
@@ -79,10 +80,12 @@ async fn streams_http2_over_certificate_verified_tls() -> TestResult<()> {
         });
 
         let connector = test_connector(&identity)?;
-        let tcp = TcpStream::connect(address).await?;
         let response = connector
-            .send_get(
-                tcp,
+            .send_get_via(
+                TcpRoute::Direct(Endpoint {
+                    host: "127.0.0.1",
+                    port: address.port(),
+                }),
                 TEST_SERVER_NAME,
                 TEST_AUTHORITY,
                 OriginForm::parse("/secure?item=1")?,
@@ -516,6 +519,78 @@ async fn invalid_request_does_not_touch_tls_stream() -> TestResult<()> {
     ));
     assert_eq!(touches.load(Ordering::SeqCst), 0);
     Ok(())
+}
+
+#[test]
+fn invalid_request_fails_before_route_setup() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+    for route in validation_routes() {
+        let mut request = pin!(connector.send_get_via(
+            route,
+            TEST_SERVER_NAME,
+            "user@example.test",
+            OriginForm::parse("/")?,
+            vec![],
+        ));
+        assert!(matches!(
+            request.as_mut().poll(&mut context),
+            std::task::Poll::Ready(Err(Http2TlsError::Http2(
+                Http2Error::AuthorityContainsUserinfo
+            )))
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn invalid_extended_connect_fails_before_route_setup() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = test_connector(&identity)?;
+    let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+    for route in validation_routes() {
+        let mut request = pin!(connector.send_extended_connect_via(
+            route,
+            TEST_SERVER_NAME,
+            "user@example.test",
+            OriginForm::parse("/")?,
+            vec![],
+        ));
+        assert!(matches!(
+            request.as_mut().poll(&mut context),
+            std::task::Poll::Ready(Err(Http2TlsError::Http2(
+                Http2Error::AuthorityContainsUserinfo
+            )))
+        ));
+    }
+    Ok(())
+}
+
+fn validation_routes() -> [TcpRoute<'static>; 4] {
+    let endpoint = Endpoint {
+        host: "127.0.0.1",
+        port: 0,
+    };
+    [
+        TcpRoute::Direct(endpoint),
+        TcpRoute::HttpConnect(HttpConnectRoute {
+            proxy: ProxyTransport::Tcp(endpoint),
+            authority: "",
+            headers: &[],
+            credentials: None,
+        }),
+        TcpRoute::Socks5 {
+            proxy: endpoint,
+            target: Socks5Target::LocalDns(endpoint),
+            auth: crate::proxy::Socks5Auth::None,
+        },
+        TcpRoute::Socks5 {
+            proxy: endpoint,
+            target: Socks5Target::RemoteDns(endpoint),
+            auth: crate::proxy::Socks5Auth::None,
+        },
+    ]
 }
 
 #[tokio::test]
