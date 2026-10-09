@@ -9,21 +9,23 @@ use crate::{CryptoError, DirectionKeys, EndpointSide, QuicVersion, Result};
 const MAX_CONNECTION_ID_LEN: usize = 20;
 
 /// Local and remote keys for a QUIC Initial packet space.
-pub struct InitialKeys {
+pub(crate) struct InitialKeys {
     local: DirectionKeys,
     remote: DirectionKeys,
 }
 
 impl InitialKeys {
     /// Returns keys used to protect packets sent by the local endpoint.
+    #[cfg(test)]
     #[must_use]
-    pub const fn local(&self) -> &DirectionKeys {
+    pub(crate) const fn local(&self) -> &DirectionKeys {
         &self.local
     }
 
     /// Returns keys used to process packets sent by the peer.
+    #[cfg(test)]
     #[must_use]
-    pub const fn remote(&self) -> &DirectionKeys {
+    pub(crate) const fn remote(&self) -> &DirectionKeys {
         &self.remote
     }
 
@@ -39,7 +41,7 @@ impl fmt::Debug for InitialKeys {
 }
 
 /// Derives the version-specific Initial packet keys for one endpoint.
-pub fn derive_initial_keys(
+pub(crate) fn derive_initial_keys(
     version: QuicVersion,
     destination_connection_id: &[u8],
     side: EndpointSide,

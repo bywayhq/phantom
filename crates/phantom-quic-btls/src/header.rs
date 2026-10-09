@@ -8,7 +8,7 @@ const SAMPLE_LEN: usize = 16;
 const SAMPLE_OFFSET_FROM_PACKET_NUMBER: usize = 4;
 
 /// An AES or ChaCha20 QUIC header-protection key.
-pub struct HeaderProtectionKey {
+pub(crate) struct HeaderProtectionKey {
     cipher: HeaderCipher,
 }
 
@@ -21,7 +21,7 @@ enum HeaderCipher {
 
 impl HeaderProtectionKey {
     /// Builds an AES-128 header-protection key from exactly 16 key bytes.
-    pub fn aes_128(key: &[u8]) -> Result<Self> {
+    pub(crate) fn aes_128(key: &[u8]) -> Result<Self> {
         if key.len() != AES_128_KEY_LEN {
             return Err(CryptoError::InvalidKeyLength {
                 actual: key.len(),
@@ -34,7 +34,7 @@ impl HeaderProtectionKey {
     }
 
     /// Builds an AES-256 header-protection key from exactly 32 key bytes.
-    pub fn aes_256(key: &[u8]) -> Result<Self> {
+    pub(crate) fn aes_256(key: &[u8]) -> Result<Self> {
         if key.len() != AES_256_KEY_LEN {
             return Err(CryptoError::InvalidKeyLength {
                 actual: key.len(),
@@ -47,7 +47,7 @@ impl HeaderProtectionKey {
     }
 
     /// Builds a ChaCha20 header-protection key from exactly 32 key bytes.
-    pub fn chacha20(key: &[u8]) -> Result<Self> {
+    pub(crate) fn chacha20(key: &[u8]) -> Result<Self> {
         if key.len() != CHACHA20_KEY_LEN {
             return Err(CryptoError::InvalidKeyLength {
                 actual: key.len(),
@@ -60,18 +60,18 @@ impl HeaderProtectionKey {
     }
 
     /// Applies QUIC header protection in place.
-    pub fn protect(&self, packet_number_offset: usize, packet: &mut [u8]) -> Result<()> {
+    pub(crate) fn protect(&self, packet_number_offset: usize, packet: &mut [u8]) -> Result<()> {
         self.apply(packet_number_offset, packet, false)
     }
 
     /// Removes QUIC header protection in place.
-    pub fn unprotect(&self, packet_number_offset: usize, packet: &mut [u8]) -> Result<()> {
+    pub(crate) fn unprotect(&self, packet_number_offset: usize, packet: &mut [u8]) -> Result<()> {
         self.apply(packet_number_offset, packet, true)
     }
 
     /// Returns the required header-protection sample length.
     #[must_use]
-    pub const fn sample_len(&self) -> usize {
+    pub(crate) const fn sample_len(&self) -> usize {
         SAMPLE_LEN
     }
 

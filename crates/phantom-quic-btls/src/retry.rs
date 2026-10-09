@@ -5,7 +5,7 @@ const MAX_CONNECTION_ID_LEN: usize = 20;
 const TAG_LEN: usize = 16;
 
 /// Computes the integrity tag for a Retry packet without its trailing tag.
-pub fn retry_integrity_tag(
+pub(crate) fn retry_integrity_tag(
     version: QuicVersion,
     original_destination_connection_id: &[u8],
     retry_without_tag: &[u8],
@@ -30,7 +30,7 @@ pub fn retry_integrity_tag(
 }
 
 /// Verifies the trailing integrity tag of a complete Retry packet.
-pub fn verify_retry_integrity(
+pub(crate) fn verify_retry_integrity(
     version: QuicVersion,
     original_destination_connection_id: &[u8],
     retry_packet: &[u8],

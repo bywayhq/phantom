@@ -10,7 +10,7 @@ use crate::{CryptoError, Result};
 const TAG_LEN: usize = 16;
 
 /// A QUIC packet-protection key and IV for a TLS 1.3 AEAD suite.
-pub struct PacketProtectionKey {
+pub(crate) struct PacketProtectionKey {
     context: AeadContext,
     iv: Secret<QUIC_NONCE_LEN>,
     algorithm: PacketAlgorithm,
@@ -24,17 +24,17 @@ enum PacketAlgorithm {
 
 impl PacketProtectionKey {
     /// Builds a packet key from a 16-byte AES key and 12-byte QUIC IV.
-    pub fn aes_128_gcm(key: &[u8], iv: &[u8]) -> Result<Self> {
+    pub(crate) fn aes_128_gcm(key: &[u8], iv: &[u8]) -> Result<Self> {
         Self::new(AeadContext::aes_128_gcm(key)?, iv, PacketAlgorithm::AesGcm)
     }
 
     /// Builds a packet key from a 32-byte AES key and 12-byte QUIC IV.
-    pub fn aes_256_gcm(key: &[u8], iv: &[u8]) -> Result<Self> {
+    pub(crate) fn aes_256_gcm(key: &[u8], iv: &[u8]) -> Result<Self> {
         Self::new(AeadContext::aes_256_gcm(key)?, iv, PacketAlgorithm::AesGcm)
     }
 
     /// Builds a packet key from a 32-byte ChaCha20 key and 12-byte QUIC IV.
-    pub fn chacha20_poly1305(key: &[u8], iv: &[u8]) -> Result<Self> {
+    pub(crate) fn chacha20_poly1305(key: &[u8], iv: &[u8]) -> Result<Self> {
         Self::new(
             AeadContext::chacha20_poly1305(key)?,
             iv,
@@ -61,7 +61,12 @@ impl PacketProtectionKey {
     ///
     /// `packet` must already reserve tag capacity, matching Quinn's packet-key
     /// contract. `header_len` separates associated data from plaintext.
-    pub fn seal(&self, packet_number: u64, packet: &mut [u8], header_len: usize) -> Result<()> {
+    pub(crate) fn seal(
+        &self,
+        packet_number: u64,
+        packet: &mut [u8],
+        header_len: usize,
+    ) -> Result<()> {
         let packet_len = packet.len();
         let payload =
             packet
@@ -89,7 +94,7 @@ impl PacketProtectionKey {
     ///
     /// Returns the plaintext length. Bytes after that length are unspecified
     /// and should be truncated by the caller.
-    pub fn open(
+    pub(crate) fn open(
         &self,
         packet_number: u64,
         header: &[u8],
@@ -109,7 +114,7 @@ impl PacketProtectionKey {
 
     /// Returns the authentication tag length in bytes.
     #[must_use]
-    pub const fn tag_len(&self) -> usize {
+    pub(crate) const fn tag_len(&self) -> usize {
         TAG_LEN
     }
 

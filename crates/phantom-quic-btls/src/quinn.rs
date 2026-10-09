@@ -4,8 +4,8 @@
 //! [`quinn_proto::crypto::HeaderKey`] and reserves
 //! [`quinn_proto::crypto::PacketKey::tag_len`] bytes before encryption. The
 //! traits have no encryption error channel, so an out-of-contract call is
-//! failed closed by zeroing its buffer. Checked callers should continue to use
-//! the concrete methods, which return this crate's typed errors.
+//! failed closed by zeroing its buffer. Internal checked calls use the
+//! concrete methods, which return this crate's typed errors.
 
 use bytes::BytesMut;
 use quinn_proto::crypto;

@@ -20,7 +20,7 @@ const SHA384_LEN: usize = 48;
 
 /// Which endpoint owns the local half of a derived key pair.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EndpointSide {
+pub(crate) enum EndpointSide {
     /// The local endpoint initiated the connection.
     Client,
     /// The local endpoint accepted the connection.
@@ -28,21 +28,23 @@ pub enum EndpointSide {
 }
 
 /// Packet and header keys for one direction of a QUIC packet space.
-pub struct DirectionKeys {
+pub(crate) struct DirectionKeys {
     header: HeaderProtectionKey,
     packet: PacketProtectionKey,
 }
 
 impl DirectionKeys {
     /// Returns the header-protection key.
+    #[cfg(test)]
     #[must_use]
-    pub const fn header(&self) -> &HeaderProtectionKey {
+    pub(crate) const fn header(&self) -> &HeaderProtectionKey {
         &self.header
     }
 
     /// Returns the packet-protection key.
+    #[cfg(test)]
     #[must_use]
-    pub const fn packet(&self) -> &PacketProtectionKey {
+    pub(crate) const fn packet(&self) -> &PacketProtectionKey {
         &self.packet
     }
 

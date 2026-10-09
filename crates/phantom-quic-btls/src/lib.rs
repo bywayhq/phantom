@@ -4,9 +4,10 @@
 //! [`QuicClientConfig`] implements Quinn's client crypto provider: it drives a
 //! BoringSSL QUIC TLS 1.3 handshake from a typed TLS profile, applies the
 //! profile's QUIC transport parameters, and derives packet, header, key-update,
-//! Retry-integrity, and stateless-reset keys. The concrete key types also
-//! offer checked methods that return [`CryptoError`]; their Quinn trait
-//! implementations, which have no error channel, fail closed instead.
+//! Retry-integrity, and stateless-reset keys. Packet protection and Retry
+//! helpers stay private. Their Quinn trait implementations fail closed when
+//! a trait has no error channel. [`StatelessResetKey`] supplies Quinn's
+//! endpoint reset key and has checked methods that return [`CryptoError`].
 //! [`QuicClientConfig::with_ech`] offers Encrypted Client Hello on one
 //! connection and reports the result through an [`EchOffer`].
 //!
@@ -58,23 +59,25 @@ pub use backend::client::{
 pub use backend::server::{QuicServerConfig, ServerHandshakeData};
 pub use ech::{EchOffer, EchOutcome};
 pub use error::{CryptoError, Result};
-pub use header::HeaderProtectionKey;
-pub use initial::{InitialKeys, derive_initial_keys};
+pub(crate) use header::HeaderProtectionKey;
+pub(crate) use initial::{InitialKeys, derive_initial_keys};
 #[cfg(feature = "keylog")]
 pub use key_log::{
     NssKeyLogLine, NssKeyLogReceiver, NssKeyLogSender, configure_nss_key_log, nss_key_log_channel,
 };
-pub use key_schedule::{DirectionKeys, EndpointSide};
-pub use packet::PacketProtectionKey;
+pub(crate) use key_schedule::{DirectionKeys, EndpointSide};
+pub(crate) use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;
 pub use resumption::ApplicationState;
-pub use retry::{retry_integrity_tag, verify_retry_integrity};
+#[cfg(any(test, feature = "server"))]
+pub(crate) use retry::retry_integrity_tag;
+pub(crate) use retry::verify_retry_integrity;
 pub use transport_parameters::QuicTransportProfileError;
 
 /// The QUIC protocol version understood by this packet-crypto slice.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum QuicVersion {
+pub(crate) enum QuicVersion {
     /// QUIC version 1, as specified by RFC 9000 and RFC 9001.
     #[default]
     V1,
@@ -94,7 +97,7 @@ pub(crate) struct PacketLabels {
 impl QuicVersion {
     /// Returns the version number on the wire.
     #[must_use]
-    pub const fn wire(self) -> u32 {
+    pub(crate) const fn wire(self) -> u32 {
         match self {
             Self::V1 => 0x0000_0001,
             Self::V2 => 0x6b33_43cf,
@@ -103,7 +106,7 @@ impl QuicVersion {
 
     /// Returns the version with wire number `version`, if this crate implements it.
     #[must_use]
-    pub const fn from_wire(version: u32) -> Option<Self> {
+    pub(crate) const fn from_wire(version: u32) -> Option<Self> {
         match version {
             0x0000_0001 => Some(Self::V1),
             0x6b33_43cf => Some(Self::V2),
