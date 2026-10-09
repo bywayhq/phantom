@@ -9,10 +9,11 @@ use tokio::{
 
 use super::{TestResult, read_head};
 use crate::{
+    direct::Dialer,
     proxy::{
         HttpBasicCredentials, HttpConnectError, HttpConnectErrorKind, HttpConnectHeader,
-        connect_http_tunnel, connect_http_tunnel_direct_with_basic_auth,
-        http_connect::PreparedBasicConnect, validate_basic_proxy_challenge,
+        connect_http_tunnel, http_connect::PreparedBasicConnect,
+        http_connect_tunnel_with_basic_auth, validate_basic_proxy_challenge,
     },
     request::RequestHeader,
 };
@@ -189,7 +190,9 @@ async fn challenge_retry_uses_fresh_connection_and_placeholder_order() -> TestRe
     });
 
     let credentials = HttpBasicCredentials::new("user", "secret")?;
-    let mut tunnel = connect_http_tunnel_direct_with_basic_auth(
+    let mut tunnel = http_connect_tunnel_with_basic_auth(
+        Dialer::default(),
+        None,
         "127.0.0.1",
         address.port(),
         "origin.example:443",
@@ -240,7 +243,9 @@ async fn rejects_second_407_as_authentication_failure() -> TestResult {
         Ok::<_, std::io::Error>(())
     });
 
-    let error = connect_http_tunnel_direct_with_basic_auth(
+    let error = http_connect_tunnel_with_basic_auth(
+        Dialer::default(),
+        None,
         "127.0.0.1",
         address.port(),
         "origin.example:443",
@@ -284,7 +289,9 @@ async fn malformed_or_unsupported_challenge_does_not_retry() -> TestResult {
             Ok::<_, std::io::Error>(retried)
         });
 
-        let error = connect_http_tunnel_direct_with_basic_auth(
+        let error = http_connect_tunnel_with_basic_auth(
+            Dialer::default(),
+            None,
             "127.0.0.1",
             address.port(),
             "origin.example:443",
@@ -323,7 +330,9 @@ async fn accepts_token68_padding_and_empty_challenge_list_members() -> TestResul
         Ok::<_, std::io::Error>(())
     });
 
-    let _tunnel = connect_http_tunnel_direct_with_basic_auth(
+    let _tunnel = http_connect_tunnel_with_basic_auth(
+        Dialer::default(),
+        None,
         "127.0.0.1",
         address.port(),
         "origin.example:443",
@@ -359,7 +368,9 @@ async fn rejects_excessive_authentication_parameters_without_retry() -> TestResu
         Ok::<_, std::io::Error>(retried)
     });
 
-    let error = connect_http_tunnel_direct_with_basic_auth(
+    let error = http_connect_tunnel_with_basic_auth(
+        Dialer::default(),
+        None,
         "127.0.0.1",
         address.port(),
         "origin.example:443",

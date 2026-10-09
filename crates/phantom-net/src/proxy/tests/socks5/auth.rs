@@ -17,11 +17,9 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use crate::{
+    direct::Dialer,
     proxy::socks5::{connect_local_to_addresses_with_auth, connect_socks5_tunnel_with_auth},
-    proxy::{
-        Socks5Auth, Socks5ErrorKind, connect_socks5_tunnel_direct_with_auth,
-        connect_socks5_tunnel_local_with_auth,
-    },
+    proxy::{Socks5Auth, Socks5ErrorKind, socks5_tunnel_local_dns, socks5_tunnel_remote_dns},
     tls::test_support::TouchCountingStream,
     tracing_test::OutcomeSubscriber,
 };
@@ -153,7 +151,8 @@ async fn invalid_authentication_fails_before_stream_or_proxy_io() -> TestResult 
     let listener = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     listener.set_nonblocking(true)?;
     let address = listener.local_addr()?;
-    let error = match connect_socks5_tunnel_direct_with_auth(
+    let error = match socks5_tunnel_remote_dns(
+        Dialer::default(),
         "127.0.0.1",
         address.port(),
         TARGET_HOST,
@@ -178,7 +177,8 @@ async fn invalid_authentication_fails_before_stream_or_proxy_io() -> TestResult 
 
 #[test]
 fn invalid_authentication_precedes_local_dns_and_runtime_checks() -> TestResult {
-    let mut future = Box::pin(connect_socks5_tunnel_local_with_auth(
+    let mut future = Box::pin(socks5_tunnel_local_dns(
+        Dialer::default(),
         "proxy.invalid",
         1080,
         "target.invalid",

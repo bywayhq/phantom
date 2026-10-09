@@ -19,10 +19,7 @@ pub(crate) use connect_udp::PreparedConnectUdp;
 pub(crate) use credential_cache::{AuthAttempt, AuthStep, BasicAuthPlan};
 pub use credential_cache::{MAX_PROXY_CREDENTIAL_ENTRIES, ProxyCredentialCache, ProxyScheme};
 pub use error::{HttpConnectError, HttpConnectErrorKind};
-pub use http_connect::{
-    HttpConnectHeader, connect_http_tunnel, connect_http_tunnel_direct,
-    connect_http_tunnel_direct_with_basic_auth,
-};
+pub use http_connect::{HttpConnectHeader, connect_http_tunnel};
 pub(crate) use http_connect::{http_connect_tunnel, http_connect_tunnel_with_basic_auth};
 pub use http2_pool::{
     HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING, Http2ProxyPool, MAX_HTTP2_PROXY_POOL_ROUTES,
@@ -30,11 +27,7 @@ pub use http2_pool::{
 };
 pub(crate) use https_connect::HttpsProxyTunnel;
 pub use https_connect::{HttpsProxyConnector, HttpsProxyProtocol};
-pub use socks5::{
-    Socks5Auth, Socks5Error, Socks5ErrorKind, connect_socks5_tunnel_direct,
-    connect_socks5_tunnel_direct_with_auth, connect_socks5_tunnel_local,
-    connect_socks5_tunnel_local_with_auth,
-};
+pub use socks5::{Socks5Auth, Socks5Error, Socks5ErrorKind};
 pub(crate) use socks5::{socks5_tunnel_local_dns, socks5_tunnel_remote_dns};
 pub(crate) use socks5_udp::{
     associate_socks5_udp_local_with_auth, associate_socks5_udp_remote_with_auth,

@@ -17,8 +17,11 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use super::super::socks5::{connect_local_to_addresses, connect_socks5_tunnel};
-use super::super::{Socks5ErrorKind, connect_socks5_tunnel_direct, connect_socks5_tunnel_local};
+use super::super::{
+    Socks5Auth, Socks5ErrorKind, socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
+};
 use crate::{
+    direct::Dialer,
     tls::test_support::TouchCountingStream,
     tracing_test::{OutcomeSubscriber, poll_once_then_drop},
 };
@@ -32,7 +35,7 @@ const TARGET_PORT: u16 = 8443;
 mod auth;
 
 #[tokio::test]
-async fn direct_remote_dns_emits_exact_domain_request_and_returns_raw_stream() -> TestResult {
+async fn remote_dns_emits_exact_domain_request_and_exchanges_payload() -> TestResult {
     OutcomeSubscriber::install_dynamic_callsite_fallback();
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -51,10 +54,16 @@ async fn direct_remote_dns_emits_exact_domain_request_and_returns_raw_stream() -
     });
     let subscriber = OutcomeSubscriber::default();
 
-    let mut tunnel =
-        connect_socks5_tunnel_direct("127.0.0.1", address.port(), TARGET_HOST, TARGET_PORT)
-            .with_subscriber(subscriber.dispatch())
-            .await?;
+    let mut tunnel = socks5_tunnel_remote_dns(
+        Dialer::default(),
+        "127.0.0.1",
+        address.port(),
+        TARGET_HOST,
+        TARGET_PORT,
+        Socks5Auth::None,
+    )
+    .with_subscriber(subscriber.dispatch())
+    .await?;
     tunnel.write_all(b"ping").await?;
     let mut response = [0_u8; 4];
     tunnel.read_exact(&mut response).await?;
@@ -76,7 +85,7 @@ async fn direct_remote_dns_emits_exact_domain_request_and_returns_raw_stream() -
 }
 
 #[tokio::test]
-async fn direct_local_dns_emits_an_ip_target_and_returns_raw_stream() -> TestResult {
+async fn local_dns_emits_an_ip_target_and_exchanges_payload() -> TestResult {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let server = tokio::spawn(async move {
@@ -93,8 +102,15 @@ async fn direct_local_dns_emits_an_ip_target_and_returns_raw_stream() -> TestRes
         Ok::<_, std::io::Error>((target, payload))
     });
 
-    let mut tunnel =
-        connect_socks5_tunnel_local("127.0.0.1", address.port(), "localhost", TARGET_PORT).await?;
+    let mut tunnel = socks5_tunnel_local_dns(
+        Dialer::default(),
+        "127.0.0.1",
+        address.port(),
+        "localhost",
+        TARGET_PORT,
+        Socks5Auth::None,
+    )
+    .await?;
     tunnel.write_all(b"ping").await?;
     let mut response = [0_u8; 4];
     tunnel.read_exact(&mut response).await?;
@@ -281,7 +297,16 @@ async fn invalid_target_fails_before_stream_io() -> TestResult {
 
 #[tokio::test]
 async fn proxy_tcp_failure_has_connect_kind() -> TestResult {
-    let error = match connect_socks5_tunnel_direct("127.0.0.1", 0, TARGET_HOST, TARGET_PORT).await {
+    let error = match socks5_tunnel_remote_dns(
+        Dialer::default(),
+        "127.0.0.1",
+        0,
+        TARGET_HOST,
+        TARGET_PORT,
+        Socks5Auth::None,
+    )
+    .await
+    {
         Ok(_) => return Err("TCP port zero unexpectedly accepted a proxy connection".into()),
         Err(error) => error,
     };
@@ -310,11 +335,13 @@ async fn dropping_negotiation_records_cancellation() -> TestResult {
 
 #[test]
 fn polling_direct_tunnel_without_tokio_returns_runtime_error() -> TestResult {
-    let mut future = Box::pin(connect_socks5_tunnel_direct(
+    let mut future = Box::pin(socks5_tunnel_remote_dns(
+        Dialer::default(),
         "127.0.0.1",
         9,
         TARGET_HOST,
         TARGET_PORT,
+        Socks5Auth::None,
     ));
     let mut context = Context::from_waker(Waker::noop());
 

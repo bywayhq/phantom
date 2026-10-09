@@ -62,7 +62,8 @@ pub enum HttpsProxyProtocol {
 ///
 /// The default [`HttpsProxyProtocol::Http1`] mode supports HTTP/1.1 forwarding
 /// and CONNECT. [`HttpsProxyProtocol::Http2`] supports CONNECT and HTTP/2
-/// forwarding through [`Self::connect_forward_http2`].
+/// forwarding through [`crate::http2::Http2TlsConnector::connect`] with
+/// [`crate::route::Http2Route::Forward`].
 #[derive(Clone, Debug)]
 pub struct HttpsProxyConnector {
     tls: TlsConnector,
@@ -187,8 +188,8 @@ impl HttpsProxyConnector {
     /// host, port, and server name, for the same Basic credentials or none,
     /// from a connector with the same TLS, TCP, HTTP/2, and name-resolution
     /// settings: changing one of those on a clone keeps its connections
-    /// apart. [`Self::connect_forward_http2_with_credentials`] draws from the
-    /// same pool. Clones of this connector, including
+    /// apart. HTTP/2 forwarding through [`crate::route::Http2Route::Forward`]
+    /// draws from the same pool. Clones of this connector, including
     /// [`Self::with_isolated_session_cache`], share `pool`. It has no effect
     /// in [`HttpsProxyProtocol::Http1`] mode.
     #[must_use]
@@ -310,25 +311,6 @@ impl HttpsProxyConnector {
     }
 
     /// Returns an HTTP/2 connection to the proxy for forwarding plaintext
-    /// `http://` requests that carry no proxy credentials.
-    ///
-    /// The same as [`Self::connect_forward_http2_with_credentials`] without
-    /// credentials.
-    ///
-    /// # Errors
-    ///
-    /// As for [`Self::connect_forward_http2_with_credentials`].
-    pub async fn connect_forward_http2(
-        &self,
-        proxy_host: &str,
-        proxy_port: u16,
-        proxy_server_name: &str,
-    ) -> Result<Http2Connection, HttpConnectError> {
-        self.connect_forward_http2_with_credentials(proxy_host, proxy_port, proxy_server_name, None)
-            .await
-    }
-
-    /// Returns an HTTP/2 connection to the proxy for forwarding plaintext
     /// `http://` requests that carry `credentials`.
     ///
     /// The connection uses this connector's TLS offer and HTTP/2 settings, so
@@ -352,7 +334,7 @@ impl HttpsProxyConnector {
     /// [`HttpsProxyProtocol::Http1`] mode and a configuration error for a
     /// missing `h2` offer or HTTP/2 settings, all before proxy I/O; otherwise
     /// a connect, TLS, ALPN, or HTTP/2 setup error.
-    pub async fn connect_forward_http2_with_credentials(
+    pub(crate) async fn connect_forward_http2_with_credentials(
         &self,
         proxy_host: &str,
         proxy_port: u16,

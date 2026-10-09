@@ -142,7 +142,12 @@ async fn h2_proxy_configuration_errors_precede_proxy_io() -> TestResult<()> {
     assert_eq!(error.kind(), HttpConnectErrorKind::InvalidConfiguration);
     for connector in [&missing_h2, &missing_settings] {
         let error = connector
-            .connect_forward_http2("127.0.0.1", address.port(), TEST_SERVER_NAME)
+            .connect_forward_http2_with_credentials(
+                "127.0.0.1",
+                address.port(),
+                TEST_SERVER_NAME,
+                None,
+            )
             .await
             .err()
             .ok_or("invalid HTTP/2 forwarding configuration was accepted")?;
@@ -152,7 +157,7 @@ async fn h2_proxy_configuration_errors_precede_proxy_io() -> TestResult<()> {
         HttpsProxyConnector::new_with_additional_roots(&tls_settings(), [identity.root_der()])?
             .with_http2_settings(&v154_http2());
     let error = http1_connector
-        .connect_forward_http2("127.0.0.1", address.port(), TEST_SERVER_NAME)
+        .connect_forward_http2_with_credentials("127.0.0.1", address.port(), TEST_SERVER_NAME, None)
         .await
         .err()
         .ok_or("HTTP/1.1 proxy transport accepted HTTP/2 forwarding")?;

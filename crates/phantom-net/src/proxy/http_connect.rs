@@ -122,32 +122,6 @@ where
     .await
 }
 
-/// Establishes a direct TCP connection to an HTTP proxy and opens a tunnel.
-///
-/// Request validation completes before DNS resolution or TCP I/O.
-///
-/// # Errors
-///
-/// Returns [`HttpConnectError`] for invalid input, runtime or connection
-/// failure, proxy I/O failure, and rejection by the proxy.
-///
-pub async fn connect_http_tunnel_direct(
-    proxy_host: &str,
-    proxy_port: u16,
-    authority: &str,
-    headers: &[HttpConnectHeader],
-) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
-    http_connect_tunnel(
-        Dialer::default(),
-        proxy_host,
-        proxy_port,
-        authority,
-        headers,
-    )
-    .await
-    .map(|tunnel| tunnel.map_inner(crate::tcp::ProfileTcpStream::into_tcp_stream))
-}
-
 /// Opens a direct HTTP CONNECT tunnel on a proxy socket from `dialer`.
 pub(crate) async fn http_connect_tunnel(
     dialer: Dialer<'_>,
@@ -165,39 +139,6 @@ pub(crate) async fn http_connect_tunnel(
         }),
     )
     .await
-}
-
-/// Opens a direct HTTP CONNECT tunnel with one challenge-driven Basic retry.
-///
-/// Both request forms are validated before DNS resolution or TCP I/O. The
-/// first request omits the authorization placeholder. A valid Basic challenge
-/// causes exactly one retry to the same proxy. The retry uses the challenged
-/// connection when the `407` keeps it open and its body ends within
-/// [`MAX_CHALLENGE_BODY_BYTES`](super::MAX_CHALLENGE_BODY_BYTES), and a new
-/// connection otherwise.
-///
-/// # Errors
-///
-/// Returns [`HttpConnectError`] for invalid credentials or fields, connection
-/// and I/O failures, unusable authentication challenges, and proxy rejection.
-pub async fn connect_http_tunnel_direct_with_basic_auth(
-    proxy_host: &str,
-    proxy_port: u16,
-    authority: &str,
-    headers: &[HttpConnectHeader],
-    credentials: &HttpBasicCredentials,
-) -> Result<TunnelStream<tokio::net::TcpStream>, HttpConnectError> {
-    http_connect_tunnel_with_basic_auth(
-        Dialer::default(),
-        None,
-        proxy_host,
-        proxy_port,
-        authority,
-        headers,
-        credentials,
-    )
-    .await
-    .map(|tunnel| tunnel.map_inner(crate::tcp::ProfileTcpStream::into_tcp_stream))
 }
 
 /// Opens a direct Basic-authenticated CONNECT tunnel on sockets from `dialer`.

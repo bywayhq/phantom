@@ -198,62 +198,6 @@ impl Socks5Auth<'_> {
     }
 }
 
-/// Establishes a no-auth SOCKS5 CONNECT tunnel with proxy-owned target DNS.
-///
-/// Only the proxy endpoint is resolved locally. Domain targets are sent to the
-/// proxy as SOCKS5 `DOMAIN` addresses. Target validation completes before proxy
-/// DNS resolution or TCP I/O, and proxy failure never opens a direct target
-/// connection.
-///
-/// # Errors
-///
-/// Returns [`Socks5Error`] for an invalid target, missing Tokio runtime, proxy
-/// TCP failure, malformed negotiation, or a rejected CONNECT request.
-pub async fn connect_socks5_tunnel_direct(
-    proxy_host: &str,
-    proxy_port: u16,
-    target_host: &str,
-    target_port: u16,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
-    connect_socks5_tunnel_direct_with_auth(
-        proxy_host,
-        proxy_port,
-        target_host,
-        target_port,
-        Socks5Auth::None,
-    )
-    .await
-}
-
-/// Establishes a SOCKS5 CONNECT tunnel with proxy-owned target DNS.
-///
-/// Authentication and target validation complete before proxy DNS resolution
-/// or TCP I/O. Credential values are not included in errors or trace fields.
-///
-/// # Errors
-///
-/// Returns [`Socks5Error`] for invalid authentication or target values, a
-/// missing Tokio runtime, proxy TCP failure, malformed negotiation,
-/// authentication failure, or a rejected CONNECT request.
-pub async fn connect_socks5_tunnel_direct_with_auth(
-    proxy_host: &str,
-    proxy_port: u16,
-    target_host: &str,
-    target_port: u16,
-    auth: Socks5Auth<'_>,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
-    socks5_tunnel_remote_dns(
-        Dialer::default(),
-        proxy_host,
-        proxy_port,
-        target_host,
-        target_port,
-        auth,
-    )
-    .await
-    .map(crate::tcp::ProfileTcpStream::into_tcp_stream)
-}
-
 /// Opens a SOCKS5 CONNECT tunnel with proxy-owned DNS on a socket from
 /// `dialer`; the target is never resolved locally.
 pub(crate) async fn socks5_tunnel_remote_dns(
@@ -274,61 +218,6 @@ pub(crate) async fn socks5_tunnel_remote_dns(
         }),
     )
     .await
-}
-
-/// Establishes a no-auth SOCKS5 CONNECT tunnel with locally resolved target DNS.
-///
-/// The target is resolved before connecting to the proxy, and the selected IP
-/// address is sent as a SOCKS5 `IPV4` or `IPV6` target. Proxy failure never
-/// opens a direct target connection.
-///
-/// # Errors
-///
-/// Returns [`Socks5Error`] for a missing Tokio runtime, target DNS failure,
-/// proxy TCP failure, malformed negotiation, or a rejected CONNECT request.
-pub async fn connect_socks5_tunnel_local(
-    proxy_host: &str,
-    proxy_port: u16,
-    target_host: &str,
-    target_port: u16,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
-    connect_socks5_tunnel_local_with_auth(
-        proxy_host,
-        proxy_port,
-        target_host,
-        target_port,
-        Socks5Auth::None,
-    )
-    .await
-}
-
-/// Establishes a SOCKS5 CONNECT tunnel with locally resolved target DNS.
-///
-/// Authentication is validated before target DNS resolution or TCP I/O.
-/// Credential values are not included in errors or trace fields.
-///
-/// # Errors
-///
-/// Returns [`Socks5Error`] for invalid authentication, a missing Tokio runtime,
-/// target DNS failure, proxy TCP failure, malformed negotiation,
-/// authentication failure, or a rejected CONNECT request.
-pub async fn connect_socks5_tunnel_local_with_auth(
-    proxy_host: &str,
-    proxy_port: u16,
-    target_host: &str,
-    target_port: u16,
-    auth: Socks5Auth<'_>,
-) -> Result<tokio::net::TcpStream, Socks5Error> {
-    socks5_tunnel_local_dns(
-        Dialer::default(),
-        proxy_host,
-        proxy_port,
-        target_host,
-        target_port,
-        auth,
-    )
-    .await
-    .map(crate::tcp::ProfileTcpStream::into_tcp_stream)
 }
 
 /// Opens a SOCKS5 CONNECT tunnel with local target DNS on sockets from

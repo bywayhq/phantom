@@ -10,11 +10,12 @@ use tokio::{
 
 use super::{TestResult, read_head};
 use crate::{
+    direct::Dialer,
     proxy::{
         HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES,
         ProxyCredentialCache, ProxyScheme,
         challenged_connection::{ChallengeBody, drain},
-        connect_http_tunnel_direct_with_basic_auth, http_connect_tunnel_with_basic_auth,
+        http_connect_tunnel_with_basic_auth,
     },
     request::RequestHeader,
     tls::test_support::{
@@ -78,7 +79,9 @@ async fn exchange_with(response: Vec<u8>) -> TestResult<Vec<Vec<u8>>> {
     let credentials = HttpBasicCredentials::new("user", "secret")?;
     let mut tunnel = timeout(
         TEST_TIMEOUT,
-        connect_http_tunnel_direct_with_basic_auth(
+        http_connect_tunnel_with_basic_auth(
+            Dialer::default(),
+            None,
             "127.0.0.1",
             address.port(),
             "origin.example:443",
@@ -230,7 +233,9 @@ async fn proxy_that_closes_the_challenged_connection_gets_the_replay_on_a_new_on
     let credentials = HttpBasicCredentials::new("user", "secret")?;
     let mut tunnel = timeout(
         TEST_TIMEOUT,
-        connect_http_tunnel_direct_with_basic_auth(
+        http_connect_tunnel_with_basic_auth(
+            Dialer::default(),
+            None,
             "127.0.0.1",
             address.port(),
             "origin.example:443",
