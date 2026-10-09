@@ -38,7 +38,8 @@
 //! emulators: the `phantom-pixel7` Android 17 emulator, which reports a
 //! Pixel 7, and the earlier `phantom-api35-play` Android 15 emulator. Fixtures
 //! record it as `153.1.95.104` to match the desktop naming. Its captures equal
-//! the desktop Brave recipes in [`brave`] on the TLS and QUIC ClientHellos and on every
+//! the desktop Brave recipes in [`brave`](crate::browser::brave) on the TLS
+//! and QUIC ClientHellos and on every
 //! request-field difference from Chrome, and the desktop Chromium recipes on
 //! HTTP/2, QUIC transport parameters, HTTP/3, and WebSocket openings. Only
 //! the client hints and `User-Agent` carry Android data.

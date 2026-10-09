@@ -20,7 +20,8 @@
 //! recipes", describes the emulator.
 //!
 //! Where a layer equals the desktop Chrome recipe on every compared field, the
-//! function here returns the [`chrome`] recipe, and a test replays the
+//! function here returns the [`chrome`](crate::browser::chrome) recipe, and
+//! a test replays the
 //! Android capture against it. Values that carry the platform, such as client
 //! hints and `User-Agent`, have their own data.
 //!
