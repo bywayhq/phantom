@@ -94,6 +94,7 @@ impl PerMessageDeflate {
                 "permessage-deflate accepts at most four offer parameters",
             ));
         }
+
         let mut parameters = Vec::with_capacity(settings.permessage_deflate_offer.len());
         for parameter in &settings.permessage_deflate_offer {
             parameters.push(match *parameter {
