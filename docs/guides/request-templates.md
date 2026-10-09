@@ -92,6 +92,39 @@ template, so take the template, client hints and `User-Agent` from the same
 browser and version
 ([required caller fields](../reference/profiles.md#required-caller-fields)).
 
+## Fill declared caller slots
+
+Set the template before calling `fill_slots`. Fill only names the template
+declares for every protocol the request may use.
+
+```rust
+use phantom::{Client, HttpProtocol, PreparedRequestTemplate, RequestHeader};
+
+async fn fetch(
+    client: &Client,
+    template: &PreparedRequestTemplate,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let response = client.get(HttpProtocol::Http2, "https://example.com/data")?
+        .template(template)
+        .fill_slots(|slots| {
+            slots.fill(RequestHeader::new("referer", "https://example.com/"))
+        })?
+        .send().await?;
+    drop(response);
+    Ok(())
+}
+```
+
+Pass a fetch template with a `Referer` caller slot. The closure runs once
+when you call `fill_slots`. Retries reuse its values. Cross-origin redirects
+strip credentials without calling it again. You cannot replace literals,
+fill a slot twice, or add an undeclared name through this hook.
+
+Later template, route, and retry changes recheck whether each filled name
+is still a caller slot on every possible protocol. Replacing all headers
+with `headers` clears the recorded fills. See [request bodies](request-bodies.md)
+for upload slots and prepared content types.
+
 ## Send client hints
 
 Client hints are headers such as `sec-ch-ua` that tell a server about the
@@ -132,7 +165,8 @@ Hints go only to HTTPS sites and to `localhost` and loopback addresses. An
 
 ## Limits
 
-- Templates cover page loads and same-origin `fetch` GETs, nothing else
+- Templates cover page loads, same-origin `fetch` GETs, and Windows Chrome
+  and Firefox upload POSTs over HTTP/1.1 and HTTP/2
   ([template limits](../reference/profiles.md#template-limits)).
 - Firefox and `fetch` templates have no place for hints a site asked for,
   so such a request fails

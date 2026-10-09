@@ -475,6 +475,8 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | `firefox::v157_macos_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
 | `firefox::v157_windows_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | HTTP/2 list | Captured Firefox 157 value |
 | `firefox::v157_macos_fetch_template` | Same-origin default-mode `fetch` GET, with validator slots | Yes | Yes | HTTP/2 list | Captured Firefox 157 macOS value |
+| `chrome::v154_windows_fetch_upload_template` | Same-origin `fetch` POST upload | Yes | Yes | No | Chrome 154 Windows value |
+| `firefox::v157_windows_fetch_upload_template` | Same-origin `fetch` POST upload | Yes | Yes | No | Firefox 157 Windows value |
 | `brave::v153_android_navigation_template` | Address-bar navigation | Yes | Yes | Yes | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `brave::v153_android_fetch_no_store_template` | Same-origin no-store `fetch` GET | Yes | Yes | No | Captured Brave for Android value; `Accept-Language` is a required caller slot |
 | `chrome::v154_android_navigation_template` | Address-bar navigation | Yes | Yes | Chromium list | Captured Chrome 154 for Android value |
@@ -519,6 +521,9 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | Your fields | A field whose name matches an entry takes that entry's position and name spelling, and keeps your value and sensitivity. |
 | Unfilled entries | A literal entry you do not override sends its captured value. A caller slot you do not fill sends nothing. |
 | Extra fields | Fields the template does not name follow its last field, in your order. They are sent, not rejected. |
+| Slot hook | `fill_slots` accepts only caller slots declared on every protocol the request may use. It runs once. Retries keep its fields, and cross-origin redirects strip credentials without rerunning it. Later setters recheck the declarations. `headers` clears the recorded fills. |
+| Prepared content type | `prepared_body` fills a declared `Content-Type` caller slot. Without one, supply exactly one matching field in your chosen position. Missing placement, duplicates, or a different value return `InvalidHeader`. |
+| Prepared content length | With no trailers or explicit length, a declared `Content-Length` caller slot receives the exact byte length. A slot on only some selected protocols rejects the request. Without a slot, ordinary body framing applies. |
 | Cookies | Templates cannot contain `Cookie`. The profile's `CookiePlacement` inserts the jar's field; a `Cookie` field of your own replaces it. |
 | Client hints | The profile's client hints fill the template's hint slots. |
 | Forwarding | When an HTTP/1.1 proxy forwards the request in absolute form, the Chromium-family templates (Chrome, Edge, Brave, and Opera) send `Proxy-Connection: keep-alive` in the position of `Connection: keep-alive`, as those browsers do. Firefox's templates send the same fields on every route. A field of yours named `Connection` or `Proxy-Connection` keeps its value at that entry's position. |
@@ -527,6 +532,30 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | HTTP/2 priority | The template's HEADERS priority replaces the connection's priority for that stream only. A peer that disables RFC 7540 priorities still suppresses it. |
 | Redirects | Every hop uses the same template. Origin trust is decided per hop, so a redirect to a named `http://` origin drops `Sec-Fetch-*` and the `br` and `zstd` codings. Values such as `Sec-Fetch-Site` are not adjusted. |
 | `Referer` on a navigation | Navigation templates have no `Referer` slot, so an added `Referer` goes last: after `Accept-Language` on Chrome's and Edge's HTTP/1.1 list, after `priority` on their HTTP/2 and HTTP/3 lists, after `Priority` and `te` on Firefox's HTTP/1.1 and HTTP/2 lists, and after `priority` on Firefox's HTTP/3 list. A Firefox script navigation over HTTP/3 puts it after `accept-encoding`; no capture shows the other positions. |
+
+### Upload templates
+
+Use `chrome::v154_windows_fetch_upload_template` or
+`firefox::v157_windows_fetch_upload_template` for same-origin POST uploads.
+Both have HTTP/1.1 and HTTP/2 lists, without an HTTP/3 list. They omit the
+default fetch template's cache validator slots.
+
+| Template | Required values | `Content-Type` slot | `Content-Length` slot |
+| --- | --- | --- | --- |
+| Chrome 154 Windows | `Origin`, `Referer` | After `sec-ch-ua`, before `sec-ch-ua-mobile` | Before `sec-ch-ua-platform` |
+| Firefox 157 Windows | `Origin`, `Referer`, HTTP/1.1 `Priority` | After `Referer` | After `Content-Type`, before `Origin` |
+
+Header spelling follows the protocol's template list. Firefox HTTP/2 keeps
+its literal `priority: u=4` and `te: trailers`. Its HTTP/1.1 `Priority` value
+is yours to supply. Both body fields are optional caller slots. With a raw
+nonempty known-length body and no trailers, an omitted length goes last.
+`prepared_body` instead fills the declared length slot, including zero,
+when the request has no trailers or explicit length.
+
+These templates do not cover navigation POSTs or HTML form submission.
+Prepared form, JSON, and multipart encodings do not imply browser parity
+for payload bytes, multipart boundaries, or transport framing. See
+[Request bodies](../guides/request-bodies.md) for encoding and placement.
 
 ### Cookie placement in templates
 
@@ -635,10 +664,11 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
 ### Template limits
 
 - Templates cover address-bar page loads and same-origin no-store `fetch`
-  GETs. Chrome and Firefox also have default-mode `fetch` templates. There
-  are no templates for link or script navigations,
+  GETs. Chrome and Firefox also have default-mode `fetch` templates. They
+  also have Windows same-origin POST upload templates for HTTP/1.1 and
+  HTTP/2. There are no templates for link or script navigations,
   subresources such as images, scripts, and stylesheets, `XMLHttpRequest`,
-  cross-origin `fetch`, or requests with a body.
+  cross-origin `fetch`, navigation POSTs, or HTML form submission.
 - The template captures used plaintext loopback origins, which browsers
   treat as potentially trustworthy. The fields for a named plaintext origin
   come from the proxy route captures of a page load, a default-mode
@@ -715,6 +745,10 @@ replace it.
   Firefox recipe gives each of the three its own connection.
 
 ## Required caller fields
+
+The Windows Chrome and Firefox upload templates require `Origin` and
+`Referer`. Firefox also requires your `Priority` for HTTP/1.1. Its HTTP/2
+list supplies a literal priority value.
 
 The Edge, Brave, and Opera templates mark `User-Agent` as a required caller
 slot, because no headful capture of those browsers backs a literal value.
