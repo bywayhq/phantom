@@ -11,6 +11,8 @@ use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 mod connect_udp;
 mod socks5;
 
+pub(crate) use connect_udp::ConnectUdpTargetError;
+
 pub use connect_udp::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind,
 };

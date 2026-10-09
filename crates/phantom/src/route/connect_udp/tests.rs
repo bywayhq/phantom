@@ -1,6 +1,6 @@
 use phantom_net::request::{OriginForm, RequestHeader};
 
-use super::{ConnectUdpProxy, ConnectUdpProxyConfigErrorKind as Kind};
+use super::{ConnectUdpProxy, ConnectUdpProxyConfigErrorKind as Kind, ConnectUdpTargetError};
 use crate::Route;
 
 const DEFAULT_TEMPLATE: &str =
@@ -28,8 +28,32 @@ fn template_rejects_zero_udp_target_port() -> Result<(), Box<dyn std::error::Err
         "https://proxy.example/udp{?target_host,target_port}",
     ] {
         let proxy = ConnectUdpProxy::new(template)?;
-        assert!(proxy.expand("127.0.0.1", 0).is_err(), "{template}");
+        let error = proxy
+            .expand("127.0.0.1", 0)
+            .err()
+            .ok_or("zero target port was accepted")?;
+        assert!(
+            matches!(error, ConnectUdpTargetError::ZeroPort),
+            "{template}"
+        );
+        assert_eq!(error.to_string(), "connect-udp target port must be nonzero");
+        assert!(std::error::Error::source(&error).is_none());
     }
+    Ok(())
+}
+
+#[test]
+fn expansion_preserves_invalid_origin_form_cause() -> Result<(), Box<dyn std::error::Error>> {
+    let proxy = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?;
+    let host = "a".repeat(usize::from(u16::MAX) + 1);
+    let error = proxy
+        .expand(&host, 443)
+        .err()
+        .ok_or("oversized target was accepted")?;
+    assert!(matches!(error, ConnectUdpTargetError::InvalidOriginForm(_)));
+    let source = std::error::Error::source(&error).ok_or("origin-form cause was lost")?;
+    assert!(source.is::<phantom_net::request::InvalidOriginForm>());
+    assert_eq!(error.to_string(), source.to_string());
     Ok(())
 }
 

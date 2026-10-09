@@ -36,6 +36,30 @@ pub struct ConnectUdpProxy {
     credentials: Option<HttpBasicCredentials>,
 }
 
+#[derive(Debug)]
+pub(crate) enum ConnectUdpTargetError {
+    ZeroPort,
+    InvalidOriginForm(InvalidOriginForm),
+}
+
+impl fmt::Display for ConnectUdpTargetError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ZeroPort => formatter.write_str("connect-udp target port must be nonzero"),
+            Self::InvalidOriginForm(source) => fmt::Display::fmt(source, formatter),
+        }
+    }
+}
+
+impl StdError for ConnectUdpTargetError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::ZeroPort => None,
+            Self::InvalidOriginForm(source) => Some(source),
+        }
+    }
+}
+
 /// Protocol spoken on the proxy leg of a CONNECT-UDP route.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 enum ConnectUdpTransport {
@@ -297,7 +321,15 @@ impl ConnectUdpProxy {
     }
 
     /// Expands the template for one UDP target (RFC 6570 section 3.2).
-    pub(crate) fn expand(&self, host: &str, port: u16) -> Result<OriginForm, InvalidOriginForm> {
+    pub(crate) fn expand(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> Result<OriginForm, ConnectUdpTargetError> {
+        // RFC 9298 section 3 requires target_port in the range 1..=65535.
+        if port == 0 {
+            return Err(ConnectUdpTargetError::ZeroPort);
+        }
         let port = port.to_string();
         let value = |variable: Variable| match variable {
             Variable::TargetHost => host,
@@ -334,7 +366,7 @@ impl ConnectUdpProxy {
                 }
             }
         }
-        OriginForm::parse(&output)
+        OriginForm::parse(&output).map_err(ConnectUdpTargetError::InvalidOriginForm)
     }
 }
 

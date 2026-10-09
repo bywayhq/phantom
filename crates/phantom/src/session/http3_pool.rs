@@ -1397,7 +1397,7 @@ fn connect_udp_path(
 ) -> Result<OriginForm, RequestError> {
     proxy
         .expand(transport.host, transport.port)
-        .map_err(RequestError::invalid_target)
+        .map_err(RequestError::invalid_connect_udp_target)
 }
 
 /// Returns the outer HTTP/3 connector, absent when proxy verification is
