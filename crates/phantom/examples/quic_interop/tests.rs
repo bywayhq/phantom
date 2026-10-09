@@ -329,6 +329,81 @@ async fn failed_observed_download_removes_its_created_partial() -> TestResult {
     directory.finish()
 }
 
+#[tokio::test]
+async fn failed_download_preserves_replacement_at_its_original_partial_path() -> TestResult {
+    let directory = DownloadDirectory::create()?;
+    let mut peer = LoopbackPeer::bind(StatusCode::SERVICE_UNAVAILABLE)?;
+    let target = DownloadTarget::loopback(peer.address)?;
+    let partial = directory.path()?.join(".first.part");
+    let moved = directory.path()?.join("moved-owned-file");
+
+    let mut tasks = JoinSet::new();
+    tasks.spawn(download_one(
+        peer.client.clone(),
+        directory.path()?.to_owned(),
+        target,
+    ));
+
+    assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
+    assert_eq!(std::fs::read(&partial)?, b"");
+    std::fs::rename(&partial, &moved)?;
+    std::fs::write(&partial, SENTINEL)?;
+    assert_eq!(std::fs::read(&partial)?, SENTINEL);
+
+    peer.respond()?;
+    let result = timeout(PEER_TIMEOUT, tasks.join_next())
+        .await?
+        .ok_or("download task missing")?;
+    peer.finish().await?;
+
+    let failure = result?.err().ok_or("503 download was accepted")?;
+    let cause = failure
+        .downcast_ref::<io::Error>()
+        .or_else(|| failure.source()?.downcast_ref::<io::Error>())
+        .ok_or("HTTP failure did not retain its cause")?;
+    assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
+    assert!(cause.to_string().contains("returned HTTP 503"));
+    assert_eq!(std::fs::read(&partial)?, SENTINEL);
+    assert!(!directory.path()?.join("first").exists());
+
+    directory.finish()
+}
+
+#[tokio::test]
+async fn successful_download_publishes_written_file_without_consuming_replacement() -> TestResult {
+    let directory = DownloadDirectory::create()?;
+    let mut peer = LoopbackPeer::bind(StatusCode::OK)?;
+    let target = DownloadTarget::loopback(peer.address)?;
+    let partial = directory.path()?.join(".first.part");
+    let moved = directory.path()?.join("moved-owned-file");
+
+    let mut tasks = JoinSet::new();
+    tasks.spawn(download_one(
+        peer.client.clone(),
+        directory.path()?.to_owned(),
+        target,
+    ));
+
+    assert_eq!(peer.observed().await?, (Method::GET, "/first".to_owned()));
+    assert_eq!(std::fs::read(&partial)?, b"");
+    std::fs::rename(&partial, &moved)?;
+    std::fs::write(&partial, SENTINEL)?;
+    assert_eq!(std::fs::read(&partial)?, SENTINEL);
+
+    peer.respond()?;
+    let result = timeout(PEER_TIMEOUT, tasks.join_next())
+        .await?
+        .ok_or("download task missing")?;
+    peer.finish().await?;
+    result??;
+
+    assert_eq!(std::fs::read(&moved)?, WIRE_BODY);
+    assert_eq!(std::fs::read(directory.path()?.join("first"))?, WIRE_BODY);
+    assert_eq!(std::fs::read(&partial)?, SENTINEL);
+
+    directory.finish()
+}
+
 #[test]
 fn cancelled_queued_write_cleans_its_exclusively_created_partial() -> TestResult {
     use tokio::io::AsyncWriteExt as _;
