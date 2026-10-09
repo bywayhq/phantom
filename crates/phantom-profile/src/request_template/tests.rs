@@ -339,8 +339,10 @@ fn every_template_recipe_is_valid() {
         brave::v153_android_navigation_template(),
         brave::v153_android_fetch_no_store_template(),
         chrome::v154_windows_fetch_template(),
+        chrome::v154_windows_fetch_upload_template(),
         chrome::v154_macos_fetch_template(),
         firefox::v157_windows_fetch_template(),
+        firefox::v157_windows_fetch_upload_template(),
         firefox::v157_macos_fetch_template(),
     ] {
         assert_eq!(template.validate(), Ok(()));
@@ -1284,6 +1286,236 @@ fn chromium_navigation_hint_block_holds_accept_ch_hints_in_profile_order() -> Ca
 }
 
 #[test]
+fn content_length_positions_accept_only_caller_slots() {
+    for protocol in [Protocol::Http1, Protocol::Http2, Protocol::Http3] {
+        let name = match protocol {
+            Protocol::Http1 => "Content-Length",
+            _ => "content-length",
+        };
+        for slot in [
+            RequestField::caller(name),
+            RequestField::required_caller(name),
+        ] {
+            let mut template = firefox::v157_windows_navigation_template();
+            let list = match protocol {
+                Protocol::Http1 => &mut template.http1_fields,
+                Protocol::Http2 => &mut template.http2_fields,
+                Protocol::Http3 => template.http3_fields.as_mut().expect("navigation h3"),
+            };
+            list.push(slot);
+            assert_eq!(template.validate(), Ok(()), "{protocol:?}");
+        }
+        for field in [
+            RequestField::literal(name, "100"),
+            RequestField::trustworthy_only(name, "100"),
+            RequestField::unless_forwarded(name, "100"),
+            RequestField::client_hint(name),
+        ] {
+            let mut template = firefox::v157_windows_navigation_template();
+            let list = match protocol {
+                Protocol::Http1 => &mut template.http1_fields,
+                Protocol::Http2 => &mut template.http2_fields,
+                Protocol::Http3 => template.http3_fields.as_mut().expect("navigation h3"),
+            };
+            list.push(field);
+            assert!(template.validate().is_err(), "{protocol:?}");
+        }
+    }
+    let mut template = firefox::v157_windows_navigation_template();
+    template.http1_fields.extend([
+        RequestField::caller("Content-Length"),
+        RequestField::required_caller("content-length"),
+    ]);
+    assert_eq!(
+        template.validate().map_err(|error| error.reason()),
+        Err("field names must not repeat")
+    );
+}
+
+/// Names emitted on a direct, trustworthy upload with the default hints.
+fn upload_names(fields: &[RequestField], has_content_type: bool) -> Vec<&str> {
+    fields
+        .iter()
+        .filter_map(|field| match field {
+            RequestField::Literal { name, .. }
+            | RequestField::ClientHint { name }
+            | RequestField::ByTrust {
+                name,
+                trustworthy: Some(_),
+                ..
+            }
+            | RequestField::ByForwarding {
+                name,
+                unforwarded: Some(_),
+                ..
+            } => Some(&**name),
+            RequestField::Caller { name, .. }
+                if has_content_type || !name.eq_ignore_ascii_case("content-type") =>
+            {
+                Some(&**name)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn upload_capture_names<'a>(capture: &'a str, path: &str) -> Vec<&'a str> {
+    let marker = format!(",method:POST,path:{path},");
+    let request = capture
+        .lines()
+        .find(|line| line.contains(&marker))
+        .expect("captured POST");
+    request
+        .split_once(",fields:")
+        .expect("captured field names")
+        .1
+        .split(',')
+        .next()
+        .expect("captured field list")
+        .split('|')
+        .filter(|name| *name != "Host" && !name.starts_with(':'))
+        .collect()
+}
+
+#[test]
+fn upload_templates_match_captured_text_blob_and_multipart_field_orders() {
+    for (template, http1, http2) in [
+        (
+            chrome::v154_windows_fetch_upload_template(),
+            fixture!("lifecycle/chrome/154.0.8037.97/windows-11-26200/upload-h1.txt"),
+            fixture!("lifecycle/chrome/154.0.8037.97/windows-11-26200/upload-h2.txt"),
+        ),
+        (
+            firefox::v157_windows_fetch_upload_template(),
+            fixture!("lifecycle/firefox/157.0/windows-11-26200/upload-h1.txt"),
+            fixture!("lifecycle/firefox/157.0/windows-11-26200/upload-h2.txt"),
+        ),
+    ] {
+        for (fields, capture) in [
+            (&template.http1_fields, http1),
+            (&template.http2_fields, http2),
+        ] {
+            for path in [
+                "/post-small",
+                "/post-large",
+                "/post-blob",
+                "/post-multipart",
+            ] {
+                assert_eq!(
+                    upload_names(fields, path != "/post-blob"),
+                    upload_capture_names(capture, path),
+                    "{path}"
+                );
+            }
+            // A form navigation has a different field order.
+            assert_ne!(
+                upload_names(fields, true),
+                upload_capture_names(capture, "/form-upload")
+            );
+        }
+        assert_eq!(template.http3_fields, None);
+    }
+}
+
+#[test]
+fn upload_templates_require_page_fields_and_keep_fetch_policy() {
+    for (upload, fetch) in [
+        (
+            chrome::v154_windows_fetch_upload_template(),
+            chrome::v154_windows_fetch_template(),
+        ),
+        (
+            firefox::v157_windows_fetch_upload_template(),
+            firefox::v157_windows_fetch_template(),
+        ),
+    ] {
+        assert_eq!(upload.http2_priority, fetch.http2_priority);
+        assert!(!upload.requested_client_hint_placement);
+        assert!(!upload.restarts_for_connection_accept_ch);
+        for (fields, original) in [
+            (&upload.http1_fields, &fetch.http1_fields),
+            (&upload.http2_fields, &fetch.http2_fields),
+        ] {
+            let credentials = |fields: &[RequestField]| {
+                fields
+                    .iter()
+                    .filter(|field| matches!(field, RequestField::ProxyAuthorization { .. }))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(credentials(fields), credentials(original));
+            for name in ["origin", "referer"] {
+                assert!(fields.iter().any(|field| matches!(field,
+                    RequestField::Caller { name: seen, required: true } if seen.eq_ignore_ascii_case(name)
+                )), "{name}");
+            }
+            for name in ["content-type", "content-length"] {
+                assert!(fields.iter().any(|field| matches!(field,
+                    RequestField::Caller { name: seen, required: false } if seen.eq_ignore_ascii_case(name)
+                )), "{name}");
+            }
+            for name in [
+                "if-none-match",
+                "if-modified-since",
+                "pragma",
+                "cache-control",
+            ] {
+                assert!(!fields.iter().any(|field| {
+                    field
+                        .name()
+                        .is_some_and(|seen| seen.eq_ignore_ascii_case(name))
+                }));
+            }
+        }
+    }
+    let firefox = firefox::v157_windows_fetch_upload_template();
+    assert!(
+        firefox
+            .http1_fields
+            .contains(&RequestField::required_caller("Priority"))
+    );
+    assert!(
+        firefox
+            .http2_fields
+            .contains(&RequestField::literal("priority", "u=4"))
+    );
+    assert!(
+        firefox
+            .http2_fields
+            .contains(&RequestField::literal("te", "trailers"))
+    );
+}
+
+#[test]
+fn chrome_upload_hint_anchors_include_the_optional_content_type() {
+    let template = chrome::v154_windows_fetch_upload_template();
+    let h1 = client_hint_placement(&template.http1_fields);
+    let h2 = client_hint_placement(&template.http2_fields);
+    assert_eq!(h1, h2);
+    let ua = h1
+        .iter()
+        .find(|slot| slot.hint.as_deref() == Some("sec-ch-ua"))
+        .expect("UA slot");
+    assert_eq!(
+        ua.followed_by,
+        [Box::<str>::from("content-type"), Box::<str>::from("accept")]
+    );
+    let mobile = h1
+        .iter()
+        .find(|slot| slot.hint.as_deref() == Some("sec-ch-ua-mobile"))
+        .expect("mobile slot");
+    assert_eq!(mobile.followed_by, [Box::<str>::from("accept")]);
+    let mut misplaced = template;
+    let content_type = misplaced
+        .http2_fields
+        .iter()
+        .position(|field| field.name() == Some("content-type"))
+        .expect("content type");
+    misplaced.http2_fields.swap(content_type, content_type + 1);
+    assert!(misplaced.validate().is_err());
+}
+
+#[test]
 fn validation_rejects_generated_repeated_and_misplaced_fields() {
     let mut template = chrome::v154_windows_navigation_template();
     template.http2_fields[2] = RequestField::literal("Upgrade-Insecure-Requests", "1");
@@ -1292,7 +1524,7 @@ fn validation_rejects_generated_repeated_and_misplaced_fields() {
         Err("http2_fields")
     );
 
-    for name in ["Host", "Cookie", "Content-Length", "Alt-Used"] {
+    for name in ["Host", "Cookie", "Alt-Used"] {
         let mut template = firefox::v157_windows_navigation_template();
         template.http1_fields.push(RequestField::caller(name));
         assert!(template.validate().is_err(), "{name}");

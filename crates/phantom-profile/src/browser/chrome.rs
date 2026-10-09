@@ -980,6 +980,67 @@ pub fn v154_windows_fetch_template() -> RequestTemplate {
     v154_fetch_template(Some(V154_WINDOWS_USER_AGENT))
 }
 
+/// Returns same-origin POST upload fields for Chrome 154 on Windows 11.
+///
+/// You supply `Origin` and `Referer`. `Content-Type` and `Content-Length` are
+/// optional caller slots. For a nonempty body with a known length and no
+/// trailers, an omitted length is appended after these fields.
+///
+/// The field order follows `upload-{h1,h2}.txt` under
+/// `fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/`.
+/// Text, Blob, and multipart uploads share this order. A Blob without a type
+/// omits `Content-Type`. The captures record multipart body byte counts,
+/// not boundary formatting or escaping.
+/// Other values, HTTP/2 priority, and proxy credential placement use
+/// [`v154_windows_fetch_template`]'s same-origin fetch policy. There is no
+/// HTTP/3 list, navigation POST list, or form-submit list.
+#[must_use]
+pub fn v154_windows_fetch_upload_template() -> RequestTemplate {
+    let mut template = v154_windows_fetch_template();
+    for (fields, length, content_type, origin, referer) in [
+        (
+            &mut template.http1_fields,
+            "Content-Length",
+            "Content-Type",
+            "Origin",
+            "Referer",
+        ),
+        (
+            &mut template.http2_fields,
+            "content-length",
+            "content-type",
+            "origin",
+            "referer",
+        ),
+    ] {
+        let mut upload = Vec::with_capacity(fields.len() + 1);
+        for field in fields.drain(..) {
+            let name = field.name().unwrap_or("");
+            if name.eq_ignore_ascii_case("if-none-match")
+                || name.eq_ignore_ascii_case("if-modified-since")
+            {
+                continue;
+            }
+            if name == "sec-ch-ua-platform" {
+                upload.push(RequestField::caller(length));
+            }
+            if name.eq_ignore_ascii_case("referer") {
+                upload.push(RequestField::required_caller(referer));
+            } else if name == "sec-ch-ua" {
+                upload.push(field);
+                upload.push(RequestField::caller(content_type));
+            } else if name.eq_ignore_ascii_case("accept") {
+                upload.push(field);
+                upload.push(RequestField::required_caller(origin));
+            } else {
+                upload.push(field);
+            }
+        }
+        *fields = upload;
+    }
+    template
+}
+
 /// Returns same-origin `fetch` request fields of Chrome 154 on macOS 15.5
 /// arm64 in the default cache mode, with slots for the validators of a
 /// revalidation.

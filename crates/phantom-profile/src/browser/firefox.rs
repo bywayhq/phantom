@@ -1190,6 +1190,67 @@ pub fn v157_windows_fetch_template() -> RequestTemplate {
     fetch_template(V157_WINDOWS_USER_AGENT, FetchCache::Default)
 }
 
+/// Returns same-origin POST upload fields for Firefox 157 on Windows 11.
+///
+/// You supply `Origin`, `Referer`, and HTTP/1.1 `Priority`. `Content-Type` and
+/// `Content-Length` are optional caller slots. For a nonempty body with a
+/// known length and no trailers, an omitted length follows these fields.
+///
+/// The field order follows `upload-{h1,h2}.txt` under
+/// `fixtures/lifecycle/firefox/157.0/windows-11-26200/`.
+/// Text, Blob, and multipart uploads share this order. A Blob without a type
+/// omits `Content-Type`. The captures record multipart body byte counts,
+/// not boundary formatting or escaping. They
+/// record the `Priority` name without its value, so HTTP/1.1 requires yours.
+/// Other values, HTTP/2 priority, `priority: u=4`, `te: trailers`, and proxy
+/// credential placement use [`v157_windows_fetch_template`]'s same-origin
+/// fetch policy. There is no HTTP/3, navigation POST, or form-submit list.
+#[must_use]
+pub fn v157_windows_fetch_upload_template() -> RequestTemplate {
+    let mut template = v157_windows_fetch_template();
+    for (fields, content_type, length, origin, referer) in [
+        (
+            &mut template.http1_fields,
+            "Content-Type",
+            "Content-Length",
+            "Origin",
+            "Referer",
+        ),
+        (
+            &mut template.http2_fields,
+            "content-type",
+            "content-length",
+            "origin",
+            "referer",
+        ),
+    ] {
+        let mut upload = Vec::with_capacity(fields.len() + 1);
+        for field in fields.drain(..) {
+            let name = field.name().unwrap_or("");
+            if name.eq_ignore_ascii_case("if-none-match")
+                || name.eq_ignore_ascii_case("if-modified-since")
+            {
+                continue;
+            }
+            if name.eq_ignore_ascii_case("referer") {
+                upload.extend([
+                    RequestField::required_caller(referer),
+                    RequestField::caller(content_type),
+                    RequestField::caller(length),
+                    RequestField::required_caller(origin),
+                ]);
+            } else if name == "Priority" {
+                upload.push(RequestField::required_caller("Priority"));
+            } else {
+                upload.push(field);
+            }
+        }
+        *fields = upload;
+    }
+    template.http3_fields = None;
+    template
+}
+
 /// Returns same-origin `fetch` request fields of Firefox 157 on macOS 15.5
 /// arm64 in the default cache mode, with slots for the validators of a
 /// revalidation.
