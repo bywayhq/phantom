@@ -177,6 +177,7 @@ mod link;
 mod redirect;
 mod request;
 mod request_body;
+mod request_slots;
 mod response;
 mod retry;
 mod route;
@@ -206,6 +207,7 @@ pub use request::{PreparedRequestTemplate, RequestBuilder};
 pub use request_body::{
     MultipartPart, PreparedBodyError, PreparedBodyErrorKind, PreparedRequestBody,
 };
+pub use request_slots::{RequestSlotError, RequestSlotErrorKind, RequestSlots};
 #[cfg(feature = "json")]
 pub use response::response_json;
 pub use response::{

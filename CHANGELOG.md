@@ -14,6 +14,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Allow future TCP policy variants. Migrate: keep a fallback arm when
+  matching `TcpKeepalivePolicy`, `TcpAddressAdvance`, and
+  `TcpAddressSelection`. Unsupported policies fail recoverably before I/O.
+
 - Keep `BuildError`, `WebSocketError`, and `SseError` causes out of automatic
   formatting. Migrate: inspect `std::error::Error::source` for typed details
   instead of parsing `Display` or `Debug`. Sources, rejecting WebSocket
@@ -992,6 +996,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HostResolver::new().with_override(..).with_resolver(..).with_cache(..)`.
 
 ### Added
+
+- Fill declared template caller slots through `RequestBuilder::fill_slots`.
+  The preparation hook runs once, preserves template field positions, and
+  cannot insert an undeclared field. Later protocol and redirect changes
+  recheck placement without recreating stripped credentials.
 
 - Prepare bounded, replayable JSON, ordered form, and multipart request
   bodies with `PreparedRequestBody`. `RequestBuilder::prepared_body` fills

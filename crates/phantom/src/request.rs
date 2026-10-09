@@ -76,6 +76,7 @@ pub struct RequestBuilder {
     trailers: Vec<RequestHeader>,
     body: RequestBodySource,
     prepared_content_type: Option<Box<str>>,
+    filled_slots: Vec<Box<str>>,
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
@@ -160,6 +161,7 @@ impl RequestBuilder {
             trailers: Vec::new(),
             body: RequestBodySource::Absent,
             prepared_content_type: None,
+            filled_slots: Vec::new(),
             route: None,
             timeouts: None,
             retry_policy: None,
@@ -220,7 +222,60 @@ impl RequestBuilder {
     /// The same rules apply as for [`Self::header`].
     pub fn headers(mut self, headers: Vec<RequestHeader>) -> Self {
         self.headers = headers;
+        self.filled_slots.clear();
         self
+    }
+
+    /// Runs a synchronous preparation hook that fills declared caller slots.
+    ///
+    /// Set a template first. The hook receives only slots declared on every
+    /// protocol this request may use, including enabled HTTP/2 fallback.
+    /// Filled fields keep the template's spelling and position when sent.
+    /// The hook runs once here. Retries reuse its fields, and cross-origin
+    /// redirects strip credential fields without invoking it again.
+    ///
+    /// Later template, route, or retry setters are checked at send time.
+    /// Replacing all headers clears the hook's fills. The hook cannot add an
+    /// undeclared field, replace literals, or reorder template fields.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::RequestSlotError`] for a missing template, undeclared
+    /// or already filled slot, or invalid field value. No network I/O occurs.
+    pub fn fill_slots<F>(mut self, fill: F) -> Result<Self, crate::RequestSlotError>
+    where
+        F: FnOnce(&mut crate::RequestSlots<'_>) -> Result<(), crate::RequestSlotError>,
+    {
+        let prepared =
+            self.request.template.as_ref().ok_or_else(|| {
+                crate::RequestSlotError::new(crate::RequestSlotErrorKind::Undeclared)
+            })?;
+        let policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
+        let declared = template::caller_slots(
+            prepared,
+            self.slot_scope(),
+            policy.http2_fallback() && policy.max_retries() != Some(0),
+        );
+        let first = self.headers.len();
+        fill(&mut crate::RequestSlots::new(&mut self.headers, &declared))?;
+        self.filled_slots.extend(
+            self.headers[first..]
+                .iter()
+                .map(|header| Box::from(header.name())),
+        );
+        Ok(self)
+    }
+
+    fn slot_scope(&self) -> template::ProtocolScope {
+        template::ProtocolScope {
+            exact: match self.selection {
+                ProtocolSelection::Exact(protocol) => Some(protocol),
+                ProtocolSelection::Http1Or2 => None,
+            },
+            alt_svc: self.client.alt_svc_enabled()
+                && self.selected_route().carries_quic_alternative(),
+            content_decoding: false,
+        }
     }
 
     /// Sends the request with a browser template's headers and order.
@@ -315,7 +370,6 @@ impl RequestBuilder {
     /// Existing headers keep their order. Missing placement, duplicates, or
     /// a different value fail with [`crate::RequestErrorKind::InvalidHeader`]
     /// before I/O. Later body setters replace both bytes and this requirement.
-    #[must_use]
     pub fn prepared_body(mut self, body: crate::PreparedRequestBody) -> Self {
         let (bytes, content_type) = body.into_parts();
         self.body = RequestBodySource::Bytes(bytes);
@@ -705,7 +759,7 @@ impl RequestBuilder {
     ) -> Result<Response<ResponseBody>, RequestError> {
         let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         let http2_fallback = retry_policy.http2_fallback() && retry_policy.max_retries() != Some(0);
-        let mut filled_slots = Vec::new();
+        let mut filled_slots = std::mem::take(&mut self.filled_slots);
         if let Some(content_type) = &self.prepared_content_type {
             if template::place_prepared_content_type(
                 self.request.template.as_ref(),
@@ -725,6 +779,13 @@ impl RequestBuilder {
                 filled_slots.push(Box::<str>::from("content-type"));
             }
         }
+        template::check_filled_slots(
+            self.request.template.as_ref(),
+            self.slot_scope(),
+            http2_fallback,
+            &self.headers,
+            &filled_slots,
+        )?;
         let timeout_budget = crate::timeout::TimeoutBudget::new(
             self.timeouts
                 .unwrap_or_default()
@@ -835,6 +896,7 @@ impl RequestBuilder {
             trailers: request_trailers,
             body,
             prepared_content_type: _,
+            filled_slots: _,
             route,
             timeouts: _,
             retry_policy: _,
