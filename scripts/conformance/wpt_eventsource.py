@@ -407,6 +407,9 @@ class _ServerOwner:
                 interrupt.shutdown_failures = failures
                 raise
         if primary is not None:
+            if isinstance(primary, KeyboardInterrupt):
+                primary.shutdown_failures = failures
+                raise primary
             if len(failures) > 1:
                 raise _ServerFailure(failures) from primary
             raise primary
