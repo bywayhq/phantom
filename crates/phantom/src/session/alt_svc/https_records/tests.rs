@@ -1,7 +1,7 @@
 use std::{
     num::NonZeroUsize,
     sync::{
-        Arc, Mutex,
+        Arc,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
@@ -38,13 +38,13 @@ fn rdata(priority: u16, target: &[&str], params: &[(u16, &[u8])]) -> Vec<u8> {
 struct LookupCounts {
     started: AtomicUsize,
     active: AtomicUsize,
-    hosts: Mutex<Vec<String>>,
+    hosts: tokio::sync::Mutex<Vec<String>>,
     changed: tokio::sync::Notify,
 }
 
 impl LookupCounts {
-    fn enter(self: &Arc<Self>, host: String) -> ActiveLookup {
-        self.hosts.lock().expect("fixture hosts lock").push(host);
+    async fn enter(self: &Arc<Self>, host: String) -> ActiveLookup {
+        self.hosts.lock().await.push(host);
         self.active.fetch_add(1, Ordering::SeqCst);
         self.started.fetch_add(1, Ordering::SeqCst);
         self.changed.notify_one();
@@ -96,7 +96,7 @@ fn controlled_discovery() -> TestResult<(
             let advertised = advertised.clone();
             let mut released = released.clone();
             async move {
-                let _active = counts.enter(host.clone());
+                let _active = counts.enter(host.clone()).await;
                 while !*released.borrow() {
                     if released.changed().await.is_err() {
                         break;
@@ -136,10 +136,7 @@ async fn cancelled_waiters_and_origin_churn_keep_lookup_work_bounded() -> TestRe
     tokio::task::yield_now().await;
     assert_eq!(counts.started.load(Ordering::SeqCst), 1);
     assert_eq!(counts.active.load(Ordering::SeqCst), 1);
-    assert_eq!(
-        *counts.hosts.lock().expect("fixture hosts lock"),
-        ["first.test"]
-    );
+    assert_eq!(*counts.hosts.lock().await, ["first.test"]);
 
     release.send_replace(true);
     assert!(settle(&discovery, &first).await?);
@@ -198,7 +195,7 @@ fn completed_cache_churn_does_not_duplicate_a_pending_origin() -> TestResult<()>
             let advertised = advertised.clone();
             let mut released = released.clone();
             async move {
-                let _active = counts.enter(host.clone());
+                let _active = counts.enter(host.clone()).await;
                 if host == "first.test" {
                     while !*released.borrow() {
                         if released.changed().await.is_err() {
@@ -264,7 +261,7 @@ async fn resolver_panic_releases_its_lookup_reservation() -> TestResult<()> {
             let counts = Arc::clone(&counts);
             let advertised = advertised.clone();
             async move {
-                let _active = counts.enter(host.clone());
+                let _active = counts.enter(host.clone()).await;
                 if host == "panic.test" {
                     panic!("controlled resolver panic");
                 }
