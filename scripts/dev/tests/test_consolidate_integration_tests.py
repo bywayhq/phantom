@@ -192,8 +192,65 @@ class ConsolidateTests(CrateTestCase):
         self.assertIn("\nmod late;", main)
         self.assertIn('all(feature = "extra", feature = "more")', main)
 
+    def test_a_new_file_joins_an_explicit_group_without_changing_its_target(
+        self,
+    ) -> None:
+        self.consolidate()
+        manifest = self.read("crates/demo/Cargo.toml").replace(
+            'name = "demo"', 'name = "demo"\nautotests = false'
+        )
+        group_target = '\n[[test]]\nname = "only"\npath = "tests/only/main.rs"\n'
+        self.write("crates/demo/Cargo.toml", manifest + group_target)
+        self.assertIn("nothing to move", self.consolidate())
+        self.write("crates/demo/tests/late.rs", "#[test]\nfn runs() {}\n")
+        self.write(
+            "crates/demo/Cargo.toml",
+            manifest
+            + group_target
+            + '\n[[test]]\nname = "late"\nrequired-features = ["extra"]\n',
+        )
+        self.run_git("add", ".")
+        groups = {
+            "crates/demo": {"only": ("the demo crate", ["gated", "late", "plain"])}
+        }
+        with mock.patch.object(consolidator, "GROUPS", groups):
+            self.consolidate()
+            self.assertIn("nothing to move", self.consolidate())
+        self.assertFalse((self.crate / "tests" / "late.rs").exists())
+        self.assertTrue((self.crate / "tests" / "only" / "late.rs").is_file())
+        main = self.read("crates/demo/tests/only/main.rs")
+        self.assertIn('#[cfg(feature = "extra")]\nmod late;', main)
+        self.assertIn('all(feature = "extra", feature = "more")', main)
+        self.assertEqual(
+            self.read("crates/demo/Cargo.toml").rstrip(),
+            (manifest + group_target).rstrip(),
+        )
+
 
 class RefusalTests(CrateTestCase):
+    def test_incompatible_explicit_group_targets_stop_before_moving_files(self) -> None:
+        manifest = MANIFEST.replace('name = "demo"', 'name = "demo"\nautotests = false')
+        group_target = '\n[[test]]\nname = "only"\npath = "tests/only/main.rs"\n'
+        cases = {
+            "missing": "",
+            "wrong path": group_target.replace("tests/only/main.rs", "tests/only.rs"),
+            "group feature gate": group_target + 'required-features = ["extra"]\n',
+            "quoted group feature gate": group_target
+            + '"required-features" = ["extra"]\n',
+            "group harness": group_target + "harness = false\n",
+            "unknown target": group_target + '\n[[test]]\nname = "unknown"\n',
+            "duplicate group": group_target + group_target,
+        }
+        for name, targets in cases.items():
+            with self.subTest(case=name):
+                self.write("crates/demo/Cargo.toml", manifest + targets)
+                with self.assertRaises(SystemExit):
+                    self.consolidate()
+                self.assertTrue((self.crate / "tests" / "plain.rs").is_file())
+                self.assertEqual(
+                    self.read("crates/demo/Cargo.toml"), manifest + targets
+                )
+
     def test_an_unplaced_file_stops_the_move(self) -> None:
         self.write("crates/demo/tests/stray.rs", "#[test]\nfn runs() {}\n")
         with self.assertRaises(SystemExit) as stop:

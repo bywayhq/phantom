@@ -357,16 +357,51 @@ def and_cfg(a: str | None, b: str | None) -> str | None:
     return a if a == b else f"all({a}, {b})"
 
 
-def target_gates(manifest: Path, stems: set[str]) -> dict[str, str]:
+def target_gates(manifest: Path, stems: set[str], groups: set[str]) -> dict[str, str]:
     """Turns the `[[test]]` tables of moving files into `cfg` gates.
 
     A moved file is a module, not a target, so its table goes. Its
     `required-features` becomes the module's `cfg`, so a build without them
     still skips its tests. No other setting has a module equivalent.
+    With automatic discovery disabled, every group must already declare its
+    standard target path without additional settings.
     """
     text = read(manifest)
     if re.search(r"^[ \t]*autotests[ \t]*=[ \t]*false", text, re.M):
-        fail(f"{manifest} sets autotests = false; add the group targets by hand")
+        explicit_groups: set[str] = set()
+        for table in TEST_TABLE.finditer(text):
+            body = table.group(0)
+            name = re.search(r'^[ \t]*name[ \t]*=[ \t]*"([^"]+)"', body, re.M)
+            if name is None:
+                fail(f"{manifest}: an explicit test target has no name")
+            stem = name[1]
+            if stem in stems:
+                continue
+            if stem not in groups:
+                fail(
+                    f"{manifest}: explicit test `{stem}` is not a group; move it by hand"
+                )
+            if stem in explicit_groups:
+                fail(f"{manifest}: group `{stem}` has duplicate test targets")
+            for line in body.splitlines()[1:]:
+                if not line.strip() or line.lstrip().startswith("#"):
+                    continue
+                if not re.fullmatch(
+                    r'[ \t]*(?:name|path)[ \t]*=[ \t]*"[^"\\]*"[ \t]*(?:#.*)?', line
+                ):
+                    fail(f"{manifest}: group `{stem}` must set only name and path")
+            keys = [key["key"] for key in TABLE_KEY.finditer(body)]
+            if sorted(keys) != ["name", "path"]:
+                fail(f"{manifest}: group `{stem}` must set only name and path")
+            path = re.search(r'^[ \t]*path[ \t]*=[ \t]*"([^"]+)"', body, re.M)
+            if path is None or path[1] != f"tests/{stem}/main.rs":
+                fail(f"{manifest}: group `{stem}` must use tests/{stem}/main.rs")
+            explicit_groups.add(stem)
+        missing = groups - explicit_groups
+        if missing:
+            fail(
+                f"{manifest}: add explicit test targets for {', '.join(sorted(missing))}"
+            )
     gates: dict[str, str] = {}
     moving = []
     for table in TEST_TABLE.finditer(text):
@@ -515,7 +550,7 @@ def consolidate(crate_dir: str) -> None:
     if not tops:
         print(f"{crate_dir}: nothing to move")
         return
-    required = target_gates(manifest, {p.stem for p in tops})
+    required = target_gates(manifest, {p.stem for p in tops}, set(groups))
 
     # Modules already in place keep the gates their `main.rs` gives them.
     module_cfg: dict[str, str | None] = {}
