@@ -39,6 +39,8 @@ use replay_buffer::{NoReplay, ReplayBuffer};
 /// [`Client::get_negotiated`] and [`Client::request_negotiated`] build requests
 /// whose H1 or H2 selection is made by ALPN. Fields, route, and policies are
 /// checked when [`Self::send`] runs, before any I/O.
+/// New requests inherit the profile's default template. Use [`Self::template`]
+/// to replace it or [`Self::without_template`] to opt out for one request.
 ///
 /// # Examples
 ///
@@ -142,9 +144,11 @@ impl RequestBuilder {
             | ProtocolSelection::Http1Or2 => {}
         }
         let uri = parse_absolute_uri(uri).map_err(request_uri_error)?;
+        let mut request = ResolvedRequest::new(&uri)?;
+        request.template = client.inner.request_template.clone();
         Ok(Self {
             client,
-            request: ResolvedRequest::new(&uri)?,
+            request,
             selection,
             method,
             headers: Vec::new(),
@@ -180,8 +184,10 @@ impl RequestBuilder {
 
     /// Sends the request with a browser template's headers and order.
     ///
-    /// By default no template is used. Each attempt emits the template's list
-    /// for the protocol it uses, after `Host` on HTTP/1.1 or the pseudo-header
+    /// Replaces the profile's default template for this request. Without a
+    /// profile default or an explicit template, no template is used.
+    /// Each attempt emits the template's list for the protocol it uses,
+    /// after `Host` on HTTP/1.1 or the pseudo-header
     /// fields on HTTP/2 and HTTP/3. A matching caller header takes the
     /// template entry's position and spelling. It keeps your value. A literal
     /// entry without a matching caller header sends the template's value.
@@ -193,7 +199,8 @@ impl RequestBuilder {
     /// fill the template's client-hint slots. On HTTP/2, the template's
     /// [`http2_priority`](crate::profile::RequestTemplate::http2_priority)
     /// replaces the connection's HEADERS priority for this request's stream.
-    /// Every redirect hop uses the same template. A
+    /// Every redirect hop keeps the template. Cross-origin redirects remove
+    /// its credential fields for all later hops. A
     /// [`RequestField::ByTrust`](crate::profile::RequestField::ByTrust) entry
     /// sends the value for whether each hop's URL is potentially trustworthy:
     /// `https`, or `http` to a loopback address, `localhost`, or a
@@ -220,6 +227,16 @@ impl RequestBuilder {
     /// `sec-ch-ua` values with the template.
     pub fn template(mut self, template: &PreparedRequestTemplate) -> Self {
         self.request.template = Some(template.clone());
+        self
+    }
+
+    /// Sends this request without a template, including the profile default.
+    ///
+    /// Caller headers keep their order. Automatic client hints and cookies use
+    /// the profile's usual placement. A later [`Self::template`] sets an
+    /// explicit template.
+    pub fn without_template(mut self) -> Self {
+        self.request.template = None;
         self
     }
 
@@ -1352,6 +1369,93 @@ mod tests {
         declares_alt_used_trailer, ensure_request_supported,
     };
     use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
+
+    #[test]
+    fn new_requests_share_the_prepared_profile_default() -> Result<(), Box<dyn std::error::Error>> {
+        use phantom_profile::{ClientProfile, browser::chrome};
+
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
+            .with_http2(chrome::v154_http2())
+            .with_request_template(chrome::v154_windows_navigation_template());
+        let client = crate::Client::builder(profile).build()?;
+        let prepared = client
+            .inner
+            .request_template
+            .as_ref()
+            .ok_or("default was not prepared")?;
+        for request in [
+            client.get(HttpProtocol::Http1, "https://example.com/")?,
+            client.request(
+                HttpProtocol::Http2,
+                http::Method::POST,
+                "https://example.com/",
+            )?,
+            client.get_negotiated("https://example.com/")?,
+            client.request_negotiated(http::Method::POST, "https://example.com/")?,
+        ] {
+            let inherited = request
+                .request
+                .template
+                .as_ref()
+                .ok_or("default was not inherited")?;
+            assert!(std::ptr::eq(
+                prepared
+                    .fields_for(HttpProtocol::Http1)
+                    .ok_or("missing H1 fields")?,
+                inherited
+                    .fields_for(HttpProtocol::Http1)
+                    .ok_or("missing H1 fields")?,
+            ));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn template_override_and_opt_out_apply_only_to_the_current_request()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use phantom_profile::{ClientProfile, browser::chrome};
+
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
+            .with_request_template(chrome::v154_windows_navigation_template());
+        let client = crate::Client::builder(profile).build()?;
+        let explicit =
+            crate::PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
+        let request = client
+            .get(HttpProtocol::Http1, "https://example.com/")?
+            .without_template()
+            .template(&explicit);
+        let applied = request
+            .request
+            .template
+            .as_ref()
+            .ok_or("explicit template was not restored")?;
+        assert!(std::ptr::eq(
+            explicit
+                .fields_for(HttpProtocol::Http1)
+                .ok_or("missing H1 fields")?,
+            applied
+                .fields_for(HttpProtocol::Http1)
+                .ok_or("missing H1 fields")?,
+        ));
+        assert!(request.without_template().request.template.is_none());
+        assert!(
+            client
+                .get(HttpProtocol::Http1, "https://example.com/")?
+                .request
+                .template
+                .is_some()
+        );
+        let no_default =
+            crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
+        assert!(
+            no_default
+                .get(HttpProtocol::Http1, "https://example.com/")?
+                .request
+                .template
+                .is_none()
+        );
+        Ok(())
+    }
 
     #[test]
     fn streaming_body_cannot_be_replayed_for_a_second_attempt() {

@@ -21,7 +21,7 @@ use phantom_profile::{
 };
 
 use crate::{
-    BuildError, RequestBuilder, Route,
+    BuildError, PreparedRequestTemplate, RequestBuilder, Route,
     authority::{Endpoint, parse_absolute_uri},
     session::{ClientOptions, ClientState, http3_pool::ConnectUdpConnectors},
 };
@@ -74,11 +74,11 @@ impl HttpProtocol {
 /// # Examples
 ///
 /// ```no_run
-/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::profile::{browser::chrome, ClientProfile};
 /// use phantom::{Client, HttpProtocol};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+/// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
 /// let client = Client::builder(profile).build()?;
 ///
 /// let response = client
@@ -134,6 +134,8 @@ pub(crate) struct ClientInner {
     /// for every connection.
     pub(crate) host_resolver: Option<HostResolver>,
     pub(crate) client_hints: Option<ClientHintSettings>,
+    /// The profile's template, validated once when the client is built.
+    pub(crate) request_template: Option<PreparedRequestTemplate>,
     /// The profile's HTTP/1.1 connection bound per origin and route.
     pub(crate) http1_connections_per_origin: NonZeroUsize,
     /// How long the profile reuses an idle HTTP/1.1 connection.
@@ -649,11 +651,11 @@ impl Client {
 /// ```
 /// use std::{num::NonZeroUsize, time::Duration};
 ///
-/// use phantom::profile::{chromium, ClientProfile};
+/// use phantom::profile::{browser::chrome, ClientProfile};
 /// use phantom::{Client, RequestTimeouts};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+/// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
 /// let client = Client::builder(profile)
 ///     .request_timeouts(RequestTimeouts::new().total(Duration::from_secs(30)))
 ///     .max_retained_http2_connections(NonZeroUsize::new(8).expect("eight is nonzero"))
@@ -961,11 +963,11 @@ impl ClientBuilder {
     /// ```
     /// use std::net::{IpAddr, Ipv4Addr};
     ///
-    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::profile::{browser::chrome, ClientProfile};
     /// use phantom::Client;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     /// // Send example.com traffic to a staging server, keeping SNI and Host.
     /// let client = Client::builder(profile)
     ///     .resolve("example.com", [IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10))])
@@ -1017,7 +1019,7 @@ impl ClientBuilder {
     /// use std::io;
     /// use std::net::{IpAddr, Ipv4Addr};
     ///
-    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::profile::{browser::chrome, ClientProfile};
     /// use phantom::{AddressResolver, Client};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -1028,7 +1030,7 @@ impl ClientBuilder {
     ///         _ => Err(io::Error::new(io::ErrorKind::NotFound, "unknown host")),
     ///     }
     /// });
-    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     /// let client = Client::builder(profile).dns_resolver(resolver).build()?;
     /// # drop(client);
     /// # Ok(())
@@ -1070,11 +1072,11 @@ impl ClientBuilder {
     /// ```
     /// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
     ///
-    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::profile::{browser::chrome, ClientProfile};
     /// use phantom::Client;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     /// let client = Client::builder(profile)
     ///     .local_address(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 10)))
     ///     .local_address(IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 10)))
@@ -1154,7 +1156,7 @@ impl ClientBuilder {
     /// # Examples
     ///
     /// ```no_run
-    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::profile::{browser::chrome, ClientProfile};
     /// use phantom::{Client, ClientCertificate};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -1162,7 +1164,7 @@ impl ClientBuilder {
     ///     &std::fs::read("client-chain.pem")?,
     ///     &std::fs::read("client-key.pem")?,
     /// )?;
-    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     /// let client = Client::builder(profile)
     ///     .client_certificate(certificate)
     ///     .build()?;
@@ -1209,7 +1211,7 @@ impl ClientBuilder {
     /// # Examples
     ///
     /// ```no_run
-    /// use phantom::profile::{chromium, ClientProfile};
+    /// use phantom::profile::{browser::chrome, ClientProfile};
     /// use phantom::{Client, ClientCertificate};
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -1221,7 +1223,7 @@ impl ClientBuilder {
     ///     &std::fs::read("api-chain.pem")?,
     ///     &std::fs::read("api-key.pem")?,
     /// )?;
-    /// let profile = ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+    /// let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
     /// let client = Client::builder(profile)
     ///     .client_certificate(default)
     ///     .client_certificate_for("https://api.example:8443", api)
@@ -1704,8 +1706,9 @@ impl ClientBuilder {
     /// Returns a [`BuildError`] whose [`BuildError::kind`] is:
     ///
     /// - [`InvalidProfile`](crate::BuildErrorKind::InvalidProfile) when the
-    ///   TLS, TCP, HTTP/1.1, client-hint, WebSocket, HTTP/2, or HTTP/3
-    ///   settings are invalid, or this host cannot apply the TCP settings;
+    ///   TLS, TCP, HTTP/1.1, client-hint, WebSocket, HTTP/2, HTTP/3, or default
+    ///   request-template settings are invalid, or this host cannot apply the
+    ///   TCP settings;
     /// - [`InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy) when a
     ///   timeout, retry delay, negotiated setup wait limit, or Alt-Svc race
     ///   delay or setup limit exceeds the runtime clock range;
@@ -1781,6 +1784,13 @@ impl ClientBuilder {
                 .validate()
                 .map_err(BuildError::invalid_proxy_connect_profile)?;
         }
+        let request_template = self
+            .profile
+            .request_template()
+            .cloned()
+            .map(PreparedRequestTemplate::new)
+            .transpose()
+            .map_err(BuildError::invalid_request_template_profile)?;
 
         let authentication_disabled = !self.server_authentication.verifies();
         if authentication_disabled {
@@ -2034,6 +2044,7 @@ impl ClientBuilder {
             proxy_credentials: None,
             host_resolver: None,
             client_hints,
+            request_template,
             http1_connections_per_origin: self
                 .profile
                 .http1()
@@ -2230,7 +2241,8 @@ mod tests {
 
     use phantom_profile::{
         ClientProfile, Http1IdleTimeout, Http2IdleTimeout, Http3ClientSettings, TcpKeepalive,
-        TcpKeepalivePolicy, chromium, firefox,
+        TcpKeepalivePolicy,
+        browser::{chrome, firefox},
     };
 
     use super::{Client, HttpProtocol};
@@ -2239,10 +2251,33 @@ mod tests {
     use crate::{BuildErrorKind, HttpProxy, Route};
 
     #[test]
+    fn invalid_default_request_template_is_an_invalid_profile() {
+        use phantom_profile::{InvalidRequestTemplate, RequestField};
+        use std::error::Error as _;
+
+        let mut template = chrome::v154_windows_navigation_template();
+        template
+            .http2_fields
+            .push(RequestField::literal("X-Invalid", "value"));
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_request_template(template);
+        let error = Client::builder(profile)
+            .build()
+            .expect_err("uppercase H2 field was accepted");
+
+        assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+        assert!(
+            error
+                .source()
+                .and_then(|source| source.downcast_ref::<InvalidRequestTemplate>())
+                .is_some()
+        );
+    }
+
+    #[test]
     fn connect_udp_proxy_connection_omits_resumption_additions() {
         use phantom_profile::quic::QuicTransportParameterKind;
 
-        let recipe = chromium::v154_quic();
+        let recipe = chrome::v154_quic();
         let outer = super::connect_udp_proxy_quic(&recipe);
         assert!(recipe.early_data);
         assert!(!outer.early_data);
@@ -2266,19 +2301,19 @@ mod tests {
 
     #[test]
     fn profile_tcp_settings_reach_every_tcp_connector() -> Result<(), Box<dyn std::error::Error>> {
-        let tcp = chromium::v154_tcp();
+        let tcp = chrome::v154_tcp();
         let http3 = Http3ClientSettings::new(
-            chromium::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
-        let profile = ClientProfile::new(chromium::v154_tls())
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
             .with_tcp(tcp)
-            .with_http2(chromium::v154_http2())
+            .with_http2(chrome::v154_http2())
             .with_http3(http3);
         #[cfg(feature = "websocket")]
-        let profile = profile.with_websocket(chromium::v154_websocket());
+        let profile = profile.with_websocket(chrome::v154_websocket());
         let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
         let client = Client::builder(profile).route(route).build()?;
         let inner = &client.inner;
@@ -2318,14 +2353,14 @@ mod tests {
     #[test]
     fn profile_udp_settings_reach_every_http3_connector() -> Result<(), Box<dyn std::error::Error>>
     {
-        let udp = chromium::v154_udp();
+        let udp = chrome::v154_udp();
         let http3 = Http3ClientSettings::new(
-            chromium::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
-        let profile = ClientProfile::new(chromium::v154_tls())
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
             .with_udp(udp)
             .with_http3(http3.clone());
         let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
@@ -2346,7 +2381,7 @@ mod tests {
             expected
         );
 
-        let without = ClientProfile::new(chromium::v154_tls()).with_http3(http3);
+        let without = ClientProfile::new(chrome::v154_tcp_tls()).with_http3(http3);
         let client = Client::builder(without).build()?;
         assert_eq!(
             client.inner.http3.as_ref().and_then(|c| c.udp_settings()),
@@ -2360,16 +2395,16 @@ mod tests {
         use std::net::{IpAddr, Ipv4Addr};
 
         let http3 = Http3ClientSettings::new(
-            chromium::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
-        let profile = ClientProfile::new(chromium::v154_tls())
-            .with_http2(chromium::v154_http2())
+        let profile = ClientProfile::new(chrome::v154_tcp_tls())
+            .with_http2(chrome::v154_http2())
             .with_http3(http3);
         #[cfg(feature = "websocket")]
-        let profile = profile.with_websocket(chromium::v154_websocket());
+        let profile = profile.with_websocket(chrome::v154_websocket());
         let route = Route::http_proxy(HttpProxy::new("https://proxy.example")?);
         let address = IpAddr::V4(Ipv4Addr::LOCALHOST);
         let client = Client::builder(profile)
@@ -2427,7 +2462,7 @@ mod tests {
             expected
         );
 
-        let unbound = Client::builder(ClientProfile::new(chromium::v154_tls())).build()?;
+        let unbound = Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
         assert_eq!(
             unbound
                 .inner
@@ -2441,12 +2476,12 @@ mod tests {
 
     #[test]
     fn invalid_tcp_profile_has_invalid_profile_category() -> Result<(), &'static str> {
-        let mut tcp = chromium::v154_tcp();
+        let mut tcp = chrome::v154_tcp();
         tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::ZERO,
             interval: None,
         });
-        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_tcp(tcp);
         let error = Client::builder(profile)
             .build()
             .err()
@@ -2460,7 +2495,7 @@ mod tests {
     fn a_timer_idle_limit_beyond_firefox_range_is_an_invalid_profile() -> Result<(), &'static str> {
         let mut http1 = firefox::v157_http1();
         http1.idle_timeout = Http1IdleTimeout::ClosedOnTimer(Duration::MAX);
-        let profile = ClientProfile::new(firefox::v157_tls()).with_http1(http1);
+        let profile = ClientProfile::new(firefox::v157_tcp_tls()).with_http1(http1);
         let error = Client::builder(profile)
             .build()
             .err()
@@ -2476,7 +2511,7 @@ mod tests {
         for limit in [Duration::ZERO, Duration::MAX] {
             let mut http2 = firefox::v157_http2();
             http2.idle_timeout = Http2IdleTimeout::ClosedOnTimer(limit);
-            let profile = ClientProfile::new(firefox::v157_tls()).with_http2(http2);
+            let profile = ClientProfile::new(firefox::v157_tcp_tls()).with_http2(http2);
             let error = Client::builder(profile)
                 .build()
                 .err()
@@ -2489,12 +2524,12 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn keepalive_without_interval_is_an_invalid_profile_on_windows() -> Result<(), &'static str> {
-        let mut tcp = chromium::v154_tcp();
+        let mut tcp = chrome::v154_tcp();
         tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::from_secs(45),
             interval: None,
         });
-        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_tcp(tcp);
         let error = Client::builder(profile)
             .build()
             .err()
@@ -2507,19 +2542,19 @@ mod tests {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     #[test]
     fn idle_only_keepalive_builds_where_the_host_supports_it() -> Result<(), BuildError> {
-        let mut tcp = chromium::v154_tcp();
+        let mut tcp = chrome::v154_tcp();
         tcp.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
             idle: Duration::from_secs(45),
             interval: None,
         });
-        let profile = ClientProfile::new(chromium::v154_tls()).with_tcp(tcp);
+        let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_tcp(tcp);
 
         Client::builder(profile).build().map(drop)
     }
 
     #[test]
     fn invalid_proxy_root_has_trust_store_category() -> Result<(), &'static str> {
-        let profile = ClientProfile::new(chromium::v154_tls());
+        let profile = ClientProfile::new(chrome::v154_tcp_tls());
         let error = Client::builder(profile)
             .add_proxy_root_certificate_der(b"not-a-certificate".as_slice())
             .build()
@@ -2533,7 +2568,7 @@ mod tests {
     #[cfg(feature = "danger-disable-verification")]
     #[test]
     fn disabled_proxy_authentication_rejects_proxy_roots() -> Result<(), &'static str> {
-        let profile = ClientProfile::new(chromium::v154_tls());
+        let profile = ClientProfile::new(chrome::v154_tcp_tls());
         let error = Client::builder(profile)
             .proxy_server_authentication(crate::ServerAuthentication::DangerDisabled)
             .add_proxy_root_certificate_der(b"unused".as_slice())
@@ -2547,9 +2582,9 @@ mod tests {
 
     #[test]
     fn https_proxy_requires_http1_in_the_tls_recipe() -> Result<(), &'static str> {
-        let mut tls = chromium::v154_tls();
+        let mut tls = chrome::v154_tcp_tls();
         tls.alpn_protocols = vec![Box::from(&b"h2"[..])];
-        let profile = ClientProfile::new(tls).with_http2(chromium::v154_http2());
+        let profile = ClientProfile::new(tls).with_http2(chrome::v154_http2());
         let route = Route::http_proxy(
             HttpProxy::new("https://proxy.example")
                 .map_err(|_| "valid HTTPS proxy route was rejected")?,
@@ -2568,7 +2603,7 @@ mod tests {
     fn alt_svc_requires_negotiated_http1_or_2_and_http3() -> Result<(), &'static str> {
         let capacity = NonZeroUsize::MIN;
         let without_http3 =
-            ClientProfile::new(chromium::v154_tls()).with_http2(chromium::v154_http2());
+            ClientProfile::new(chrome::v154_tcp_tls()).with_http2(chrome::v154_http2());
         let error = Client::builder(without_http3)
             .alt_svc(capacity)
             .build()
@@ -2577,12 +2612,12 @@ mod tests {
         assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
 
         let http3 = Http3ClientSettings::new(
-            chromium::v154_http3_tls(),
-            chromium::v154_quic(),
-            chromium::v154_http3(),
-            chromium::v154_http3_request(),
+            chrome::v154_quic_tls(),
+            chrome::v154_quic(),
+            chrome::v154_http3(),
+            chrome::v154_http3_request(),
         );
-        let without_negotiation = ClientProfile::new(chromium::v154_http3_tls()).with_http3(http3);
+        let without_negotiation = ClientProfile::new(chrome::v154_quic_tls()).with_http3(http3);
         let error = Client::builder(without_negotiation)
             .alt_svc(capacity)
             .build()

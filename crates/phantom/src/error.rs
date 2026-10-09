@@ -14,7 +14,7 @@ use phantom_net::{
 };
 use phantom_profile::{
     InvalidClientHintSettings, InvalidHttp1Settings, InvalidProxyConnectTemplate,
-    InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
+    InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
 };
 
 use crate::{HttpProtocol, TimeoutPhase};
@@ -118,6 +118,14 @@ impl BuildError {
         Self::with_source(
             BuildErrorKind::InvalidProfile,
             "invalid proxy CONNECT profile",
+            source,
+        )
+    }
+
+    pub(crate) fn invalid_request_template_profile(source: InvalidRequestTemplate) -> Self {
+        Self::with_source(
+            BuildErrorKind::InvalidProfile,
+            "invalid default request template",
             source,
         )
     }

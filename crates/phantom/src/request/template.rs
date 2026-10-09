@@ -16,6 +16,7 @@ use crate::{HttpProtocol, RequestError};
 /// [`PreparedRequestTemplate::new`] validates the template once. Pass the
 /// result to [`RequestBuilder::template`](crate::RequestBuilder::template)
 /// for each request; cloning it copies a reference count, not the fields.
+/// A profile's default template is prepared once while building the client.
 #[derive(Clone, Debug)]
 pub struct PreparedRequestTemplate(Arc<Prepared>);
 
