@@ -331,9 +331,10 @@ pub(crate) struct ProtocolScope {
 pub(crate) fn place_prepared_content_type(
     prepared: Option<&PreparedRequestTemplate>,
     scope: ProtocolScope,
+    http2_fallback: bool,
     caller: &mut Vec<RequestHeader>,
     content_type: &str,
-) -> Result<(), RequestError> {
+) -> Result<bool, RequestError> {
     let mut existing = caller
         .iter()
         .filter(|header| header.name().eq_ignore_ascii_case("content-type"));
@@ -343,32 +344,96 @@ pub(crate) fn place_prepared_content_type(
                 "prepared body needs one matching Content-Type field",
             ));
         }
-        return Ok(());
+        return Ok(false);
     }
     let Some(prepared) = prepared else {
         return Err(RequestError::prepared_body_content_type(
             "prepared body needs a Content-Type caller slot or explicit field",
         ));
     };
-    let has_slot = |protocol| {
-        prepared.fields_for(protocol).is_some_and(|fields| fields.iter().any(|field| {
-        matches!(field, RequestField::Caller { name, .. } if name.eq_ignore_ascii_case("content-type"))
-    }))
-    };
-    let declared = match scope.exact {
-        Some(protocol) => has_slot(protocol),
-        None => {
-            has_slot(HttpProtocol::Http1)
-                && has_slot(HttpProtocol::Http2)
-                && (!scope.alt_svc || has_slot(HttpProtocol::Http3))
-        }
-    };
-    if !declared {
+    if !caller_slot_is_declared(prepared, scope, http2_fallback, "content-type") {
         return Err(RequestError::prepared_body_content_type(
             "prepared body needs a Content-Type caller slot on every selected protocol",
         ));
     }
     caller.push(RequestHeader::new("content-type", content_type));
+    Ok(true)
+}
+
+fn selected_protocols(
+    scope: ProtocolScope,
+    http2_fallback: bool,
+) -> impl Iterator<Item = HttpProtocol> {
+    let protocols = match scope.exact {
+        Some(protocol) => [
+            Some(protocol),
+            (protocol == HttpProtocol::Http3 && http2_fallback).then_some(HttpProtocol::Http2),
+            None,
+        ],
+        None => [
+            Some(HttpProtocol::Http1),
+            Some(HttpProtocol::Http2),
+            scope.alt_svc.then_some(HttpProtocol::Http3),
+        ],
+    };
+    protocols.into_iter().flatten()
+}
+
+pub(crate) fn caller_slot_is_declared(
+    prepared: &PreparedRequestTemplate,
+    scope: ProtocolScope,
+    http2_fallback: bool,
+    name: &str,
+) -> bool {
+    selected_protocols(scope, http2_fallback).all(|protocol| prepared.fields_for(protocol).is_some_and(|fields| fields.iter().any(|field| {
+        matches!(field, RequestField::Caller { name: declared, .. } if declared.eq_ignore_ascii_case(name))
+    })))
+}
+
+/// Names eligible for the preparatory hook on every selected protocol.
+pub(crate) fn caller_slots(
+    prepared: &PreparedRequestTemplate,
+    scope: ProtocolScope,
+    http2_fallback: bool,
+) -> Vec<Box<str>> {
+    let Some(first) = selected_protocols(scope, http2_fallback)
+        .next()
+        .and_then(|protocol| prepared.fields_for(protocol))
+    else {
+        return Vec::new();
+    };
+    first
+        .iter()
+        .filter_map(|field| match field {
+            RequestField::Caller { name, .. }
+                if caller_slot_is_declared(prepared, scope, http2_fallback, name) =>
+            {
+                Some(name.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// Revalidates provenance without recreating stripped fields on redirects.
+pub(crate) fn check_filled_slots(
+    prepared: Option<&PreparedRequestTemplate>,
+    scope: ProtocolScope,
+    http2_fallback: bool,
+    caller: &[RequestHeader],
+    filled: &[Box<str>],
+) -> Result<(), RequestError> {
+    let invalid = filled.iter().any(|name| {
+        caller
+            .iter()
+            .any(|header| header.name().eq_ignore_ascii_case(name))
+            && prepared.is_none_or(|prepared| {
+                !caller_slot_is_declared(prepared, scope, http2_fallback, name)
+            })
+    });
+    if invalid {
+        return Err(RequestError::request_template_filled_slot());
+    }
     Ok(())
 }
 

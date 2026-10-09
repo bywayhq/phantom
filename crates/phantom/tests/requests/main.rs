@@ -25,6 +25,7 @@ mod error_context;
 mod expect_continue;
 mod ping_failure_replay;
 mod plaintext_templates;
+mod prepared_bodies;
 mod query_authorization;
 mod redirects;
 mod request_templates;

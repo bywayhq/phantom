@@ -445,6 +445,13 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn request_template_filled_slot() -> Self {
+        Self::without_source(
+            RequestErrorKind::RequestTemplate,
+            "a filled template slot is undeclared on a selected protocol",
+        )
+    }
+
     pub(crate) fn prepared_body_content_type(message: &'static str) -> Self {
         Self::without_source(RequestErrorKind::InvalidHeader, message)
     }

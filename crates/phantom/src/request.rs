@@ -703,8 +703,11 @@ impl RequestBuilder {
         mut self,
         request_span: &Span,
     ) -> Result<Response<ResponseBody>, RequestError> {
+        let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
+        let http2_fallback = retry_policy.http2_fallback() && retry_policy.max_retries() != Some(0);
+        let mut filled_slots = Vec::new();
         if let Some(content_type) = &self.prepared_content_type {
-            template::place_prepared_content_type(
+            if template::place_prepared_content_type(
                 self.request.template.as_ref(),
                 template::ProtocolScope {
                     exact: match self.selection {
@@ -715,16 +718,18 @@ impl RequestBuilder {
                         && self.selected_route().carries_quic_alternative(),
                     content_decoding: false,
                 },
+                http2_fallback,
                 &mut self.headers,
                 content_type,
-            )?;
+            )? {
+                filled_slots.push(Box::<str>::from("content-type"));
+            }
         }
         let timeout_budget = crate::timeout::TimeoutBudget::new(
             self.timeouts
                 .unwrap_or_default()
                 .resolve(self.client.state.request_timeouts),
         )?;
-        let retry_policy = self.retry_policy.unwrap_or(self.client.state.retry_policy);
         if !retry_policy.validate() {
             return Err(RequestError::invalid_retry_delay());
         }
@@ -927,6 +932,21 @@ impl RequestBuilder {
                 &resolved.endpoint,
             );
             let route = &selected_route;
+            template::check_filled_slots(
+                resolved.template.as_ref(),
+                template::ProtocolScope {
+                    exact: match selection {
+                        ProtocolSelection::Exact(protocol) => Some(protocol),
+                        ProtocolSelection::Http1Or2 => None,
+                    },
+                    alt_svc: client.alt_svc_enabled() && route.carries_quic_alternative(),
+                    content_decoding: false,
+                },
+                http2_fallback,
+                redirect.headers(),
+                &filled_slots,
+            )
+            .map_err(|error| error.with_origin(resolved.origin()))?;
             ensure_request_supported(selection, route, &resolved)
                 .map_err(|error| error.with_origin(resolved.origin()))?;
             if resolved.alternative.is_none() {
