@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import subprocess
 import unittest
 from unittest import mock
@@ -13,6 +14,46 @@ CONTAINER_ID = "a1" * 32
 
 
 class DockerOwnerTests(unittest.TestCase):
+    def test_inspection_uses_selected_daemon_after_ambient_environment_changes(self):
+        environment = {"DOCKER_HOST": "unix:///controlled-owned-daemon.sock"}
+        result = subprocess.CompletedProcess(
+            ["docker", "inspect", NAME],
+            0,
+            f"{CONTAINER_ID}\n{json.dumps({LABEL: OWNER})}\n",
+            "",
+        )
+        with (
+            mock.patch.dict(os.environ, {"DOCKER_HOST": "tcp://different-daemon"}),
+            mock.patch.object(
+                docker_owner.subprocess, "run", return_value=result
+            ) as run,
+        ):
+            identity = docker_owner.verified_container_id(
+                NAME, LABEL, OWNER, timeout=5, env=environment
+            )
+
+        self.assertEqual(identity, CONTAINER_ID)
+        self.assertEqual(run.call_args.kwargs["env"], environment)
+        self.assertEqual(
+            environment["DOCKER_HOST"], "unix:///controlled-owned-daemon.sock"
+        )
+
+    def test_removal_uses_selected_daemon_after_ambient_environment_changes(self):
+        environment = {"DOCKER_HOST": "unix:///controlled-owned-daemon.sock"}
+        result = subprocess.CompletedProcess(["docker", "rm", CONTAINER_ID], 0, "", "")
+        with (
+            mock.patch.dict(os.environ, {"DOCKER_HOST": "tcp://different-daemon"}),
+            mock.patch.object(
+                docker_owner.subprocess, "run", return_value=result
+            ) as run,
+        ):
+            docker_owner.remove_container(CONTAINER_ID, timeout=5, env=environment)
+
+        self.assertEqual(run.call_args.kwargs["env"], environment)
+        self.assertEqual(
+            environment["DOCKER_HOST"], "unix:///controlled-owned-daemon.sock"
+        )
+
     def inspect(self, *, status=0, output=None, diagnostic=""):
         if output is None:
             output = f"{CONTAINER_ID}\n{json.dumps({LABEL: OWNER})}\n"
