@@ -528,6 +528,11 @@ impl EchGreaseSettings {
     /// Exact lengths must be between 1 and 65_493 bytes, leaving room for ECH
     /// framing in the TLS extension body. AEAD choices must not repeat. An
     /// empty list and `BackendDefault` keep the backend's choices.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidTlsSettings`] for an exact length outside that range
+    /// or a repeated AEAD choice.
     pub fn new(
         payload_length: EchGreasePayloadLength,
         aeads: Vec<EchGreaseAead>,
@@ -602,8 +607,8 @@ pub enum EchSettings {
     Grease(EchGreaseSettings),
     /// Uses an origin's HTTPS record when it has a usable ECH configuration.
     ///
-    /// Direct TCP requests and secure WebSocket openings overlap the lookup
-    /// with address resolution. They wait at most 5–50 ms after the address
+    /// On a client configured to look up HTTPS records, direct TCP requests
+    /// and secure WebSocket openings overlap the lookup with address resolution. They wait at most 5–50 ms after the address
     /// answers, select the first record compatible with their ALPN offer,
     /// and retry once after an authenticated ECH rejection.
     ///
