@@ -737,9 +737,13 @@ Supported:
   slots. Without one, they precede the caller's fields. See
   [Client hints](../guides/request-templates.md#send-client-hints).
 - Opt-in finite redirects: WHATWG URL resolution, `http://` and `https://`
-  targets, browser method and body transitions, and removal of credentials
-  and client hints on cross-origin hops, including a change of scheme. Each
-  hop is checked against the request's protocol and route before it is sent.
+  targets, browser method and body transitions, and removal of
+  `Authorization`, `Cookie`, `Cookie2`, `Proxy-Authorization`, and caller
+  client hints on cross-origin hops, including a change of scheme. This rule
+  does not protect custom credential fields, even when marked sensitive.
+  Turn off automatic redirects and check each destination before sending
+  those fields. Each hop is checked against the request's protocol and route
+  before it is sent.
 
 Not modeled:
 
@@ -942,7 +946,7 @@ Across all routes:
 
 - No route fallback, and no protocol fallback except the opt-in HTTP/2
   fallback of an exact HTTP/3 request.
-- Proxy and origin hosts use their canonical Unicode form.
+- Proxy and origin hosts use canonical ASCII names, with IDNA conversion.
 - Trust settings and ticket caches are kept separate for HTTPS proxies and
   origins.
 
