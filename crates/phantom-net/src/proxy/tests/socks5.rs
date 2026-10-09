@@ -253,6 +253,53 @@ async fn malformed_method_and_connect_responses_are_negotiation_errors() -> Test
 }
 
 #[tokio::test]
+async fn unknown_connect_reply_status_is_negotiation_failure() -> TestResult {
+    for status in [0x09, 0xff] {
+        let (client, proxy) = duplex(1024);
+        let server = tokio::spawn(serve_reply_and_close(proxy, vec![0x05, status, 0, 0x01]));
+        let error = match connect_socks5_tunnel(client, TARGET_HOST, TARGET_PORT).await {
+            Ok(_) => return Err("unknown SOCKS5 CONNECT reply status was accepted".into()),
+            Err(error) => error,
+        };
+
+        server.await??;
+        assert_eq!(error.kind(), Socks5ErrorKind::Negotiation);
+        assert_eq!(error.to_string(), "SOCKS5 negotiation failed");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn unsupported_method_is_negotiation_but_authentication_rejection_stays_typed() -> TestResult
+{
+    for (method, expected) in [
+        (0x03, Socks5ErrorKind::Negotiation),
+        (0xff, Socks5ErrorKind::Authentication),
+        (0x02, Socks5ErrorKind::Authentication),
+    ] {
+        let (client, mut proxy) = duplex(1024);
+        let server = tokio::spawn(async move {
+            expect_greeting(&mut proxy).await?;
+            proxy.write_all(&[0x05, method]).await?;
+            let mut remaining = Vec::new();
+            proxy.read_to_end(&mut remaining).await?;
+            Ok::<_, std::io::Error>(remaining)
+        });
+        let error = match connect_socks5_tunnel(client, TARGET_HOST, TARGET_PORT).await {
+            Ok(_) => return Err("unsupported SOCKS5 method selection was accepted".into()),
+            Err(error) => error,
+        };
+
+        assert!(
+            server.await??.is_empty(),
+            "CONNECT followed failed method selection"
+        );
+        assert_eq!(error.kind(), expected);
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn rejected_connect_is_typed_and_traced_without_peer_payload() -> TestResult {
     OutcomeSubscriber::install_dynamic_callsite_fallback();
     let (client, proxy) = duplex(1024);
