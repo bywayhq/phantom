@@ -7,7 +7,7 @@
 //!
 //! Usage: `quic_version_interop <port> <root-der> [<requests>]`
 
-use std::{env, error::Error, fs, time::Duration};
+use std::{env, error::Error, fs, num::NonZeroUsize, time::Duration};
 
 use http_body_util::BodyExt as _;
 use phantom_net::http3::{Http3Connector, OriginForm};
@@ -22,8 +22,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let usage = "usage: quic_version_interop <port> <root-der> [<requests>]";
     let mut args = env::args().skip(1);
     let port: u16 = args.next().ok_or(usage)?.parse()?;
-    let root = fs::read(args.next().ok_or(usage)?)?;
-    let requests: usize = args.next().map_or(Ok(3), |value| value.parse())?;
+    let root_path = args.next().ok_or(usage)?;
+    let requests = request_count(args.next().as_deref())?;
+
+    let root = fs::read(root_path)?;
 
     let connector = Http3Connector::new_with_additional_roots(
         &firefox::v157_quic_tls(),
@@ -35,7 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .with_isolated_session_cache();
     let authority = format!("{SERVER_NAME}:{port}");
     let mut open = Vec::new();
-    for request in 0..requests {
+    for request in 0..requests.get() {
         let connection = timeout(
             TIMEOUT,
             connector.connect(
@@ -75,4 +77,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
         open.push(connection);
     }
     Ok(())
+}
+
+fn request_count(value: Option<&str>) -> Result<NonZeroUsize, std::num::ParseIntError> {
+    value.unwrap_or("3").parse()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::request_count;
+
+    #[test]
+    fn default_and_positive_counts_preserve_the_number_of_observations() {
+        for (value, expected) in [(None, 3), (Some("1"), 1), (Some("7"), 7)] {
+            assert_eq!(request_count(value).unwrap().get(), expected);
+        }
+    }
+
+    #[test]
+    fn invalid_counts_cannot_produce_an_empty_successful_report() {
+        for value in ["0", "-1", "invalid", "", "18446744073709551616"] {
+            assert!(request_count(Some(value)).is_err(), "{value}");
+        }
+    }
 }

@@ -173,6 +173,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--requests", type=int, default=3)
     parser.add_argument("--listen", default="127.0.0.1")
     args = parser.parse_args(argv)
+    if args.requests <= 0:
+        parser.error("requests must be positive")
     if not ipaddress.ip_address(args.listen).is_loopback:
         parser.error("the server must listen on a loopback address")
     asyncio.run(run(args))
