@@ -37,6 +37,9 @@ use tls_support::{
     is_peer_gone, read_head, tls_settings,
 };
 
+mod deadline_contract;
+mod decoder_contract;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[test]

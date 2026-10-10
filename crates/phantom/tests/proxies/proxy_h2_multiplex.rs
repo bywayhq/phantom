@@ -33,6 +33,8 @@ use tokio::{
 
 use tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, read_head, tls_settings};
 
+mod deadline_contract;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// One request the proxy received.
