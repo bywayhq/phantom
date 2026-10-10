@@ -91,7 +91,7 @@ impl InterfaceNameLimit {
 /// implementation also compiles for other Apple platforms, which are untested.
 ///
 /// Binding errors retain their kind and expose the underlying OS error or
-/// typed cause through [Error::source].
+/// typed cause through [`Error::source`].
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct SourceBinding {
     ipv4: Option<Ipv4Addr>,

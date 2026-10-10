@@ -1087,10 +1087,9 @@ impl ClientBuilder {
     /// local-DNS SOCKS5 target, or a CONNECT-UDP proxy host;
     /// [`Proxy`](crate::RequestErrorKind::Proxy) for another proxy host; and
     /// [`Connect`](crate::RequestErrorKind::Connect) for a TCP origin.
-    /// Without an address cache, the resolver's `io::Error` is in the
-    /// error's source chain. With one, the chain holds a new `io::Error` with
-    /// the same kind and message, because one stored failure can answer
-    /// several requests.
+    /// The source chain retains the resolver's original `io::Error`, including
+    /// its typed cause. An address cache shares that original error across
+    /// requests. Each cached delivery keeps the same error kind and message.
     ///
     /// With the `https-records` feature,
     /// `AddressResolver::system_nameservers` sends Phantom's own A and AAAA
