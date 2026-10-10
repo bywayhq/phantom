@@ -15,6 +15,7 @@ use crate::{
 const BODY_LEN: usize = 70_000;
 
 mod completion_controls;
+mod teardown_characterization;
 
 #[tokio::test]
 async fn cancelling_a_stalled_upload_resets_only_that_stream() -> TestResult<()> {
