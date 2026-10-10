@@ -1,8 +1,8 @@
 # Public API inventory
 
-Review the library exports in these generated files. The inventories were
-regenerated on 2026-10-09 alongside the support-crate API consolidation.
-The containing Git commit records the source and snapshots together.
+Review the library exports in these generated files. The inventories include
+the support-crate API consolidation, proxy error sources, and shared route
+lookup type. The containing Git commit records each snapshot update.
 
 Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 `x86_64-pc-windows-msvc`. `-sss` omits blanket, auto-trait, and derived
@@ -19,7 +19,7 @@ Check feature-gated documentation links with default and all-feature builds.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,045 | Application client, ordered requests, responses, state |
+| `phantom-http` | 1,046 | Application client, ordered requests, responses, state |
 | `phantom-net` | 1,250 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 918 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 191 | Quinn crypto provider, handshake state, typed errors |

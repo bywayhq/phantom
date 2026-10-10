@@ -1082,7 +1082,7 @@ impl core::fmt::Debug for phantom_net::route::DatagramRoute<'_>
 pub fn phantom_net::route::DatagramRoute<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub enum phantom_net::route::DirectTlsSetup<'a>
 pub phantom_net::route::DirectTlsSetup::Default
-pub phantom_net::route::DirectTlsSetup::Ech(core::pin::Pin<&'a mut (dyn core::future::future::Future<Output = core::option::Option<phantom_net::dns::EchConfigList>> + core::marker::Send + 'a)>)
+pub phantom_net::route::DirectTlsSetup::Ech(phantom_net::route::EchLookup<'a>)
 pub phantom_net::route::DirectTlsSetup::KeepSlower(&'a crate::tcp::AddressFamilyMemory)
 impl core::fmt::Debug for phantom_net::route::DirectTlsSetup<'_>
 pub fn phantom_net::route::DirectTlsSetup<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

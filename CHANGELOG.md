@@ -1934,6 +1934,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Refresh the public API inventories for proxy configuration error sources
+  and the shared route lookup type.
+
 - Clarify request error categories: direct TCP address lookup failures use
   `RequestErrorKind::Connect`; separately reported lookups use `Resolve`.
   Error classification and retry behavior are unchanged.

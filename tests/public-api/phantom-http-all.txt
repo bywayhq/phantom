@@ -522,6 +522,7 @@ pub struct phantom::ConnectUdpProxyConfigError
 impl phantom::ConnectUdpProxyConfigError
 pub fn phantom::ConnectUdpProxyConfigError::kind(&self) -> phantom::ConnectUdpProxyConfigErrorKind
 impl core::error::Error for phantom::ConnectUdpProxyConfigError
+pub fn phantom::ConnectUdpProxyConfigError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom::ConnectUdpProxyConfigError
 pub fn phantom::ConnectUdpProxyConfigError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ContentDecoding
