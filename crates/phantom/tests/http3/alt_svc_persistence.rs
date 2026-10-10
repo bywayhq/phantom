@@ -30,6 +30,28 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
 const HOUR: Duration = Duration::from_secs(60 * 60);
 
+mod deadline_contract;
+mod peer_contract;
+
+struct PlaintextPeer {
+    task: tokio::task::JoinHandle<TestResult<()>>,
+}
+
+impl PlaintextPeer {
+    fn spawn<F>(peer: F) -> Self
+    where
+        F: Future<Output = TestResult<()>> + Send + 'static,
+    {
+        Self {
+            task: tokio::spawn(peer),
+        }
+    }
+
+    async fn finish(self) -> TestResult<()> {
+        self.task.await?
+    }
+}
+
 #[tokio::test]
 async fn exported_snapshot_preserves_remaining_lifetime() -> TestResult<()> {
     bounded(async {
@@ -339,7 +361,7 @@ async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let server = PlaintextPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             read_head(&mut stream).await?;
             stream
@@ -363,7 +385,7 @@ async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()
             .map(ResponseInfo::protocol);
         assert_eq!(protocol, Some(HttpProtocol::Http1));
         response.into_body().collect().await?;
-        server.await??;
+        server.finish().await?;
 
         assert_eq!(
             client.export_alt_svc().map(|snapshot| snapshot.len()),

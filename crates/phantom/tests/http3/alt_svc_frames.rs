@@ -20,6 +20,8 @@ use http3_upgrade_support::{
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
+mod deadline_contract;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
 

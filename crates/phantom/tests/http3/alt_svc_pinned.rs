@@ -25,12 +25,27 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// A name the test never resolves: only the pinned alternative is reached.
 const ORIGIN: &str = "origin.test";
 
+mod deadline_contract;
+mod peer_contract;
+mod route_contract;
+
 /// One request as the alternative received it.
 #[derive(Debug)]
 struct Received {
     authority: String,
     path: String,
     alt_used: Option<String>,
+}
+
+struct AlternativePeer {
+    endpoint: quinn::Endpoint,
+    task: JoinHandle<TestResult<Vec<Received>>>,
+}
+
+impl AlternativePeer {
+    async fn finish(self) -> TestResult<Vec<Received>> {
+        self.task.await?
+    }
 }
 
 /// Serves `responses` in order on one connection at `endpoint`, each a status
@@ -40,8 +55,9 @@ fn serve_alternative(
     endpoint: quinn::Endpoint,
     responses: Vec<(StatusCode, Option<&'static str>)>,
     done: oneshot::Receiver<()>,
-) -> JoinHandle<TestResult<Vec<Received>>> {
-    tokio::spawn(async move {
+) -> AlternativePeer {
+    let retained_endpoint = endpoint.clone();
+    let task = tokio::spawn(async move {
         let incoming = endpoint.accept().await.ok_or("QUIC endpoint closed")?;
         let connection = incoming.await?;
         let mut h3 =
@@ -77,7 +93,11 @@ fn serve_alternative(
         }
         let _ = done.await;
         Ok(received)
-    })
+    });
+    AlternativePeer {
+        endpoint: retained_endpoint,
+        task,
+    }
 }
 
 fn direct_client(identity: &TestIdentity) -> ClientBuilder {
@@ -131,7 +151,7 @@ async fn a_pinned_alternative_receives_the_request_for_the_origin() -> TestResul
         response.into_body().collect().await?;
         let _ = done.send(());
 
-        let received = server.await??;
+        let received = server.finish().await?;
         assert_eq!(received.len(), 1);
         // The origin's authority, and no `Alt-Used` from the Chromium request
         // recipe, as Chrome 154 sends none.
@@ -168,7 +188,7 @@ async fn a_profile_that_appends_alt_used_names_the_pinned_alternative() -> TestR
         response.into_body().collect().await?;
         let _ = done.send(());
 
-        let received = server.await??;
+        let received = server.finish().await?;
         assert_eq!(received.len(), 1);
         assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(
@@ -215,7 +235,7 @@ async fn a_pinned_alternative_is_reached_through_connect_udp() -> TestResult<()>
             "{}",
             requests[0].path
         );
-        let received = server.await??;
+        let received = server.finish().await?;
         assert_eq!(received[0].authority, ORIGIN);
         assert_eq!(
             received[0].alt_used.as_deref(),
@@ -253,7 +273,7 @@ async fn a_same_origin_redirect_keeps_the_pinned_alternative() -> TestResult<()>
         response.into_body().collect().await?;
         let _ = done.send(());
 
-        let received = server.await??;
+        let received = server.finish().await?;
         let paths = received
             .iter()
             .map(|request| request.path.as_str())
@@ -294,7 +314,7 @@ async fn a_redirect_to_another_origin_leaves_the_pinned_alternative() -> TestRes
         // alternative.
         assert_eq!(error.kind(), RequestErrorKind::Resolve);
         let _ = done.send(());
-        let received = server.await??;
+        let received = server.finish().await?;
         assert_eq!(received.len(), 1);
         Ok(())
     })
