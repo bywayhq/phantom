@@ -24,6 +24,18 @@ use tokio::{
 type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 type Server = tokio::task::JoinHandle<TestResult<Observed>>;
 
+mod lifecycle_contract;
+
+async fn collect_upload(
+    operation: impl std::future::Future<Output = TestResult<()>>,
+    stop: oneshot::Sender<()>,
+    server: Server,
+) -> TestResult<Observed> {
+    operation.await?;
+    let _ = stop.send(());
+    server.await?
+}
+
 pub(super) struct Observed {
     pub(super) method: Vec<u8>,
     pub(super) fields: Vec<(String, Vec<u8>)>,
@@ -254,9 +266,15 @@ async fn named_uploads_send_captured_field_order_and_exact_prepared_bodies() -> 
                             Ok(())
                         })?
                         .prepared_body(body.clone());
-                    assert_eq!(request.send().await?.status(), StatusCode::NO_CONTENT);
-                    let _ = stop.send(());
-                    let observed = server.await??;
+                    let observed = collect_upload(
+                        async {
+                            assert_eq!(request.send().await?.status(), StatusCode::NO_CONTENT);
+                            Ok(())
+                        },
+                        stop,
+                        server,
+                    )
+                    .await?;
                     let actual: Vec<_> = observed
                         .fields
                         .iter()
