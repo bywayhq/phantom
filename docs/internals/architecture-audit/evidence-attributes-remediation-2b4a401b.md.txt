@@ -1,0 +1,14 @@
+# Review evidence attributes
+
+The existing JSON wildcard already applies the same attributes as thirty-four
+file-specific rules. Remove those repeated rules in `.gitattributes`. The
+fixture, vendor, shell, inventory and retained text-report rules stay intact.
+
+The root read the complete original attribute file and the changed diff.
+Git reports identical text, whitespace and line-ending attributes for all
+2,433 tracked paths and three future report-path probes before and after.
+The paired JSON records every removed rule and both output hashes.
+
+Only `.gitattributes` is owned by this change. No evidence file is rewritten.
+The diff whitespace check passes. Independent source review remains required.
+This is configuration equivalence, without a runtime or final gate claim.

@@ -1,0 +1,1962 @@
+{
+  "schema_version": 1,
+  "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+  "scope": "bounded full manual H2 connection/driver standards and ownership review",
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/connection.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "line_count": 1199,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "full",
+      "review_role": "assigned production owner; complete manual source read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 1199,
+          "raw_range_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/driver.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "line_count": 196,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "full",
+      "review_role": "assigned production owner; complete manual source read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 196,
+          "raw_range_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "raw_sha256": "d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01",
+      "line_count": 1085,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting admission, reservation, retry and response lease paths only",
+      "ranges": [
+        {
+          "start_line": 35,
+          "end_line": 68,
+          "raw_range_sha256": "d74e21dc9ae7fe7cea61012cf9813d38fe4ce424d2ed05139d99839ee4570892"
+        },
+        {
+          "start_line": 193,
+          "end_line": 405,
+          "raw_range_sha256": "6f305118df44eed91b358912b138673e62e7e5d7eeaa706d43753ae48cafcb5d"
+        },
+        {
+          "start_line": 423,
+          "end_line": 453,
+          "raw_range_sha256": "92e48ceaa731f860045dcef16b0a750d343a70a3cc276c3e52efecbbb8bef0f6"
+        },
+        {
+          "start_line": 508,
+          "end_line": 653,
+          "raw_range_sha256": "cdc92e0cd6daef687a141fade2789d5a7b67a06e374794eedf0f011b86b7ae6d"
+        },
+        {
+          "start_line": 805,
+          "end_line": 920,
+          "raw_range_sha256": "5960d4ab405daac4dcdc226b1824a539d63d2489f91eb569e7a0fc8a758c97a8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http2_connections.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "ee7bb9add9671df5eb08ad5e1dfe1c509f28bf79",
+      "raw_sha256": "526f4a9d52302b680c7ceb05fb183d4b494346f08fb5ff751e2f287cfa4a661c",
+      "line_count": 178,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "full",
+      "review_role": "supporting connection spread owner and its direct literal capacity tests; full read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 178,
+          "raw_range_sha256": "526f4a9d52302b680c7ceb05fb183d4b494346f08fb5ff751e2f287cfa4a661c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/body.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+      "raw_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+      "line_count": 285,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting upload handoff, receive and flow-control paths only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 215,
+          "raw_range_sha256": "6b876395a8e008f4c364360a8000de7e501255caeddbbb474e70803687ed9c26"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/error.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "b08876c3eba150ed0d8db10e811acab01e78e7e1",
+      "raw_sha256": "c1c39c205dc20dcb8c7746a0871290876502d07971e1de313c144214bb49ef14",
+      "line_count": 603,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting typed backend error classification only",
+      "ranges": [
+        {
+          "start_line": 504,
+          "end_line": 550,
+          "raw_range_sha256": "c501c8885abb5b1db072217ce10220d2991e248e687604f8c677ef39c5359c5e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/request.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "99217eb2b9ed7586b33be1fe5ec9faced02155ea",
+      "raw_sha256": "88034c1a13e742ad2fd4445a8ad9bc02f2e0eec6053360ae4bafeba745725fda",
+      "line_count": 1038,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting sensitive header Debug and replay-safe contract only",
+      "ranges": [
+        {
+          "start_line": 735,
+          "end_line": 776,
+          "raw_range_sha256": "52817443a5eda6bf038713106a4a462b42460e81961409bac76e7d582620f7ec"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tls/early_data.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "b78f419837b4dc95a99eb2fb50b1648156eaf6e1",
+      "raw_sha256": "8ec22b60795d27598bd34d66aba9873baac21586fc6171590a8d16aa3b47bd0e",
+      "line_count": 410,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting settled/rejected ALPN and poll-read paths only",
+      "ranges": [
+        {
+          "start_line": 139,
+          "end_line": 265,
+          "raw_range_sha256": "ea49a6dd8d8f8e96d0dc4ca97e1e8146dcffbd6fc056bde6423fab5d342d6626"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/proxy/http2_connect.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "e7eaf819b74bb8d3bdbfa900b00e651619893413",
+      "raw_sha256": "828901ef436dd7c893970e8018e055e53d1adba17ce0428ea0506a655e321df1",
+      "line_count": 242,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting final proxy response/retry error contracts only",
+      "ranges": [
+        {
+          "start_line": 175,
+          "end_line": 242,
+          "raw_range_sha256": "3c0fab68fe57a1e716314d959b29c15e6282bba29e1bb3dc75f6fd6e45e802ff"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1_or_2.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "96c7c721056dd077a299642bed0c2e5bcc5fd64a",
+      "raw_sha256": "cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821",
+      "line_count": 828,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting slower alternative background connection eligibility only",
+      "ranges": [
+        {
+          "start_line": 637,
+          "end_line": 700,
+          "raw_range_sha256": "9695c7ed61df8631c5ae9e77e55e7c450cba33250ddbe2314e227d43ff0c88d3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tunnel.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "fb7ef78cbeb208837687b552341b91d6469380fe",
+      "raw_sha256": "dbfe570b718a9c7f95047b6dce608d28fe66688d08b86681d421f34ecde2fdb1",
+      "line_count": 367,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting rejected handles, accepted lease construction and shutdown/Drop only",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 110,
+          "raw_range_sha256": "10f30140c4d4df957db9cf66a1ac6d2ff48fcc3a0b0abd6e2f0b98b92c65d7bb"
+        },
+        {
+          "start_line": 330,
+          "end_line": 367,
+          "raw_range_sha256": "0f08b46dbdf7a21276e3f4fc3e8556fe8a9750a5e500663e83f88be2fb92608b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/shutdown_timer.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "7bfc472bea204e64a91dfb3658887c357a85d488",
+      "raw_sha256": "36a3fb1d50f93b0ae8569d747e7e67c16f48644fe9cea3f36ca1863691fe8f1b",
+      "line_count": 143,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "full",
+      "review_role": "supporting actual process timer owner and tests; full read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 143,
+          "raw_range_sha256": "36a3fb1d50f93b0ae8569d747e7e67c16f48644fe9cea3f36ca1863691fe8f1b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5",
+      "raw_sha256": "e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc",
+      "line_count": 338,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting fixed peer lifecycle and literal body contract; lines221-233 not read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 220,
+          "raw_range_sha256": "b6bb3c376d8466bd70f671f90608fa8fa4545b3cd467cef6236e2982f9818d58"
+        },
+        {
+          "start_line": 234,
+          "end_line": 338,
+          "raw_range_sha256": "2a6e56e66af3ca4f8a8e25c943d7d4643c594415b8e6ef4d89ce3956f0ba1f3b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+      "raw_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+      "line_count": 525,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting repaired task/deadline and original runtime-owned shutdown controls; partial",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 220,
+          "raw_range_sha256": "aec624101f34d769cf094b2fcfbbdad9791648bfd42e642178bb94829c1aeb32"
+        },
+        {
+          "start_line": 264,
+          "end_line": 327,
+          "raw_range_sha256": "41a69b9fcb832305ec80632d6b2139860bb9d7f7f3a5e73d4a197a50bd0ac479"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "line_count": 123,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "full",
+      "review_role": "supporting actual stalled upload/reset/reuse control; full read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 123,
+          "raw_range_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "7c2cd7d201c0026f1a9c2b0b86b693a20a13d3ba",
+      "raw_sha256": "8fb2bd2af8e00fb8f503a2b55f67abb21faadc87f747cd9f9be9c165b2597b67",
+      "line_count": 218,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "supporting driver Drop, literal partial data and dispatcher observations; partial",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 145,
+          "raw_range_sha256": "3c0492ca3ffc95885cdbe0a98a02068f9fce0e56898e0924516cce91105d2022"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "1f9412973746f5f389be186c905bd83bcd487b53",
+      "raw_sha256": "d64ecfbd8dac68598a7dbeb5b3516a66a316f8d7e9f7b0ed11522dec06c4f30c",
+      "line_count": 940,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "dependency contract and patch description reference only; remaining321-940 not read",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 320,
+          "raw_range_sha256": "7948c112050771e7d30e8bf8568cd86796ebf1a4fd03b6965d93e1722c89841a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/client.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "d0f7bef26c31b9c422e222d8e30a7229bb3ffb43",
+      "raw_sha256": "ac843c22552f28d8cd632951383c23ada72381044ead24dcfdfcb0c75adfa272",
+      "line_count": 2124,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency readiness, clone, send request and active stream API only",
+      "ranges": [
+        {
+          "start_line": 442,
+          "end_line": 495,
+          "raw_range_sha256": "0c8ef11b6e669eefe88f09c11d9d7ea5d59dcba55694f7299ae2e7801ba5f86f"
+        },
+        {
+          "start_line": 590,
+          "end_line": 713,
+          "raw_range_sha256": "3177d0a0a1e87950f554ce14b868bcb2a8e6543c022ac8d28d657dc119158545"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/streams.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "715807abec16d76e8fc3caa903cbc80c84665b95",
+      "raw_sha256": "d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7",
+      "line_count": 1970,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency ordered fields, readiness and reference Drop only",
+      "ranges": [
+        {
+          "start_line": 286,
+          "end_line": 354,
+          "raw_range_sha256": "531ae03442e19541ecb7c6d05f3c58c067ed6286ed14379b97b7dda35a5033da"
+        },
+        {
+          "start_line": 1150,
+          "end_line": 1235,
+          "raw_range_sha256": "9d1a15198c2c13434e80f007441258280e7962be0f56b4f2fe91f90a5425644e"
+        },
+        {
+          "start_line": 1765,
+          "end_line": 1835,
+          "raw_range_sha256": "06e74ab4ca872ddb239ecb340b8b8ddc7b29800a3b5a530d6264dc163e039fa2"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency RecvStream Drop buffer release only",
+      "ranges": [
+        {
+          "start_line": 490,
+          "end_line": 515,
+          "raw_range_sha256": "e24e1f2153b4ff3879e4e44ac75a46ab40c671763003fc042f0f641fc48899a5"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency concrete error categories only",
+      "ranges": [
+        {
+          "start_line": 36,
+          "end_line": 119,
+          "raw_range_sha256": "00c893b073d15407ca18ee3e26a69581fc89df4cdc12cdae5ed30a1a196ead5a"
+        },
+        {
+          "start_line": 198,
+          "end_line": 228,
+          "raw_range_sha256": "a68a15ec52a6acfa9c5ca0b0027a6f6cb882825e49e9fc27400b2bbefb63ce84"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/send.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "794ffcdb4de0b1c07b06baa2b89e2649b96c010b",
+      "raw_sha256": "40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2",
+      "line_count": 695,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency DATA and trailer send state only",
+      "ranges": [
+        {
+          "start_line": 325,
+          "end_line": 399,
+          "raw_range_sha256": "afc4cddbc934bc17b6132efdefb5592d2d60148dbf7068bdc46f7014abcfa833"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/prioritize.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "3ab72cfe99a4487927a3c31876a85a7a9e631c7f",
+      "raw_sha256": "c0588ad24c2a16e81491a7a6ee2eb0ebc292376628f97f732a092ea1be02439d",
+      "line_count": 1008,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency empty DATA user errors and capacity queueing only",
+      "ranges": [
+        {
+          "start_line": 185,
+          "end_line": 295,
+          "raw_range_sha256": "b074fe90ff5578903d393cf823b0426362de06cddf8b617c99afd84018e761c0"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/connection.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "4ccab653bf4217a31e0b9d672f35c3cee6328de5",
+      "raw_sha256": "4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef",
+      "line_count": 817,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency open-first one-shot idle-close and protocol driver result only",
+      "ranges": [
+        {
+          "start_line": 300,
+          "end_line": 430,
+          "raw_range_sha256": "737076fa46b97765a2735fc25da2647c2c6b84ec12c80b7fae902e387b022e12"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "27a5a7ad90e5d0376bd2ce6fc2c161725a5ece47",
+      "raw_sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb",
+      "line_count": 187,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "full",
+      "review_role": "supporting full fixture boundary, typed parent deadline and reset oracle source",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 187,
+          "raw_range_sha256": "0ec29bf3a9ab328f125f0a74f82c4f2537d2a7cae0c9fa7444fcbae5266652bb"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "raw_sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "line_count": 2772,
+      "source_basis": "exact committed Git blob bytes; inclusive ranges retain raw line endings",
+      "read_classification": "partial",
+      "review_role": "resolved dependency pin reference only",
+      "ranges": [
+        {
+          "start_line": 2218,
+          "end_line": 2225,
+          "raw_range_sha256": "03cd5f87eb89abde03828df005371e1c7cab231e1a022a33e16ce9156aa99e3a"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "H2-OWNER-LAYOUT-F1",
+      "severity": "P3",
+      "category": "manual paragraph grouping",
+      "title": "Separate independent request checks and lifecycle steps",
+      "cause": "Several short guard/validation blocks run directly into the next independent preparation or polling operation. This violates the attached explicit paragraph rule even when rustfmt accepts the file.",
+      "owners": [
+        {
+          "path": "crates/phantom-net/src/http2/connection.rs",
+          "ranges": [
+            [
+              202,
+              206
+            ],
+            [
+              237,
+              243
+            ],
+            [
+              271,
+              285
+            ],
+            [
+              326,
+              329
+            ],
+            [
+              705,
+              716
+            ],
+            [
+              1170,
+              1175
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom-net/src/http2/driver.rs",
+          "ranges": [
+            [
+              64,
+              75
+            ],
+            [
+              123,
+              127
+            ]
+          ]
+        }
+      ],
+      "remedy": "Whitespace only: separate body-plan/priority guards from preparation; request preparation from forward URI conversion/optional overrides; required extended connection guard from send; eligibility guards from clone/probe; no-limit guard from nanosecond conversion; taken-handle guard from supervisor setup; timer schedule guard from poll loop. Keep related assignments and conversion chains together.",
+      "observable_contract": "No behavior change intended. All request validation, stream cancellation, response lease and shutdown outcome behavior must remain byte-for-byte code-equivalent except whitespace.",
+      "verification": "Source-confirmed standards gap only; targeted format and diff review suffice for whitespace once assigned; no new behavior tests justified.",
+      "proposed_remedy_files": [
+        "crates/phantom-net/src/http2/connection.rs",
+        "crates/phantom-net/src/http2/driver.rs"
+      ],
+      "status": "reported to integration owner; no edits authorized or performed in this read-only pass"
+    }
+  ],
+  "assessment": [
+    "Preparation validates settings and structured request/trailer/priority plans before connection/body use. Origin forwarding uses structured URI parts; extended CONNECT waits actual peer capability and never silently falls back.",
+    "RequestStreamGuard owns SendStream through lexical upload. Response-head/upload selection retains ongoing upload in Http2Body, or records completed inbound state before cancelling an abandoned upload. Body and accepted tunnel leases keep ConnectionInner alive.",
+    "The facade acquires shared origin admission before setup; setup reservations clear/notify on Drop and waiters register before locking. Response extensions retain OpenStream and Permit; pool retry is explicit and bounded. Supporting pool paths are partial, not whole pool approval.",
+    "is_reusable is deliberately a snapshot, not a reservation. Backend SendRequest clone has no pending stream; poll_ready checks connection state while actual spread/admission/send govern capacity. The spread source and its actual assumed-limit/capacity literals were read in full as supporting evidence.",
+    "Final ConnectionInner Drop closes sender before initiating DriverTask shutdown. AbortDriver and DriverOutcome exist before spawn; supervisor completion observes protocol and join categories, timeout requests abort, runtime future Drop also aborts and records runtime_shutdown.",
+    "The process timer is concrete runtime-owned lifetime service. wait_for_driver polls the task before the deadline, so completed driver result wins simultaneous expiry. Supervisor Drop/timeout requests cancellation; it does not promise synchronous joined driver completion.",
+    "Owner Debug/spans emit closed state, method/protocol/size/status/outcomes and reason/IO/panic flags, not authority, credentials, headers or payload. RequestHeader sensitive Debug is explicitly redacted in the supporting request source.",
+    "No unsafe block, recoverable-input panic, unchecked external slice index, poisoned user-state mutex or unbounded spawned request-body task was found in either owner. Guard access and backend errors are typed; source size alone does not justify another module or generic helper."
+  ],
+  "qualified_rejected_candidates": [
+    {
+      "candidate": "Detached request upload loses stream cancellation",
+      "disposition": "rejected by source",
+      "evidence": "PendingUpload is a lexical future owning RequestStreamGuard; its Drop sends CANCEL. Active upload is transferred into response body rather than spawned. Backend reference Drop also cancels streams with no remaining interest."
+    },
+    {
+      "candidate": "Dropping facade connection invalidates active response/tunnel",
+      "disposition": "rejected by source",
+      "evidence": "ConnectionLease Arc keeps ConnectionInner/driver alive until body or accepted tunnel drops. Classic held rejection is private and its retry caller retains the connection during the challenge exchange."
+    },
+    {
+      "candidate": "Every rejected CONNECT end-of-stream error must replace final rejection",
+      "disposition": "qualified intentional contract",
+      "evidence": "An actual final response status is already received. Empty DATA has zero payload and backend state guards yield inactive/incorrect state after reset/close. Extended CONNECT propagates IO/GOAWAY; classic response status takes precedence by explicit comment. Caller checks eligibility before reusing. Not a new silent protocol change claim."
+    },
+    {
+      "candidate": "is_reusable reserves or proves peer capacity",
+      "disposition": "rejected as API guarantee",
+      "evidence": "Public docs say snapshot and no reservation. Actual backend clone readiness and facade stream-count/admission paths establish separate contracts; later send can still fail."
+    },
+    {
+      "candidate": "Supervisor detached JoinHandle proves permanent driver leak",
+      "disposition": "rejected as unsupported runtime claim",
+      "evidence": "Supervisor owns AbortDriver guard before spawn; timer and runtime cancellation request abort. Drop cannot await; no synchronous closure guarantee claimed. Existing shutdown controls retain explicit runtime boundary and final outcome observations."
+    },
+    {
+      "candidate": "Discarded runtime-neutral timer error is a new caller cause loss",
+      "disposition": "qualified existing diagnostic-only Drop contract",
+      "evidence": "Timer failure causes task_error outcome and driver abort after connection owner Drop; there is no public async shutdown Result to return the timer value through. Existing fixture deadline typed error repairs remain separate and covered."
+    },
+    {
+      "candidate": "ReadIdle nanoseconds overflow panics or moves idle time backward",
+      "disposition": "rejected by bounded conversion",
+      "evidence": "u64 conversion saturates, atomic fetch_max is monotonic; elapsed time uses monotonic Instant. The u64 nanosecond horizon is centuries, not an observed runtime issue."
+    },
+    {
+      "candidate": "Existing H2 streaming and shutdown findings remain unfixed",
+      "disposition": "rejected for covered remedy scope",
+      "evidence": "Current supporting repaired helper paths retain typed completion/cleanup causes and bounded joins. Historical source identities remain historical where changed; current bytes are compared explicitly and supporting partial ranges remain partial."
+    }
+  ],
+  "supporting_fixture_limits": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "ranges": [
+        [
+          18,
+          49
+        ],
+        [
+          93,
+          123
+        ]
+      ],
+      "qualification": "The literal stalled upload, actual CANCEL and later204 reuse are strong independent protocol oracles. Raw peer/request tasks can lose their successful-path join on early errors. Runtime ultimately owns these tasks; this is supporting source qualification, not a measured surviving-socket/production leak. Older continuation/body reports already described runtime-owned fixture limits; do not silently reopen current repaired driver_shutdown/streaming controls."
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "ranges": [
+        [
+          15,
+          38
+        ],
+        [
+          59,
+          90
+        ],
+        [
+          113,
+          145
+        ]
+      ],
+      "qualification": "Selected raw peers have successful-path awaits and meaningful exact partial DATA/CANCEL/closed/tracing observations. Early client/assertion exits bypass an explicit join. Only1-145 read here; no whole final fixture approval or native leak claim."
+    }
+  ],
+  "historical_artifacts": [
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\response-driver-standards-review-6ee7d658.json",
+      "json_raw_sha256": "bfb762ecfa60b8d2fe9e8dfc9abaf0ec79beb0738e6cb55b51abcc50aadcd7c1",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\response-driver-standards-review-6ee7d658.md",
+      "paired_prose_raw_sha256": "81529d614874c450657aedceb82ae2d323976ff258a68c24ff4343aad5626803",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "source_records",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "json_raw_sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.md",
+      "paired_prose_raw_sha256": "3493b282c67f423c8ff848a5a967bc97d793b7c9464fe8d62d732b16f0722cea",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "source_reads",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\h2-shutdown-remedy-independent-review-eb13e672.json",
+      "json_raw_sha256": "7d0504bcb3b10410e9439ff1970ac04d8bf599ee9a82d8fcd39746191d746a21",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\h2-shutdown-remedy-independent-review-eb13e672.md",
+      "paired_prose_raw_sha256": "b652c5825318a59a9bed067adc44b71f5cb0a3246a00de28c7c83bad726e6d9a",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "source_records",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-owner-cause-rebind-independent-review.json",
+      "json_raw_sha256": "d0f094bdc032b7c52495a5bf037f62a5cd47f5820e07d1ca0169259299ce4cf8",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-owner-cause-rebind-independent-review.md",
+      "paired_prose_raw_sha256": "44d977f90009c3282e099b0eb5dbf3de9a7acd90e2e2ae861cdcc6781e2f71a6",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "source_records",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-wire-compression-continuation-coverage.json",
+      "json_raw_sha256": "4259d1cf193c9e119df1f7ab47ccfe776d275c9b899828280c4f370b2aadb019",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-wire-compression-continuation-report.md",
+      "paired_prose_raw_sha256": "09e4de4abe37ad08b5ac230c15f9c63b40dc9217bb5cba8fd105d2e748772713",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "files",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-tls-trailers-continuation-coverage.json",
+      "json_raw_sha256": "b61dd501d0fa7f3cba0769877a78696ed5a767862c8cb306412c944cc99ea4a0",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-tls-trailers-continuation-report.md",
+      "paired_prose_raw_sha256": "a26f1ebbb9865a989f5495e93ff7d879aadd2e4a192aca203cfed39a2a7b31c3",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "files",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-proxy-tests-continuation-coverage.json",
+      "json_raw_sha256": "d9f339939eeac1c915a4a7b69a5f91085a24806d368d0765a0cba565e52967ce",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-proxy-tests-continuation-report.md",
+      "paired_prose_raw_sha256": "1f3f2f9b5ce71172d9ee2d550303546f6869c43294d250d41cd0e284fe28fa3c",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "files",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    },
+    {
+      "json_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "json_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "paired_prose_path": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-report.md",
+      "paired_prose_raw_sha256": "9c3394d7e7356ddec3ff3521f09a9588d7bc7c784b22f6a3faf6c88c0b8aa215",
+      "prose_read": "complete prose read",
+      "json_schema_inspected": "files",
+      "scope": "historical evidence reconciliation; no fresh semantic owner credit from metadata"
+    }
+  ],
+  "historical_identity_comparisons": [
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\response-driver-standards-review-6ee7d658.json",
+      "original_artifact_raw_sha256": "bfb762ecfa60b8d2fe9e8dfc9abaf0ec79beb0738e6cb55b51abcc50aadcd7c1",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/driver.rs",
+        "revision": "6ee7d65849f0483eefe15ab3bbe0073ee448188d",
+        "git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+        "sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+        "line_count": 196,
+        "disposition": "full",
+        "contract": "Full manual ownership, shutdown-grace, runtime cancellation, task result and structured diagnostic review.",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 196,
+            "sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7"
+          }
+        ]
+      },
+      "resolved_revision": "6ee7d65849f0483eefe15ab3bbe0073ee448188d",
+      "resolved_git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "resolved_raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "resolved_line_count": 196,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 196,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+          "declared_raw_range_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "current_git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\response-driver-standards-review-6ee7d658.json",
+      "original_artifact_raw_sha256": "bfb762ecfa60b8d2fe9e8dfc9abaf0ec79beb0738e6cb55b51abcc50aadcd7c1",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+        "revision": "6ee7d65849f0483eefe15ab3bbe0073ee448188d",
+        "git_blob_oid": "8b16584a6b531f8e6b80fda39416ef35bef5498e",
+        "sha256": "922f3e5cf940c8d79498a82225b575d72f8a6f0e79b75d79cbbf4129a991666e",
+        "line_count": 345,
+        "disposition": "full",
+        "contract": "Full manual review of current-thread and Tokio runtime boundaries, stalled-write observations, termination oracles, raw peer ownership and ignored joins.",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 345,
+            "sha256": "922f3e5cf940c8d79498a82225b575d72f8a6f0e79b75d79cbbf4129a991666e"
+          }
+        ]
+      },
+      "resolved_revision": "6ee7d65849f0483eefe15ab3bbe0073ee448188d",
+      "resolved_git_blob_oid": "8b16584a6b531f8e6b80fda39416ef35bef5498e",
+      "resolved_raw_sha256": "922f3e5cf940c8d79498a82225b575d72f8a6f0e79b75d79cbbf4129a991666e",
+      "resolved_line_count": 345,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 345,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "922f3e5cf940c8d79498a82225b575d72f8a6f0e79b75d79cbbf4129a991666e",
+          "declared_raw_range_sha256": "922f3e5cf940c8d79498a82225b575d72f8a6f0e79b75d79cbbf4129a991666e",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+      "current_git_blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\response-driver-standards-review-6ee7d658.json",
+      "original_artifact_raw_sha256": "bfb762ecfa60b8d2fe9e8dfc9abaf0ec79beb0738e6cb55b51abcc50aadcd7c1",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/connection.rs",
+        "revision": "6ee7d65849f0483eefe15ab3bbe0073ee448188d",
+        "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+        "sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+        "line_count": 1199,
+        "disposition": "partial",
+        "contract": "Partial supporting public lifecycle contracts and last-sender-before-driver shutdown ordering.",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 175,
+            "sha256": "491e381514f128da0779c01eb7e77db5886e6131e9d60ce28969af1149bd6b74"
+          },
+          {
+            "start": 1120,
+            "end": 1199,
+            "sha256": "66fad372dd10b86b0cf6ec328cfdfcce843fee74f23e4f0c0082125fb345aef5"
+          }
+        ]
+      },
+      "resolved_revision": "6ee7d65849f0483eefe15ab3bbe0073ee448188d",
+      "resolved_git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "resolved_raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "resolved_line_count": 1199,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 175,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "491e381514f128da0779c01eb7e77db5886e6131e9d60ce28969af1149bd6b74",
+          "declared_raw_range_sha256": "491e381514f128da0779c01eb7e77db5886e6131e9d60ce28969af1149bd6b74",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        },
+        {
+          "start_line": 1120,
+          "end_line": 1199,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "66fad372dd10b86b0cf6ec328cfdfcce843fee74f23e4f0c0082125fb345aef5",
+          "declared_raw_range_sha256": "66fad372dd10b86b0cf6ec328cfdfcce843fee74f23e4f0c0082125fb345aef5",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "current_git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "original_artifact_raw_sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/body.rs",
+        "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+        "git_blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+        "raw_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+        "line_count": 285,
+        "read_classification": "full",
+        "review_role": "assigned owner",
+        "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+        "ranges": [
+          {
+            "start_line": 1,
+            "end_line": 285,
+            "raw_range_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495"
+          }
+        ],
+        "working_raw_sha256": "ad7e7372babf324fb5249ca5158878a732dd104bbcac34e4d5119db75f8d5a4f",
+        "working_equals_git_bytes": false,
+        "working_equals_git_after_explicit_crlf_conversion": true
+      },
+      "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "resolved_git_blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+      "resolved_raw_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+      "resolved_line_count": 285,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 285,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+          "declared_raw_range_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495",
+      "current_git_blob_oid": "adba4413d63840b8f296d42899e2a062b4dbc1a3",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "original_artifact_raw_sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+        "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+        "git_blob_oid": "7f120945a378609b07e45b0b647e6936ec683fc9",
+        "raw_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+        "line_count": 200,
+        "read_classification": "full",
+        "review_role": "supporting caller/dependency/contract only",
+        "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+        "ranges": [
+          {
+            "start_line": 1,
+            "end_line": 200,
+            "raw_range_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78"
+          }
+        ],
+        "working_raw_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+        "working_equals_git_bytes": true,
+        "working_equals_git_after_explicit_crlf_conversion": false
+      },
+      "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "resolved_git_blob_oid": "7f120945a378609b07e45b0b647e6936ec683fc9",
+      "resolved_raw_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+      "resolved_line_count": 200,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 200,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+          "declared_raw_range_sha256": "c4883f880b91bf13ba4d85246ea3b8f951f00ff27eef5658eb69604cb55f2f78",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc",
+      "current_git_blob_oid": "94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "original_artifact_raw_sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+        "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+        "git_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+        "raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+        "line_count": 123,
+        "read_classification": "partial",
+        "review_role": "supporting caller/dependency/contract only",
+        "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+        "ranges": [
+          {
+            "start_line": 1,
+            "end_line": 110,
+            "raw_range_sha256": "8147b603ea7db2af8f403c5a620ddfd66b39dcb7b012851b8e8fc399cfea39e2"
+          }
+        ],
+        "working_raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+        "working_equals_git_bytes": true,
+        "working_equals_git_after_explicit_crlf_conversion": false
+      },
+      "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "resolved_git_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "resolved_raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "resolved_line_count": 123,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 110,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "8147b603ea7db2af8f403c5a620ddfd66b39dcb7b012851b8e8fc399cfea39e2",
+          "declared_raw_range_sha256": "8147b603ea7db2af8f403c5a620ddfd66b39dcb7b012851b8e8fc399cfea39e2",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "current_git_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "original_artifact_raw_sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/connection.rs",
+        "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+        "git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+        "raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+        "line_count": 1199,
+        "read_classification": "partial",
+        "review_role": "supporting caller/dependency/contract only",
+        "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+        "ranges": [
+          {
+            "start_line": 917,
+            "end_line": 1130,
+            "raw_range_sha256": "42d879b484ff34998d72d17ab4a58d704e911c80c0b1bde3eca887e433d66ffc"
+          }
+        ],
+        "working_raw_sha256": "875410edb2c6bb2c62e0d8734d596f3399d43265032fd60b0e99bf09ce7cb446",
+        "working_equals_git_bytes": false,
+        "working_equals_git_after_explicit_crlf_conversion": true
+      },
+      "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "resolved_git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "resolved_raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "resolved_line_count": 1199,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 917,
+          "end_line": 1130,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "42d879b484ff34998d72d17ab4a58d704e911c80c0b1bde3eca887e433d66ffc",
+          "declared_raw_range_sha256": "42d879b484ff34998d72d17ab4a58d704e911c80c0b1bde3eca887e433d66ffc",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511",
+      "current_git_blob_oid": "be0b4c33127d65ff6b8415c3234b72652f0e2314",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-body-ownership-standards-review.json",
+      "original_artifact_raw_sha256": "80aeb653888e5bcbb77d4de162be25cf7197fb551ec2cf94a4a1da3dedd94094",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/driver.rs",
+        "revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+        "git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+        "raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+        "line_count": 196,
+        "read_classification": "partial",
+        "review_role": "supporting caller/dependency/contract only",
+        "source_basis": "exact frozen Git blob bytes; actual selected ranges only",
+        "ranges": [
+          {
+            "start_line": 1,
+            "end_line": 80,
+            "raw_range_sha256": "48e29b530ad59a103eb893fe009eb2b974e1d6e9af222e6904d8b02a709c82f2"
+          }
+        ],
+        "working_raw_sha256": "48f36f85bdcf1e69a30c8ee174ff18918dbf26bb17cffc42ccf267ac29dd7d9f",
+        "working_equals_git_bytes": false,
+        "working_equals_git_after_explicit_crlf_conversion": true
+      },
+      "resolved_revision": "6535bd75b9d148832afe26888f56aa3cdef6b256",
+      "resolved_git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "resolved_raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "resolved_line_count": 196,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 80,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "48e29b530ad59a103eb893fe009eb2b974e1d6e9af222e6904d8b02a709c82f2",
+          "declared_raw_range_sha256": "48e29b530ad59a103eb893fe009eb2b974e1d6e9af222e6904d8b02a709c82f2",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7",
+      "current_git_blob_oid": "87b1044dfca62cef0419d3a649b0979282fdcb2d",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\h2-shutdown-remedy-independent-review-eb13e672.json",
+      "original_artifact_raw_sha256": "7d0504bcb3b10410e9439ff1970ac04d8bf599ee9a82d8fcd39746191d746a21",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+        "revision": "eb13e672e035229d31e26007cd46df4a01f13a07",
+        "git_blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+        "sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+        "line_count": 525,
+        "read_ranges": [
+          [
+            1,
+            525
+          ]
+        ],
+        "disposition": "full_manual_edited_source",
+        "range_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee"
+      },
+      "resolved_revision": "eb13e672e035229d31e26007cd46df4a01f13a07",
+      "resolved_git_blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+      "resolved_raw_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+      "resolved_line_count": 525,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 525,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+          "declared_raw_range_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+          "declared_range_hash_matches": true,
+          "limitation": null
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+      "current_git_blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\streaming-peer-owner-cause-rebind-independent-review.json",
+      "original_artifact_raw_sha256": "d0f094bdc032b7c52495a5bf037f62a5cd47f5820e07d1ca0169259299ce4cf8",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+        "revision": "edf781cbc072070f6e501fe8644e9e2ad4358dc8",
+        "git_blob_oid": "7358cd5b3861fe8280e67838ff7a604449ad59a2",
+        "sha256": "65df73c79a559b3c6f0d9efdcfac109c688d0048d095a819c74bab55914809f8",
+        "line_count": 335,
+        "read_ranges": [
+          [
+            131,
+            231
+          ]
+        ],
+        "read_classification": "partial fresh final source: complete changed functions and new control; prior ebaa files read in full and both complete subsequent diffs read"
+      },
+      "resolved_revision": "edf781cbc072070f6e501fe8644e9e2ad4358dc8",
+      "resolved_git_blob_oid": "7358cd5b3861fe8280e67838ff7a604449ad59a2",
+      "resolved_raw_sha256": "65df73c79a559b3c6f0d9efdcfac109c688d0048d095a819c74bab55914809f8",
+      "resolved_line_count": 335,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 131,
+          "end_line": 231,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "8bcb58b55e9765b12cd6a739b8d75c5217cbcfa27b84eced501a5c373470596a",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc",
+      "current_git_blob_oid": "94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-wire-compression-continuation-coverage.json",
+      "original_artifact_raw_sha256": "4259d1cf193c9e119df1f7ab47ccfe776d275c9b899828280c4f370b2aadb019",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/hpack_transitions.rs",
+        "git_blob_oid": "fd5adf8ac6d59d811f8615be558bd9fa52cfad2a",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "23c58291ada3ba920705afb8fdca5feb7c40495b0013586854e903d813f16a5e",
+        "working_tree_sha256": "12917cd282514557161e1b8d4507c9629e94b7aec5fc4a0ef96c39a21565b63b",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 314,
+        "reviewed_ranges": [
+          [
+            1,
+            314
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "fd5adf8ac6d59d811f8615be558bd9fa52cfad2a",
+      "resolved_raw_sha256": "23c58291ada3ba920705afb8fdca5feb7c40495b0013586854e903d813f16a5e",
+      "resolved_line_count": 314,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 314,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "23c58291ada3ba920705afb8fdca5feb7c40495b0013586854e903d813f16a5e",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "23c58291ada3ba920705afb8fdca5feb7c40495b0013586854e903d813f16a5e",
+      "current_git_blob_oid": "fd5adf8ac6d59d811f8615be558bd9fa52cfad2a",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-wire-compression-continuation-coverage.json",
+      "original_artifact_raw_sha256": "4259d1cf193c9e119df1f7ab47ccfe776d275c9b899828280c4f370b2aadb019",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/continuation_matrix.rs",
+        "git_blob_oid": "b34f8f3c568924e1d102fc6424ccfd19e9e54cf6",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "14bfbc547effb935ed2980388c3d4206245009030e3d931657064172ad21d9e8",
+        "working_tree_sha256": "e0650b42d231e4cd3c6b5215eaa7e13ecb1a66abb1c5b16894be989cb175f597",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 431,
+        "reviewed_ranges": [
+          [
+            1,
+            431
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "b34f8f3c568924e1d102fc6424ccfd19e9e54cf6",
+      "resolved_raw_sha256": "14bfbc547effb935ed2980388c3d4206245009030e3d931657064172ad21d9e8",
+      "resolved_line_count": 431,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 431,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "14bfbc547effb935ed2980388c3d4206245009030e3d931657064172ad21d9e8",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "14bfbc547effb935ed2980388c3d4206245009030e3d931657064172ad21d9e8",
+      "current_git_blob_oid": "b34f8f3c568924e1d102fc6424ccfd19e9e54cf6",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-wire-compression-continuation-coverage.json",
+      "original_artifact_raw_sha256": "4259d1cf193c9e119df1f7ab47ccfe776d275c9b899828280c4f370b2aadb019",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/request_wire.rs",
+        "git_blob_oid": "be314b1b6a780f34b45585a01fe2c912f773a45d",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "80461a1790c7ac8b61b199c92ba01fd5dfcee5d11808a12104aa711934438390",
+        "working_tree_sha256": "258a2d4f25654c26688c4c8888e17b303f28ba4095a5815ff3d4fe5689a469c9",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 512,
+        "reviewed_ranges": [
+          [
+            1,
+            512
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "be314b1b6a780f34b45585a01fe2c912f773a45d",
+      "resolved_raw_sha256": "80461a1790c7ac8b61b199c92ba01fd5dfcee5d11808a12104aa711934438390",
+      "resolved_line_count": 512,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 512,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "80461a1790c7ac8b61b199c92ba01fd5dfcee5d11808a12104aa711934438390",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "2bf227e6a9732b6ee2562ee1534be7e8cf9476894c8fc2bf2397aa9d7de1428b",
+      "current_git_blob_oid": "dcd600bdf8e355edaaf51db55874fa97750e7aa7",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-tls-trailers-continuation-coverage.json",
+      "original_artifact_raw_sha256": "b61dd501d0fa7f3cba0769877a78696ed5a767862c8cb306412c944cc99ea4a0",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tls/tests/key_update.rs",
+        "git_blob_oid": "43d7108a4ce4031b333a9998b4b46a969be14b90",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "5d7e7979b89f02f61c91ca6449314797358c6db0fd689b86f5503cfdafd87ef7",
+        "working_tree_sha256": "16234b4af629f44a35dcbb49e117b22e6653ee2996d8fcc2c5c43f79f42cbaa0",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 301,
+        "reviewed_ranges": [
+          [
+            1,
+            301
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "43d7108a4ce4031b333a9998b4b46a969be14b90",
+      "resolved_raw_sha256": "5d7e7979b89f02f61c91ca6449314797358c6db0fd689b86f5503cfdafd87ef7",
+      "resolved_line_count": 301,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 301,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "5d7e7979b89f02f61c91ca6449314797358c6db0fd689b86f5503cfdafd87ef7",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "0ef9b74103de3d83209092a284c8313c3d8a54257c8171aafc519a20078c7118",
+      "current_git_blob_oid": "43048eaba9e16a03f006a625b373c9c7c008ac67",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-tls-trailers-continuation-coverage.json",
+      "original_artifact_raw_sha256": "b61dd501d0fa7f3cba0769877a78696ed5a767862c8cb306412c944cc99ea4a0",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tls/tests/record_shape.rs",
+        "git_blob_oid": "d18c522441c00067283a452982815e8321d592af",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "5b92fc9a76b019f68a8e11331de8ecdb23ad2b3ebf92ed66b2837e4fd9569821",
+        "working_tree_sha256": "8eda5d9f158264f329b6c4e82495dc0c30d696a81863da7a7541d42d6b6c8fdf",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 342,
+        "reviewed_ranges": [
+          [
+            1,
+            342
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "d18c522441c00067283a452982815e8321d592af",
+      "resolved_raw_sha256": "5b92fc9a76b019f68a8e11331de8ecdb23ad2b3ebf92ed66b2837e4fd9569821",
+      "resolved_line_count": 342,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 342,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "5b92fc9a76b019f68a8e11331de8ecdb23ad2b3ebf92ed66b2837e4fd9569821",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "2a410dc9e8d67dbc328ae1cc2e3dd38a961c73ef7e342b95645b777fc6f70d91",
+      "current_git_blob_oid": "fed95ff13d83af3602b83cde2e643616fe2c7937",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-tls-trailers-continuation-coverage.json",
+      "original_artifact_raw_sha256": "b61dd501d0fa7f3cba0769877a78696ed5a767862c8cb306412c944cc99ea4a0",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/request_trailers.rs",
+        "git_blob_oid": "ec0a283448f5b3b9b3f63bff99abcba2d84e0b48",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "e85049ece43a71c87a65f7d8afc883c420e9f897543d13e5a393d4d12b1be122",
+        "working_tree_sha256": "76e93643c18bb6348189997bf9e96ca947c0acf9e0ac216e6d4e9c7561188caf",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 520,
+        "reviewed_ranges": [
+          [
+            1,
+            520
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "ec0a283448f5b3b9b3f63bff99abcba2d84e0b48",
+      "resolved_raw_sha256": "e85049ece43a71c87a65f7d8afc883c420e9f897543d13e5a393d4d12b1be122",
+      "resolved_line_count": 520,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 520,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "e85049ece43a71c87a65f7d8afc883c420e9f897543d13e5a393d4d12b1be122",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "c4121dec5cca3f99937599c1c64dae5d2cf58406af0578c74855ece85a9be954",
+      "current_git_blob_oid": "8e373fed5eb80cde0080b153b34b8370c01d3914",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-proxy-tests-continuation-coverage.json",
+      "original_artifact_raw_sha256": "d9f339939eeac1c915a4a7b69a5f91085a24806d368d0765a0cba565e52967ce",
+      "original_record": {
+        "path": "crates/phantom-net/src/proxy/tests/http2_pool.rs",
+        "git_blob_oid": "dc2109da8d5f866b47343ce7733d8385ab45741c",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "f0e31a1f718973842809b6ecc0768fce778d148415dec0728d05d313100633d5",
+        "working_tree_sha256": "b10f9ae6875ca8492ace140f4fd5ecc4254e0d90a8f63ad5dc8f18c299730d39",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 740,
+        "reviewed_ranges": [
+          [
+            1,
+            740
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "dc2109da8d5f866b47343ce7733d8385ab45741c",
+      "resolved_raw_sha256": "f0e31a1f718973842809b6ecc0768fce778d148415dec0728d05d313100633d5",
+      "resolved_line_count": 740,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 740,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "f0e31a1f718973842809b6ecc0768fce778d148415dec0728d05d313100633d5",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "f0e31a1f718973842809b6ecc0768fce778d148415dec0728d05d313100633d5",
+      "current_git_blob_oid": "dc2109da8d5f866b47343ce7733d8385ab45741c",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-proxy-tests-continuation-coverage.json",
+      "original_artifact_raw_sha256": "d9f339939eeac1c915a4a7b69a5f91085a24806d368d0765a0cba565e52967ce",
+      "original_record": {
+        "path": "crates/phantom-net/src/proxy/tests/http2_raw_proxy.rs",
+        "git_blob_oid": "dafabdab4787b77662528e997bdffd379073d2b8",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "81a998b0e170125e529cd200d5b55bc65be75bf1f30b5115f10c4ab91413bdea",
+        "working_tree_sha256": "931a2f774022d19fb3eccb883edf7872250d594d20043901ceb2cab9e46631a2",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 248,
+        "reviewed_ranges": [
+          [
+            1,
+            248
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "dafabdab4787b77662528e997bdffd379073d2b8",
+      "resolved_raw_sha256": "81a998b0e170125e529cd200d5b55bc65be75bf1f30b5115f10c4ab91413bdea",
+      "resolved_line_count": 248,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 248,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "81a998b0e170125e529cd200d5b55bc65be75bf1f30b5115f10c4ab91413bdea",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "81a998b0e170125e529cd200d5b55bc65be75bf1f30b5115f10c4ab91413bdea",
+      "current_git_blob_oid": "dafabdab4787b77662528e997bdffd379073d2b8",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-proxy-tests-continuation-coverage.json",
+      "original_artifact_raw_sha256": "d9f339939eeac1c915a4a7b69a5f91085a24806d368d0765a0cba565e52967ce",
+      "original_record": {
+        "path": "crates/phantom-net/src/proxy/tests/http2_connect.rs",
+        "git_blob_oid": "81302621fd6e78f64c4205a0fa576fd3f1f1caab",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "e13d5b157c1b94809abb1e360db24c670b9313364148b9e75b23f77d47315fc8",
+        "working_tree_sha256": "3e8dcb6af99909d0f05c519ad904fc7fdae9dd48ba5c3fcc8c667b8df8db0d83",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 569,
+        "reviewed_ranges": [
+          [
+            1,
+            569
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "81302621fd6e78f64c4205a0fa576fd3f1f1caab",
+      "resolved_raw_sha256": "e13d5b157c1b94809abb1e360db24c670b9313364148b9e75b23f77d47315fc8",
+      "resolved_line_count": 569,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 569,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "e13d5b157c1b94809abb1e360db24c670b9313364148b9e75b23f77d47315fc8",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "e13d5b157c1b94809abb1e360db24c670b9313364148b9e75b23f77d47315fc8",
+      "current_git_blob_oid": "81302621fd6e78f64c4205a0fa576fd3f1f1caab",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "original_artifact_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/idle_close.rs",
+        "git_blob_oid": "887a92326fc61f74dde45bd945a55fb06cce88b6",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "dcfe99da52f16bc757e5baaea476c1f023ef68ccc4f6872077e178ac1c8becb9",
+        "working_tree_sha256": "14ac9501e989bfe9d5cae350b8a66f35a83ec6dc39e078a952956ae4a54405a0",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 284,
+        "reviewed_ranges": [
+          [
+            1,
+            284
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "887a92326fc61f74dde45bd945a55fb06cce88b6",
+      "resolved_raw_sha256": "dcfe99da52f16bc757e5baaea476c1f023ef68ccc4f6872077e178ac1c8becb9",
+      "resolved_line_count": 284,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 284,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "dcfe99da52f16bc757e5baaea476c1f023ef68ccc4f6872077e178ac1c8becb9",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "544614e73cd22425d0c7d708c104bc888a8b7bc05d380d301d167d4f8e756fd2",
+      "current_git_blob_oid": "1bb39d3017cbe1056287f5d85f09bb71a1ddc257",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "original_artifact_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/idle_ping.rs",
+        "git_blob_oid": "9eea73e36c1cc4f854312017165e6cc919731c9d",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "9fa19268e8b6fb71f203358d1201ce822b342f1bf863394b7df101214faa415c",
+        "working_tree_sha256": "70a983f3d7d7df275bce823563fce7ae898ce6c41aa587352ecd5ea34eae082c",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 201,
+        "reviewed_ranges": [
+          [
+            1,
+            201
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "9eea73e36c1cc4f854312017165e6cc919731c9d",
+      "resolved_raw_sha256": "9fa19268e8b6fb71f203358d1201ce822b342f1bf863394b7df101214faa415c",
+      "resolved_line_count": 201,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 201,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "9fa19268e8b6fb71f203358d1201ce822b342f1bf863394b7df101214faa415c",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "9fa19268e8b6fb71f203358d1201ce822b342f1bf863394b7df101214faa415c",
+      "current_git_blob_oid": "9eea73e36c1cc4f854312017165e6cc919731c9d",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "original_artifact_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/ping_peer.rs",
+        "git_blob_oid": "232d705344f42396eb02b05247675c1d96ce04da",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "69efc0936b1a851f19d52f39d1129ec44ffce62af04b392d70aad06eb37a7e98",
+        "working_tree_sha256": "7a2e6ae7e4ffc27c85beb3b4b69fc796f455b0ad7678101f66496f04d615b6cd",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 240,
+        "reviewed_ranges": [
+          [
+            1,
+            240
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "232d705344f42396eb02b05247675c1d96ce04da",
+      "resolved_raw_sha256": "69efc0936b1a851f19d52f39d1129ec44ffce62af04b392d70aad06eb37a7e98",
+      "resolved_line_count": 240,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 240,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "69efc0936b1a851f19d52f39d1129ec44ffce62af04b392d70aad06eb37a7e98",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "69efc0936b1a851f19d52f39d1129ec44ffce62af04b392d70aad06eb37a7e98",
+      "current_git_blob_oid": "232d705344f42396eb02b05247675c1d96ce04da",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "original_artifact_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/preface_ping.rs",
+        "git_blob_oid": "b0008929e6c7f66e2d0c7c69f5acc002cacf4a26",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "41548fd09d80fcf972aa03f4e52dd9173d2714d5bbd8455208b1f22a73f98a6d",
+        "working_tree_sha256": "6e7def5b73702047658bc910bae715ef11dc658c9c9d7d350c3acda38e2feae8",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 363,
+        "reviewed_ranges": [
+          [
+            1,
+            363
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "b0008929e6c7f66e2d0c7c69f5acc002cacf4a26",
+      "resolved_raw_sha256": "41548fd09d80fcf972aa03f4e52dd9173d2714d5bbd8455208b1f22a73f98a6d",
+      "resolved_line_count": 363,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 363,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "41548fd09d80fcf972aa03f4e52dd9173d2714d5bbd8455208b1f22a73f98a6d",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "41548fd09d80fcf972aa03f4e52dd9173d2714d5bbd8455208b1f22a73f98a6d",
+      "current_git_blob_oid": "b0008929e6c7f66e2d0c7c69f5acc002cacf4a26",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "original_artifact_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/extended_connect.rs",
+        "git_blob_oid": "60919b25bd2c625e01ff726623a7b90a97b4a93b",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "28620ada96f0c5c1de5043218774f9645e37a68acbb53a7d2c8395f9d535ef25",
+        "working_tree_sha256": "21a15ba62e1426ff531737612cf3b5fdbac18cf88ecf717bd40d0e8572ab66c3",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 242,
+        "reviewed_ranges": [
+          [
+            1,
+            242
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "60919b25bd2c625e01ff726623a7b90a97b4a93b",
+      "resolved_raw_sha256": "28620ada96f0c5c1de5043218774f9645e37a68acbb53a7d2c8395f9d535ef25",
+      "resolved_line_count": 242,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 242,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "28620ada96f0c5c1de5043218774f9645e37a68acbb53a7d2c8395f9d535ef25",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "28620ada96f0c5c1de5043218774f9645e37a68acbb53a7d2c8395f9d535ef25",
+      "current_git_blob_oid": "60919b25bd2c625e01ff726623a7b90a97b4a93b",
+      "current_byte_equal": true,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "unchanged bytes; original full/partial qualification preserved"
+    },
+    {
+      "original_artifact": "C:\\code\\phantom\\target\\architecture-audit\\net-h2-idle-validation-continuation-coverage.json",
+      "original_artifact_raw_sha256": "98d6ca1cacb9bfbce58fb4a25d529edc89b397e6bf617fdb87a59ffb16db0fcb",
+      "original_record": {
+        "path": "crates/phantom-net/src/http2/tests/request_validation.rs",
+        "git_blob_oid": "9f98a1e883e2296776c062c7df725d863fcd00b4",
+        "hash_basis": "exact git blob bytes at revision",
+        "sha256": "6e82de221ae0debdb779f82a8aa352da835bdca4c754e641fd595c194768a4a6",
+        "working_tree_sha256": "f2409da5ab6aa44e2b45e58e3d3e04a300137361134d0c124792e13b5dbd9298",
+        "working_tree_hash_basis": "exact working file bytes at checkpoint; CRLF may differ",
+        "total_lines": 386,
+        "reviewed_ranges": [
+          [
+            1,
+            386
+          ]
+        ],
+        "status": "complete"
+      },
+      "resolved_revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+      "resolved_git_blob_oid": "9f98a1e883e2296776c062c7df725d863fcd00b4",
+      "resolved_raw_sha256": "6e82de221ae0debdb779f82a8aa352da835bdca4c754e641fd595c194768a4a6",
+      "resolved_line_count": 386,
+      "declared_git_oid_matches": true,
+      "declared_raw_sha256_matches": true,
+      "declared_line_count_matches": true,
+      "range_proofs": [
+        {
+          "start_line": 1,
+          "end_line": 386,
+          "valid_inclusive_range": true,
+          "resolved_raw_range_sha256": "6e82de221ae0debdb779f82a8aa352da835bdca4c754e641fd595c194768a4a6",
+          "declared_raw_range_sha256": null,
+          "declared_range_hash_matches": null,
+          "limitation": "original has no explicit range hash; actual range identity newly computed, not retroactive semantic credit"
+        }
+      ],
+      "current_revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "current_raw_sha256": "75c32affbc6f8ec6333ca6508610e7791e8732ad083f7d1432494ab7150c48fd",
+      "current_git_blob_oid": "170b1f04e5712dd1e323395031a74dd6a16dfc5d",
+      "current_byte_equal": false,
+      "working_byte_declarations": "retained unchanged; historical working file bytes not reconstructed or silently normalized",
+      "disposition": "historical changed bytes; no current full-owner promotion"
+    }
+  ],
+  "historical_validation": {
+    "records": 25,
+    "records_with_identity_or_range_mismatch": 0,
+    "mismatches": []
+  },
+  "standards": {
+    "path": "C:/Users/arya/.codex/attachments/656c565d-fcf9-467b-9a2c-3b25963c0d49/Pasted text.txt",
+    "raw_sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+    "paragraph_rule_lines": [
+      111,
+      125
+    ]
+  },
+  "source_read_chunks": {
+    "crates/phantom-net/src/http2/connection.rs": [
+      [
+        1,
+        400
+      ],
+      [
+        401,
+        800
+      ],
+      [
+        801,
+        1199
+      ]
+    ],
+    "crates/phantom-net/src/http2/driver.rs": [
+      [
+        1,
+        196
+      ]
+    ]
+  },
+  "limits": [
+    "No tracked edits, Cargo, native execution, sockets, external network, push or merge in this pass.",
+    "Source metadata validation is identity proof, not semantic or runtime approval. Supporting partial reads retain their exact ranges and gaps.",
+    "No complete pool, TLS replay, accepted tunnel implementation or vendor audit credit from selected supporting ranges.",
+    "Driver Drop initiates bounded shutdown and abort requests; no synchronous abort join or permanent peer absence guarantee.",
+    "No whole-codebase closure or browser/network parity claim. One narrow readability finding proposed; supporting legacy fixture ownership remains qualified.",
+    "A guessed http2_spread.rs path was absent in frozen Git; no source credit assigned. Actual http2_connections.rs was then located and fully read."
+  ],
+  "proposed_remedy_paths": [
+    "crates/phantom-net/src/http2/connection.rs",
+    "crates/phantom-net/src/http2/driver.rs"
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "dependency": "tokio 1.53.1",
+      "resolved_pin": "Cargo.lock at frozen revision lines2218-2225",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "partial",
+      "git_blob_oid": null,
+      "source_basis": "installed registry source raw bytes; no invented Git OID",
+      "ranges": [
+        {
+          "start_line": 10,
+          "end_line": 30,
+          "raw_range_sha256": "2c6b0065aaed5b482d019bc54ecb0d0c74d7c6b3bc3c426fa1a55065d9b9be3e"
+        },
+        {
+          "start_line": 350,
+          "end_line": 365,
+          "raw_range_sha256": "49d21ca4c97fc7ea2dd7949d0e257ba07ac9bbc67416188c742c1a5459a6b171"
+        }
+      ]
+    }
+  ],
+  "supporting_source_findings": [
+    {
+      "id": "H2-SUPPORT-CAUSE-F2",
+      "severity": "P3",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "ranges": [
+        [
+          19,
+          69
+        ],
+        [
+          72,
+          113
+        ]
+      ],
+      "title": "Observe stalled-upload fixture tasks and retain deadline/channel causes",
+      "cause": "Raw peer22/upload31 handles are joined only along the accepted path. A peer failure before accepted publication closes the channel;46-48 substitutes text for RecvError and exits before observing either task. Absolute parent timeout/panic drops raw handles, which detach under pinned Tokio1.53.1. Upload32/44 stringifies original input/H2 causes; peer105-106 stringifies actual Elapsed.",
+      "supported_disposition": "Source-confirmed fixture ownership and typed cause gaps; older reports qualified runtime-owned peer cleanup. Not a production defect or executed leak result.",
+      "affected_branches": [
+        "Peer protocol/I/O failure before accepted publication closes channel and skips both joins.",
+        "Outer absolute deadline/panic before normal peer join detaches handles; upload owns a connection clone.",
+        "Unexpected upload preparation/send failure is stringified before task result observation.",
+        "Missing reset before peer timeout discards actual Elapsed."
+      ],
+      "independent_control_proposals": [
+        "Complete root204 and drive zero-window POST; inject a concrete typed peer fault before accepted publication, retain client/runtime and require joined peer cause plus primary channel cause. Fault reachability and terminal result need baseline execution.",
+        "Cancel outer owner only after actual POST acceptance; retain live runtime/client outside, observe bounded task/destructor completion and cleanup before assertion. No permanent leak assertion.",
+        "Hold reset observation pending after actual accepted POST; expire typed deadline and require source downcast to actual Elapsed, preserving positive exact CANCEL/subsequent204."
+      ],
+      "remedy_scope": "Separate bounded fixture assignment after baseline; concrete lexical joins or owner compatible with actual task result; preserve primary plus cleanup failures.",
+      "verification": "Source and resolved Tokio Drop contract only; no new controls authored or executed."
+    }
+  ]
+}

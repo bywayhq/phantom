@@ -1,0 +1,11 @@
+# Cache test readiness source review
+
+Signed candidate 39f18d292cb29c62a99ac286c84948aa4bb81afa, parent 759e000292399e749da3fc1f37119c6b8c755f8b. Read all three changed functions and necessary recorder/cache contract ranges. The paired JSON preserves exact Git objects, raw hashes and partial/full-function scope. The agreed human author/committer and G signature are present.
+
+The core readiness correction is sound. Each actual lookup_noting_cache future is polled behind a closed resolver gate, the real Recorder invocation is observed, and completed answers must have false stored provenance plus exact addresses. Retained pending futures prevent the previous later-stored-hit false positive. The clear control selects work before advancing the generation and retains the old answer/no-republication plus three-call assertions. The cross-runtime readiness signal follows the second lookup's actual Pending poll; the first runtime and lookup remain alive undriven. Parent release and thread join occur before result/assertion checks, with typed channel, I/O and timeout causes.
+
+One narrow acceptance correction remains: concurrent lines 305-316 and clear lines 932-938 can return or assert before explicitly releasing the gate. Current Recorder ignores watch sender closure, so sender Drop on unwind can let the resolution finish; this review does not claim a hang or leak. The requested explicit release-before-every-early-error/assertion contract is nevertheless absent. Capture readiness/count first, clear only when selection was Pending, release, then validate captured outcomes and retain all existing exact answer/provenance/count assertions. No production edit or new framework is needed.
+
+All text outside the three named function bodies is byte-equal after matching function placeholders. Earlier A4, cache provenance, typed-cause and stored-hit controls remain unchanged. The original baseline record remains historical; this is not a fresh full read of the now 1216-line test file. Scoped thread join itself is blocking; finite readiness/result channels and the worker lookup timeout do not justify a universal hard teardown deadline.
+
+Source approval of the readiness design is qualified by the remaining release-order correction. No Cargo, compilation, native runtime, full gate or whole architecture approval is claimed.

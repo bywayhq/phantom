@@ -1,0 +1,271 @@
+{
+  "schema": "bounded-independent-remedy-source-review-v1",
+  "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+  "parent_revision": "c76d8918028650374241fb967d0fd9e2123fd31a",
+  "scope": "Shared HTTP3 upgrade fixture owner/task cleanup and retained 14 controls; root owns native composition/verification.",
+  "verdict": "Approve source for root composition/native verification; no actionable defect found in the bounded remedy.",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "byte_length": 39720,
+      "line_count": 1173,
+      "read_classification": "full fresh manual source read; approval bounded to this cleanup differential and its contracts",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 1173,
+          "raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "bef4fb5d3718f210241b53f53fdda95f46da7333",
+      "raw_sha256": "f196191efd9a5edc437a54676c3b9fbfe26687e7c8ecb59abf09cef8de5a2ca1",
+      "byte_length": 8196,
+      "line_count": 246,
+      "read_classification": "partial supporting caller/resolved boundary read",
+      "ranges": [
+        {
+          "start": 35,
+          "end": 58,
+          "raw_sha256": "0a26156357b01826997ef966867fef270fd0d65a348ad15eeac92d86d091bdee"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "byte_length": 8011,
+      "line_count": 225,
+      "read_classification": "partial supporting caller/resolved boundary read",
+      "ranges": [
+        {
+          "start": 20,
+          "end": 31,
+          "raw_sha256": "5bedfbd7575f4c11e2f4871b457af1d55f5d5d1d3f8a2fcfaed821158e43991a"
+        },
+        {
+          "start": 217,
+          "end": 225,
+          "raw_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "byte_length": 32278,
+      "line_count": 879,
+      "read_classification": "partial supporting caller/resolved boundary read",
+      "ranges": [
+        {
+          "start": 277,
+          "end": 327,
+          "raw_sha256": "2d58585c0d408e3821073187bf415c01e5dfc67887b1e6b21d2c3076c90e6a39"
+        },
+        {
+          "start": 710,
+          "end": 740,
+          "raw_sha256": "d58a6a4d690ab9c41c210935753bf06390881a0c84c9d20b3b02a8421935c385"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "18b6018575d951db66b0a1f61420de1a3eead2b1",
+      "raw_sha256": "d3df455ba756e6bdc13004275450fffa97a8068cf3cf66fdd6d385b224fd58c1",
+      "byte_length": 3317,
+      "line_count": 80,
+      "read_classification": "partial supporting caller/resolved boundary read",
+      "ranges": [
+        {
+          "start": 38,
+          "end": 44,
+          "raw_sha256": "cfd24c9bc2c80f603e0083f5750d61dcce211d3d8835aaa4c71d5adfdc55fb36"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "raw_sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "byte_length": 67674,
+      "line_count": 2772,
+      "read_classification": "partial supporting caller/resolved boundary read",
+      "ranges": [
+        {
+          "start": 1488,
+          "end": 1507,
+          "raw_sha256": "6d7ecccf2418f8007f29023f3ec105cf5ca0298eb0460d921da658b6f9f42b40"
+        }
+      ]
+    }
+  ],
+  "control_rebind_records": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "raw_sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "byte_length": 14527,
+      "line_count": 438,
+      "read_classification": "partial fresh supporting control read; entire blob byte-equal to previously reviewed c76 control source",
+      "ranges": [
+        {
+          "start": 65,
+          "end": 162,
+          "raw_sha256": "41a1dd9ea7893b5fd5c6ba0427581db6332e48cb875ac82220c982e7ecaab483"
+        },
+        {
+          "start": 278,
+          "end": 325,
+          "raw_sha256": "0941f4f39510db00d16a522c25b2de23d1ce1ab946bfd17e15a4721cfa6c4dc1"
+        },
+        {
+          "start": 355,
+          "end": 438,
+          "raw_sha256": "ae2a5f0ed547b6aba0c6f791618eaa33393c04a7b729be19ddfafb8ab0179e42"
+        }
+      ],
+      "baseline_byte_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/worker_results.rs",
+      "revision": "d89883df952f090b0e8e8fa05dd805e950de97ab",
+      "git_blob_oid": "0c8adef52df09b37f45ea39e34cd927139c7ab93",
+      "raw_sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "byte_length": 12123,
+      "line_count": 383,
+      "read_classification": "partial fresh supporting control read; entire blob byte-equal to previously reviewed c76 control source",
+      "ranges": [
+        {
+          "start": 80,
+          "end": 110,
+          "raw_sha256": "c914c82cdd133502d87c598fd289e7631a62e251ea32490cee9545509558db95"
+        },
+        {
+          "start": 130,
+          "end": 250,
+          "raw_sha256": "4e43983660a66693146f633e17746beead6fff28cf789dede0815c9bb0c184e3"
+        },
+        {
+          "start": 290,
+          "end": 383,
+          "raw_sha256": "3d1b368505694b68be9479e012b4f0ded53765d424c21ac4b41b30659e607a7e"
+        }
+      ],
+      "baseline_byte_equal": true
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+      "raw_sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "byte_length": 28662,
+      "line_count": 851,
+      "read_classification": "partial installed resolved API read",
+      "ranges": [
+        {
+          "start": 284,
+          "end": 351,
+          "raw_sha256": "9d7217b7c6d038526028a5af9b1a945b298db349454c6954637d31730b04c1e5"
+        },
+        {
+          "start": 445,
+          "end": 470,
+          "raw_sha256": "315d8962e5bdd2a1c94a738bd89d5ea091a00a7882826ddd3bcc3dcd8e30b4c5"
+        },
+        {
+          "start": 591,
+          "end": 599,
+          "raw_sha256": "fecc52a3fae92e5ca2cf6f9380ebd4a58f1b348c731bdb06ec377831162a496d"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "byte_length": 12233,
+      "line_count": 377,
+      "read_classification": "partial installed resolved API read",
+      "ranges": [
+        {
+          "start": 25,
+          "end": 41,
+          "raw_sha256": "c51c2b86ee0579540e8536e6d6683ca2e651d347b1da70bc7882bc0171970bc8"
+        },
+        {
+          "start": 196,
+          "end": 230,
+          "raw_sha256": "57f1d8af351f2bca6626b095ce6f5e42cefdb40bb2b12b01aac0f38efcbd2d55"
+        },
+        {
+          "start": 350,
+          "end": 363,
+          "raw_sha256": "94718014d7145813bfb6f37cfe1586cc41480a703a47d295380f56aeeb799444"
+        }
+      ]
+    }
+  ],
+  "functions_checked": [
+    "Http3UpgradeFixture::spawn",
+    "Http3UpgradeFixture::finish",
+    "Http3UpgradeFixture::drop",
+    "UpgradeTaskFailure::Display",
+    "UpgradeTaskFailure::source",
+    "owner_failures",
+    "finish_owner_task",
+    "run_origin",
+    "run_origin_connections",
+    "stop_origin_connections",
+    "run_alternative",
+    "run_alternative_connections",
+    "stop_alternative_connections",
+    "connection_result",
+    "stop_connections"
+  ],
+  "contract_traces": [
+    "Spawn completes all recoverable preparation before creating owner tasks; no later awaited/Result-returning preparation can strand an already spawned task.",
+    "Finish signals shutdown/closes alternative and all optional origin H3 endpoints before borrowing each stored handle; every owner attempt completes before returning aggregate error or observations.",
+    "Mutable borrowed JoinHandles remain in self across awaits, so interrupted finish drops self and aborts every owner. No field is moved out from the Drop type.",
+    "UpgradeTaskFailure owns original boxed primary and every collected secondary (including nested aggregates); Error::source exposes original primary. Single cause remains downcastable through source; secondary remains owned, not stringified.",
+    "Owner task timeout requests abort and observes bounded join; retains initial Elapsed plus any completed task/JoinError/second timeout cause. Only cancellation after this explicit abort is accepted.",
+    "Origin accept error and active child failure are captured, listener drops, and full stop cleanup runs before return; alternative accept closure/child failure closes endpoint then drains.",
+    "Stop collects all already-ready outcomes before abort, preserving unexpected ready cancellation. After own abort, bounded join accepts only is_cancelled, retains all other completed errors, then snapshots any ready outcomes at deadline.",
+    "JoinSet Drop requests abort for still-unfinished children; timeout is returned rather than claimed successful quiescence.",
+    "Existing typed control markers, actual duplex destruction observations, literal authenticated H2/H3 positive requests/counts and all control bodies remain unchanged."
+  ],
+  "layout_assessment": "Concrete owner/error/deadline helpers stay with their domain; repeated child drain is one concrete function. Preparation, shutdown, observation, abort and failure return form separate paragraphs. No speculative framework, source API or fixture bytes introduced.",
+  "signature_and_identity": [
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>"
+  ],
+  "findings": [],
+  "verification_basis": [
+    "Source reads and raw Git identity/differential checks only.",
+    "Previously retained root native 759 baseline is 5 positives/9 intended failures on both hosts; no remedy runtime inferred from it."
+  ],
+  "limits": [
+    "No Cargo, native test, formatter/compiler or runtime command executed here.",
+    "Drop requests cancellation and endpoint close; it does not asynchronously join tasks or guarantee packet delivery/socket release before return.",
+    "On cleanup timeout unfinished tasks may remain; timeout cause is retained and remaining ownership aborts on Drop. No unconditional teardown claim.",
+    "Quinn endpoint.close is a close request, not wait_idle proof; no wait_idle completion claimed.",
+    "Listener accept-error cleanup and timeout/dropped-finish branches are source-reviewed but not separately executed by the retained fourteen baseline controls.",
+    "Supporting/vendor/installed partial reads do not become whole vendor or architecture coverage."
+  ],
+  "failed_reads": [
+    "An initial registry quinn-name lock search returned no match; actual dependency is path package phantom-quinn 0.11.12-phantom.4. Resolved vendor endpoint source was then read. No registry Quinn semantic credit claimed."
+  ]
+}

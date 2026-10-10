@@ -1,0 +1,170 @@
+{
+  "schema": "bounded-test-readiness-differential-handoff-v1",
+  "finding": "CACHE-TEST-READINESS-F1",
+  "base_revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+  "historical_checkpoint": "39f18d292cb29c62a99ac286c84948aa4bb81afa",
+  "final_revision": "bdb07168c7d33e560cd32afe7e98f65535345e29",
+  "owned_paths": [
+    "crates/phantom-net/src/address_cache/tests.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "759e000292399e749da3fc1f37119c6b8c755f8b",
+      "git_blob_oid": "5526a4a8ca24e37889cded1605dfc7acd0d61acb",
+      "raw_sha256": "088fb923a347ae4287fe8640d597dd3c6efb18ad10a56946b06e46f066707bc4",
+      "byte_length": 38457,
+      "line_count": 1147,
+      "ranges": [
+        {
+          "test": "concurrent_lookups_share_one_resolution",
+          "start": 296,
+          "end": 318,
+          "raw_sha256": "70138e9fa2aeb8f03598719d7d1d474d2572aa0fc474e578995f7db183fccdd9"
+        },
+        {
+          "test": "a_lookup_does_not_depend_on_another_runtime_being_driven",
+          "start": 341,
+          "end": 382,
+          "raw_sha256": "203033953cfbb81d3ea0b80121610312ed44e8a8257c4ff66648fa5e14d65578"
+        },
+        {
+          "test": "clear_forgets_answers_and_drops_resolutions_in_flight",
+          "start": 867,
+          "end": 891,
+          "raw_sha256": "e40138fe24d1d3913a2bd88d69e8270dc8d3a50eb60446b0ec5225cc87f2fc04"
+        }
+      ],
+      "read_classification": "complete affected test bodies; baseline-full plus authored-body-diff rebind",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "39f18d292cb29c62a99ac286c84948aa4bb81afa",
+      "git_blob_oid": "d74ef7946730d1717b4bd12218e16938e68b8298",
+      "raw_sha256": "a20dc9d0dc30d99e7229b283c7176a2310bc06bf6eeab888a2fef1a6bd824a15",
+      "byte_length": 41309,
+      "line_count": 1216,
+      "ranges": [
+        {
+          "test": "concurrent_lookups_share_one_resolution",
+          "start": 296,
+          "end": 330,
+          "raw_sha256": "b4baa88e8cbc85d1091b98e96715a46276ac10155ca28551f5072e866cbd7997"
+        },
+        {
+          "test": "a_lookup_does_not_depend_on_another_runtime_being_driven",
+          "start": 353,
+          "end": 441,
+          "raw_sha256": "834b8ecc1a03a40f224f180cfeabf1914955e8798c25813cdb6c08386bf94a3e"
+        },
+        {
+          "test": "clear_forgets_answers_and_drops_resolutions_in_flight",
+          "start": 926,
+          "end": 960,
+          "raw_sha256": "033eee4cf83b701184c995a24e8f6126223f47765c251ac85e294c9375f8fb2c"
+        }
+      ],
+      "read_classification": "complete affected test bodies; baseline-full plus authored-body-diff rebind",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization"
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "revision": "bdb07168c7d33e560cd32afe7e98f65535345e29",
+      "git_blob_oid": "cf2f2daa46155765f8900643a02555282561e602",
+      "raw_sha256": "82390304d4185cab29c291915c9fa33ddbc122c947440f5900212967475a2e4d",
+      "byte_length": 41595,
+      "line_count": 1225,
+      "ranges": [
+        {
+          "test": "concurrent_lookups_share_one_resolution",
+          "start": 296,
+          "end": 333,
+          "raw_sha256": "73f980f8b42bc3915c47d357a9566a7f93da9d35bfec9545b7f90ab901027624"
+        },
+        {
+          "test": "a_lookup_does_not_depend_on_another_runtime_being_driven",
+          "start": 356,
+          "end": 444,
+          "raw_sha256": "834b8ecc1a03a40f224f180cfeabf1914955e8798c25813cdb6c08386bf94a3e"
+        },
+        {
+          "test": "clear_forgets_answers_and_drops_resolutions_in_flight",
+          "start": 929,
+          "end": 969,
+          "raw_sha256": "be1fe2679daeba6dd60127f513949e5a020d1c30e272bee1c04a900996702f29"
+        }
+      ],
+      "read_classification": "complete affected test bodies; baseline-full plus authored-body-diff rebind",
+      "basis": "exact committed Git bytes, inclusive ranges; no normalization"
+    }
+  ],
+  "historical_report": {
+    "artifact": "cache-test-readiness-remediation-39f18d29.json",
+    "raw_sha256": "75c6c10b054cfaa34eb472fdc565bcbdbcd9b7b99ea46c13ca91257f7c075253",
+    "preserved_unchanged": true,
+    "qualification": "39 is historical before independent release-order correction; no final runtime approval"
+  },
+  "follow_up": {
+    "cause": "Concurrent and clear controls could validate unexpected Ready/count before explicit gate release, relying on Recorder sender closure instead. Independent review required explicit owner release. No measured socket/resource leak claimed.",
+    "change": "Capture all relevant poll outcomes/counts with gate closed; clear only for captured Pending; send actual gate true before propagating original typed Ready error or asserting count. Cross-runtime source identical39.",
+    "preservation": "Only three existing test bodies differ from759; no new tests/helpers/framework; all A4/A78/A80 and stored-hit controls unchanged; address_cache production blob unchanged.",
+    "errors": "Unexpected Ready Err stays original io::Error. Gate SendError, lookup Elapsed and IO cause retain actual values. Cross-runtime ordinary IO and channel errors remain typed; opaque thread panic payload has existing explicit semantic failure diagnostic."
+  },
+  "observed_contracts_by_source": [
+    "Every selected concurrent lookup is Pending before gate release and finishes exact addresses with false provenance; one actual callback observed before release.",
+    "Cross-runtime ready signal follows actual second Pending; first runtime/lookup retained undriven through result. Gate released and explicit thread join observed before assertions/early return.",
+    "Clear follows actual pre-clear Pending; callback1 captured before clear; old answer remains exact/nonstored and cannot refill cache; original subsequent call-count3 retained."
+  ],
+  "verification": [
+    {
+      "command": [
+        "rustfmt",
+        "--check",
+        "--edition",
+        "2024",
+        "--config",
+        "skip_children=true",
+        "crates/phantom-net/src/address_cache/tests.rs"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\cache-test-readiness-remediation-bdb07168-rustfmt.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "759e000292399e749da3fc1f37119c6b8c755f8b",
+        "bdb07168c7d33e560cd32afe7e98f65535345e29"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\cache-test-readiness-remediation-bdb07168-diff.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\cache-test-readiness-remediation-bdb07168-status.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "signed_commits": [
+    "39f18d292cb29c62a99ac286c84948aa4bb81afa\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(dns): establish pending lookups before releasing answers\n\n",
+    "bdb07168c7d33e560cd32afe7e98f65535345e29\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(dns): release held resolvers before readiness assertions\n\n"
+  ],
+  "grouping": "Capture/select, release, validate and complete/assert paragraphs manually inspected; cleanup guards precede independent verification.",
+  "root_filter": "test(address_cache::tests::)",
+  "limits": [
+    "No Cargo, compile, Clippy/MSRV or native execution in lane; parent owns both-platform checks and full integration gate.",
+    "Tests are strengthened in place; no new production defect or invented red baseline.",
+    "The thread has concrete scoped ownership and bounded readiness/result/lookup observations; standard-library thread join and runtime Drop cannot forcibly interrupt an arbitrary blocking resolver/process stall.",
+    "Independent signed final source review pending at report creation.",
+    "Original frozen source/capture/environment evidence remains unchanged; no merge/rebase/push or central docs/manifests edits."
+  ]
+}

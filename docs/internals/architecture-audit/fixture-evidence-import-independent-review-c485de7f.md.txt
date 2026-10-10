@@ -1,0 +1,11 @@
+# Fixture evidence import review
+
+Approve the bounded import at c485de7f3426e0055fa6aee91b8e0654030725a2. The 27-file change contains 24 exact copies (twelve report pairs), coverage/findings prose and inventory changes. All committed copies equal the retained original raw bytes, including their original line endings. Existing byte-storage attributes apply; this commit changes no source or attribute rule.
+
+Inventory changes are exactly six owner promotions and two append-only current test-evidence rows. Four route owners map the original root full dda49bed records through the separately reviewed 505 layout differential, with connected/datagram unchanged. Two cache/interface owners map full root baseline reads through the reviewed c9 blank-line-only differential. All current source hashes, line totals and base identities match. This is preserved full-read provenance plus a reviewed differential, not a new fresh full independent read.
+
+There are 140 new discovery rows (134 plus six), all pending. Every path exists in the exact committed tree. Their classes are 28 crate, two tooling, eighty documentation and thirty vendor-boundary rows. No old row is removed and no discovery gains semantic review credit. Older test receipts remain present beside the newer exact cache test/route evidence.
+
+The ledger correctly retains focused status: A100-A105 use the reviewed 21-environment/40-state green selections with final gates pending; A106 uses the fourteen-control nine-negative/five-positive native baseline; A109 remains a source-confirmed tests-only readiness gap. Coverage retains the old 41f single_match Clippy failure and separates initial eleven facade route controls from later three network/thirty facade controls. The root's additional cache/source baseline report was read and its eighteen artifact hashes and source identities validated. Historical pending-review wording remains in the original report, paired with the later independent c9 approval.
+
+This review checks the complete changed prose and structured inventory changes plus exact copy identities. It does not create fresh source coverage by copying prior reports. The later 2b4 source composition and pending native execution require separate evidence; neither is inferred here. No Cargo, test execution, tracked edit, full gate or architecture completion is claimed.

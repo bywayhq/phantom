@@ -1,0 +1,458 @@
+{
+  "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+  "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "kind": "bounded complete facade error/library/response/template standards source pass",
+  "source_records": [
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "line_count": 1975,
+      "read_ranges": [
+        [
+          1,
+          1975
+        ]
+      ],
+      "read_scope": "fresh complete manual line-by-line standards and contract read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "436e348401c5cd09828347a6563dec8c56a1a37f",
+      "head_bytes_equal": true,
+      "working_sha256": "1b3b4f22bc22440c9eff77c5ed0a79158a7136f50c94f8033f2df5a1b913d1bf",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/lib.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "sha256": "24b43d2a0826b7a04bcc005fd198002d5abe0783635740a9413ad3cebe276ee8",
+      "line_count": 349,
+      "read_ranges": [
+        [
+          1,
+          349
+        ]
+      ],
+      "read_scope": "fresh complete manual line-by-line standards and contract read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "cd7fa5dacafed7895d13f54f75c7e747763c4474",
+      "head_bytes_equal": true,
+      "working_sha256": "24b43d2a0826b7a04bcc005fd198002d5abe0783635740a9413ad3cebe276ee8",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/response.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "eb1d6c537811984b77a7dc52861a814825b2eee8",
+      "sha256": "d0337303933f61b22c78a4f69f4a9960af67ce33f57b85641354ea2327d1d29c",
+      "line_count": 383,
+      "read_ranges": [
+        [
+          1,
+          383
+        ]
+      ],
+      "read_scope": "fresh complete manual line-by-line standards and contract read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "eb1d6c537811984b77a7dc52861a814825b2eee8",
+      "head_bytes_equal": true,
+      "working_sha256": "f56dd56ccbb28f0f5e1a85e52fead8a005a85dae134597d7b67ed756ad1814f6",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/request/template/tests.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "4434d0528f83e199e3dea89f02c9c82b6defa0c5",
+      "sha256": "4566e3a6add16a0530c32df2c4045ca83736122b8431f93a8a0f1f8318b9108d",
+      "line_count": 847,
+      "read_ranges": [
+        [
+          1,
+          847
+        ]
+      ],
+      "read_scope": "fresh complete manual line-by-line standards and contract read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "4434d0528f83e199e3dea89f02c9c82b6defa0c5",
+      "head_bytes_equal": true,
+      "working_sha256": "62c2bf4ea273b079124d26286b4016817591ab57f0a1e0d6541f01599d5a36c4",
+      "working_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "supporting_source_records": [
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_ranges": [
+        [
+          1,
+          138
+        ]
+      ],
+      "read_scope": "complete supporting manifest read for package features, dependencies, runtime flags, integration and example registration; not an additional owned source pass",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "head_bytes_equal": true,
+      "working_sha256": "5f4a60a895690644ad565d2828af5320bb09ce98f45ac1ea9936bdf710efba0b",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/request/template.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "line_count": 709,
+      "read_ranges": [
+        [
+          1,
+          342
+        ],
+        [
+          551,
+          709
+        ]
+      ],
+      "read_scope": "partial preparation/cache, redacted Debug, expansion forwarding/sensitivity and pre-I/O validation; middle placement helpers not covered",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "13451c9e86928454196a1b8a1f5334ee48484fe4",
+      "head_bytes_equal": true,
+      "working_sha256": "9f4be294c852937cfa9942fec69ba0bd09e76cf04ce99476d5d5ff55c9f3d9c8",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/body.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "line_count": 550,
+      "read_ranges": [
+        [
+          76,
+          123
+        ]
+      ],
+      "read_scope": "partial bounded collector ownership, data count, trailer discard and failure cancellation",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "head_bytes_equal": true,
+      "working_sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "line_count": 2359,
+      "read_ranges": [
+        [
+          961,
+          1005
+        ],
+        [
+          1191,
+          1228
+        ]
+      ],
+      "read_scope": "partial actual template pre-I/O caller, response metadata publication and cross-origin template stripping",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "head_bytes_equal": true,
+      "working_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/authority.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "dfee04a40274a72764cd838377b8c348644d7ab4",
+      "sha256": "179a512328f46b6195181cb2a8d168f1c92a4a667dd65af0e0666b7100e3de63",
+      "line_count": 330,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "read_scope": "partial owned RequestOrigin representation and public views",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "dfee04a40274a72764cd838377b8c348644d7ab4",
+      "head_bytes_equal": true,
+      "working_sha256": "2225889e7d0b7fcd31e0dcc847930d7251f0cea684686b46572862df49d745f6",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom-net/src/http2/error.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "b08876c3eba150ed0d8db10e811acab01e78e7e1",
+      "sha256": "c1c39c205dc20dcb8c7746a0871290876502d07971e1de313c144214bb49ef14",
+      "line_count": 603,
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "read_scope": "partial independent GOAWAY versus transport classification and recorded remote signal contract",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "b08876c3eba150ed0d8db10e811acab01e78e7e1",
+      "head_bytes_equal": true,
+      "working_sha256": "320941815c50e38d3e5c115a9c729587b392d1ca16ae82e7524bb13a2dfb2b41",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom-net/src/direct.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "line_count": 370,
+      "read_ranges": [
+        [
+          1,
+          185
+        ]
+      ],
+      "read_scope": "partial actual direct DNS/dial phase boundary and typed Connect wrapping including HTTPS-record branch",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "d170a34854b0c398ecf6fb812f3b6dc1fb74162c",
+      "head_bytes_equal": true,
+      "working_sha256": "c81f7d293492095c2702a4b553d743894ab6d3cd696bacb326ef3a75907f7c5c",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom-net/src/tcp.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "line_count": 847,
+      "read_ranges": [
+        [
+          181,
+          222
+        ]
+      ],
+      "read_scope": "partial profiled TCP resolver-before-dial implementation",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "d3e95a4a2c718126277dba69ba02c6a6c767bc65",
+      "head_bytes_equal": true,
+      "working_sha256": "c84a240004f812101a783851c62d1712c85393ecbe140e4394ce8f94d70aa4ec",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls.rs",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "line_count": 1102,
+      "read_ranges": [
+        [
+          971,
+          1012
+        ]
+      ],
+      "read_scope": "partial direct connection leg mapping into typed TLS connector error",
+      "role": "supporting partial source; no whole-source promotion",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "b607c1889b73f89411f0e10f91a4b4c04181e566",
+      "head_bytes_equal": true,
+      "working_sha256": "86db6a9594b6867fb0be589ff2fafb61b82d1807707d7c5bab317c42248a4384",
+      "working_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "supporting_fixture_records": [
+    {
+      "path": "fixtures/lifecycle/chrome/154.0.8037.97/windows-11-26200/revalidate.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "ceb0e5ca9d340635921576fad62902d46a84f533",
+      "sha256": "721c83235c353127d00ea5e786e5ba79e3c51a3a3052b7ee0914186a4dfc24cc",
+      "line_count": 45,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "read_scope": "complete retained text fixture read; metadata, recorded ordered names and three 304 requests checked; no new capture execution",
+      "role": "supporting recorded fixture data, not first-party source audit credit",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "ceb0e5ca9d340635921576fad62902d46a84f533",
+      "head_bytes_equal": true,
+      "working_sha256": "721c83235c353127d00ea5e786e5ba79e3c51a3a3052b7ee0914186a4dfc24cc",
+      "working_bytes_equal_after_crlf_normalization": true,
+      "recorded_304_requests": 3
+    },
+    {
+      "path": "fixtures/lifecycle/firefox/157.0/windows-11-26200/revalidate.txt",
+      "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+      "git_blob": "7bd4d2c4241bf3f7bc047c19bdcfb476c246f2c0",
+      "sha256": "e103144647e9a6f53eedaf9e62e5e69f8da5a5b00fba997b5ab5e96f8e367ad9",
+      "line_count": 48,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "read_scope": "complete retained text fixture read; metadata, recorded ordered names and three 304 requests checked; no new capture execution",
+      "role": "supporting recorded fixture data, not first-party source audit credit",
+      "comparison_head": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "head_blob": "7bd4d2c4241bf3f7bc047c19bdcfb476c246f2c0",
+      "head_bytes_equal": true,
+      "working_sha256": "e103144647e9a6f53eedaf9e62e5e69f8da5a5b00fba997b5ab5e96f8e367ad9",
+      "working_bytes_equal_after_crlf_normalization": true,
+      "recorded_304_requests": 3
+    }
+  ],
+  "complete_owner_file_count": 4,
+  "complete_owner_line_count": 3554,
+  "historical_inventory": {
+    "revision": "c485de7f3426e0055fa6aee91b8e0654030725a2",
+    "sha256": "cabda3f0cbf87d6f2c4e835b03043bdc7fc9874fbef58c21064bf948acc4136d",
+    "rows_preserved_as_partial": [
+      "crates/phantom/src/error.rs\tcrate\tsource-partial\tdocs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61; client-http3-integration-standards-review.json#/source_records/16; net-cache-interface-independent-review.json#/source_records/11",
+      "crates/phantom/src/lib.rs\tcrate\tsource-partial\tcanonical-api-signed-rebind.json#/rebind_records/62",
+      "crates/phantom/src/request/template/tests.rs\tcrate\tsource-partial\tclient-remaining-coverage.json#crates/phantom/src/request/template/tests.rs | docs-contract-coverage.json#crates/phantom/src/request/template/tests.rs",
+      "crates/phantom/src/response.rs\tcrate\tsource-partial\tdocs-contract-coverage.json#crates/phantom/src/response.rs"
+    ],
+    "mutation": "none; proposed current full coverage uses only this fresh complete read"
+  },
+  "findings": [
+    {
+      "id": "PUBLIC-S1",
+      "priority": "P3",
+      "category": "explicit repository test placement mismatch",
+      "path": "crates/phantom/src/error.rs",
+      "range": [
+        1545,
+        1975
+      ],
+      "cause": "Twenty inline tests and their private io_error fixture occupy 431 lines including registration, exceeding the repository inline unit-test guidance of about 300 lines.",
+      "remedy": "Move the existing test module body unchanged into crates/phantom/src/error/tests.rs and leave #[cfg(test)] mod tests; at the end of error.rs. The natural module path resolves it. Preserve super imports, private parent functions and all twenty method bodies. No #[path], new framework, production split or new test is needed.",
+      "verification": "Exact unchanged body/import and roster comparison plus targeted format; root compile and existing unit selection. This is placement, not a production file-size quota."
+    },
+    {
+      "id": "PUBLIC-S2",
+      "priority": "P3",
+      "category": "manual declaration/import layout",
+      "path": "crates/phantom/src/lib.rs",
+      "range": [
+        188,
+        349
+      ],
+      "cause": "Private module declarations precede facade reexports; external reexports are interleaved after public profile/dns declarations. The standards put reexports with imports before module declarations.",
+      "remedy": "Group the existing reexports before declarations, retaining all cfg attributes, documentation, visibility and canonical public paths. Keep public profile/dns modules intact. No API change or crate split is required.",
+      "verification": "Mechanical exact item/cfg/path comparison, targeted format and root feature/doc compilation. A108 previously repaired route.rs; it is not full lib.rs evidence."
+    },
+    {
+      "id": "PUBLIC-D1",
+      "priority": "P3",
+      "category": "documentation/category qualification, not confirmed transport defect",
+      "path": "crates/phantom/src/error.rs",
+      "range": [
+        364,
+        367
+      ],
+      "cause": "Resolve describes origin address resolution generally, but actual direct TCP DNS and dial failures share DirectConnectError::Connect, Http1TlsError::Connect and RequestErrorKind::Connect. The public category descriptions do not explain that phase distinction is unavailable on this path.",
+      "remedy": "Clarify Resolve/Connect rustdoc to describe the actual distinguished resolution failures and combined direct TCP setup category. Do not invent phase information, infer it from io::ErrorKind or change production retry classification without a separate contract decision.",
+      "supporting_ranges": {
+        "crates/phantom-net/src/direct.rs": [
+          [
+            62,
+            81
+          ],
+          [
+            132,
+            138
+          ]
+        ],
+        "crates/phantom-net/src/http1/tls.rs": [
+          [
+            973,
+            991
+          ]
+        ],
+        "crates/phantom/src/error.rs": [
+          [
+            873,
+            877
+          ],
+          [
+            931,
+            955
+          ],
+          [
+            1074,
+            1084
+          ]
+        ]
+      },
+      "verification": "An optional future controlled resolver failure through actual facade protocol choices can document observed categories, preserving typed sentinel cause. No new runtime reproduction or production defect is claimed here."
+    }
+  ],
+  "accepted_contracts": [
+    "BuildError and RequestError store concrete typed causes; automatic Display/Debug exclude those causes, and RequestError Debug exposes only the path-free RequestOrigin and categorical fields",
+    "Source traversal for upload failure classification follows typed RequestBodyError rather than parsing messages; replay observations remain separate from policy, budgets and body eligibility",
+    "Remote H2 ConnectionError is specifically GOAWAY in its actual owner, while transport/local/reset cases remain distinct; this pass does not rerun vendor stream-id behavior",
+    "StatusError retains the complete unread response; bounded body/text/JSON helpers retain metadata and typed causes and drop failed data; JSON input limit explicitly does not promise an allocation budget",
+    "ResponseInfo Debug omits effective URI; metadata is attached by the actual request completion caller and cross-origin template stripping follows the real redirect path",
+    "Facade canonical request fields come from phantom_net::request and feature gates agree with the read manifest; full omits diagnostics and danger-disable-verification; public examples name currently exported functions/types",
+    "Template controls assert literal independent ordered name lists, value bytes and sensitivity flags at the expansion seam; required-protocol/trust/forwarding negatives have paired positives",
+    "A25 forwarding cache agreement and A26 Debug redaction remedies are present and protected; they are existing ledger findings, not reopened issues",
+    "Revalidation controls use exact retained browser fixture name sequences and require three nonempty recorded 304 rows per browser; malformed or empty fields cannot silently match full expanded literal names",
+    "Owned template unit controls spawn no peer/task and perform no request send; client/builder construction is synchronous and returned owners drop lexically; no socket teardown claim is inferred"
+  ],
+  "rejected_candidates": [
+    {
+      "candidate": "Split error.rs production implementation because it is long",
+      "disposition": "Rejected: no arbitrary file-size quota. Only the explicit inline test placement mismatch is supported."
+    },
+    {
+      "candidate": "ResponseReadError leaks retained headers/URL/JSON input through ordinary formatting",
+      "disposition": "Rejected: custom Debug/Display contain only status and category; typed source details require explicit inspection."
+    },
+    {
+      "candidate": "The response byte cap bounds all JSON deserialization allocations",
+      "disposition": "Rejected: rustdoc explicitly limits input bytes, not output allocation."
+    },
+    {
+      "candidate": "Template HeaderMap assertions prove encoded wire order/sensitivity",
+      "disposition": "Rejected: these owner tests compare ordered RequestHeader vectors; this pass proves local expansion semantics, not encoded HPACK/QPACK representation or browser acceptance."
+    },
+    {
+      "candidate": "All remote H2 errors become unprocessed",
+      "disposition": "Rejected: helper checks actual typed remote GOAWAY or remote REFUSED_STREAM; transport/local branches are excluded. Vendor behavior remains separately evidenced."
+    },
+    {
+      "candidate": "A SOCKS mapping unit test exercises three live protocol routes",
+      "disposition": "Qualified: it tests the literal shared mapping table. Actual three caller branches are visible in error.rs, but no live route execution is credited."
+    },
+    {
+      "candidate": "Template helper unwrap_or_default establishes a runtime client panic",
+      "disposition": "Rejected: that lookup only prepares a controlled test template; public preparation/validation is fallible. No production panic found."
+    }
+  ],
+  "manual_layout": "Reviewed every owned source line. Response error owners/types and helpers are grouped by responsibility. Existing missing paragraph separation between independent error constructors/negotiation guards and template subcases is minor pacing, not a behavioral bug. Unit test placement and facade export order are recorded specifically; no speculative shared helper/crate reorganization proposed.",
+  "runtime_status": "Read-only; no source edits, Cargo, network, tests or lint execution. Root owns remediations, compilation and final gates.",
+  "limitations": [
+    "Whole reads are exact frozen Git objects, not advancing dirty imports; current comparison is byte identity only.",
+    "Supporting production/caller ranges remain partial; fixture data is not project source coverage.",
+    "Doctest/feature examples were source checked, not compiled in this pass.",
+    "Historical source-partial rows and reports remain unchanged; root may import this new fresh evidence.",
+    "No broad architecture completion, browser capture, wire encoding or final integration approval."
+  ]
+}

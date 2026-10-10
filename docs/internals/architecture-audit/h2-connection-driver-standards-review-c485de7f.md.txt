@@ -1,0 +1,100 @@
+# H2 connection and driver standards review
+
+Frozen source: `c485de7f3426e0055fa6aee91b8e0654030725a2`. Read-only source pass; no Cargo or runtime execution.
+
+Both assigned owners were manually read in full: connection 1199 lines and driver 196 lines. The connection read was 1-400, 401-800, 801-1199; driver 1-196. Each source/range below is exact committed Git bytes, with raw inclusive-range SHA256 in the paired JSON. Supporting reads do not broaden owner approval.
+
+## Finding
+
+H2-OWNER-LAYOUT-F1 (P3): separate independent checks and lifecycle steps. The attached standards 111-125 require a new paragraph after a guard and between independent validation/conversion/output phases. Connection request variants 202-206, 237-243, 271-285, required extended-mode 326-329, reuse 705-716 and idle record 1170-1175 are dense across these phases. Driver handle guard/setup 64-75 and timer guard/poll 123-127 have the same narrow gap.
+
+Proposed remedy is whitespace only in the two assigned owners. Keep related assignments/conversion chains together. No split, new abstraction or behavior test is warranted. Integration was notified before any source edit; none was made.
+
+## Owner contracts
+
+- Preparation validates settings and structured request/trailer/priority plans before connection/body use. Origin forwarding uses structured URI parts; extended CONNECT waits actual peer capability and never silently falls back.
+- RequestStreamGuard owns SendStream through lexical upload. Response-head/upload selection retains ongoing upload in Http2Body, or records completed inbound state before cancelling an abandoned upload. Body and accepted tunnel leases keep ConnectionInner alive.
+- The facade acquires shared origin admission before setup; setup reservations clear/notify on Drop and waiters register before locking. Response extensions retain OpenStream and Permit; pool retry is explicit and bounded. Supporting pool paths are partial, not whole pool approval.
+- is_reusable is deliberately a snapshot, not a reservation. Backend SendRequest clone has no pending stream; poll_ready checks connection state while actual spread/admission/send govern capacity. The spread source and its actual assumed-limit/capacity literals were read in full as supporting evidence.
+- Final ConnectionInner Drop closes sender before initiating DriverTask shutdown. AbortDriver and DriverOutcome exist before spawn; supervisor completion observes protocol and join categories, timeout requests abort, runtime future Drop also aborts and records runtime_shutdown.
+- The process timer is concrete runtime-owned lifetime service. wait_for_driver polls the task before the deadline, so completed driver result wins simultaneous expiry. Supervisor Drop/timeout requests cancellation; it does not promise synchronous joined driver completion.
+- Owner Debug/spans emit closed state, method/protocol/size/status/outcomes and reason/IO/panic flags, not authority, credentials, headers or payload. RequestHeader sensitive Debug is explicitly redacted in the supporting request source.
+- No unsafe block, recoverable-input panic, unchecked external slice index, poisoned user-state mutex or unbounded spawned request-body task was found in either owner. Guard access and backend errors are typed; source size alone does not justify another module or generic helper.
+
+## Rejected and qualified candidates
+
+- Detached request upload loses stream cancellation: rejected by source. PendingUpload is a lexical future owning RequestStreamGuard; its Drop sends CANCEL. Active upload is transferred into response body rather than spawned. Backend reference Drop also cancels streams with no remaining interest.
+- Dropping facade connection invalidates active response/tunnel: rejected by source. ConnectionLease Arc keeps ConnectionInner/driver alive until body or accepted tunnel drops. Classic held rejection is private and its retry caller retains the connection during the challenge exchange.
+- Every rejected CONNECT end-of-stream error must replace final rejection: qualified intentional contract. An actual final response status is already received. Empty DATA has zero payload and backend state guards yield inactive/incorrect state after reset/close. Extended CONNECT propagates IO/GOAWAY; classic response status takes precedence by explicit comment. Caller checks eligibility before reusing. Not a new silent protocol change claim.
+- is_reusable reserves or proves peer capacity: rejected as API guarantee. Public docs say snapshot and no reservation. Actual backend clone readiness and facade stream-count/admission paths establish separate contracts; later send can still fail.
+- Supervisor detached JoinHandle proves permanent driver leak: rejected as unsupported runtime claim. Supervisor owns AbortDriver guard before spawn; timer and runtime cancellation request abort. Drop cannot await; no synchronous closure guarantee claimed. Existing shutdown controls retain explicit runtime boundary and final outcome observations.
+- Discarded runtime-neutral timer error is a new caller cause loss: qualified existing diagnostic-only Drop contract. Timer failure causes task_error outcome and driver abort after connection owner Drop; there is no public async shutdown Result to return the timer value through. Existing fixture deadline typed error repairs remain separate and covered.
+- ReadIdle nanoseconds overflow panics or moves idle time backward: rejected by bounded conversion. u64 conversion saturates, atomic fetch_max is monotonic; elapsed time uses monotonic Instant. The u64 nanosecond horizon is centuries, not an observed runtime issue.
+- Existing H2 streaming and shutdown findings remain unfixed: rejected for covered remedy scope. Current supporting repaired helper paths retain typed completion/cleanup causes and bounded joins. Historical source identities remain historical where changed; current bytes are compared explicitly and supporting partial ranges remain partial.
+
+## Supporting fixture limits
+
+- `crates/phantom-net/src/http2/tests/request_body_cancellation.rs`: The literal stalled upload, actual CANCEL and later 204 reuse are strong independent protocol oracles. Raw peer/request tasks can lose their successful-path join on early errors. Runtime ultimately owns these tasks; this is supporting source qualification, not a measured surviving-socket/production leak. Older continuation/body reports already described runtime-owned fixture limits; do not silently reopen current repaired driver_shutdown/streaming controls.
+- `crates/phantom-net/src/http2/tests/driver_lifecycle.rs`: Selected raw peers have successful-path awaits and meaningful exact partial DATA/CANCEL/closed/tracing observations. Early client/assertion exits bypass an explicit join. Only 1-145 read here; no whole final fixture approval or native leak claim.
+
+These are qualified supporting reads. Strong protocol oracles do not establish every early-error ownership path. They do not revoke independently reviewed repaired shutdown or streaming helpers, and they are not runtime reproductions.
+
+## Current source evidence
+
+| File | Scope | Lines | Git blob | Raw SHA256 |
+|---|---|---:|---|---|
+| `crates/phantom-net/src/http2/connection.rs` | full (1-1199) | 1199 | `be0b4c33127d65ff6b8415c3234b72652f0e2314` | `e513764c77279b023848ecbef00c58d0eb54ab1fce8342c430b9fc2b7c593511` |
+| `crates/phantom-net/src/http2/driver.rs` | full (1-196) | 196 | `87b1044dfca62cef0419d3a649b0979282fdcb2d` | `32102211c3c35411a950646ab3fe85f507a8564ef58564cab0a12dd2260d3fc7` |
+| `crates/phantom/src/session/http2_pool.rs` | partial (35-68,193-405,423-453,508-653,805-920) | 1085 | `42f2985174b3200d34a42b51399ed0ba60743b90` | `d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01` |
+| `crates/phantom/src/session/http2_connections.rs` | full (1-178) | 178 | `ee7bb9add9671df5eb08ad5e1dfe1c509f28bf79` | `526f4a9d52302b680c7ceb05fb183d4b494346f08fb5ff751e2f287cfa4a661c` |
+| `crates/phantom-net/src/http2/body.rs` | partial (1-215) | 285 | `adba4413d63840b8f296d42899e2a062b4dbc1a3` | `b532a58b4b67333abb682f40540b788105a277b30e1ec6dcb3e6663930ac8495` |
+| `crates/phantom-net/src/http2/error.rs` | partial (504-550) | 603 | `b08876c3eba150ed0d8db10e811acab01e78e7e1` | `c1c39c205dc20dcb8c7746a0871290876502d07971e1de313c144214bb49ef14` |
+| `crates/phantom-net/src/request.rs` | partial (735-776) | 1038 | `99217eb2b9ed7586b33be1fe5ec9faced02155ea` | `88034c1a13e742ad2fd4445a8ad9bc02f2e0eec6053360ae4bafeba745725fda` |
+| `crates/phantom-net/src/tls/early_data.rs` | partial (139-265) | 410 | `b78f419837b4dc95a99eb2fb50b1648156eaf6e1` | `8ec22b60795d27598bd34d66aba9873baac21586fc6171590a8d16aa3b47bd0e` |
+| `crates/phantom-net/src/proxy/http2_connect.rs` | partial (175-242) | 242 | `e7eaf819b74bb8d3bdbfa900b00e651619893413` | `828901ef436dd7c893970e8018e055e53d1adba17ce0428ea0506a655e321df1` |
+| `crates/phantom-net/src/http1_or_2.rs` | partial (637-700) | 828 | `96c7c721056dd077a299642bed0c2e5bcc5fd64a` | `cc0e9b98c12a3cabcd13ae16f24c8b49c48996d67caaea078bed49f605048821` |
+| `crates/phantom-net/src/http2/tunnel.rs` | partial (1-110,330-367) | 367 | `fb7ef78cbeb208837687b552341b91d6469380fe` | `dbfe570b718a9c7f95047b6dce608d28fe66688d08b86681d421f34ecde2fdb1` |
+| `crates/phantom-net/src/shutdown_timer.rs` | full (1-143) | 143 | `7bfc472bea204e64a91dfb3658887c357a85d488` | `36a3fb1d50f93b0ae8569d747e7e67c16f48644fe9cea3f36ca1863691fe8f1b` |
+| `crates/phantom-net/src/http2/tests/request_body_early_response.rs` | partial (1-220,234-338) | 338 | `94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5` | `e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc` |
+| `crates/phantom-net/src/http2/tests/driver_shutdown.rs` | partial (1-220,264-327) | 525 | `276f3c3a83aa59dbba655db53e2d2fd9b329c1a7` | `7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee` |
+| `crates/phantom-net/src/http2/tests/request_body_cancellation.rs` | full (1-123) | 123 | `f653cdc490b86580985d2e34c7a8b763b3c75763` | `e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb` |
+| `crates/phantom-net/src/http2/tests/driver_lifecycle.rs` | partial (1-145) | 218 | `7c2cd7d201c0026f1a9c2b0b86b693a20a13d3ba` | `8fb2bd2af8e00fb8f503a2b55f67abb21faadc87f747cd9f9be9c165b2597b67` |
+| `vendor/http2/PHANTOM.md` | partial (1-320) | 940 | `1f9412973746f5f389be186c905bd83bcd487b53` | `d64ecfbd8dac68598a7dbeb5b3516a66a316f8d7e9f7b0ed11522dec06c4f30c` |
+| `vendor/http2/src/client.rs` | partial (442-495,590-713) | 2124 | `d0f7bef26c31b9c422e222d8e30a7229bb3ffb43` | `ac843c22552f28d8cd632951383c23ada72381044ead24dcfdfcb0c75adfa272` |
+| `vendor/http2/src/proto/streams/streams.rs` | partial (286-354,1150-1235,1765-1835) | 1970 | `715807abec16d76e8fc3caa903cbc80c84665b95` | `d409faa3cf6877caef9b6b121a25ec4a260c3b48c9e44ec5b44b97f6be4707b7` |
+| `vendor/http2/src/share.rs` | partial (490-515) | 622 | `bfcfdf06e74b40a1f19270e7d47aebcd1963ae73` | `c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624` |
+| `vendor/http2/src/error.rs` | partial (36-119,198-228) | 274 | `dadfc575dea15d42863693350dbc6407d7892217` | `3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7` |
+| `vendor/http2/src/proto/streams/send.rs` | partial (325-399) | 695 | `794ffcdb4de0b1c07b06baa2b89e2649b96c010b` | `40cc7984d16bfde8c9a99d9c8658e37817fc3171e05edeac929a2235aed933b2` |
+| `vendor/http2/src/proto/streams/prioritize.rs` | partial (185-295) | 1008 | `3ab72cfe99a4487927a3c31876a85a7a9e631c7f` | `c0588ad24c2a16e81491a7a6ee2eb0ebc292376628f97f732a092ea1be02439d` |
+| `vendor/http2/src/proto/connection.rs` | partial (300-430) | 817 | `4ccab653bf4217a31e0b9d672f35c3cee6328de5` | `4a6297419a88d1f3c91bc1edb9846dc798fea87389143747baa21ae4f11cc2ef` |
+
+The timer and connection-spread files were fully read as supporting contract files. PHANTOM.md 1-320 is a partial dependency reference, not a full 940-line vendor review. request_body_early_response 221-233 and the other unlisted supporting ranges were not read in this pass. No actual source range is silently trimmed.
+
+## Historical reconciliation
+
+25 selected historical source identities/ranges were compared with Git and frozen current bytes; 0 identity/range mismatches. Original reports were preserved and raw artifact hashes recorded. Missing original range hashes remain explicitly absent; new computed range hashes do not retroactively prove source reading.
+
+The earlier 6ee driver full record and connection partial 1-175, 1120-1199 are byte-equal current. The 6535 connection partial 917-1130 and driver partial 1-80 are also byte-equal current, but remain partial. This fresh complete connection read adds actual owner coverage; it is not assembled from declarations.
+
+Original 6535 streaming-peer report is historical changed source and its detached driver finding was repaired separately. The final streaming cause addendum is a partial fresh edited-function record, not a full final file declaration. Current repaired selected paths were freshly inspected here with exact gaps retained. Original 6ee driver_shutdown source changed; independent eb13 remedy identity is compared explicitly. All original continuation reports remain historical source evidence with their stated limitations.
+
+## Limits and handoff
+
+- No tracked edits, Cargo, native execution, sockets, external network, push or merge in this pass.
+- Source metadata validation is identity proof, not semantic or runtime approval. Supporting partial reads retain their exact ranges and gaps.
+- No complete pool, TLS replay, accepted tunnel implementation or vendor audit credit from selected supporting ranges.
+- Driver Drop initiates bounded shutdown and abort requests; no synchronous abort join or permanent peer absence guarantee.
+- No whole-codebase closure or browser/network parity claim. One narrow readability finding proposed; supporting legacy fixture ownership remains qualified.
+- A guessed http2_spread.rs path was absent in frozen Git; no source credit assigned. Actual http2_connections.rs was then located and fully read.
+
+Root owns any assigned whitespace edit, independent review, native checks and inventory import. Suggested inventory disposition for only the two assigned owners: full manual source review at the frozen revision with H2-OWNER-LAYOUT-F1 open. Supporting records retain their actual full/partial classification and review role; no semantic credit from hash validation alone.
+
+## Supporting source finding and proposed causal controls
+
+H2-SUPPORT-CAUSE-F2 (P3), request_body_cancellation.rs 19-69 and 72-113: raw peer 22/upload 31 handles are joined only along the accepted path. An actual peer failure before accepted publication closes the channel; 46-48 substitutes text for RecvError and exits before observing either task. Absolute parent timeout/panic drops raw handles, which detach under pinned Tokio 1.53.1. Upload 32/44 stringifies original input/H2 causes; peer 105-106 stringifies actual Elapsed. The strong current 70,000-byte stall, actual CANCEL and later 204 reuse assertions stay valid.
+
+This actionable source-confirmed fixture gap is separate from production whitespace and current repaired shutdown/streaming fixtures. It is not an executed permanent leak. A separate baseline should complete root 204 and actual zero-window POST, inject a typed peer fault before accepted publication, keep runtime/client alive, and require primary channel failure plus joined peer cause. A cancellation control should establish POST acceptance first and observe bounded task/destructor completion outside the cancelled owner; cleanup precedes assertion. A reset-deadline control should preserve actual Elapsed and positive CANCEL/204. Fault-injection reachability and terminal behavior remain unexecuted; no new test exists here.
+
+Driver_lifecycle.rs selected raw peers 24/66/122 also bypass joins on send/body/dispatcher error or panic. The 66 case owns a local runtime, which shuts tasks down when it drops; this differs from permanent survival. Tokio cases lack explicit early-path result observation. Only 1-145 was read; this supporting qualification awaits a bounded full fixture assignment and causal controls.
+
+The parent fixture tests.rs was subsequently read fully (187 lines): bounded_peer_test retains typed Elapsed but bounds the caller future without owning raw children. Its reset oracle requires actual CANCEL and treats Some(Err) as typed failure. Cargo.lock 2218-2225 pins Tokio 1.53.1; installed join.rs 10-30,350-365 documents detached Drop and joined destructor completion. Additional exact identities/ranges are in JSON; external source has no fabricated Git OID.

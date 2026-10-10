@@ -1,0 +1,286 @@
+{
+  "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "source_equivalence": [
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "composed_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "reviewed_source_revision": "d89883df",
+      "git_blob": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "reviewed_source_bytes_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "composed_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "reviewed_source_revision": "c76d8918",
+      "git_blob": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "reviewed_source_bytes_equal": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/worker_results.rs",
+      "composed_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "reviewed_source_revision": "c76d8918",
+      "git_blob": "0c8adef52df09b37f45ea39e34cd927139c7ab93",
+      "sha256": "74f33a931be92425b31f3ab09870517857e49e9194fd0d4c43fb045cb5e86e52",
+      "reviewed_source_bytes_equal": true
+    },
+    {
+      "path": "crates/phantom-net/src/address_cache/tests.rs",
+      "composed_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "reviewed_source_revision": "bdb07168",
+      "git_blob": "cf2f2daa46155765f8900643a02555282561e602",
+      "sha256": "82390304d4185cab29c291915c9fa33ddbc122c947440f5900212967475a2e4d",
+      "reviewed_source_bytes_equal": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-windows.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-windows.log",
+      "sha256": "45094a58efb1fc1accf10ac7daeae2499d3a1b11629c8642a73ceeb03f1941ce",
+      "byte_count": 36927,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-windows.log",
+      "sha256": "3635a65d43b20c2a3fcd6a99af603afcef946dee58ccc35771d9a20ffa068050",
+      "byte_count": 1516,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-windows.log",
+      "sha256": "04b92b6262f3154058582d51482894fdad36a6b0b5e0b50204c7352b083b0570",
+      "byte_count": 2434,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-windows.log",
+      "sha256": "576ca1f89f31927eecdb26c94ad74f5d0f8853d57e73285911133ad7f1e4b1b5",
+      "byte_count": 5524,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-windows.log",
+      "sha256": "0aa7df364e1750a306524e8a12a60c65c431b67f46d3849c2cd67a135e90343c",
+      "byte_count": 266,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-windows.log",
+      "sha256": "f2c5a5dd77ae5e87208f85d77c5360a8e594c08eabff1ede77dd61df6fb97e29",
+      "byte_count": 170,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-windows.log",
+      "sha256": "e86b3231cb30b225beff8fbb446ff572183f384006616e7090e8a4ada8c7b307",
+      "byte_count": 266,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-windows.log",
+      "sha256": "e499d75637a4959edc438763f36fc975d6def5a54de80ec1ed7eb05b7d5ec268",
+      "byte_count": 170,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-windows.revision",
+      "sha256": "77fe7f59d787f2418b54729f1184c7cc0d85e5681b933fb3e6a4684879c7b00d",
+      "byte_count": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-linux.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-fmt-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-linux.log",
+      "sha256": "d401540a99f7613f5b06111cdc3227481d3af7904dec0ec784c6e9c73143a2e4",
+      "byte_count": 36947,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-http3-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-linux.log",
+      "sha256": "b5851d2ef7ee65a94ca73f137784cd1adc6a2bb1b30c8771e70d53bf0e7c7ea5",
+      "byte_count": 1526,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-streams-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-linux.log",
+      "sha256": "e43d7c09934459e4aede7b9509eeaf003aa6db449bcbf6630c35d9bbea27c524",
+      "byte_count": 2444,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-proxies-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-linux.log",
+      "sha256": "afbd139f3fb795fc57fb7f679ff011430925c7e9033f6f54b7a3e61aa061b436",
+      "byte_count": 5534,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-cache-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-linux.log",
+      "sha256": "5544f3f2f41587ab69f7b53a7c211eb4df0de02ba79449519f51bea94b6126f3",
+      "byte_count": 285,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-linux.log",
+      "sha256": "46622b6e5635df0641d9c7047d7415a53ab67e4b4a62aabf3e6f6b65330c6bdb",
+      "byte_count": 180,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-clippy-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-linux.log",
+      "sha256": "39ecab004e282e3e72dbffa4e6a825c74d215312828cd8275e7e0a948788f172",
+      "byte_count": 285,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-linux.log",
+      "sha256": "907371d4a01ec407113def96edb76da4eb8c5021bc5857de01b2c2aebd064b99",
+      "byte_count": 180,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-net-msrv-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "root_read": "complete retained artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\upgrade-cache-remedy-2b4a401b-linux.revision",
+      "sha256": "77fe7f59d787f2418b54729f1184c7cc0d85e5681b933fb3e6a4684879c7b00d",
+      "byte_count": 41
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-upgrade-cache-remedy-2b4a401b.sh",
+      "sha256": "7e62ecd6f57bc0db2b25fb0c6f57852b4f96e11950111cdacf655c16a9a90098",
+      "byte_count": 2981,
+      "root_read": "complete launcher"
+    }
+  ],
+  "observed": {
+    "per_host": {
+      "http3": 271,
+      "cache": 42,
+      "environment_streams": 7,
+      "environment_proxies": 14
+    },
+    "checks": "Formatting, focused facade/net Clippy with denied warnings and Rust 1.88 pass on both hosts."
+  },
+  "limitations": [
+    "Focused native verification; whole-workspace, macOS, feature rows, vendor gates and final architecture review remain pending.",
+    "The fourteen owner/worker causal controls retain nine intended failures and five positives at baseline 759e0002.",
+    "Cache readiness repairs strengthen three existing controls; no measured historical flake or new production defect is claimed.",
+    "Endpoint close/Drop request cancellation; no universal synchronous socket drain or arbitrary-thread shutdown bound is claimed."
+  ]
+}

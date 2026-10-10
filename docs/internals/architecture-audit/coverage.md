@@ -82,13 +82,37 @@ The [expanded upgrade baseline](cache-source-upgrade-baseline-root-c9ebfaac.md.t
 and its [independent addendum](h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt)
 record fourteen controls on both hosts: nine intended failures and five
 positives. Its formatting, selected HTTP/3 Clippy and Rust 1.88 checks pass.
-Owner and connection-worker result collection remain under repair.
+The [remedy review](h3-upgrade-owner-remedy-independent-review-d89883df.md.txt)
+approves owner and connection-worker result collection. The later
+[native addendum](upgrade-cache-remedy-native-independent-addendum-2b4a401b.md.txt)
+records all fourteen controls passing within the complete 271-test HTTP/3
+binary on each host. The nine original failures remain preserved.
 
 The [current cache and interface review](net-cache-interface-current-standards-review-cb4c8388.md.txt)
 adds full reads of both production owners and their direct tests. Three cache
 tests need explicit readiness instead of scheduler timing assumptions. The
 root's later paragraph edits preserve behavior and are independently approved.
 Supporting partials and historical source identities remain qualified.
+
+The same native run passes all forty-two cache tests and twenty-one
+environment controls per host. Formatting, selected Clippy and Rust 1.88
+checks pass. The [cache follow-up](cache-test-readiness-release-independent-followup-bdb07168.md.txt)
+approves explicit gate release before readiness assertions. The three revised
+tests establish pending selection, without claiming a measured historical
+flake or a new production defect. Whole-workspace gates remain pending.
+
+The [facade source review](facade-error-response-template-standards-review-c485de7f.md.txt)
+adds complete reads of errors, root exports, responses and template tests.
+The [H2 owner review](h2-connection-driver-standards-review-c485de7f.md.txt)
+adds complete connection and driver reads. Test placement, export ordering,
+category wording and operation grouping have scoped remedies in progress.
+Separate remaining H2 test-peer failure paths need causal controls and repair.
+Supporting caller and dependency ranges retain their qualifications.
+
+The [attribute review](evidence-attributes-independent-review-b1687d15.md.txt)
+approves removing thirty-four repeated rules. Effective attributes remain
+identical for all tracked paths and three future report probes. Original
+report bytes remain unchanged. This adds no runtime or source-review credit.
 
 ## Vendor evidence reconciliation
 
