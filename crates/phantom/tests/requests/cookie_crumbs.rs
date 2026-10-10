@@ -459,18 +459,31 @@ fn representations(block: &[u8]) -> TestResult<Vec<(String, usize, Option<bool>)
 }
 
 fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult<usize> {
-    let mask = (1_u8 << prefix_bits) - 1;
+    if !(1..=8).contains(&prefix_bits) {
+        return Err("HPACK integer prefix is invalid".into());
+    }
+
+    let mask = u8::MAX >> (8 - prefix_bits);
     let first = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
     *cursor += 1;
     let mut value = usize::from(first & mask);
     if value < usize::from(mask) {
         return Ok(value);
     }
+
     let mut shift = 0;
     loop {
         let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
         *cursor += 1;
-        value += usize::from(byte & 0x7f) << shift;
+        let scale = 1_usize
+            .checked_shl(shift)
+            .ok_or("HPACK integer overflows usize")?;
+        let increment = usize::from(byte & 0x7f)
+            .checked_mul(scale)
+            .ok_or("HPACK integer overflows usize")?;
+        value = value
+            .checked_add(increment)
+            .ok_or("HPACK integer overflows usize")?;
         if byte & 0x80 == 0 {
             return Ok(value);
         }
@@ -481,9 +494,11 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
 fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
-    if block.len() < *cursor + length {
+    let remaining = block.get(*cursor..).ok_or("HPACK string is truncated")?;
+    if length > remaining.len() {
         return Err("HPACK string is truncated".into());
     }
+
     *cursor += length;
     Ok(huffman)
 }
@@ -491,27 +506,32 @@ fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
 /// Returns every client HEADERS block in order; each must fit one frame.
 fn header_blocks(wire: &[u8]) -> TestResult<Vec<Vec<u8>>> {
     const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-    let mut offset = PREFACE.len();
     if !wire.starts_with(PREFACE) {
         return Err("client omitted the HTTP/2 preface".into());
     }
+
+    let mut remaining = &wire[PREFACE.len()..];
     let mut blocks = Vec::new();
-    while let Some(head) = wire.get(offset..offset + 9) {
+    while !remaining.is_empty() {
+        let head = remaining.get(..9).ok_or("client frame head is truncated")?;
         let length =
             (usize::from(head[0]) << 16) | (usize::from(head[1]) << 8) | usize::from(head[2]);
-        let payload = wire
-            .get(offset + 9..offset + 9 + length)
-            .ok_or("client frame is truncated")?;
+        remaining = &remaining[9..];
+        let payload = remaining.get(..length).ok_or("client frame is truncated")?;
         let (kind, flags) = (head[3], head[4]);
-        offset += 9 + length;
+        remaining = &remaining[length..];
+
         if kind != 1 {
             continue;
         }
         if flags & 0x08 != 0 || flags & 0x04 == 0 {
             return Err("test decoder supports only unpadded single-frame HEADERS".into());
         }
+
         let block = if flags & 0x20 != 0 {
-            &payload[5..]
+            payload
+                .get(5..)
+                .ok_or("client priority data is truncated")?
         } else {
             payload
         };
@@ -563,7 +583,9 @@ impl Capture {
                 }
                 let value_huffman = match attribute("value_huffman")? {
                     "none" => None,
-                    flag => Some(flag == "true"),
+                    "true" => Some(true),
+                    "false" => Some(false),
+                    _ => return Err("capture field has invalid value_huffman".into()),
                 };
                 fields.push(Field {
                     name: String::from_utf8(decode_hex(attribute("name_hex")?)?)?,
@@ -591,6 +613,14 @@ impl Capture {
 }
 
 fn decode_hex(encoded: &str) -> TestResult<Vec<u8>> {
+    if !encoded.len().is_multiple_of(2) {
+        return Err("capture hex has odd length".into());
+    }
+
+    if !encoded.as_bytes().iter().all(u8::is_ascii_hexdigit) {
+        return Err("capture hex contains a non-hexadecimal byte".into());
+    }
+
     (0..encoded.len())
         .step_by(2)
         .map(|index| {
