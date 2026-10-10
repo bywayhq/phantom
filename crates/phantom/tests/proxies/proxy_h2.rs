@@ -41,6 +41,7 @@ use crate::support::{
 use super::proxy_h2_multiplex::peer_contract::{TaskProbe, TaskRole};
 use connection_tasks::{complete_peers, finish_peer, stop_optional, stop_peer, stop_peers};
 
+mod connect_child_outcome;
 mod connection_contract;
 pub(super) mod connection_tasks;
 mod deadline_contract;
@@ -2127,7 +2128,18 @@ async fn serve_connects(
     acceptor: &SslAcceptor,
     replies: Vec<Reply>,
 ) -> TestResult<Vec<ConnectRecord>> {
-    let fixture = serve_connects_observed(tcp, acceptor, replies, None).await?;
+    serve_connects_recorded(tcp, acceptor, replies, None, None).await
+}
+
+async fn serve_connects_recorded(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    replies: Vec<Reply>,
+    probe: Option<TaskProbe>,
+    relay_observation: Option<connect_child_outcome::RelayReadObservation>,
+) -> TestResult<Vec<ConnectRecord>> {
+    let fixture =
+        serve_connects_instrumented(tcp, acceptor, replies, probe, None, relay_observation).await?;
     let ConnectFixture { records, children } = fixture;
     complete_peers(children).await?;
     Ok(records)
@@ -2159,6 +2171,17 @@ async fn serve_connects_with_fault(
     replies: Vec<Reply>,
     probe: Option<TaskProbe>,
     read_fault: Option<relay_contract::Fault>,
+) -> TestResult<ConnectFixture> {
+    serve_connects_instrumented(tcp, acceptor, replies, probe, read_fault, None).await
+}
+
+async fn serve_connects_instrumented(
+    tcp: TcpStream,
+    acceptor: &SslAcceptor,
+    replies: Vec<Reply>,
+    probe: Option<TaskProbe>,
+    read_fault: Option<relay_contract::Fault>,
+    mut relay_observation: Option<connect_child_outcome::RelayReadObservation>,
 ) -> TestResult<ConnectFixture> {
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
     let stream = super::proxy_h2_multiplex::outcome_contract::ReadFailure {
@@ -2205,11 +2228,23 @@ async fn serve_connects_with_fault(
                 Reply::Tunnel(origin) => {
                     let send = respond.send_response(Response::new(()), false)?;
                     let upstream = TcpStream::connect(origin).await?;
+                    if let Some(observation) = &mut relay_observation {
+                        observation.accepted(
+                            request.method().clone(),
+                            request
+                                .uri()
+                                .authority()
+                                .ok_or("observed CONNECT lacks authority")?
+                                .to_string(),
+                            200,
+                        )?;
+                    }
                     children.extend(spawn_relay(
                         request.into_body(),
                         send,
                         upstream,
                         probe.clone(),
+                        relay_observation.take(),
                     ));
                 }
                 Reply::Challenge | Reply::Status(_) => {
@@ -2288,10 +2323,16 @@ fn spawn_relay(
     send: ::http2::SendStream<Bytes>,
     upstream: TcpStream,
     probe: Option<TaskProbe>,
+    observation: Option<connect_child_outcome::RelayReadObservation>,
 ) -> Vec<ConnectionPeer<TestResult<()>>> {
     let (read, write) = upstream.into_split();
     let downstream_task = relay_downstream(downstream, write);
-    let upstream_task = relay_upstream(read, send);
+    let upstream_task = async move {
+        match observation {
+            Some(observation) => observation.relay(read, send).await,
+            None => relay_upstream(read, send).await,
+        }
+    };
     match probe {
         Some(probe) => vec![
             probe.spawn(TaskRole::RelayDownstream, downstream_task),
