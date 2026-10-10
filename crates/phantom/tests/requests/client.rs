@@ -1385,8 +1385,22 @@ async fn exchange_peer<T, R>(
 }
 
 fn accepted_failed_upload<T>(incoming: Option<Result<T, ::http2::Error>>) -> TestResult<Option<T>> {
-    // A body failure may close the connection before its request is accepted.
-    incoming.transpose().map_err(Into::into)
+    match incoming {
+        Some(Err(error))
+            if error.get_io().is_some_and(|cause| {
+                matches!(
+                    cause.kind(),
+                    io::ErrorKind::BrokenPipe
+                        | io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                )
+            }) =>
+        {
+            // These failed-body tests let the client close before accepting HEADERS.
+            Ok(None)
+        }
+        incoming => incoming.transpose().map_err(Into::into),
+    }
 }
 
 fn upload_data_or_end(frame: TestResult<Option<Bytes>>) -> TestResult<Option<Bytes>> {
