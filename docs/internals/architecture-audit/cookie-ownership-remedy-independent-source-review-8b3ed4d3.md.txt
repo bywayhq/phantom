@@ -1,0 +1,11 @@
+# Cookie ownership source review
+
+Approve behavior source at signed8b3ed4d3 for root native verification. Full current1010-line parent and322-line changed control were manually read, along with complete264-line shared owner and70-line deadline child. Current redirect control was read in bounded100-210 scope and rebound exactly to13a; no fresh whole credit there.
+
+All eight ordinary callers retain acquired peers outside their five-second operation. Errors and expiry reach finite explicit cleanup with the actual client retained. Original successful client-drop timing remains. Redirect acquisition owns the first driver before second setup, collects both outcomes in First/Second order and preserves the primary error with nested cleanup causes. Unpolled returned owned futures retain guards; external parent cancellation only aborts nested guards without joined-result proof.
+
+The full signed diff and preservation validator were reviewed. Independent signed-Git replay exactly reproduces all eight ordinary operation, real redirect/fault body and full A160 inverse-token checks. A161/deadline bytes remain frozen. The direct-join positive scaffold now finitely stops already-completed workers, a disclosed change supported by its unchanged completion gates.
+
+One minor standards finding remains: parent3-4 local aliases precede standard imports and are separated from local imports45-48. Move existing imports into standard/external/local groups in a narrow follow-up. No test addition is needed for layout.
+
+No Cargo, execution, native green, full-gate or integration claim. Existing finite cleanup and independently canceled JoinError classification limitations remain explicit. Root must compile and run the exact composition.

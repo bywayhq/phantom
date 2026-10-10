@@ -1,0 +1,7 @@
+# Independent H2 focused runtime closure
+
+Approve focused H2 verification at exact a0d2c622. All100 selected methods pass on both hosts with the same roster as d983. The completed CONNECT relay control now reaches its previously uncredited original InvalidInput/context and PermissionDenied/context assertions after real exchange, driver completion and explicit cleanup. These remain controlled fixture failures.
+
+Formatting and Rust1.88 pass. Combined strict Clippy still fails only cookie nesting; requests remain45 pass and5 intended failures. Thus both overall runners remain1. Current request log status/roster comparison is mechanical against fully read d983 logs, without a fresh complete repeated-log read.
+
+Both current H2 and ancillary logs, exits, revision receipts and launcher were read completely. Raw manifest identities and source bindings were independently verified. Signed source rebindings preserve prior partial/full scope. Earlier248 E0061 has no H2 runtime credit. Finite waits and abort-only Drop limitations, including separately canceled JoinError classification, remain explicit. No Cargo, edits, rerun, full-gate or integration approval.

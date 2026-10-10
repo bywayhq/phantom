@@ -40,6 +40,21 @@ do not establish that need.
 
 ## Recent verification
 
+The [cookie cleanup result](cookie-remedy-native-42858688.md.txt) records
+all 50 selected request methods and all 100 HTTP/2 proxy methods passing
+on Windows and Linux at `42858688`. Formatting, strict combined Clippy and
+Rust 1.88 checks pass. All five formerly failing cookie controls now observe
+task release or the completed redirect causes. Independent source review
+approves the ownership remedy and its import-only follow-up. Current cookie
+native review and final workspace gates remain pending.
+
+The [HTTP/2 native review](h2-connect-registry-independent-native-addendum-a0d2c622.md.txt)
+approves the earlier focused result. Historical failed cookie and HTTP/2
+controls remain preserved. The [hint source review](hint-remaining-source-review-2489815a-final.md.txt)
+records separate quiet-observer, readiness and ownership candidates. These
+private fixture findings establish no production leak. Imported evidence
+and inventory discovery add no whole-codebase sign-off.
+
 At `e6f01439`, all three real HTTP/3 received-order controls pass on Windows
 and Linux. The [native receipt](h3-trust-native-checkpoint-e6f01439-d0a45c1e.md.txt)
 and [independent assessment](h3-trust-native-independent-addendum-e6f01439-d0a45c1e.md.txt)

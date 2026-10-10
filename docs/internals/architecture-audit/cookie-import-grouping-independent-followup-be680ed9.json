@@ -1,0 +1,32 @@
+{
+  "revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+  "parent": "8b3ed4d3aa19b70ae0fd125bea2a475a22a64455",
+  "decision": "approve final source candidate for native verification; inherited minor import finding resolved",
+  "source_record": {
+    "path": "crates/phantom/tests/requests/cookies.rs",
+    "revision": "be680ed9af577bbe4a0c8966b448bc1a5ba330ef",
+    "git_blob": "4cd90e8b2c16ffca6ef8354efc44df7d681bef9b",
+    "sha256": "cc08ec93f61357e01f73b1edace9f11ff04dd73952fcfb41e9b3af5ff6ac7307",
+    "lines": 1008,
+    "manual_read_ranges": [
+      [
+        1,
+        53
+      ]
+    ],
+    "range_hashes": [
+      {
+        "start": 1,
+        "end": 53,
+        "sha256": "ff2fe81fb7de8cebc8b65ec6740b0f06a816f0ed5334c0f11af4ca0a0191eca1"
+      }
+    ],
+    "scope": "fresh partial import-boundary read; earlier8b whole read preserved, not fresh current whole promotion"
+  },
+  "preservation": "Exact inverse of only three existing import moves reconstructs whole8b LF parent. Complete suffix from first module declaration onward and all three children byte exact. Full diff/validator/retained proof read, source range/artifact/working hashes replayed.",
+  "behavior": "No body, owner, timer, field, assertion or control change. Source behavior approval8b extends through disclosed bounded import-only correction.",
+  "limits": [
+    "No Cargo/native/compilation/lint/MSRV by reviewer; root exact50+100 combined verification required.",
+    "Original cancellation/finite join limitations and preserved8b report remain unchanged."
+  ]
+}

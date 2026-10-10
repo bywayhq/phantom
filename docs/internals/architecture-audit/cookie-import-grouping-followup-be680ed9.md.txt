@@ -1,0 +1,9 @@
+# Cookie import grouping follow-up
+
+Signed `be680ed9af577bbe4a0c8966b448bc1a5ba330ef` follows `8b3ed4d3aa19b70ae0fd125bea2a475a22a64455` in `lane/audit-request-cookie-ownership`.
+
+Only the cookie parent's three existing local import statements move. Standard-library imports precede external imports, then all local imports form one group. Import names, every non-import byte from the first module declaration onward, and all three control children remain unchanged. The complete signed diff and current parent1–53 were manually read. The previous whole-source handoff remains unchanged; this additive report claims only the bounded import review.
+
+Targeted rustfmt, diff check, exact whole-parent reconstruction after the three import relocations, all child byte checks, and SSH signature verification passed. The lane is clean. No Cargo or new compilation, lint, MSRV or native run occurred. Ownership behavior and its cancellation limits are exactly those described by the original8b source handoff.
+
+Preservation source: `cookie-import-grouping-preservation-validator.py`. Result: `cookie-import-grouping-followup-be680ed9-preservation.json`. Exact signed diff: `cookie-import-grouping-followup-be680ed9.diff`.

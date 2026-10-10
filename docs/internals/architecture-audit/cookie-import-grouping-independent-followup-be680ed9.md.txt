@@ -1,0 +1,5 @@
+# Cookie import follow-up approval
+
+Approve signedbe680ed9 as the final source candidate for native verification. Complete diff and current1-53 imports were read. Standard, external and local imports now follow the supplied order. Exact inverse of three existing import relocations reconstructs the entire8b parent; the module/body suffix and three children remain byte-exact.
+
+The minor import finding is resolved. Original8b behavior approval and full historical owner reads remain qualified by this bounded change, with no fresh whole-current promotion. No Cargo, compilation, native green or final gate claim. Root must verify exact composition.

@@ -1,0 +1,135 @@
+{
+  "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-independent-native-addendum-a0d2c622.md",
+      "path": "docs/internals/architecture-audit/h2-connect-registry-independent-native-addendum-a0d2c622.md.txt",
+      "sha256": "13c990d364fbb5cd88c4758f435ec51fa0a71680c00a2f3bd200db00ac717467",
+      "bytes": 1173
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-registry-independent-native-addendum-a0d2c622.json",
+      "path": "docs/internals/architecture-audit/h2-connect-registry-independent-native-addendum-a0d2c622.json",
+      "sha256": "a75244527c720fbba718bc6b44f4ead21fd4674e9b2e8694eb632645780ae898",
+      "bytes": 48920
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-checkpoint-independent-native-addendum-d983ad7e.md",
+      "path": "docs/internals/architecture-audit/request-h2-checkpoint-independent-native-addendum-d983ad7e.md.txt",
+      "sha256": "e404ea9b5bd1765e74d70d3d41942250764a2346b9f175f3ed2e25ebf7dcc389",
+      "bytes": 1276
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-h2-checkpoint-independent-native-addendum-d983ad7e.json",
+      "path": "docs/internals/architecture-audit/request-h2-checkpoint-independent-native-addendum-d983ad7e.json",
+      "sha256": "60e91360cf7311f43fcbfa8ed9e3b8495d79425ed8c68864643f1aee5d7d74af",
+      "bytes": 61599
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-baseline-independent-native-addendum-ec35ad84.md",
+      "path": "docs/internals/architecture-audit/cookie-ownership-baseline-independent-native-addendum-ec35ad84.md.txt",
+      "sha256": "4af7ea59efc8f4f8a90eaf675f37f60cdbfdfd42202ddd78eabb5942b922dc40",
+      "bytes": 961
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-baseline-independent-native-addendum-ec35ad84.json",
+      "path": "docs/internals/architecture-audit/cookie-ownership-baseline-independent-native-addendum-ec35ad84.json",
+      "sha256": "52895a7cfa9d87119e4ac4a1ca08a462a182efb1672b0e791b456ed09e6f0bc9",
+      "bytes": 18852
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-remaining-source-review-2489815a-final.md",
+      "path": "docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.md.txt",
+      "sha256": "68cfa121b540392d1f089d0bc7a451e216703f99a43cb8ddb0e05042b7f022ca",
+      "bytes": 5742
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-remaining-source-review-2489815a-final.json",
+      "path": "docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.json",
+      "sha256": "47d53106413638e946740ff17ed6c8c8f60ffd706c1a1435a228121bc997b45a",
+      "bytes": 26870
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-handoff-8b3ed4d3.md",
+      "path": "docs/internals/architecture-audit/cookie-ownership-remedy-handoff-8b3ed4d3.md.txt",
+      "sha256": "f39c4bbb969e93407283c459be39ffb65fee1dcbcf561aa8a829cc503b70e650",
+      "bytes": 4605
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-handoff-8b3ed4d3.json",
+      "path": "docs/internals/architecture-audit/cookie-ownership-remedy-handoff-8b3ed4d3.json",
+      "sha256": "9c481ed7bdebae9a650657a0c0f4e88afab3d521d2745ccf04dc37be7f037003",
+      "bytes": 11675
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-independent-source-review-8b3ed4d3.md",
+      "path": "docs/internals/architecture-audit/cookie-ownership-remedy-independent-source-review-8b3ed4d3.md.txt",
+      "sha256": "ff80e101f3327d84a7ab3e6ba08a3b187e02ac8e64f7bb62d141d8e174b6ec7c",
+      "bytes": 1747
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-ownership-remedy-independent-source-review-8b3ed4d3.json",
+      "path": "docs/internals/architecture-audit/cookie-ownership-remedy-independent-source-review-8b3ed4d3.json",
+      "sha256": "23e1799bfe018ccc4e6e3c71bed35c1d622eaaa1f2538aea13e811428d59081a",
+      "bytes": 10777
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-followup-be680ed9.md",
+      "path": "docs/internals/architecture-audit/cookie-import-grouping-followup-be680ed9.md.txt",
+      "sha256": "4958e713176624e6a43743fa0e4513b13a1422e224d50060878febbc517368ac",
+      "bytes": 1217
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-followup-be680ed9.json",
+      "path": "docs/internals/architecture-audit/cookie-import-grouping-followup-be680ed9.json",
+      "sha256": "54b042fe2593021716b101646f927010a23cc73c44c9e66079d62ab167c39019",
+      "bytes": 3296
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-independent-followup-be680ed9.md",
+      "path": "docs/internals/architecture-audit/cookie-import-grouping-independent-followup-be680ed9.md.txt",
+      "sha256": "ab402b527ff03e7a109906f87170765ec357617963ed693d231d27c8946278f1",
+      "bytes": 655
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-import-grouping-independent-followup-be680ed9.json",
+      "path": "docs/internals/architecture-audit/cookie-import-grouping-independent-followup-be680ed9.json",
+      "sha256": "7b5962023ffa4dd5200e6c52deef4c2dcaeca729f845b145eb1b34c6bde852ad",
+      "bytes": 1583
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-remedy-native-42858688.md",
+      "path": "docs/internals/architecture-audit/cookie-remedy-native-42858688.md.txt",
+      "sha256": "3296eda1e879abbf8635cc3153be73e0716cd3eba20a9a4a7d52ecaa947e752e",
+      "bytes": 1000
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-remedy-native-42858688.json",
+      "path": "docs/internals/architecture-audit/cookie-remedy-native-42858688.json",
+      "sha256": "be854c5d05310a87e8f948ef61278389b378c7d8c4541ce6aa7ad1e21e2bfc3f",
+      "bytes": 33708
+    }
+  ],
+  "new_inventory_paths": [
+    "docs/internals/architecture-audit/cookie-cleanup-checkpoint-42858688.json",
+    "docs/internals/architecture-audit/cookie-import-grouping-followup-be680ed9.json",
+    "docs/internals/architecture-audit/cookie-import-grouping-followup-be680ed9.md.txt",
+    "docs/internals/architecture-audit/cookie-import-grouping-independent-followup-be680ed9.json",
+    "docs/internals/architecture-audit/cookie-import-grouping-independent-followup-be680ed9.md.txt",
+    "docs/internals/architecture-audit/cookie-ownership-baseline-independent-native-addendum-ec35ad84.json",
+    "docs/internals/architecture-audit/cookie-ownership-baseline-independent-native-addendum-ec35ad84.md.txt",
+    "docs/internals/architecture-audit/cookie-ownership-remedy-handoff-8b3ed4d3.json",
+    "docs/internals/architecture-audit/cookie-ownership-remedy-handoff-8b3ed4d3.md.txt",
+    "docs/internals/architecture-audit/cookie-ownership-remedy-independent-source-review-8b3ed4d3.json",
+    "docs/internals/architecture-audit/cookie-ownership-remedy-independent-source-review-8b3ed4d3.md.txt",
+    "docs/internals/architecture-audit/cookie-remedy-native-42858688.json",
+    "docs/internals/architecture-audit/cookie-remedy-native-42858688.md.txt",
+    "docs/internals/architecture-audit/h2-connect-registry-independent-native-addendum-a0d2c622.json",
+    "docs/internals/architecture-audit/h2-connect-registry-independent-native-addendum-a0d2c622.md.txt",
+    "docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.json",
+    "docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.md.txt",
+    "docs/internals/architecture-audit/request-h2-checkpoint-independent-native-addendum-d983ad7e.json",
+    "docs/internals/architecture-audit/request-h2-checkpoint-independent-native-addendum-d983ad7e.md.txt"
+  ],
+  "scope": "Exact preservation of bounded source/native reviews. Both hosts pass selected50 requests and100H2; independent current cookie native approval and all final gates remain pending. No whole-codebase review credit from importing reports."
+}

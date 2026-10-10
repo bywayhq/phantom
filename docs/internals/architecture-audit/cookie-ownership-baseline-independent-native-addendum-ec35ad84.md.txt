@@ -1,0 +1,7 @@
+# Independent focused baseline evidence
+
+Approve the accuracy of the retained cookie-ownership-baseline-native-ec35ad84 receipt at ec35ad84b01abfdd7a627336420ffaaa7f8ce1db. Both-host results remain red.
+
+Requests45:43 pass,2 intended task-lifetime assertion failures. Actual GET204-empty, learned-cookie and CONNECT prerequisites succeed before the client-live finite ownership observation. Both explicit abort/join positives and prior41 methods pass. Formatting/Rust1.88 pass; strict Clippy rejects the baseline helper expression.
+
+All raw native logs, launchers, exits and revision receipts were read in full. Hashes/lengths and pre-Summary rosters independently match. Root/prior JSON was parsed and checked; selected fields were manually read without claiming complete manual serialization reading. Exact source rebindings preserve historical scope. No commands rerun, source edits, permanent production leak claim or integration/full-gate approval.
