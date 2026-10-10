@@ -1,0 +1,103 @@
+{
+  "kind": "Independent bounded working-source review",
+  "finding": "A184 fallible QUIC endpoint port lookup",
+  "base_revision": "73804ad4a2193e5156d84890eda2ca23a6d04989",
+  "working_git_blob_oid": "84332059c05b1555fd94f9003f7cb9af6a1e3acd",
+  "working_lf_sha256": "1a45130a6385bc2caca059aae2d0af93be1018458216a43b8e1fe804c254c1ad",
+  "disposition": "Approved bounded source repair; actual OS-failure execution unmeasured.",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "73804ad4a2193e5156d84890eda2ca23a6d04989",
+      "working": true,
+      "raw_sha256": "1a45130a6385bc2caca059aae2d0af93be1018458216a43b8e1fe804c254c1ad",
+      "line_count": 635,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 71,
+          "end": 230,
+          "raw_range_sha256": "65cc237fbebab693d728b3bf395fe12587ab3b554e6040b2d79d2e0a2aef91b1"
+        }
+      ],
+      "review": "Partial current constructors, endpoint factory, start task and surrounding finish source manually read; complete five-edit semantic diff read."
+    },
+    {
+      "path": "crates/phantom/tests/support/shared_port.rs",
+      "revision": "73804ad4a2193e5156d84890eda2ca23a6d04989",
+      "working": false,
+      "raw_sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5",
+      "line_count": 67,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 67,
+          "raw_range_sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5"
+        }
+      ],
+      "review": "Whole actual67-line supporting shared-port source manually read; rejected writer registration1\u201377 corrected before report creation."
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "73804ad4a2193e5156d84890eda2ca23a6d04989",
+      "working": false,
+      "raw_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "line_count": 879,
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 276,
+          "end": 288,
+          "raw_range_sha256": "e51f2d4baef419388c52383ab4fe4f2be67ef7c1bbda3a0d92a59c8fbca2b17d"
+        }
+      ],
+      "review": "Partial resolved public local_addr delegating to actual bound socket API read; vendor source unchanged."
+    }
+  ],
+  "semantic_diff_sha256": "adedbcf05ea11bce085f57414c6c6fd6e8459cdf29db12c7034f77e40a8a7374",
+  "exact_whole_parent_inverse": true,
+  "restored_raw_sha256": "4e9b54f9e6cc6d91891e7266404781bc5cbea03ec0e7602b333d949be742d627",
+  "unchanged_children": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+      "raw_git_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "unchanged": true,
+      "review": "Preservation identity only; no fresh whole-source semantic credit."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "raw_git_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "unchanged": true,
+      "review": "Preservation identity only; no fresh whole-source semantic credit."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "raw_git_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "unchanged": true,
+      "review": "Preservation identity only; no fresh whole-source semantic credit."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "raw_git_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+      "unchanged": true,
+      "review": "Preservation identity only; no fresh whole-source semantic credit."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+      "raw_git_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "unchanged": true,
+      "review": "Preservation identity only; no fresh whole-source semantic credit."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+      "raw_git_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "unchanged": true,
+      "review": "Preservation identity only; no fresh whole-source semantic credit."
+    }
+  ],
+  "assessment": [
+    "Both constructors obtain the actual endpoint local port through the fallible public io::Result before spawning fixture TCP or QUIC origin tasks. An address lookup failure returns its original recoverable cause instead of inventing port0.",
+    "The combined TCP/UDP constructor retains the exact same explicit nonzero shared-port candidate binding and retry classification. The independently read helper generates candidates in20000\u201332767; the successful bound endpoint port is passed to the otherwise unchanged start.",
+    "start now receives the already-observed port, removing only the old map_or0. Its serving/collector body, protocol/profile/ECH settings, literal wire behavior, timeouts and all control bytes remain unchanged by exact inverse and identity checks.",
+    "No fabricated socket failure control is added and no real OS local_addr failure is claimed. Existing serving-child/finish ownership and error contracts remain separate work.",
+    "Read-only independent review; no Cargo/native execution, source mutation, vendor change, commit or push."
+  ]
+}

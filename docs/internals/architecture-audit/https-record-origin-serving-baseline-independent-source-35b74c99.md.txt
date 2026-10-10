@@ -1,0 +1,9 @@
+# Exact ECH serving baseline independent source review
+
+Signed 35b74c99 is approved for causal execution. The whole 269-line child, parent 1–315 and 608–610, complete semantic diff and actual supporting contracts were read. A source inverse independently restores the entire prior parent exactly; the existing 194-line ownership child and all deadline controls remain unchanged.
+
+Both controls complete two real canonical H1 exchanges and original serving futures before observing task completion. Independently owned per-worker slots, release/acquire witnesses and actual AbortHandle completion checks distinguish healthy serving from injected outcomes. The negative supplies distinct typed PermissionDenied/InvalidData payloads with independently retained connection and Arc identities; the positive requires two unchanged successful handshake observations. Synchronous backup aborts published actual tasks without spawning cleanup work.
+
+The unchanged collector still aborts handles without observing results. The first forecast failure is the missing error at child line 148; downstream aggregate/cause assertions are not runtime evidence yet. Forecast 52 cases with 51 passes and one causal failure depends on retaining root's newer deadline and refusal composition. This lane is based on fc and lacks that deadline mapping.
+
+Completed-task witnesses are not joined outcomes. These are controlled post-serving fixture faults, not native I/O faults or a production defect. Pending-serving ownership and other primary/secondary paths remain separate work. No source edits, Cargo or native execution occurred.

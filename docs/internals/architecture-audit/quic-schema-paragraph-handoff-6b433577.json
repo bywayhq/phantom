@@ -1,0 +1,131 @@
+{
+  "revision": "6b4335775a333cb2413053dc15ca0f0f90fb7713",
+  "parent": "8c519464f365bcdbb93a3627a3d64298ae5bd59f",
+  "scope": "Separate paragraph-only follow-up for previously recorded schema and marker validation pacing.",
+  "owned_files": [
+    "scripts/capture/quic_summary.py",
+    "scripts/capture/quic_flight.py"
+  ],
+  "source_reads": [
+    {
+      "path": "scripts/capture/quic_summary.py",
+      "revision": "6b4335775a333cb2413053dc15ca0f0f90fb7713",
+      "git_blob_oid": "63dc539f42d731a96224f1d3b42b7edb48cf4f03",
+      "raw_sha256": "960fb9dfacc0872c09dc0c95eb1c7ebdc732582b1d3164cb800dc467db2cdc68",
+      "working_raw_sha256": "afac3f6f470992277c563f5cde4ee33dd1fb09318687c7d172f180d60cc2c4b4",
+      "line_count": 241,
+      "read_classification": "full current source manually read after edits",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 241,
+          "raw_range_sha256": "960fb9dfacc0872c09dc0c95eb1c7ebdc732582b1d3164cb800dc467db2cdc68"
+        }
+      ],
+      "base_raw_sha256": "abbe3aa81d5d75a18ffa5a82557802760d7fbe845c8b4aa4841bb3b5115e5241",
+      "nonblank_source_exact": true,
+      "ast_exact": true,
+      "added_blank_lines": 9
+    },
+    {
+      "path": "scripts/capture/quic_flight.py",
+      "revision": "6b4335775a333cb2413053dc15ca0f0f90fb7713",
+      "git_blob_oid": "46166dd799a04a863f254beb6f0ab19e6cb62cf2",
+      "raw_sha256": "2c454173152448b8059855f8f1949fffc9a8834918fb41936424569c8d7dd6bf",
+      "working_raw_sha256": "f8c4c7015285c75c5e816b6ebfaf16a7de99834f4ff4ac35c1f51513a25b598a",
+      "line_count": 422,
+      "read_classification": "full current source manually read after edits",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 422,
+          "raw_range_sha256": "2c454173152448b8059855f8f1949fffc9a8834918fb41936424569c8d7dd6bf"
+        }
+      ],
+      "base_raw_sha256": "9c2fe401f7a3732fd422f0b8303eeb8e6ec620f90930d19ed1923ce171846fca",
+      "nonblank_source_exact": true,
+      "ast_exact": true,
+      "added_blank_lines": 13
+    }
+  ],
+  "preserved": [
+    {
+      "path": "scripts/capture/quic_packet_diff.py",
+      "git_blob_oid": "c8ea6ced230165e42aa492de7cf3e49778f14333",
+      "raw_sha256": "9a31f2dc4f66f56a04b3d0ce3861ec113c7dc2028c186f3466b8cbe41bf99681",
+      "line_count": 568,
+      "exact_to_8c": true,
+      "scope": "Byte rebind only, no new test/source whole-read claim."
+    },
+    {
+      "path": "scripts/capture/tests/test_quic_packet_diff.py",
+      "git_blob_oid": "7d2b2953993fbad7fb3450c3cbb77637ac8f9085",
+      "raw_sha256": "8ac6cf06ff68d4a81894b55120e6708c3fd31bde44cafb458cd89237c6ce677b",
+      "line_count": 679,
+      "exact_to_8c": true,
+      "scope": "Byte rebind only, no new test/source whole-read claim."
+    }
+  ],
+  "diff_sha256": "0f5ee86ba1674fd53bb6c99bd17660408cfc31a24538a3fa27ef6b1d5155032e",
+  "affected_functions": [
+    "SymbolicSpan.__post_init__",
+    "StreamFrame.from_dict",
+    "NormalizedPacket.from_dict",
+    "MarkerCoverage.from_dict",
+    "LogicalFlight.from_dict"
+  ],
+  "statement_literal_comment_order_preservation": "All nonblank byte lines identical and location-free ASTs identical;22 blank lines added.",
+  "checks": [
+    {
+      "command": "uvx --offline ruff@0.16.9 check scripts/capture/quic_summary.py scripts/capture/quic_flight.py",
+      "exit": 0
+    },
+    {
+      "command": "uvx --offline ruff@0.16.9 format --check scripts/capture/quic_summary.py scripts/capture/quic_flight.py",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "Python metadata-only AST/nonblank/exact analyzer and controls comparison",
+      "exit": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit": 0,
+      "signature_status": "G"
+    }
+  ],
+  "retained_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-remedy-handoff-8c519464.json",
+      "raw_sha256": "521a31e8b8e91de81484c06f469c47a01c1578cf203e855e1d03051fcc6f6dc5",
+      "preserved": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-summary-space-remedy-independent-source-native-8c519464.json",
+      "raw_sha256": "ae4a7085e635e4d27179c1235680fa1919f6cfc41a3223ebc19a2f90d8ac7e64",
+      "preserved": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-schema-paragraph-preservation.json",
+      "raw_sha256": "23458c1bd55773fc4d20909f5c1b6eba42f9abcb92dd757e34404f337af1c327",
+      "preserved": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-quic-schema-paragraphs.py",
+      "raw_sha256": "e4246ca5d205a3a8eb64f9c6c38e9a40133191371af7436a79cd76bb6e5177e7",
+      "preserved": true
+    }
+  ],
+  "runtime_execution": false,
+  "limits": [
+    "No added tests or runtime rerun for pure paragraph change.",
+    "Prior exact8c focused19 and broader465 evidence belongs to its own source/native report; no new runtime result attributed to this style commit.",
+    "No analyzer/model/projection operation, input validation, errors, wire bytes, labels, public API or fixture semantics changed.",
+    "Fresh full source read is recorded, while the style remedy scope is only the five listed validation functions.",
+    "Root retains composition, independent review and central documentation ownership."
+  ]
+}

@@ -40,6 +40,21 @@ do not establish that need.
 
 ## Recent verification
 
+The [exact serving baseline](https-record-origin-serving-baseline-native-independent-addendum-f75f148b.md.txt)
+runs the same 52 methods on both hosts at `f75f148b`: 51 pass and one fails.
+Two real successful requests and completed worker witnesses precede the
+discarded-error assertion. Formatting, strict Clippy and Rust 1.88 pass.
+The collector repair remains in progress.
+
+The [QUIC acquisition review](https-record-quic-port-independent-source-73804ad4-working.md.txt)
+approves address lookup before task creation. The correction is integrated
+at `f0939302`; composed native verification remains pending.
+
+The [schema layout review](quic-schema-paragraph-independent-root-review-6b433577.md.txt)
+approves 22 paragraph boundaries in two complete manually read files.
+Integrated `73804ad4` preserves all statements, location-free syntax trees,
+the analyzer and controls. No runtime suite was repeated for spacing.
+
 The [hint ownership baseline](hint-ownership-baseline-native-independent-addendum-82d9e082.md.txt)
 reproduces seven failures in 44 selected methods on each host at `82d9e082`.
 Thirty-seven methods pass. Six failures concern finite task destruction
@@ -61,8 +76,9 @@ Completed serving failures and QUIC/TCP descendant ownership remain open.
 The QUIC analyzer correction passes nineteen unchanged controls at
 `8c519464`, following two causal baseline failures. The complete capture
 suite passes 465 methods on Windows; Linux passes 454 and skips eleven.
-The correction is integrated at `c8f7e98e`; the complete capture tree matches
-its verified lane.
+The correction was integrated at `c8f7e98e` with its complete capture tree
+matching the verified `8c519464` lane. The later paragraph-only follow-up
+is recorded above.
 These are synthetic packet and fixture checks, not browser acceptance.
 
 The [hint admission review](hint-admission-native-independent-addendum-8fb745de.md.txt)

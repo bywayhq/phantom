@@ -1,0 +1,1049 @@
+{
+  "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+  "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+  "verdict": "One causal completed-serving error-loss boundary confirmed on both hosts; bounded collector remedy may proceed",
+  "hosts": {
+    "windows": {
+      "selected": 52,
+      "passed": 51,
+      "failed": 1,
+      "excluded": 259,
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_preserves_successful_serving_observations"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_retains_two_completed_serving_io_failures"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::discovery_requires_an_alt_svc_store"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::routes_without_direct_dns_send_no_https_query"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::delayed_https_record_does_not_delay_the_request"
+        }
+      ],
+      "https_exit": 100,
+      "runner_exit": 1,
+      "fmt_clippy_msrv_exits": 0
+    },
+    "linux": {
+      "selected": 52,
+      "passed": 51,
+      "failed": 1,
+      "excluded": 259,
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_is_accepted_before_the_deadline"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::a_completed_operation_retains_its_typed_inner_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_proxied_request_sends_the_origin_name_without_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::discovery_requires_an_alt_svc_store"
+        },
+        {
+          "status": "FAIL",
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_retains_two_completed_serving_io_failures"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_preserves_successful_serving_observations"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::routes_without_direct_dns_send_no_https_query"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_rejection_fails_without_a_quic_retry"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::https_record_alternative_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::parallel_http1_connections_each_offer_the_cached_configuration"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::sequential_client_fails_a_rejected_alternative_then_uses_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::sequential_client_uses_http3_once_the_https_record_is_known"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::exact_http3_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_profile_without_the_field_keeps_ech_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech::a_known_record_encrypts_the_client_hello_to_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::failed_lookup_leaves_the_request_on_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::misdirected_http3_marks_the_https_record_location_broken"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer"
+        },
+        {
+          "status": "PASS",
+          "name": "https_record_ech_http3::racing_client_serves_a_rejected_alternative_from_the_origin"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::disabled_discovery_leaves_requests_unchanged"
+        },
+        {
+          "status": "PASS",
+          "name": "https_records::delayed_https_record_does_not_delay_the_request"
+        }
+      ],
+      "https_exit": 100,
+      "runner_exit": 1,
+      "fmt_clippy_msrv_exits": 0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-clippy-windows.log",
+      "raw_sha256": "9b581721e0544d516224cca7ed21b6fcc62184640588e5ddc7d920fc719e6ad1",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-https-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-https-windows.log",
+      "raw_sha256": "dd9ede82fd88911f23cf511875264399fa44d8423880204bdc749b7dbf7eb40c",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-msrv-windows.log",
+      "raw_sha256": "c12e1e967438f885a903f9bd6c0f6b5564c959510af0246bc66613cc0010dafa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-windows.revision",
+      "raw_sha256": "32b98f20d81a3a63620d74c33d06d753727d144d86156eca5858f7ff7dee1600",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-clippy-linux.log",
+      "raw_sha256": "2b7288b1eb1f25883dec0092eeb086a9b6baca5d0b27cea61e8fdb7bdfb0d956",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-https-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-https-linux.log",
+      "raw_sha256": "540bef5700645abcecbeb3fef4dcfb63d037155c57311727f1a67da143baf3e8",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-linux.revision",
+      "raw_sha256": "32b98f20d81a3a63620d74c33d06d753727d144d86156eca5858f7ff7dee1600",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-deadlines-origin-serving-baseline-f75f148b-msrv-linux.log",
+      "raw_sha256": "d12bc4c6ceac9f21ee3b74f7eaf78ba958edf6b071f4120c55233d24c9150ca4",
+      "read_scope": "full raw log or numeric/revision metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-https-record-deadlines.sh",
+      "raw_sha256": "99a41c00b5df6c352860f170779a99731da32a71d2cee6d526e2055469e747a0",
+      "read_scope": "full prose/launcher or source identity schema"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-handoff-35b74c99.md",
+      "raw_sha256": "a6c10a6debe5d896ef43e7c2f3bcfc153bfc5717a495308c39affc867e0f2aa4",
+      "read_scope": "full prose/launcher or source identity schema"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-handoff-35b74c99.json",
+      "raw_sha256": "c0dd18329eb40a425012fb5ab1540ac9f141ae2c0329ade4c5b9ca676dfcf1b4",
+      "read_scope": "full prose/launcher or source identity schema"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-independent-source-35b74c99.md",
+      "raw_sha256": "2cbc9a951ea35d39c1d470d129c45a1578d3c402b62705f8aca4c0e5ebcb0dce",
+      "read_scope": "full prose/launcher or source identity schema"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\https-record-origin-serving-baseline-independent-source-35b74c99.json",
+      "raw_sha256": "2cd404e34e416cafaf3f275acafc628b54f4af428a868b75746d5550a3262ed2",
+      "read_scope": "full prose/launcher or source identity schema"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "8020069d7b9f096c5e5130d011b8f919e8162fe6",
+      "raw_sha256": "8a415ba357b828b0872e4c99a79d0dfac4e49f95b9d2cd121d5692bf9d994e60",
+      "line_count": 611,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "bf1d5f8ef10b12478cb6d2f0798117f5571ce848ddf891870073a6ef445b5568",
+      "whole_blob_equal_to_author": false,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 18,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "c4bf91cff0401a2ab09bd0ea7ec34d3bc2320bdc",
+      "raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "line_count": 194,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+      "whole_blob_equal_to_author": true,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 2,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "whole_blob_equal_to_author": true,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 3,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "whole_blob_equal_to_author": true,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 3,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "whole_blob_equal_to_author": true,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 3,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+      "raw_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "line_count": 62,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+      "whole_blob_equal_to_author": true,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 3,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "633b930785520f039f1cfc913ff0065ecddfe5c3",
+      "raw_sha256": "33d4dc24acb078b89741d6d5772a75fa040aecfacc8a93eb522da992dd0b2db4",
+      "line_count": 365,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3",
+      "whole_blob_equal_to_author": false,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 4,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "d5458dc1cac340c1ef516ad6899990e54c94745a",
+      "raw_sha256": "4e9b54f9e6cc6d91891e7266404781bc5cbea03ec0e7602b333d949be742d627",
+      "line_count": 626,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "811b03d27906d8877f94cf26dd1cc65cc3520e37f9c3dd24a1555927ddc09fd0",
+      "whole_blob_equal_to_author": false,
+      "ordinary_test_method_bytes_exact": true,
+      "qualified_changed_methods": [],
+      "methods": 7,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "3e349a1f36e012b6502da32f437dd708264a37f8",
+      "raw_sha256": "29f4d620f952a0e546ffdfc605f22ef8bdb0fe9cce7b882fead0e0a23b03a428",
+      "line_count": 461,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "author_raw_sha256": "306c69677344cb78282a9bb45b8040906d6b8b0f547c642d5d8d6e76588af635",
+      "whole_blob_equal_to_author": false,
+      "ordinary_test_method_bytes_exact": false,
+      "qualified_changed_methods": [
+        "routes_without_direct_dns_send_no_https_query"
+      ],
+      "methods": 7,
+      "semantic_scope": "Identity comparison only; no fresh whole-file source review."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+      "git_blob_oid": "3e47c46a3041497bbf999c497a5e5938855fca26",
+      "raw_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+      "line_count": 269,
+      "author_revision": "35b74c99c8661516e9c4a9ca3ff3910c85506b89",
+      "whole_blob_equal_to_author": true,
+      "read_classification": "full current child manually read",
+      "actual_inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 269,
+          "raw_range_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70"
+        }
+      ]
+    }
+  ],
+  "supporting_manual_read": {
+    "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+    "revision": "f75f148b1beec95d132d3c3190f0f26aba540f2a",
+    "read_classification": "partial supporting owner",
+    "actual_inclusive_read_ranges": [
+      {
+        "start": 1,
+        "end": 315,
+        "raw_range_sha256": "8310e4c4fa22f221bbdc02c33a6961c47a038d8cbb14625b4a38379f2ef8e7f2"
+      }
+    ]
+  },
+  "exact_parent_difference": "Only EchDeadline import formatting/adoption and bounded error mapping differ; reversing those two source deltas restores entire author parent exactly.",
+  "old50_method_source_preservation": {
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http1_offers_the_records_ech": {
+      "author_sha256": "b42707898af365a104af15216e497c7c24442d21163e6ff3ee2d308705b1ef35",
+      "current_sha256": "b42707898af365a104af15216e497c7c24442d21163e6ff3ee2d308705b1ef35",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http2_offers_the_records_ech": {
+      "author_sha256": "02f000c5d6eec724673d8693e3815676bb0f7ea8a24d1275ba016d38c79bae7e",
+      "current_sha256": "02f000c5d6eec724673d8693e3815676bb0f7ea8a24d1275ba016d38c79bae7e",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http1_retries_a_rejection_once": {
+      "author_sha256": "8e860a84aede0d226f61d683604279df7c8c41332783f6eae0ec656b110578ce",
+      "current_sha256": "8e860a84aede0d226f61d683604279df7c8c41332783f6eae0ec656b110578ce",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http2_retries_a_rejection_once": {
+      "author_sha256": "cf69f521d604a2c43f2d18da870314cb581531b9987336aced1ecd29b433842d",
+      "current_sha256": "cf69f521d604a2c43f2d18da870314cb581531b9987336aced1ecd29b433842d",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http1_without_the_field_keeps_grease": {
+      "author_sha256": "af3b6bb849725f96596d9803aa35d30ddcb08bcab668e79e3108b4cdda232808",
+      "current_sha256": "af3b6bb849725f96596d9803aa35d30ddcb08bcab668e79e3108b4cdda232808",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http2_without_the_field_keeps_grease": {
+      "author_sha256": "1970ef42f245a854081b780355f252ca7adf597ada3fc2e1251600167a660aac",
+      "current_sha256": "1970ef42f245a854081b780355f252ca7adf597ada3fc2e1251600167a660aac",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http1_through_a_proxy_sends_no_ech": {
+      "author_sha256": "05dc82501e3ddd4478f4daf1ec36a2f3d85811c6afbaaa46d94b2632d5e40e60",
+      "current_sha256": "05dc82501e3ddd4478f4daf1ec36a2f3d85811c6afbaaa46d94b2632d5e40e60",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http2_through_a_proxy_sends_no_ech": {
+      "author_sha256": "7ff0beb5924cc8ab7099e2e9bbc0d90bf68ab913f9240d6d9337fc3e8e110cad",
+      "current_sha256": "7ff0beb5924cc8ab7099e2e9bbc0d90bf68ab913f9240d6d9337fc3e8e110cad",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_opening_offers_the_records_ech": {
+      "author_sha256": "10f7cac009bffad132c822283a6acd8bb05c3563d1407b9d64b3137c4f6b5437",
+      "current_sha256": "10f7cac009bffad132c822283a6acd8bb05c3563d1407b9d64b3137c4f6b5437",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_over_exact_http2_offers_the_records_ech": {
+      "author_sha256": "8b583e9b89e9d130b48a4c903095cd0540920a030a14ed602a54e10e9cf9aa19",
+      "current_sha256": "8b583e9b89e9d130b48a4c903095cd0540920a030a14ed602a54e10e9cf9aa19",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_opening_retries_a_rejection_once": {
+      "author_sha256": "b47a603e47f6368d2517ed984951df65533d92c9a3217693a890f93c5811be55",
+      "current_sha256": "b47a603e47f6368d2517ed984951df65533d92c9a3217693a890f93c5811be55",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_over_exact_http2_retries_a_rejection_once": {
+      "author_sha256": "ad11ca1005c2d69890ba1d48cacbf73bda9fa444316ba07b0ae8bfe916405a1f",
+      "current_sha256": "ad11ca1005c2d69890ba1d48cacbf73bda9fa444316ba07b0ae8bfe916405a1f",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_opening_through_a_proxy_sends_no_ech": {
+      "author_sha256": "72d3ee03c3c35bdf54decdea60a05cd62f6594e36e294fbbb8879ae03d6173b8",
+      "current_sha256": "72d3ee03c3c35bdf54decdea60a05cd62f6594e36e294fbbb8879ae03d6173b8",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_over_exact_http2_through_a_proxy_sends_no_ech": {
+      "author_sha256": "44bf07a2c239641065c40b6776a61e8a0a714be6e929d99e202b319cf7a65de9",
+      "current_sha256": "44bf07a2c239641065c40b6776a61e8a0a714be6e929d99e202b319cf7a65de9",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_opening_without_the_field_keeps_grease": {
+      "author_sha256": "c5e7d91cdb539a759f1bfad0405ac685c4e4abcfd5a3c43a4218babc85401947",
+      "current_sha256": "c5e7d91cdb539a759f1bfad0405ac685c4e4abcfd5a3c43a4218babc85401947",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_over_exact_http2_without_the_field_keeps_grease": {
+      "author_sha256": "0f74018a0e9ec468d29c4dfc704db0e825f70b70a18cce64d24ee4fdac46cb71",
+      "current_sha256": "0f74018a0e9ec468d29c4dfc704db0e825f70b70a18cce64d24ee4fdac46cb71",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::websocket_opening_takes_the_record_for_its_alpn_offer": {
+      "author_sha256": "9fc246b3af7d418a85058ffae509c8b020a234dcf95fb0724c078879133cd867",
+      "current_sha256": "9fc246b3af7d418a85058ffae509c8b020a234dcf95fb0724c078879133cd867",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact.rs::exact_http2_with_ech_connects_to_an_overridden_name": {
+      "author_sha256": "e3f9fdbb5109bff8bca28e590a78468f14dabb8a1d6487bee45619bbf8a80631",
+      "current_sha256": "e3f9fdbb5109bff8bca28e590a78468f14dabb8a1d6487bee45619bbf8a80631",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs::abandoning_an_origin_stops_its_actual_pending_handshake": {
+      "author_sha256": "679aa7a5f3cc0e451fa9cf69f7db443f328d172d80fbf2a27409c0e8ae8e133b",
+      "current_sha256": "679aa7a5f3cc0e451fa9cf69f7db443f328d172d80fbf2a27409c0e8ae8e133b",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake": {
+      "author_sha256": "75861a24a5e068b323935ad90ef548990f4b7db47f27e01350afe6fc74884f0a",
+      "current_sha256": "75861a24a5e068b323935ad90ef548990f4b7db47f27e01350afe6fc74884f0a",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs::an_entered_pending_operation_retains_its_elapsed_cause": {
+      "author_sha256": "28f7c1375ec3e42c31c53cc0216976de0ba10a8cd62a598412bd77b2a92d8548",
+      "current_sha256": "28f7c1375ec3e42c31c53cc0216976de0ba10a8cd62a598412bd77b2a92d8548",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs::a_completed_operation_retains_its_typed_inner_failure": {
+      "author_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "current_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs::a_completed_operation_is_accepted_before_the_deadline": {
+      "author_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "current_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs::an_entered_pending_operation_retains_its_elapsed_cause": {
+      "author_sha256": "28f7c1375ec3e42c31c53cc0216976de0ba10a8cd62a598412bd77b2a92d8548",
+      "current_sha256": "28f7c1375ec3e42c31c53cc0216976de0ba10a8cd62a598412bd77b2a92d8548",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs::a_completed_operation_retains_its_typed_inner_failure": {
+      "author_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "current_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs::a_completed_operation_is_accepted_before_the_deadline": {
+      "author_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "current_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs::an_entered_pending_operation_retains_its_elapsed_cause": {
+      "author_sha256": "28f7c1375ec3e42c31c53cc0216976de0ba10a8cd62a598412bd77b2a92d8548",
+      "current_sha256": "28f7c1375ec3e42c31c53cc0216976de0ba10a8cd62a598412bd77b2a92d8548",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs::a_completed_operation_retains_its_typed_inner_failure": {
+      "author_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "current_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs::a_completed_operation_is_accepted_before_the_deadline": {
+      "author_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "current_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records/deadline_contract.rs::an_entered_pending_operation_retains_its_elapsed_cause": {
+      "author_sha256": "89a79f9667aa08c49653217de1ce30c113efab0c0c8b5a9e11af8b8f5c765a52",
+      "current_sha256": "89a79f9667aa08c49653217de1ce30c113efab0c0c8b5a9e11af8b8f5c765a52",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records/deadline_contract.rs::a_completed_operation_retains_its_typed_inner_failure": {
+      "author_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "current_sha256": "179d6b5c71c92995558cb63e1e13e21602140025efa9e81092b98966ebfd5a57",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records/deadline_contract.rs::a_completed_operation_is_accepted_before_the_deadline": {
+      "author_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "current_sha256": "c99d553175b4e98450592ceef63f1918bb12b0df2dd39945cb3e4b176719c2d7",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech.rs::a_known_record_encrypts_the_client_hello_to_the_origin": {
+      "author_sha256": "f083bf6318ee813642d6d25c0e01f4171c97e945fc840b4f9ea9ca25c83e3845",
+      "current_sha256": "f083bf6318ee813642d6d25c0e01f4171c97e945fc840b4f9ea9ca25c83e3845",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech.rs::a_profile_without_the_field_keeps_ech_grease": {
+      "author_sha256": "677d6404304c111377b4460720be88264bf551312758dde2045ab7a971e86c29",
+      "current_sha256": "677d6404304c111377b4460720be88264bf551312758dde2045ab7a971e86c29",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech.rs::parallel_http1_connections_each_offer_the_cached_configuration": {
+      "author_sha256": "14967c71bae4b936a697f5cff765bef2a1aa4955f4b03a615db28217d099aa46",
+      "current_sha256": "14967c71bae4b936a697f5cff765bef2a1aa4955f4b03a615db28217d099aa46",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech.rs::a_proxied_request_sends_the_origin_name_without_ech": {
+      "author_sha256": "638daa36f7a490904ec1034e866c3e7509e6587223397d1d8b431ae471cbaa89",
+      "current_sha256": "638daa36f7a490904ec1034e866c3e7509e6587223397d1d8b431ae471cbaa89",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::exact_http3_offers_the_records_ech": {
+      "author_sha256": "b4e48790ca44ca4c8588faf541473fa271ab79cf2715cd1a4781e235f9ba55fa",
+      "current_sha256": "b4e48790ca44ca4c8588faf541473fa271ab79cf2715cd1a4781e235f9ba55fa",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::https_record_alternative_offers_the_records_ech": {
+      "author_sha256": "48e8741188e8951ed40e28b61d9ac9e1289e6b333c97d3219f70cdb93ee65e38",
+      "current_sha256": "48e8741188e8951ed40e28b61d9ac9e1289e6b333c97d3219f70cdb93ee65e38",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::exact_http3_rejection_fails_without_a_quic_retry": {
+      "author_sha256": "709a91fc349d900bd9f78d2fe046ebac96b0ed0241cef389d34e3ad73e0ce209",
+      "current_sha256": "709a91fc349d900bd9f78d2fe046ebac96b0ed0241cef389d34e3ad73e0ce209",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::exact_http3_without_the_field_keeps_grease": {
+      "author_sha256": "fd01470a17c9ad94a14f2600d3e6e23de21f3fdb19960f115f53878116a7d641",
+      "current_sha256": "fd01470a17c9ad94a14f2600d3e6e23de21f3fdb19960f115f53878116a7d641",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::a_rejected_ticketed_connection_is_not_repeated_without_the_ticket": {
+      "author_sha256": "9db7e0403cc304c68b2b16fd560fa2deba7326a5ecf37b1234ad382958020a67",
+      "current_sha256": "9db7e0403cc304c68b2b16fd560fa2deba7326a5ecf37b1234ad382958020a67",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::racing_client_serves_a_rejected_alternative_from_the_origin": {
+      "author_sha256": "b7334a69d2089d51c8bcaaf4f02193822754545e0302fd98217f1b0fc87a760a",
+      "current_sha256": "b7334a69d2089d51c8bcaaf4f02193822754545e0302fd98217f1b0fc87a760a",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_record_ech_http3.rs::sequential_client_fails_a_rejected_alternative_then_uses_the_origin": {
+      "author_sha256": "e3b6a89fc9e6a6bc7a6ed5b57d164451a8628a47a313dbbfdff63aef33058cb0",
+      "current_sha256": "e3b6a89fc9e6a6bc7a6ed5b57d164451a8628a47a313dbbfdff63aef33058cb0",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records.rs::sequential_client_uses_http3_once_the_https_record_is_known": {
+      "author_sha256": "dd3322f358ae196cba9327a57a086311174c1f2b408876dc4428b1c4d07f18d7",
+      "current_sha256": "dd3322f358ae196cba9327a57a086311174c1f2b408876dc4428b1c4d07f18d7",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records.rs::misdirected_http3_marks_the_https_record_location_broken": {
+      "author_sha256": "00e740f4f1b62c3657283253b10f7d4282dbf74aa64ab2d1dc874b460e1a537e",
+      "current_sha256": "00e740f4f1b62c3657283253b10f7d4282dbf74aa64ab2d1dc874b460e1a537e",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records.rs::delayed_https_record_does_not_delay_the_request": {
+      "author_sha256": "79d3593ceed4aa221438c18d02a5d32aa5e5ea50811e2ab28d596ebd7c97c844",
+      "current_sha256": "79d3593ceed4aa221438c18d02a5d32aa5e5ea50811e2ab28d596ebd7c97c844",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records.rs::failed_lookup_leaves_the_request_on_the_origin": {
+      "author_sha256": "09479cfbdf6b7a188120c025dee33026522f412cd6b00ae5d9907d9362359004",
+      "current_sha256": "09479cfbdf6b7a188120c025dee33026522f412cd6b00ae5d9907d9362359004",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records.rs::disabled_discovery_leaves_requests_unchanged": {
+      "author_sha256": "25ffc72543cab648843ab33c4f1bd8861a52329bd324a00bbdffe17f2d6c6aa1",
+      "current_sha256": "25ffc72543cab648843ab33c4f1bd8861a52329bd324a00bbdffe17f2d6c6aa1",
+      "byte_exact": true,
+      "qualified_change": null
+    },
+    "crates/phantom/tests/http3/https_records.rs::routes_without_direct_dns_send_no_https_query": {
+      "author_sha256": "793e67d1a178fb225bedac4bc423118c3f610b0fc576f0823ca2a3e254c69076",
+      "current_sha256": "3218452cc2e4d0ff99c687b5378c1a3b78ed7a8a6fbaa748f846b445b7c2e2a8",
+      "byte_exact": false,
+      "qualified_change": "Root A183 reserved-port setup only; exact mechanical inverse restores old method and all assertions."
+    },
+    "crates/phantom/tests/http3/https_records.rs::discovery_requires_an_alt_svc_store": {
+      "author_sha256": "e7e50cb48e4f2054a275110e90960b696214a4903f8dd7a59f50e5122b4b0d57",
+      "current_sha256": "e7e50cb48e4f2054a275110e90960b696214a4903f8dd7a59f50e5122b4b0d57",
+      "byte_exact": true,
+      "qualified_change": null
+    }
+  },
+  "actual_prerequisites": [
+    "Both requests complete actual GET /serving-first and /serving-second with200/HTTP1/ResponseInfo Http1/literalok before result observation.",
+    "Each actual canonical Opening::serve completes successfully before optional owned controlled IO error is returned.",
+    "Actual AbortHandles are published into independently owned slots; each is_finished and release/acquire reached-outcome witness is observed before Origin.finish.",
+    "Client remains live while Origin.finish returns success and triggers missing-error boundary."
+  ],
+  "first_failure": "serving_contract.rs148 missing error after Origin.finish returned success; downstream FixtureFailures and both original ioError/ServingFailure Arc identity assertions remain unreached.",
+  "qualified_scope": [
+    "Controlled post-serving PermissionDenied/InvalidData errors, not native OS failures.",
+    "Actual completed worker observation is distinct from joined result/reaping; original collector aborts handles without observing outcomes.",
+    "Positive preserves two successful canonical handshakes; existing 194-line owner child remains exact; 49 prior method bodies are exact and one has an independently integrated A183 reserved-port setup migration with all assertions preserved by exact inverse.",
+    "Selected52 only;259 excluded. No full gate or whole parent semantic review claimed.",
+    "No runtime/Cargo/source edits, push or merge by this independent review.",
+    "Initial guessed origin-log filename did not exist; the actual https-log filenames were then discovered and fully read."
+  ]
+}

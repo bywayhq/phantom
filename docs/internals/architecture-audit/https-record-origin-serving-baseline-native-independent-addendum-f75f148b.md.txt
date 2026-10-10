@@ -1,0 +1,11 @@
+# Exact ECH completed-serving baseline native review
+
+Both complete host logs show 52 selected methods: 51 pass and one intended failure. Formatting, strict Clippy and MSRV exit 0; nextest 100 and runner 1 reflect the expected negative. The same unique roster and failure name are present on both hosts. 259 methods are excluded.
+
+The negative reaches the missing-error check at serving_contract.rs:148 after two real GET exchanges, 200/HTTP1/ResponseInfo Http1 and literal ok bodies. Each canonical Opening::serve succeeds before its optional controlled IO outcome. Published actual AbortHandles, observed completion and release/acquire reached-outcome flags precede Origin.finish. The client remains alive throughout. No backup cancellation can manufacture these completed error prerequisites.
+
+Origin.finish returns success, losing its completed serving errors. The later FixtureFailures downcast and both typed PermissionDenied/InvalidData payload and Arc identity checks remain unreached. The healthy positive preserves two successful serving/handshake observations. These are deliberately controlled post-serving errors, not native OS faults; task completion witnesses are not awaited worker results.
+
+The full 269-line current child and supporting parent 1–315 were read. The child is exact to signed 35b. The entire parent inverse differs only by root's two EchDeadline import/mapping changes. Of 50 earlier method bodies, 49 remain exact. The discovery no-direct-DNS method has root's separate A183 reserved-port setup migration; reversing only that disclosed setup delta restores its old body and all assertions. The 194-line owner control remains exact. Hash comparison does not grant new semantic whole-file coverage.
+
+Both full test logs, all six ancillary logs, exits, revisions and current launcher were read. JSON binds their raw hashes, source identities and complete host rosters. The causal completed-serving finding supports proceeding with the bounded remedy. No runtime execution or source edit occurred in this review, and no full-gate approval is claimed.
