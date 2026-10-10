@@ -1,0 +1,24 @@
+# ALPS capture remedy native results
+
+Exact `6c98bb6cc54a854018345745433c6b96fdc21993` passes all18 focused methods on Windows and Linux
+Python3.10. Startup, exact origin/port, reader failures, unsafe-close refusal,
+original interruption identity, secondary failures and no-publication controls
+pass. The existing Windows held-reader deadline passes with its original bound;
+the historical544 failure cause remains unproved.
+
+The full capture suite discovers449 tests on each host. Windows passes449.
+Linux passes438 and skips11. Runtime, focused/fullsuite, Ruff lint and format
+exit0 on both hosts. Complete logs were read and25 raw artifacts are bound.
+
+The broader suite is flagged: Windows emits two ResourceWarning headers for
+unclosed sockets, Linux four for sockets/transports. Reporting sites differ and
+do not establish allocation ownership. These require investigation. Six CLI
+validation diagnostics per host accompany successful negative-argument tests.
+Skip names are not present in the nonverbose output, so no skipped execution
+or whole-platform coverage is claimed.
+
+Focused controls use real child pipes with a fake browser/capture executable and
+controlled bookkeeping faults. They prove these bounded contracts, not an actual
+signal or native lock hang. Independent native review and final gates remain.
+
+JSON SHA256: `65d0a5c6552931b82137af72253b3ee725a7c5c3a51f7909ea0f09f098bdf584`.

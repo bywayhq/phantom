@@ -617,10 +617,10 @@ crates/phantom/tests/requests/main.rs	crate	source-complete	client-request-api-s
 crates/phantom/tests/requests/ping_failure_replay.rs	crate	pending	
 crates/phantom/tests/requests/plaintext_templates.rs	crate	pending	
 crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/10
-crates/phantom/tests/requests/prepared_bodies.rs	crate	pending	
-crates/phantom/tests/requests/prepared_bodies/slots.rs	crate	pending	
-crates/phantom/tests/requests/prepared_bodies/trailers.rs	crate	pending	
-crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	pending	
+crates/phantom/tests/requests/prepared_bodies.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
+crates/phantom/tests/requests/prepared_bodies/slots.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
+crates/phantom/tests/requests/prepared_bodies/trailers.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
+crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	source-complete	 prepared-body-independent-standards-review-13bb3ef7.json and root source review: complete206/364/123/370 owners, source unchanged at5339; ownership/allocation remedies and final checks pending.
 crates/phantom/tests/requests/query_authorization.rs	crate	pending	
 crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/11
 crates/phantom/tests/requests/redirects.rs	crate	pending	
@@ -3168,3 +3168,14 @@ docs/internals/architecture-audit/alps-capture-interruption-independent-source-r
 docs/internals/architecture-audit/alps-capture-interruption-native-d83c47db.md.txt	documentation	pending	Exact source/native evidence import; membership supplies no semantic source credit.
 docs/internals/architecture-audit/alps-capture-interruption-native-d83c47db.json	documentation	pending	Exact source/native evidence import; membership supplies no semantic source credit.
 docs/internals/architecture-audit/capture-certificate-evidence-d83c47db.json	documentation	pending	Exact source/native evidence import; membership supplies no semantic source credit.
+docs/internals/architecture-audit/alps-capture-remedy-native-6c98bb6c.md.txt	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/alps-capture-remedy-native-6c98bb6c.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/alps-capture-interruption-remedy-independent-source-review-a4e254d7.md.txt	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/alps-capture-interruption-remedy-independent-source-review-a4e254d7.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/prepared-body-root-standards-review-13bb3ef7.md.txt	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/prepared-body-root-standards-review-13bb3ef7.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/prepared-body-independent-standards-review-13bb3ef7.md.txt	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/prepared-body-independent-standards-review-13bb3ef7.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/certificate-request-caller-count-correction-7b6733fc.md.txt	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/certificate-request-caller-count-correction-7b6733fc.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.
+docs/internals/architecture-audit/checkpoint-5339f15b.json	documentation	pending	Retained bounded review/checkpoint; inventory membership adds no semantic source review.

@@ -40,6 +40,30 @@ do not establish that need.
 
 ## Recent verification
 
+The [capture repair](alps-capture-remedy-native-6c98bb6c.md.txt) passes all
+eighteen focused controls on Windows and Linux. The original Windows deadline
+also passes unchanged; its earlier failure cause remains unknown. Independent
+[source review](alps-capture-interruption-remedy-independent-source-review-a4e254d7.md.txt)
+approves the completion witness and retained interruption identity. The broader
+suite passes 449 tests on Windows and 438 on Linux, with eleven Linux skips.
+Socket warnings remain flagged; independent native review and final gates remain.
+
+The [current checkpoint](checkpoint-5339f15b.json) records two-platform proxy
+test compilation failure before execution: a private TLS import and a certificate
+time-reference mismatch. Formatting passes. Both the test build and focused
+Clippy/MSRV fail with these diagnostics. No new trust control has executed.
+
+The same checkpoint records an isolated proxy capture test with allocation
+tracing on both hosts. Its wire assertions pass, but each host reports two
+unclosed sockets and two transports. Allocation stacks identify the scripted
+client's two connection acquisitions. Cleanup repair is assigned. This does
+not alone attribute every warning in the earlier broader suite.
+
+The [prepared-body review](prepared-body-independent-standards-review-13bb3ef7.md.txt)
+confirms peer ownership and lost sibling results, plus allocation from an
+unchecked body length in a test peer. All four owners were manually read.
+These are fixture findings; causal controls, repairs and verification remain.
+
 The [interruption baseline](alps-capture-interruption-native-d83c47db.md.txt)
 runs eighteen capture methods at `d83c47db` on both hosts. Linux passes
 fifteen and fails three. Windows passes fourteen and fails four. Controlled

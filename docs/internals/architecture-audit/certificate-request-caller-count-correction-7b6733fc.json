@@ -1,0 +1,8 @@
+{
+  "supersedes_only_prose_count": true,
+  "original_json_sha256": "b6f44342b5925fb3c5f8ed14043c7c100004b4e92f48e1f337680c9d45d7d542",
+  "original_markdown_sha256": "30e0dc640fcd5a6e0e8fdc708bee17669197ea82b83fb2e298ee38f6d6bde195",
+  "correction": "CERT-CALLER-F3 covers TWO HTTPS-proxy certificate caller scopes (parent162-202 and per_origin524-564), plus TWO WSS scopes. The original wording three was a count error; exact recorded source ranges and finding remain unchanged.",
+  "scope": "Evidence-only count correction; no new source/runtime credit.",
+  "markdown_sha256": "56e6de999d67d3966a4e56fa21e4a8556a5b09796db53fce0eaba37e18f82c73"
+}

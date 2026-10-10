@@ -1,0 +1,24 @@
+# Prepared body test standards review
+
+At `13bb3ef7dee9fe97a869fb17c491345ac9a93fbd`, the root reads all four prepared-body test owners:
+206/364/123/370 lines, 1,063 combined. Exact source identities are in the pair.
+Independent source review and causal execution remain pending.
+
+Tests observe literal encoded bytes, request header order, redirects, hook counts,
+credential removal, chunked trailers and a typed framing rejection. Retained
+browser fixtures are referenced but not newly read or refreshed in this pass.
+
+Raw peer handles span fallible setup and client work, and are awaited only after
+client success. Enclosing cancellation or early errors can discard ownership and
+completed peer outcomes. This source-supported candidate needs a causal control;
+no native leak or production client defect is claimed. H2 stop-send failure is
+not separately promoted because the caller still observes the server result.
+
+Import/module order and dense redirect operation groups need bounded cleanup.
+No source edit or extra test is made for formatting alone. The existing domain
+split is coherent; a new crate or generic framework is unsupported.
+
+Production, exact retained fixtures and resolved backend review are outside this
+bounded pass. No native execution, compilation, performance or final gate claim.
+
+JSON SHA256: `c6c127a3ea294572b7a85a09031abe1c93f12eb19cd39ac7848ff5f504a40216`.

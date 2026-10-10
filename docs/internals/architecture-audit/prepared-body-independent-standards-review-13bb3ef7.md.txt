@@ -1,0 +1,35 @@
+# Prepared-body independent standards review
+
+All four owners at `13bb3ef7dee9fe97a869fb17c491345ac9a93fbd` were fully manually read:206/364/123/370 lines,
+1,063 total. Their Git bytes match current `6c98bb6cc54a854018345745433c6b96fdc21993` and the root source
+record. Its declared raw SHA values are explicitly reconciled to current CRLF
+working bytes, not LF Git blobs; both bases and canonical ranges are retained.
+Supporting production, peer, parser and locked Tokio reads are partial
+and recorded separately. No runtime, source edit or final audit closure.
+
+PREP-ST1 is source-confirmed: raw peers span fallible setup/request work and
+success-only joins. Early error/cancellation loses running ownership or completed
+peer outcomes. Parent303 and slots307 sequential joins also discard a completed
+sibling on first failure. Existing concrete ConnectionPeer and finite combined
+cleanup fit these actual result types; Drop abort is distinct from observed join.
+Causal controls should reuse canonical upload/redirect paths with actual nonempty
+request/204 or307 readiness, typed errors and finite backup after snapshots.
+
+PREP-ST2 is a bounded import/module and paragraph-layout mismatch. The existing
+placement/slots/trailers/uploads split is coherent; no crate or framework added.
+
+PREP-ST3 is an additional fixture bound gap: parent129–130 parses Content-Length
+and allocates before checking the known literal a=b. Header capture limits do
+not bound this body allocation. Validate its known three-byte size first. Current
+ordinary form requests are valid; no OOM, external attack or production bug was
+measured, and a dangerous huge-allocation regression is unnecessary.
+
+Existing wire oracles are substantive: literal encoded bytes, ordered field
+capture, type/length, hook count, redirect credentials and exact chunked trailer
+bytes with typed framing rejection. Quiet accept errors cannot satisfy an outer
+timeout assertion, and deadlines retain actual Elapsed. Ignored stop.send alone
+does not lose server failure on the normal joined path; it is not promoted as a
+separate defect. H2 clean closure cannot fake the independently asserted full
+nonempty body. Retained captures were referenced, not freshly reviewed/refreshed.
+
+JSON SHA256: `58dc25dd9e23debf45a69981e91b880a8af59b48a04be66fe5aec73cdf6a18c2`.

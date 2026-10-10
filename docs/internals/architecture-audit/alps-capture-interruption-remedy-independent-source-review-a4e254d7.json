@@ -1,0 +1,446 @@
+{
+  "revision": "a4e254d784b3b34b45a166700a38e270859a18c0",
+  "parent": "cb88a7930d657590eb6b36d770ae65e0521d64a3",
+  "decision": "independent source approve for root causal rerun; no native or full-gate approval",
+  "source_records": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "raw_sha256": "6d478de7fbe9956bb7fcd7ec2c0de609e4b46199843f249a1635b3c2dd84d8ca",
+      "working_raw_sha256": "9f4b858124d6461110bb77ad21c42d49cdd7d671493b1be1015234afbf34aa31",
+      "line_count": 412,
+      "scope": "fresh whole current manual source and standards review; independent, no runtime",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 412,
+          "raw_range_sha256": "6d478de7fbe9956bb7fcd7ec2c0de609e4b46199843f249a1635b3c2dd84d8ca"
+        }
+      ],
+      "revision": "a4e254d784b3b34b45a166700a38e270859a18c0",
+      "blob_oid": "8df401febd4033112faa087eb339407e892659f1"
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "raw_sha256": "654abd6fc60bda72058afa72503556ebd463b8917998d94fc46eae1142d692e6",
+      "working_raw_sha256": "654abd6fc60bda72058afa72503556ebd463b8917998d94fc46eae1142d692e6",
+      "line_count": 653,
+      "scope": "fresh whole current manual source and standards review; independent, no runtime",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 330,
+          "raw_range_sha256": "13c1f73143f6dad3543fa89ffe3f95d1ea30fe48a00a8e990d24d7d52333bb48"
+        },
+        {
+          "start": 331,
+          "end": 653,
+          "raw_range_sha256": "ebcc81f66ad5a1faa01a4fcf0b41814d1f0673218e22fd9133000146a2c9b710"
+        }
+      ],
+      "revision": "a4e254d784b3b34b45a166700a38e270859a18c0",
+      "blob_oid": "5a5c8df39fcdce554ccbbee5befd401c494a49d1"
+    }
+  ],
+  "dependency_records": [
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/threading.py",
+      "raw_sha256": "a21926e636bec8c2e5579f3e79cce144c36379ef93c4596252af29970983553d",
+      "working_raw_sha256": "a21926e636bec8c2e5579f3e79cce144c36379ef93c4596252af29970983553d",
+      "line_count": 1645,
+      "scope": "fresh supporting partial resolved local CPython3.10.20 read; no package coverage or interrupt execution",
+      "actual_manual_ranges": [
+        {
+          "start": 530,
+          "end": 630,
+          "raw_range_sha256": "12a9f85a2ad6c8b26b726042fe494c5d36080b9c30cffae9c882a810051dbe85"
+        },
+        {
+          "start": 907,
+          "end": 969,
+          "raw_range_sha256": "d96177635ec82856f8162171d3a9dcd866c897482a96c79f31a03eaf40981b3b"
+        },
+        {
+          "start": 1000,
+          "end": 1054,
+          "raw_range_sha256": "e50c2c29cfb76d610433cd8e90d703d82a56627320321e50622461dd5d223922"
+        },
+        {
+          "start": 1064,
+          "end": 1128,
+          "raw_range_sha256": "c517bbb4f82a108f6b0c14c1651afa09ad29bc8a8396044f61e01cbb24954569"
+        },
+        {
+          "start": 1162,
+          "end": 1203,
+          "raw_range_sha256": "eca393402aca647ab7cf2dfcba75d74af2e205442dbc037613ca64ba929114e4"
+        }
+      ]
+    }
+  ],
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-independent-source-review-85bf44a9.md",
+      "raw_sha256": "0c8e480d322cc92dc2cbee09016326d570bfb2e30244fefa1bac7ebc014a9299",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-reader-origin-independent-source-review-85bf44a9.json",
+      "raw_sha256": "69d786951b5a7057be43ba28c03d5d49fcc442c3e272ff2098735d842ed3dd97",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-independent-source-review-cb88a793.md",
+      "raw_sha256": "14400e23a4b8b79c89bb728a6fa6151dfa71b77bd75da88ed5afeeaee8cda03d",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-independent-source-review-cb88a793.json",
+      "raw_sha256": "45623cba9babb6ce8c7ada9fd1386df8c52dd78e1e7424ba32f74c081622aacc",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-native-d83c47db.md",
+      "raw_sha256": "023016bcfec8ef1b3275424b228234227ecd539d2d88f8b8d27594213ff3e652",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-native-d83c47db.json",
+      "raw_sha256": "2bf1bb463e1472c6008c28c5edeeb17c8b83d9e03b1b59bb749006703de76888",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-remedy-handoff-a4e254d7.md",
+      "raw_sha256": "68e287944da46867df61b1c420ca7dd19b72ac84b8202815da7095e7cd4e1fb5",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-interruption-remedy-handoff-a4e254d7.json",
+      "raw_sha256": "f231f8fd9b2905ca476cc0bc939c6d5729bccb93c6359bd2f64910e5adc34e10",
+      "scope": "retained paired report read; prior evidence, not fresh current execution"
+    }
+  ],
+  "retained_raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-windows.revision",
+      "raw_sha256": "9481dd1794c08c816921efed6c0edda1c5ea9459b55df2e9d8858c4a3529f0c7",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-windows.log",
+      "raw_sha256": "b937228d11c3f5b8bf656addad7dd0786c3de936b1e2ea0ce1ed97f6016aeb9f",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-windows.log",
+      "raw_sha256": "98e63f4f5d3afb1eb351115abb76ad34f61a4e6d09c5a4b7209b1a323106b3a0",
+      "line_count": 55,
+      "actual_manual_ranges": [
+        [
+          1,
+          55
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-windows.log",
+      "raw_sha256": "a9f0b04afc44b4a2bd43af75dcd0889a6e6ceb15a864c1a9f4d7c3ca1a8c4232",
+      "line_count": 12,
+      "actual_manual_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-linux.revision",
+      "raw_sha256": "9481dd1794c08c816921efed6c0edda1c5ea9459b55df2e9d8858c4a3529f0c7",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-linux.log",
+      "raw_sha256": "5700684940f762f12bd09c1d80c1945661adecdaa95a8dbc41d17683e9430686",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-runtime-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-linux.log",
+      "raw_sha256": "1cdb0329a156f1222840e6b9d707821b52dc47ae26c255d40a95a251de3c8c1a",
+      "line_count": 47,
+      "actual_manual_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-tests-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-linux.log",
+      "raw_sha256": "8a6b8e33211b4f2aafca5b2c394354be074723d6a49f1e790a8174050dca9849",
+      "line_count": 12,
+      "actual_manual_ranges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-d83c47db-format-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-alps-capture-focused.sh",
+      "raw_sha256": "39496c02f4c1d81390e1f0f5ebbfbf5192c9141780db0c44369da1f296a0ceea",
+      "line_count": 43,
+      "actual_manual_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "scope": "whole actual retained root artifact read; no reviewer execution"
+    }
+  ],
+  "signed_diff_sha256": "12959f06739709c9402ff555d0941f202a29b75c5ac0cf0e0dc356bcebc76198",
+  "author_json_sha256": "f231f8fd9b2905ca476cc0bc939c6d5729bccb93c6359bd2f64910e5adc34e10",
+  "preservation": {
+    "test_file_exact_after_single_signature_inverse": true,
+    "all18_method_statement_ASTs_exact": true,
+    "method_roster": [
+      "NetLogTests.test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+      "NetLogTests.test_a_cut_off_netlog_still_loads",
+      "NetLogTests.test_field_names_keep_the_pseudo_header_colon",
+      "RetainedFixtureTests.test_the_navigation_restarts_once_with_the_hints_after_accept",
+      "OriginAttributionTests.test_the_literal_https_target_keeps_its_frame_and_request",
+      "OriginAttributionTests.test_a_lookalike_hostname_is_not_the_capture_origin",
+      "OriginAttributionTests.test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+      "OriginAttributionTests.test_http_is_not_the_https_capture_origin",
+      "OriginAttributionTests.test_a_different_port_is_not_the_capture_origin",
+      "CapturePipeTests.test_silent_startup_finishes_before_the_control_releases_the_child",
+      "CapturePipeTests.test_a_completed_child_with_complete_stdout_produces_a_fixture",
+      "CapturePipeTests.test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+      "CapturePipeTests.test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+      "CapturePipeTests.test_a_failed_stderr_reader_retains_its_actual_controlled_error",
+      "CapturePipeTests.test_a_primary_browser_error_retains_the_completed_stderr_failure",
+      "CapturePipeTests.test_interrupted_join_cannot_close_a_live_reader_pipe",
+      "CapturePipeTests.test_interrupted_start_cannot_close_an_unreported_live_reader_pipe",
+      "CapturePipeTests.test_first_cleanup_interruption_keeps_its_original_identity"
+    ],
+    "changed_paths_exact": [
+      "scripts/capture/alps_accept_ch.py",
+      "scripts/capture/tests/test_alps_accept_ch.py"
+    ],
+    "working_status": "clean"
+  },
+  "accepted_contracts": [
+    "target completion is registered before start and published only after target I/O",
+    "uncertain ident or interrupted stopped bookkeeping does not authorize close",
+    "finite witness observation and conservative pending owner retention",
+    "first cleanup exception original identity plus named secondaries and previous causes",
+    "unchanged control assertions/literals and unconditional real-thread backup"
+  ],
+  "rejected_candidates": [
+    "Event completion does not require Thread.is_alive to be reliable because it marks target pipe quiescence, not native thread exit.",
+    "raise primary cannot receive None when secondary is nonempty because first failure is selected.",
+    "No source proof that historical Windows544 is repaired.",
+    "No actual OS signal or native TextIO lock hang was executed by this reviewer or these controlled fault records."
+  ],
+  "baseline_native_boundary": {
+    "revision": "d83c47db5444fe2607e393511fdaa78f7fb60e7f",
+    "Linux": "15pass/3fail, three intended boundaries",
+    "Windows": "14pass/4fail, three intended plus unresolved544",
+    "downstream_assertions": "uncredited after the first failing source boundary",
+    "runtime_versions": "Windows3.10.20 / Linux3.10.21 from actual retained logs"
+  },
+  "checks": "Read-only source/AST/Git/hash equality and good signed commit verification; no runtime, Cargo, Ruff or edits.",
+  "limits": [
+    "Source approval only; root both-host18-case rerun and broader capture checks remain.",
+    "Event target completion is not universal signal masking or forced reader termination.",
+    "Supporting pinned CPython source scope is partial and Windows3.10.20 only.",
+    "Historical Windows544 cause remains unmeasured; no timing waiver."
+  ],
+  "manual_read_output_refs": [
+    "448619 capture1-412",
+    "fb8a51 tests1-330",
+    "a86174 tests331-653",
+    "1acd56 full semantic diff and prior prose",
+    "7fcd1d author pair and prior dependency contract",
+    "eed5ac threading partials",
+    "e5be3d Event constructor/is_set",
+    "a03429 full21 root artifacts",
+    "ea04a6 independent preservation comparisons"
+  ],
+  "markdown_sha256": "9d19a98b6265e01c16a87e6dcc9fab35ba9c0fbfd472b859dd23e5cc089278db"
+}
