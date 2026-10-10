@@ -580,14 +580,18 @@ async fn a_socks5_tunnel_carries_the_mapped_certificate_to_the_origin() -> TestR
         .build()?;
 
     let mapped_acceptor = acceptor(&server, Some(&mapped.authority_der))?;
-    let (presented, status) = timeout(TEST_TIMEOUT, async {
+    let exchange = timeout(TEST_TIMEOUT, async {
         tokio::join!(
             serve_one(origin_listener, mapped_acceptor),
             get(&client, format!("https://{origin_address}/"))
         )
     })
-    .await?;
-    let primary: TestResult<_> = async { Ok((status?, presented?)) }.await;
+    .await;
+    let primary: TestResult<_> = async {
+        let (presented, status) = exchange?;
+        Ok((status?, presented?))
+    }
+    .await;
     let (status, presented) = finish_with_cleanup(primary, proxy.stop().await)?;
 
     assert_eq!(status, StatusCode::NO_CONTENT);
