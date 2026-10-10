@@ -12,7 +12,7 @@ use btls::{
     x509::X509,
 };
 use phantom::{Client, HttpProtocol, HttpProxy, RequestError, RequestErrorKind, Route};
-use phantom_net::{http1::Http1TlsError, proxy::HttpConnectError, tls::TlsErrorKind};
+use phantom_net::{TlsErrorKind, http1::Http1TlsError, proxy::HttpConnectError};
 use rcgen::{
     BasicConstraints, CertificateParams, CertifiedIssuer, ExtendedKeyUsagePurpose, IsCa, KeyPair,
     KeyUsagePurpose, SanType, date_time_ymd,
@@ -49,10 +49,8 @@ async fn adding_only_proxy_roots_authenticates_the_same_proxy() -> TestResult<()
 async fn adding_proxy_roots_does_not_remove_the_same_leafs_expiry() -> TestResult<()> {
     let certificate = ProxyCertificate::expired()?;
     let leaf = X509::from_der(&certificate.leaf)?;
-    assert_eq!(
-        leaf.not_after().compare(&Asn1Time::days_from_now(0)?)?,
-        Ordering::Less
-    );
+    let now = Asn1Time::days_from_now(0)?;
+    assert_eq!(leaf.not_after().compare(&now)?, Ordering::Less);
 
     let observed = observe_root_difference(certificate, false).await?;
     assert!(certificate_verification_failed(&observed.first_error));
