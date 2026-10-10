@@ -83,8 +83,13 @@ async fn a_stopped_receiver_cannot_report_a_quiet_datagram_count() -> TestResult
 async fn a_poisoned_observer_cannot_report_a_quiet_datagram_count() -> TestResult<()> {
     bounded(async {
         let blackhole = blackhole_with_observed_datagram().await?;
-        let poisoned = std::panic::catch_unwind(|| {
-            let _held = blackhole.initials.lock().expect("healthy observation lock");
+        let held = blackhole
+            .initials
+            .lock()
+            .map_err(|_| "observation lock was already poisoned")?;
+
+        let poisoned = std::panic::catch_unwind(move || {
+            let _held = held;
             panic!("inject observation lock poisoning");
         });
         assert!(poisoned.is_err());
