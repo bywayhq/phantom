@@ -8,12 +8,7 @@ use std::{
 use http::StatusCode;
 use http_body_util::BodyExt;
 use phantom::{Client, HttpProtocol, HttpProxy, Route};
-use tokio::{
-    net::TcpListener,
-    sync::oneshot,
-    task::{AbortHandle, JoinHandle},
-    time::timeout,
-};
+use tokio::{net::TcpListener, sync::oneshot, task::AbortHandle, time::timeout};
 
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
@@ -84,7 +79,8 @@ impl Drop for DropSignal {
 struct CookieOwnerCase {
     session: Client,
     url: String,
-    task: JoinHandle<TestResult<Vec<Vec<u8>>>>,
+    task: ConnectionPeer<TestResult<Vec<Vec<u8>>>>,
+    backup: AbortHandle,
     origin: Option<ConnectionPeer<TestResult<Vec<Vec<u8>>>>>,
     first_ready: oneshot::Receiver<Vec<u8>>,
     connect_ready: Option<oneshot::Receiver<Vec<u8>>>,
@@ -98,6 +94,7 @@ async fn observe_owner(owner: Owner, exit: Exit) -> TestResult<()> {
         session,
         url,
         task,
+        backup,
         origin,
         first_ready,
         connect_ready,
@@ -105,7 +102,6 @@ async fn observe_owner(owner: Owner, exit: Exit) -> TestResult<()> {
         mut destroyed,
         address,
     } = case(owner).await?;
-    let backup = task.abort_handle();
 
     let operation = async {
         let response = session.get(HttpProtocol::Http1, &url)?.send().await?;
@@ -286,10 +282,14 @@ async fn case(owner: Owner) -> TestResult<CookieOwnerCase> {
         }
     };
 
+    let backup = task.abort_handle();
+    let task = ConnectionPeer::from_task(task);
+
     Ok(CookieOwnerCase {
         session,
         url: format!("https://{origin_address}/seed"),
         task,
+        backup,
         origin,
         first_ready,
         connect_ready,
