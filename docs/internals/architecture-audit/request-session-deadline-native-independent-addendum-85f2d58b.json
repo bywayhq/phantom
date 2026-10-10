@@ -1,0 +1,766 @@
+{
+  "kind": "independent retained native A162 deadline result assessment",
+  "verdict": "approve focused native cause-preservation evidence on both hosts; final gates and broader ownership remain open",
+  "baseline": "3371562050629ac7f0fc762200f6f31da65b5689",
+  "remedy": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-windows.revision",
+      "raw_sha256": "003956b081c715650ce24056902c79fa19805afccd4a99b65ad865d8b17cbe7a",
+      "length": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "length": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-clippy-windows.log",
+      "raw_sha256": "6a95997a676187aa4b670ae4f697777f148bdad6a02cb946f7c54e6af75df8ca",
+      "length": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-msrv-windows.log",
+      "raw_sha256": "d4c50da0732c8416ea0a7be4afc23015463aa7f3bed7db6827417b0b577cfecd",
+      "length": 168,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-request-session-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "length": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-request-session-windows.log",
+      "raw_sha256": "6ae76884af81afd6786e4a6d6989a8b1f2dd38c994b90ce223e12bd21e115d30",
+      "length": 6600,
+      "line_count": 101,
+      "read_ranges": [
+        [
+          1,
+          101
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-linux.revision",
+      "raw_sha256": "003956b081c715650ce24056902c79fa19805afccd4a99b65ad865d8b17cbe7a",
+      "length": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "length": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-clippy-linux.log",
+      "raw_sha256": "e838c3b7a7d9199f52ab38560020c8de968751b91ec2f172ca1d143cff527b73",
+      "length": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-msrv-linux.log",
+      "raw_sha256": "6d6bf27ba48c1c4aae757acd62204c694f8ea918f0b5064a2a911c14bfeaf379",
+      "length": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-request-session-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "length": 4,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-baseline-33715620-request-session-linux.log",
+      "raw_sha256": "962ca8ea995be7b97373ab877c29a184abccac6644ea12246d20daada97d7e7c",
+      "length": 6610,
+      "line_count": 101,
+      "read_ranges": [
+        [
+          1,
+          101
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-request-session-deadline-baseline.sh",
+      "raw_sha256": "cdb5b062eb8cb9dfa1b853dfbb6df9e65137622d6af851915467c241a97e2f42",
+      "length": 2216,
+      "line_count": 48,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-windows.revision",
+      "raw_sha256": "ba7bef3eaa7b204f2851cb359f2ac606decabe1b880ab8b6ed0d6ab55a05544c",
+      "length": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "length": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-clippy-windows.log",
+      "raw_sha256": "f71b08869d1947880bb509a18b87c38d5204bfbb4e05eb6cc27d674664b22dec",
+      "length": 167,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-msrv-windows.log",
+      "raw_sha256": "67d5ec75477cbda09ad68d6d244ae817e411e9d32afec297685e3e489042f5bb",
+      "length": 168,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-request-session-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-request-session-windows.log",
+      "raw_sha256": "e7051cb196286bae8d0efa94ab4d3fded49879c4b47288fbc88b7b3ddfd91fde",
+      "length": 4432,
+      "line_count": 38,
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-linux.revision",
+      "raw_sha256": "ba7bef3eaa7b204f2851cb359f2ac606decabe1b880ab8b6ed0d6ab55a05544c",
+      "length": 41,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "length": 0,
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-clippy-linux.log",
+      "raw_sha256": "9a6ecbeb3226f7ef320804f47033c4e026d2de25105edc9fa932a06054dfb5bb",
+      "length": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-msrv-linux.log",
+      "raw_sha256": "a97da1446887643953776dd44dc16ade26d15ee338a6fb83e4f149fed69d76d9",
+      "length": 177,
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-request-session-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "length": 2,
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-85f2d58b-request-session-linux.log",
+      "raw_sha256": "a80a99310298f09d358a4cd761d75568961f6fee614c66e5511282c337a68a00",
+      "length": 4442,
+      "line_count": 38,
+      "read_ranges": [
+        [
+          1,
+          38
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-request-session-deadline-remedy.sh",
+      "raw_sha256": "709f2f82ebb15612ef436080959a685fd36944b0bc17ae88ff774aad09cce403",
+      "length": 2214,
+      "line_count": 48,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "scope": "complete retained artifact manually read; empty logs verified empty"
+    }
+  ],
+  "root_receipt": {
+    "json_sha256": "967873288fc0ad28ab32432d12c1cc00d72a1ef3b108c4c270f2aa1d257a74e0",
+    "md_sha256": "8d5e60a8ef233876d402a7eb02b8704dd97f2891cf3d58989d18d1ef102d1c98",
+    "scope": "full root pair manually read; individual raw observations independently checked"
+  },
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+      "git_blob_oid": "fe0a8b8877bf677b1f771b7ccd522703095a4532",
+      "raw_sha256": "0948c98f36cb621f26c923a28c5336ff88e43fc8c73e2a7204292e011e965922",
+      "line_count": 743,
+      "read_classification": "exact byte rebind to independently approved ae12132e parent; complete integration diff read, no new whole parent credit",
+      "read_ranges": [],
+      "range_hashes": [],
+      "equals_approved_author": "ae12132efddfc3e6f9c02be265debda6eea65d00"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+      "git_blob_oid": "ba5f045399898642a36b88806cce34989a21abe8",
+      "raw_sha256": "0b72a00a619ece1f2529d92d2d898ec7bd3641286aa9a85e7e5dbb814d39be95",
+      "line_count": 1300,
+      "read_classification": "exact byte rebind to independently approved ae12132e parent; complete integration diff read, no new whole parent credit",
+      "read_ranges": [],
+      "range_hashes": [],
+      "equals_approved_author": "ae12132efddfc3e6f9c02be265debda6eea65d00"
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "read_classification": "fresh complete actual passing control owner manually read",
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            70
+          ],
+          "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a"
+        }
+      ],
+      "equals_approved_author": "ae12132efddfc3e6f9c02be265debda6eea65d00"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "85f2d58b75037d06f1310dbd39c4338333ab38b0",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "read_classification": "fresh complete actual passing control owner manually read",
+      "read_ranges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            61
+          ],
+          "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f"
+        }
+      ],
+      "equals_approved_author": "ae12132efddfc3e6f9c02be265debda6eea65d00"
+    }
+  ],
+  "actual_rosters": {
+    "baseline": {
+      "windows": {
+        "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+        "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+        "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+        "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+        "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+        "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+        "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+        "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+        "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+        "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+        "client_hints::client_retains_accept_ch_across_requests": "PASS",
+        "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+        "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+        "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+        "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+        "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+        "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+        "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+        "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+        "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+        "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+        "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+        "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::http3_client_hints_share_one_session_connection": "PASS"
+      },
+      "linux": {
+        "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+        "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+        "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "FAIL",
+        "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+        "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+        "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+        "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+        "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+        "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+        "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+        "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+        "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+        "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+        "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+        "client_hints::client_retains_accept_ch_across_requests": "PASS",
+        "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+        "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+        "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+        "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+        "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+        "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+        "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+        "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS"
+      }
+    },
+    "remedy": {
+      "windows": {
+        "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+        "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+        "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+        "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+        "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "client_hints::client_retains_accept_ch_across_requests": "PASS",
+        "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+        "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+        "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+        "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+        "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+        "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+        "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+        "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+        "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+        "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+        "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+        "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+        "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+        "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+        "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS"
+      },
+      "linux": {
+        "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+        "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+        "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+        "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+        "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+        "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+        "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+        "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+        "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+        "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+        "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+        "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+        "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+        "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+        "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+        "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+        "client_hints::client_retains_accept_ch_across_requests": "PASS",
+        "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+        "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+        "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+        "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+        "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+        "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+        "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+        "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS"
+      }
+    }
+  },
+  "result": {
+    "baseline_per_host": "31 selected,29 PASS,2 FAIL,420 skipped; nextest100,runner1",
+    "remedy_per_host": "same31 selected,31 PASS,420 skipped; nextest0,runner0",
+    "ancillary": "format, strict all-features requests-binary Clippy and Rust1.88 requests-binary check all exit0 on both revisions/hosts"
+  },
+  "causal_scope": {
+    "baseline": "Both entered Pending paused-clock controls pass actual poll/elapsed>=5s and context checks, then reach terminal missing concrete Elapsed error.",
+    "remedy": "Same control bodies pass complete source-chain traversal to actual Elapsed.",
+    "preserved": "All25 prior methods and four ready-success/original typed inner-error controls PASS both revisions; rosters parsed only before Summary to avoid repeated FAIL rows."
+  },
+  "limitations": [
+    "Read-only assessment of retained root runs; no Cargo execution, rerun or network operation.",
+    "Paused fixture timer semantics; no live network deadline, fairness, browser fidelity, teardown or additional task ownership proof.",
+    "Integration parents bind exactly to existing partial independent source approval; no whole-source coverage granted from identity or native green.",
+    "Full workspace gates/main merge/broader audit remain open.",
+    "Initial scratch writer had a Python conditional-expression syntax error before output; corrected writer validates actual artifacts and source, with no report overwritten."
+  ]
+}

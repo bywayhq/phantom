@@ -1,0 +1,7 @@
+# Independent H2 control visibility follow-up
+
+Approve signed `645c9204c888c473a557933c65718aadaedc67f5` against `43daacef55b11cf1148075078de35267b5edaa5e` as a narrow source correction. I read its complete semantic diff, multiplex import/module block1-90, sibling actual relay caller157-207, complete28-line multiplex wrapper and both shared relay declarations.
+
+The ordinary and control paths still use the same concrete implementations. The shared functions are already pub(super); making their multiplex imports pub(super) restores sibling access after the deduplication. No wrapper, body, control, literal, timer or assertion changes. Exact single import replacement reconstructs the parent; all sibling source blobs remain equal.
+
+This is bounded source approval with current partial ranges, not a fresh whole multiplex owner read or compilation proof. The failed overlong wrapper range is disclosed in JSON and grants no nonexistent coverage. The author report had not yet been persisted during this review. No Cargo or checks were executed;100-case runtime and the ordinary CONNECT completed-child gap remain pending.

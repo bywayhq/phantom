@@ -1,0 +1,36 @@
+{
+  "kind": "independent additive style rebind",
+  "revision": "73a761bfe687464cbcaa3d6dfae1c2b766bcd079",
+  "parent": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+  "verdict": "approved for root native verification; three blank lines only",
+  "signature": "73a761bfe687464cbcaa3d6dfae1c2b766bcd079 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "source": {
+    "path": "crates/phantom/tests/requests/client_hints.rs",
+    "revision": "73a761bfe687464cbcaa3d6dfae1c2b766bcd079",
+    "git_blob_oid": "b2622960535e867ba624e4c51b1f6bce2d8a7f51",
+    "raw_sha256": "ce008de2fdf5ef6492f4df96f647207be6287894d9ee7b8cd42dc562220a081d",
+    "line_count": 1337,
+    "read_classification": "partial: complete current changed observer/value/H1 functions; full style diff",
+    "inclusive_ranges": [
+      [
+        1257,
+        1322
+      ]
+    ],
+    "range_sha256": "e89f74fac3a050b5261d1fb9871cdde8f60deb1b397d57c7da499955b7f759b2"
+  },
+  "proof": {
+    "all_nonblank_lines_byte_equal": true,
+    "blank_lines_added": 3,
+    "original_review": "C:\\code\\phantom\\target\\architecture-audit\\hint-observer-remedy-independent-review-e5a534d0.json",
+    "original_review_raw_sha256": "f30aa8909817d701b15092556022dd3fd3095ef45b07000570ca245c6977f870"
+  },
+  "preserved_open_findings": [
+    "A160",
+    "A163",
+    "A164",
+    "A167"
+  ],
+  "validation_qualification": "First script compared the outgoing function full signature, which also differed by a formatting trailing comma. Preserved first script; v2 compares original operation bodies and separately inspected named return/destructure contract. No code defect/approval from the initial failed comparator.",
+  "runtime": "none executed; source approval only; no tracked changes"
+}

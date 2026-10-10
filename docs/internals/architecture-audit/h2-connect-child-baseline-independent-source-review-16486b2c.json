@@ -1,0 +1,244 @@
+{
+  "kind": "independent source approval for ordinary CONNECT completed-child causal baseline",
+  "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+  "base": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+  "verdict": "approve causal baseline for root native execution; no behavioral remedy or native approval",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connect_child_outcome.rs",
+      "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+      "git_blob_oid": "18787b12b42bd85166166aabf5c0f1092f3ceb0f",
+      "raw_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46",
+      "line_count": 227,
+      "read_ranges": [
+        [
+          1,
+          227
+        ]
+      ],
+      "read_classification": "fresh complete new control owner manually read",
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            227
+          ],
+          "raw_sha256": "e6e29c7f3964bc9bc5c26208962b4cc055294cd8bbc5cda948ee321fd2f3eb46"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+      "git_blob_oid": "8e19c64f1d71149628bfbdc63136a29aaff6b79c",
+      "raw_sha256": "a035d8a5f233d30bc0cd124feaf7fc1683142f4a10a1d67ae605d58e4ed66d18",
+      "line_count": 2511,
+      "read_ranges": [
+        [
+          2123,
+          2361
+        ]
+      ],
+      "read_classification": "fresh partial: complete serving instrumentation and spawn scopes; full semantic diff including registration read separately",
+      "range_hashes": [
+        {
+          "range": [
+            2123,
+            2361
+          ],
+          "raw_sha256": "d871f04233ca1b94e790319246fab5361c7f4e50b383117372b869d0a781389c"
+        }
+      ]
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+      "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "line_count": 399,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "read_classification": "fresh partial fault wake/count implementation",
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            100
+          ],
+          "raw_sha256": "9e0a1a62461f9e816004127aa80fe39337b8cbcd84a633708a54e6e8dee71803"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+      "git_blob_oid": "4b5df3b607c9e3c50c38e510f0a8f4a2cb83779f",
+      "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+      "line_count": 144,
+      "read_ranges": [],
+      "read_classification": "byte-equal rebind to freshly complete 54 review, no additional full read",
+      "range_hashes": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+      "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+      "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "line_count": 317,
+      "read_ranges": [],
+      "read_classification": "byte-equal rebind to freshly complete 54 review, no additional full read",
+      "range_hashes": []
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "revision": "16486b2cdae2d0009ea34008a0a44d9f2f448776",
+      "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+      "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "line_count": 222,
+      "read_ranges": [],
+      "read_classification": "byte-equal rebind to freshly complete 54 review, no additional full read",
+      "range_hashes": []
+    }
+  ],
+  "complete_diff": {
+    "raw_sha256": "a417d5280b74227879285de7a22b68df2bc77dace65454bab3600e29b159d7e1",
+    "line_count": 325,
+    "scope": "complete semantic diff manually read"
+  },
+  "preservation": {
+    "parent_before_serving_seams_exact_after_registration_removal": true,
+    "parent_after_spawn_seam_exact": true,
+    "actual_same_completion_operations": true,
+    "frozen_children": [
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+        "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+        "raw_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+        "git_blob_oid": "4b5df3b607c9e3c50c38e510f0a8f4a2cb83779f",
+        "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+        "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+        "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+        "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+        "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+        "git_blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+        "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+        "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+        "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+        "git_blob_oid": "59d8ea447f7d2ffd3a4f111ec975e83dedf4e4ca",
+        "raw_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+        "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+        "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+        "git_blob_oid": "c493ea890bba06ded6adef242b5a6cd9e0396ea1",
+        "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+        "git_blob_oid": "45b356a0127953c930eb0e82e124d95a25491723",
+        "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+        "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+        "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+        "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+        "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+        "git_blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+        "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+        "scope": "identity-only preservation; no fresh whole review"
+      },
+      {
+        "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+        "git_blob_oid": "10c4ae964a5af21f4f6c175912d2e02258863f17",
+        "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+        "scope": "identity-only preservation; no fresh whole review"
+      }
+    ],
+    "seam": "Normal None branch reaches original relay_upstream; optional instrumentation adds no reads/writes/flushes. Actual old serving body now instrumented with observed method/authority and status200 adjacent to actual Response::new enqueue."
+  },
+  "prerequisites": [
+    "Actual verified origin/proxy TLS and H2 classic CONNECT, ordinary shared serving and upstream relay methods.",
+    "Origin independently asserts literal GET /held/Host, sends literal HTTP1 200 Content-Length2 ok; public request consumes status200/bodyok.",
+    "Before injection origin and top-level peer remain unfinished; actual CONNECT method/authority and enqueued200 observation received.",
+    "Existing Fault enabled after response; actual relay result derives concrete PermissionDenied plus exact message; count exactly1 and upstream Lifetime destruction observed while top-level owner remains alive.",
+    "Client remains live through ordinary stop_optional, backup and origin.stop; all prerequisite failures propagate with cleanup instead of intended synthetic primary."
+  ],
+  "forecast": {
+    "new_methods": 1,
+    "expected_negative": "ordinary caller cleanup discarded its completed CONNECT relay failure at child200",
+    "downstream_uncredited_until_runtime": [
+      "primary InvalidInput downcast/kind/context205-209",
+      "retained actual PermissionDenied cause211-212"
+    ],
+    "combined_selection": "root corrected existing99 plus new1; unexecuted by reviewer"
+  },
+  "limitations": [
+    "IO failure is a deterministic injected read error, and caller primary is synthetic only after actual healthy exchange; neither is a measured OS/client defect.",
+    "Completion observation and Lifetime destruction do not substitute for joined outcome or unlimited teardown guarantees.",
+    "Local completed-child result loss intentionally remains; no external registry remedy applied.",
+    "Root 011 EOF/reset corrections must remain composed separately.",
+    "No Cargo/build/socket/native execution or source edits by reviewer.",
+    "Initial handoff read failed before any content due CP1252 decoding; additive UTF8 full read completed."
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-child-outcome-baseline-handoff-16486b2c.md",
+      "raw_sha256": "ca887b9fb68679813ff0837dfc53f96712403de06a4ea59653d2176bf5501e6c",
+      "length": 2316,
+      "scope": "complete author text manually read; claims independently qualified"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-connect-child-outcome-baseline-handoff-16486b2c.json",
+      "raw_sha256": "a32471e710fc5aaf522efa282176e0334e295c654cd93d3e1d941826e32f49e2",
+      "length": 16983,
+      "scope": "complete author text manually read; claims independently qualified"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# H2 relay caller visibility correction
+
+Signed clean `645c9204c888c473a557933c65718aadaedc67f5` atop `43daacef55b11cf1148075078de35267b5edaa5e`. Only multiplex imports changed. Existing sibling control calls name multiplex relay paths; private imports introduced by deduplication caused E0603 before any H2 test executed.
+
+The shared canonical relays are now reexported with pub(super), matching the scope of actual test callers. No duplicated function, wrapper or production API is introduced. All module declarations/source bodies after imports and every control child remain raw Git-byte-exact. Targeted direct formatting and whitespace checks passed. Exact partial source/range identities are paired in JSON.
+
+Root preserves failed3e148 compiler evidence; no H2 runtime credit is taken from that attempt. No Cargo was run here. The separate ordinary completed-child registry remedy remains held until actual100-case causal execution.

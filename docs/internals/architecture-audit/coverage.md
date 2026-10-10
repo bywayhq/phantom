@@ -73,15 +73,37 @@ passes all 31 cookie and hint methods on both hosts. The two actual timer
 controls failed at `33715620`; all 25 previous methods and four positive
 controls passed there. The reviewed private wrappers now retain their
 context and concrete timeout causes. Formatting, strict selected Clippy
-and Rust 1.88 checks pass. Independent native assessment remains open.
+and Rust 1.88 checks pass. The [independent native assessment](request-session-deadline-native-independent-addendum-85f2d58b.md.txt)
+approves this focused cause and context evidence. Task ownership and final
+gates remain separate requirements.
 
 At `732d3006`, the [hint observer baseline](request-hint-observers-baseline-native-732d3006.md.txt)
 runs 41 methods per host: 35 pass and six fail. Real H2/H3 order controls
 reach collapsed-order assertions. Four actual-client controls expose
 wrong-value and unsolicited-header acceptance. All previous methods and
 the positive controls pass. Strict Clippy rejects a new test-helper tuple;
-formatting and Rust 1.88 checks pass. Source correction and observer
-remedies are pending. These results do not establish production defects.
+formatting and Rust 1.88 checks pass. These results do not establish
+production defects.
+
+At `121bbf19`, the [current focused receipt](request-h2-checkpoint-native-121bbf19.md.txt)
+records all 41 request-session methods passing on both hosts. The same six
+order and value negatives now pass. The [observer source review](hint-observer-remedy-independent-review-e5a534d0.md.txt)
+and [layout follow-up](hint-observer-style-independent-rebind-73a761bf.md.txt)
+are approved. This proves private observer behavior, without establishing
+a production emission defect. Other request-fixture findings remain open.
+
+The same revision executes 100 HTTP/2 methods on each host: 96 pass and
+four fail. Forty-three earlier negatives now pass. Poisoned recording still
+loses its cause, and a new actual CONNECT control exposes completed relay
+result loss. Two previously passing tunnel and WebSocket methods regress.
+Formatting and Rust 1.88 pass; strict Clippy rejects two new immediate
+closures. The [intermediate source review](h2-lifecycle-intermediate-independent-source-review-54cf845d.md.txt)
+and [completed-child control review](h2-connect-child-baseline-independent-source-review-16486b2c.md.txt)
+approve bounded source changes for execution. Their scope does not approve
+this red composition. The earlier `3e148b5a` attempt stopped at private
+import errors before HTTP/2 execution. Its 41 request methods passed.
+The reviewed visibility correction preserves existing relay implementations
+and assertions. Native review, remaining repairs and final gates stay open.
 
 At `2fb596ad`, the [cookie repair receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt)
 records thirty passes per host with all original controls unchanged. Ten

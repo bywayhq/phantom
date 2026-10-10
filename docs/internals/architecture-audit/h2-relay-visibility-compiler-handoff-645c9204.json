@@ -1,0 +1,68 @@
+{
+  "kind": "author source compiler-boundary correction",
+  "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+  "base": "43daacef55b11cf1148075078de35267b5edaa5e",
+  "signature": "645c9204c888c473a557933c65718aadaedc67f5 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+      "git_blob_oid": "b8a3cf9d1c2527bbce272009a96e9e74e07a3104",
+      "raw_sha256": "0b6124952e27a6a3f1d298baca4256e3d69bc98e955030076bfefae541adb735",
+      "line_count": 866,
+      "read_classification": "partial changed import/reexport boundary",
+      "inclusive_ranges": [
+        [
+          37,
+          46
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            37,
+            46
+          ],
+          "sha256": "e5a8bb6c20fba4a52b7e975db7ff99b3ec9400993e0f6e2b2dd931863d81924b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "645c9204c888c473a557933c65718aadaedc67f5",
+      "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "line_count": 399,
+      "read_classification": "partial actual existing sibling relay callers",
+      "inclusive_ranges": [
+        [
+          166,
+          196
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            166,
+            196
+          ],
+          "sha256": "788bb7bff2642bffbc1ec581a1a5b0810ce5997614aea601a352663fc915ebd2"
+        }
+      ]
+    }
+  ],
+  "cause": "E0603 at existing relay_contract sibling calls: canonical relays were privately imported by multiplex after deduplication, so current sibling callers could not name those paths.",
+  "remedy": "pub(super) reexports of the same actual parent relay functions, preserving existing actual multiplex usage and sibling control paths. No wrappers or production API change.",
+  "preservation": {
+    "module_declarations_and_all_source_after_them_raw_exact": true,
+    "all_existing_control_children_unchanged": "sole changed path is multiplex parent imports; actual relay_contract raw equal predecessor",
+    "ordinary_and_new100_method_bodies_unchanged": true
+  },
+  "root_native_qualification": "3e148 jobs stopped at E0603 before H2 execution. Hint41 selection was green, but that is a separate fixture scope. No100-case H2 runtime claim or native proof from compiler logs. Root retains original failed compilation evidence.",
+  "checks": {
+    "targeted_direct_rustfmt_check": 0,
+    "git_diff_check": 0,
+    "git_status": "clean"
+  },
+  "remaining": "Ordinary CONNECT completed-child registry fix remains on hold until actual causal100-case execution. No Cargo in author lane."
+}

@@ -1,0 +1,23 @@
+# Request observers and H2 intermediate execution
+
+At exact121bbf19 both hosts run41 request-session methods, all passing.
+The same six actual order/value negatives fail at732d3006 and now pass.
+The private observer repairs have independent source review. No production
+wrong-emission finding is inferred from the earlier assertion weaknesses.
+
+Both hosts execute100 H2 methods:96 pass and four fail. The actual ordinary
+CONNECT completed-child cause is still lost, as is the poisoned-recording
+cause. Two previously passing ordinary H2/WebSocket methods now fail on
+queued-byte closure and InactiveStreamId. All frozen EOF/reset controls
+pass. This intermediate is not green and is not approved for integration.
+
+Formatting and Rust1.88 checks pass. Strict Clippy rejects two introduced
+immediate closures. The earlier3e148 attempt stopped before H2 execution
+with two private-import diagnostics; its41 request methods passed.
+
+Root read current full logs and ancillary diagnostics. Historical baseline
+comparison is roster analysis, not fresh whole-owner source review. Raw
+artifacts and exact revisions are bound in the paired JSON. Independent
+native review, remaining repairs and full integration gates remain open.
+
+JSON SHA256: `3270d24ea4a0d73633cb707a1f647c29cecaae660840d67ac1456b022c7b2c8a`.

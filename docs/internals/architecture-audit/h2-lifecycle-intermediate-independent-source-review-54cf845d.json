@@ -1,0 +1,555 @@
+{
+  "kind": "independent H2 intermediate source review; no compilation/runtime or final gate approval",
+  "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+  "base": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+  "verdict": "approve bounded intermediate for causal execution with known ordinary CONNECT child-result gap open; minor layout correction requested",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "13260423ddeffbe30e99c770b6160e78f31a5f9b",
+      "raw_sha256": "25c0c621d9f4d99760be24847d804b6a87c264ad5b50ced0aeb1bd79d9ba23f2",
+      "line_count": 2470,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          2470
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            2470
+          ],
+          "raw_sha256": "25c0c621d9f4d99760be24847d804b6a87c264ad5b50ced0aeb1bd79d9ba23f2"
+        }
+      ],
+      "working_raw_sha256": "f60270e03b1b01c5f4ed08cf1e6935c0575a0bfd70c534d1ec8f374745628823",
+      "working_lf_equals_reviewed_git": false
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "4b5df3b607c9e3c50c38e510f0a8f4a2cb83779f",
+      "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1",
+      "line_count": 144,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          144
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            144
+          ],
+          "raw_sha256": "b3157a857eeae037f85794897e0dd5094f9db2b8b1eb1fb1cf3b69a5f665bdf1"
+        }
+      ],
+      "working_raw_sha256": "62e8f3c5b181eabf75f2d0cf59efb40b9c3fdbf0a45d426886a7de08fb71b7b9",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "3b1d521064d09fda3530899ccc9c28aa1c721a37",
+      "raw_sha256": "9bf56c8981d4a115eeef5c601c9bbcf00267cb5705224958fe16442e13bf6990",
+      "line_count": 865,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          865
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            865
+          ],
+          "raw_sha256": "9bf56c8981d4a115eeef5c601c9bbcf00267cb5705224958fe16442e13bf6990"
+        }
+      ],
+      "working_raw_sha256": "c9fece9b01dd8a3d9ffd4614f23e58dbcf4aa1c8d93504c1562c92f23cb221ea",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "c493ea890bba06ded6adef242b5a6cd9e0396ea1",
+      "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "line_count": 180,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          180
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            180
+          ],
+          "raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f"
+        }
+      ],
+      "working_raw_sha256": "5b2e970f0393a9fdd1d9ddf87ca4dcd1965c334577e4342641edd6e1aed3340f",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "45b356a0127953c930eb0e82e124d95a25491723",
+      "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "line_count": 181,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          181
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            181
+          ],
+          "raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840"
+        }
+      ],
+      "working_raw_sha256": "31da8e42c8ccfea311178f766efa258be10f1d2ecccaf6d74709c53775a5e840",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "adc4c4dea90ad54406d314dd48eb323a1390c955",
+      "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "line_count": 222,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          222
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            222
+          ],
+          "raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2"
+        }
+      ],
+      "working_raw_sha256": "c9c85184b62bea8d94ac5bd5dca016644b86d1d1964b97f7aeb676682a21c6d2",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "7353e75fe0cd22a6923ccad1ba1692b29c03142a",
+      "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17",
+      "line_count": 317,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          317
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            317
+          ],
+          "raw_sha256": "f60174e89a3b42205db60cc7796d7bbde5a9570b8a741d551546225d46dcca17"
+        }
+      ],
+      "working_raw_sha256": "e4febd49f65a60a0f6853fc0a23968954469bcd67ebf5a13d17fe140f6f4ae8a",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "10c4ae964a5af21f4f6c175912d2e02258863f17",
+      "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "line_count": 123,
+      "read_classification": "fresh complete current owner manually read; source bytes alone do not establish this claim",
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            123
+          ],
+          "raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36"
+        }
+      ],
+      "working_raw_sha256": "8bea7a72d66572873d2da76fbb6f7f6c221dc7750f750aad9f1c801c98f41c36",
+      "working_lf_equals_reviewed_git": true
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "fresh complete supporting owner manually read",
+      "read_ranges": [
+        [
+          1,
+          264
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            264
+          ],
+          "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ],
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "supporting partial: reset initiator/typed IO conversion and empty Error source contract",
+      "read_ranges": [
+        [
+          1,
+          270
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            1,
+            270
+          ],
+          "raw_sha256": "99c020842945079fcaaf18f43edcf8d7cde0b73348ba2ef3528abdd4dc8f97e4"
+        }
+      ],
+      "working_raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "read_classification": "supporting partial: poll_capacity positive-capacity contract",
+      "read_ranges": [
+        [
+          270,
+          350
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            270,
+            350
+          ],
+          "raw_sha256": "9ddcd4aad41ce47a7ac70fd980413b6f2ac9ac0e9266fc900ecc18454aeb2699"
+        }
+      ],
+      "working_raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial: TLS preparation and exact peer-gone kinds",
+      "read_ranges": [
+        [
+          130,
+          190
+        ],
+        [
+          217,
+          225
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            130,
+            190
+          ],
+          "raw_sha256": "9ee01f8a2ade6f6b45181e0f6d9f24c252dffe8019c5c049d51d27d89de4aab9"
+        },
+        {
+          "range": [
+            217,
+            225
+          ],
+          "raw_sha256": "f5581af7d15da4c94836454e0d371118a1ec5ea1ba632105802ec892b7442893"
+        }
+      ],
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_lf_equals_reviewed_git": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "54cf845d6c81519b0282ebbdd2ed064fe32b99ec",
+      "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+      "raw_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "line_count": 651,
+      "read_classification": "supporting partial: actual recording poison cause control",
+      "read_ranges": [
+        [
+          435,
+          502
+        ]
+      ],
+      "range_hashes": [
+        {
+          "range": [
+            435,
+            502
+          ],
+          "raw_sha256": "5fb59ddf95bf1590e713b4aa72e9794169731f33c65dfe59c12716ae28101273"
+        }
+      ],
+      "working_raw_sha256": "27348e2cb0bebe79322f2105c276b7bb1d0c1d824180a14942c8284a958f0ab8",
+      "working_lf_equals_reviewed_git": true
+    }
+  ],
+  "diff_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "raw_sha256": "c58714962cd021a8c34b7e5e869b03ab83f649dbbb93d7559c3af2754b7f090e",
+      "line_count": 2257,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_tasks.rs",
+      "raw_sha256": "12c5b7cccf442a28cdd657c959e3cac909d31c8a96a21e46c06174b50dad2cbb",
+      "line_count": 150,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "raw_sha256": "f11e80770a035e3c6403a2ad1a597125eaf586a9a9e79fc2377178a1fceff0ba",
+      "line_count": 957,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "raw_sha256": "7d4f3ef861be6f6f41040904b74df05fc16b01ca6f8d79609f170d0de8e8b7a7",
+      "line_count": 33,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "raw_sha256": "e2b871ea00feeddc99e2ea067172b56202bf1390719adfa8f011b9877a448bce",
+      "line_count": 25,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "raw_sha256": "63c5c8f1c2122762c2938649833e6b032de6e18b74753eb972c0064e5af1990a",
+      "line_count": 43,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "raw_sha256": "b5d1db94286fbbae9528688a9fa1ac43eea14438573e522d0cb68d644862c958",
+      "line_count": 75,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "raw_sha256": "775bae2dc71e8bddb68427c0ae40d4fa107e43edb5a24eec6975d94bc5a7205c",
+      "line_count": 25,
+      "manual_scope": "complete semantic diff manually read; new helper source full"
+    }
+  ],
+  "full_owned_lines": 4502,
+  "mechanical_preservation": {
+    "eight_frozen_child_blobs": {
+      "proxy_h2/connection_contract.rs": true,
+      "proxy_h2/deadline_contract.rs": true,
+      "proxy_h2/decoder_contract.rs": true,
+      "proxy_h2/driver_contract.rs": true,
+      "proxy_h2/relay_contract.rs": true,
+      "proxy_h2/stream_contract.rs": true,
+      "proxy_h2_multiplex/deadline_contract.rs": true,
+      "proxy_h2_multiplex/relay_contract.rs": true
+    },
+    "ordinary_names": {
+      "crates/phantom/tests/proxies/proxy_h2.rs": [
+        "plaintext_proxy_rejects_h2_transport_configuration",
+        "h1_origin_over_h2_proxy_tunnel_completes_request",
+        "h2_origin_over_h2_proxy_tunnel_completes_request",
+        "h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+        "h2_proxy_rejection_is_typed",
+        "default_https_proxy_transport_remains_http1",
+        "h2_proxy_transport_rejects_http1_selection_without_fallback",
+        "exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io",
+        "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+        "h2_forwarding_fails_after_a_second_challenge",
+        "h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+        "chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+        "firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+        "h2_forwarding_places_proxy_credentials_as_captured",
+        "h2_connect_sends_the_captured_profile_fields",
+        "h2_connect_closes_the_challenged_stream_as_the_profile_does",
+        "h2_wss_connect_sends_the_captured_profile_fields",
+        "h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+      ],
+      "crates/phantom/tests/proxies/proxy_h2_multiplex.rs": [
+        "tunnels_to_different_origins_share_one_proxy_connection",
+        "forwarded_requests_join_the_tunnel_connection_as_the_profile_says",
+        "opted_in_routes_open_another_connection_at_the_proxy_stream_limit",
+        "a_proxy_connection_maximum_above_the_ceiling_fails_the_build",
+        "separately_built_clients_never_share_a_proxy_connection",
+        "websocket_tunnels_use_the_connection_the_profile_gives_them"
+      ]
+    },
+    "changed_child_names": {
+      "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs": [
+        "actual_proxy_listener_keeps_its_postexchange_accept_error",
+        "actual_origin_listener_keeps_its_postexchange_accept_error",
+        "actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange"
+      ],
+      "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs": [
+        "actual_origin_keeps_a_postexchange_read_error",
+        "actual_origin_keeps_a_postexchange_write_error",
+        "actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange"
+      ],
+      "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs": [
+        "ordinary_finish_keeps_a_completed_actual_handler_failure",
+        "a_primary_failure_keeps_the_completed_actual_handler_failure",
+        "a_poisoned_actual_writer_does_not_answer_an_unrecorded_request",
+        "a_healthy_actual_writer_records_both_forwarded_requests"
+      ],
+      "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs": [
+        "ordinary_finish_stops_actual_listener_and_relay_descendants",
+        "eager_drop_stops_actual_listener_and_relay_descendants",
+        "dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants",
+        "explicit_backup_observes_actual_fixture_destruction",
+        "a_poisoned_log_returns_an_error_after_a_real_forwarded_request",
+        "ordinary_origin_finish_stops_its_actual_listener_and_connection",
+        "eager_origin_drop_stops_its_actual_listener_and_connection",
+        "an_unpolled_origin_finish_stops_its_actual_listener_and_connection"
+      ],
+      "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs": [
+        "a_websocket_caller_failure_stops_its_actual_origin",
+        "eager_websocket_peer_drop_stops_its_actual_origin",
+        "an_unpolled_websocket_finish_owns_its_actual_origin",
+        "a_healthy_websocket_close_keeps_actual_wire_observations"
+      ]
+    },
+    "changed_child_literal_bytes_equal": true,
+    "qualifications": "Observer seen -> fallible observe_log changes and TaskProbe owner adoption are explicit behavior/signature migrations. Ordinary client drop/cleanup ordering changes deliberately; bodies are not claimed identical. Root 011 EOF/reset setup corrections must compose separately; current frozen children equal author c312, not corrected 3e."
+  },
+  "confirmed_open": [
+    {
+      "id": "ordinary-CONNECT-completed-child-results",
+      "ranges": [
+        [
+          2125,
+          2148
+        ],
+        [
+          2156,
+          2268
+        ]
+      ],
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "cause": "Ordinary serve_connects keeps ConnectFixture child owners local to its outer future. Stopping that owner can drop already completed relay outcomes before an external caller joins them. Drop requests abort; no permanent OS leak is established.",
+      "next": "Separate 164 actual completed-relay causal baseline before external ownership repair."
+    }
+  ],
+  "minor_findings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "range": [
+        409,
+        452
+      ],
+      "cause": "Nested operation async block statements remain at outer indentation; other migrated operations are indented normally.",
+      "remedy": "Indent this exact block without changing tokens; formatter pass alone does not prove readable grouping.",
+      "measured_lint_or_formatter_failure": false
+    }
+  ],
+  "accepted_contracts": [
+    "Concrete ConnectionPeer adopted synchronously before returned finish future first poll; ordinary spawned peers guarded before fallible client preparation.",
+    "Multiplex external handler/relay registries survive listener exits; explicit finish first stops registration owners, then aborts and joins every retained task without early ? over siblings.",
+    "Existing FixtureFailures retains primary plus secondary owned errors. Actual timer Elapsed, unrelated IO/TLS/RESET, lock poison and exact Proxy/Rejected502 flow remain typed.",
+    "Only actual remote RESET CANCEL or established peer-gone IO kinds receive normal teardown handling; no blanket protocol/TLS suppression added.",
+    "Actual DATA and capacity release/send errors propagate; successful ordinary CONNECT Client is dropped after response consumption before natural peer finish.",
+    "Ordinary wire/body/protocol/assertion literals preserved while acquired owners receive explicit cleanup on recoverable exits."
+  ],
+  "rejected_candidates": [
+    {
+      "candidate": "relay capacity zero may spin",
+      "disposition": "Resolved SendStream poll_capacity contract explicitly guarantees positive returned capacity; no supported defect."
+    },
+    {
+      "candidate": "recording poison must retain a custom poison sentinel",
+      "disposition": "Actual control requires typed io::Error through Error source/get_io traversal, not a custom sentinel. Source returns concrete io::Error with observer context."
+    },
+    {
+      "candidate": "large parents require arbitrary split",
+      "disposition": "Size prompts responsibility review, not a defect; new connection_tasks has real consumers and concrete registry responsibility."
+    }
+  ],
+  "limitations": [
+    "No Cargo, sockets, formatter/lint execution, native rerun, network or source mutation by this reviewer.",
+    "Current runtime outcomes still pending root; historical 3e causal evidence is separate.",
+    "Guard Drop requests abort and cannot await joins. Probe lifetime destruction/port rebind observations are not reaping or unlimited OS shutdown guarantees.",
+    "Existing three server trust-is_err oracles remain separately qualified; no narrower alert classification claimed.",
+    "Known ordinary CONNECT outcome gap prevents full A141-A149 closure.",
+    "First attempted dependency lookup vendor/h2/src/error.rs failed: no read credit. Correct vendor/http2 source was actually read."
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-intermediate-remedy-handoff-54cf845d.md",
+      "raw_sha256": "17d62ac3ece750d1b5bcb3b95c8966f0f0a07f8e6c51dfea3d965ad2700841b6",
+      "length": 1979,
+      "scope": "full text manually read; author static checks not independent runtime evidence"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-intermediate-remedy-handoff-54cf845d.json",
+      "raw_sha256": "3b5b2a26e18d42e27ede72cb03406dc2a033a42a11d56ad5b3c351ce241a8691",
+      "length": 12098,
+      "scope": "full text manually read; author static checks not independent runtime evidence"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-remedy-draft-validation.json",
+      "raw_sha256": "4662af48b940ddff92b0eee8a00ddd624d899f878b65ccad0802506f4f45e94b",
+      "length": 14806,
+      "scope": "full text manually read; author static checks not independent runtime evidence"
+    }
+  ]
+}

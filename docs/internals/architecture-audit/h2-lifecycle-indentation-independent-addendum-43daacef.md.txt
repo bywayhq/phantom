@@ -1,0 +1,7 @@
+# Independent H2 indentation follow-up
+
+Approve signed `43daacef55b11cf1148075078de35267b5edaa5e` against `16486b2cdae2d0009ea34008a0a44d9f2f448776` for the requested indentation correction. I read the complete signed diff and source389-470, including the complete affected test405-462. The operation body410-453 now follows its enclosing async scope.
+
+Independent Git comparisons confirm only proxy_h2.rs changes, every one of2511 lines is equal after removal of leading spaces, and each changed line gains exactly four spaces. All literal values, statements, assertions, control flow and line counts remain unchanged. The227-line completed-child control and all sibling source blobs are exact to164.
+
+This is partial fresh source review plus bounded identity evidence. It does not promote the current2511-line parent to a fresh whole read. Prior54/164 source scopes and the ordinary CONNECT completed-child gap remain unchanged. No Cargo, static tools or native suite was executed by this reviewer. No integration or full-gate approval is granted.

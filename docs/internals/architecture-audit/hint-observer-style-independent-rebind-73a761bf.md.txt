@@ -1,0 +1,5 @@
+# Hint observer style rebind
+
+Approved signed `73a761bfe687464cbcaa3d6dfae1c2b766bcd079` atop `e5a534d02fe7f54315cf4167ea22d1fbc49e22a8`. Three blank lines separate result output, completed-head validation and independent header lookup/conversion. All nonblank source lines are byte-exact to the approved parent; no statement or literal change. Current changed functions were reread at lines1257–1322.
+
+The paired original independent source review remains immutable. The first packaging comparator incorrectly included a formatting trailing comma in its signature equality; preserved original script and v2 operation-body comparator qualify that diagnostic without implying a source defect. No Cargo/runtime approval, no tracked edits. Pre-existing A160/A163/A164/A167 remain open.

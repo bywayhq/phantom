@@ -1,0 +1,17 @@
+# H2 intermediate independent source review
+
+Exact signed revision: `54cf845d6c81519b0282ebbdd2ed064fe32b99ec`, parent `c312cbf0`.
+
+Approve this bounded intermediate for causal execution. The known ordinary CONNECT completed-child result gap remains open, so this is not full closure or merge approval.
+
+I manually read every line of all eight changed owners (4502 lines), both complete parent semantic diffs, all five changed child diffs, and the new 144-line task owner. The JSON binds exact Git objects, raw hashes, inclusive read ranges and separate working-byte comparisons. Supporting reads include the complete current 264-line ConnectionPeer and explicitly partial HTTP/2 error/capacity, TLS and poison-control source. No metadata-only equality is credited as a fresh manual read.
+
+The new ordinary peers acquire abort ownership eagerly. Multiplex fixtures retain handlers and relay descendants outside listener tasks, stop registration owners before draining registries, and retain all observed completed outcomes. Explicit cleanup uses the existing typed primary/secondary errors. Relay errors, TLS errors, poison, actual timeout causes and exact Proxy/Rejected502 failures propagate. The narrowly accepted remote CANCEL and peer-gone IO cases match resolved source.
+
+The eight frozen control files are byte-equal to the author base; 24 ordinary method names and changed-child method rosters/literal bytes are preserved. The observer and TaskProbe migrations are deliberate changes, not unchanged-body claims. Root must separately preserve its corrected EOF/reset setup controls from 011/3e when composing this older author base.
+
+One minor layout correction is needed in proxy_h2.rs 409-452: statements inside the new operation async block remain at the outer indentation. This is a manual readability finding, not a measured formatter failure.
+
+The ordinary serve_connects wrapper still owns completed relay results inside the outer serving future (2125-2148). Cancelling that owner can discard them before external observation. The separate 164 causal checkpoint is required before repairing this path. Existing guard Drop already requests abort; no permanent socket leak is inferred.
+
+No Cargo, native runtime, sockets, format/lint commands or tracked changes were performed. Native verification, the known result gap and final gates remain open. Prior reports are preserved.

@@ -1,0 +1,521 @@
+{
+  "kind": "independent bounded source review, not execution/gate approval",
+  "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+  "structural_commit": "374ff658a49c8b2cc970adbd114144459a473f97",
+  "base": "732d30064422fe219c421a0941844c896e15e7e4",
+  "verdict": "approved for root verification; no blocker in assigned two-commit changes",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "5618f7300092a14631bd6f92e4e4052ec14ca447",
+      "raw_sha256": "7058c98e4ae9e98b9b243487776ba6737ab074ca53c62a057dbe9eebf134e7d6",
+      "line_count": 1334,
+      "read_classification": "partial parent: complete changed observer/assertion functions and actual caller/profile scopes; not full1334",
+      "inclusive_ranges": [
+        [
+          1,
+          190
+        ],
+        [
+          315,
+          475
+        ],
+        [
+          507,
+          578
+        ],
+        [
+          736,
+          807
+        ],
+        [
+          854,
+          979
+        ],
+        [
+          1025,
+          1148
+        ],
+        [
+          1211,
+          1334
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            190
+          ],
+          "sha256": "b1c53c52f7ba0ab1c23c529eff2683ab71f8f5f88794cb8f7dec78a4baa8ce45"
+        },
+        {
+          "range": [
+            315,
+            475
+          ],
+          "sha256": "6bbcaa92e002c51a926e7d3bc49bc0316bcb8fe98f90219024f9c38e20dcc76b"
+        },
+        {
+          "range": [
+            507,
+            578
+          ],
+          "sha256": "042c399a8ea30d495d24c3e1acb902e7276ad0ec170e5be19debc4d4a2e5ead9"
+        },
+        {
+          "range": [
+            736,
+            807
+          ],
+          "sha256": "1f2c4c204d27a976459a6c85d595681fdd90e88c88c394f469eb1004e7acf625"
+        },
+        {
+          "range": [
+            854,
+            979
+          ],
+          "sha256": "175ac057da8d6557a31889f2ab6f3f38e069654dc028c05d639832a57700cccf"
+        },
+        {
+          "range": [
+            1025,
+            1148
+          ],
+          "sha256": "df6511e28dc0c3040113949e928b63ec1b0327f0c6579bac3efe1fc1d1b850d6"
+        },
+        {
+          "range": [
+            1211,
+            1334
+          ],
+          "sha256": "106ad156b4cefd91711bbf0457aa3c9ed18f9bd85780a4f73096a6b225b9c45a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "line_count": 318,
+      "read_classification": "full control owner",
+      "inclusive_ranges": [
+        [
+          1,
+          318
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            318
+          ],
+          "sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "line_count": 258,
+      "read_classification": "full unchanged control owner",
+      "inclusive_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            258
+          ],
+          "sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/ext.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "e67c245952be5b59917796d2ffec08c512c5f869",
+      "raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "line_count": 608,
+      "read_classification": "partial resolved OrderedHeaders contract",
+      "inclusive_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            57
+          ],
+          "sha256": "83fc4cd264cd235ad7cda06f4e5f998b36fe574bd17c8fd62093d21f45d8c0b8"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "read_classification": "partial actual extension insertion",
+      "inclusive_ranges": [
+        [
+          101,
+          118
+        ],
+        [
+          290,
+          323
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            101,
+            118
+          ],
+          "sha256": "bdd59241c71e369001f4f51a0610321c7bee3fa4db4196b4c758f0d6bf4d2f35"
+        },
+        {
+          "range": [
+            290,
+            323
+          ],
+          "sha256": "6af4930667a4b43004d3472cce266805699d408c17ec028934bf919410c50d6e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "partial decoded request HTTP2 version",
+      "inclusive_ranges": [
+        [
+          1661,
+          1695
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1661,
+            1695
+          ],
+          "sha256": "121597ed4991d3ed50facfc1c4cc09c718df3802782e16b54cab7db70603ae78"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/ext.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "9932aa19234f80e2794a159d30aa22a29a44a8b4",
+      "raw_sha256": "e1ef604bb26588612015b0205cac71ba2ee87b140cb5b6f267d37aa21bde45a5",
+      "line_count": 153,
+      "read_classification": "partial resolved ordered contract",
+      "inclusive_ranges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            61
+          ],
+          "sha256": "6b6ea6b50018189fa194ee3c441f599c293740331811c28ecb6d0e8ff6e6431c"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "raw_sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "line_count": 273,
+      "read_classification": "partial actual RequestParts extension and HTTP3 version",
+      "inclusive_ranges": [
+        [
+          211,
+          273
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            211,
+            273
+          ],
+          "sha256": "f1458c70be1b5600e759db406c63b51ecdafd011082fc50500e8b915ae16fa98"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "7a321813dbdc80d4bfe0e0b394ab31ae3a380e6c",
+      "raw_sha256": "4ccfce75cf51c39d66175b2266c34afb2b28f134af80da933636365c403136ef",
+      "line_count": 1224,
+      "read_classification": "partial decoded sidecar conversion",
+      "inclusive_ranges": [
+        [
+          30,
+          53
+        ],
+        [
+          130,
+          177
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            30,
+            53
+          ],
+          "sha256": "243399d56afcecfbddfd47710d723b45a824335a6638eec17e7b94eb2a15da91"
+        },
+        {
+          "range": [
+            130,
+            177
+          ],
+          "sha256": "99d7df7aec39efd21d12cc496180463f920681e1cc3101e6236834ad51d34699"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "1e142ba9c749d9bd04eed570fdeb6cedcfc7443e",
+      "raw_sha256": "3daf1111349dc94bfcadd80bd3fff029215f286e69f20a968a94aabb4a1229d1",
+      "line_count": 80,
+      "read_classification": "declaration only actual local package aliases",
+      "inclusive_ranges": [
+        [
+          34,
+          44
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            34,
+            44
+          ],
+          "sha256": "1338a233a4076e21f202dd2825453b00144b14aae491f23726369c665a758d74"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_classification": "declaration only backend/dev features",
+      "inclusive_ranges": [
+        [
+          52,
+          65
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            52,
+            65
+          ],
+          "sha256": "0640966a35e300a00b1d70c551d24a534e8c36793d435a880dc9545ef63291d3"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "e5a534d02fe7f54315cf4167ea22d1fbc49e22a8",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_classification": "declaration only resolved http1.5.0",
+      "inclusive_ranges": [
+        [
+          824,
+          834
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            824,
+            834
+          ],
+          "sha256": "7df6c92cbd54ee2bafe180ac7b032c86e89119ecce62240eda177bf52c5574b1"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "parent method preserved except disclosed propagation:http1_client_hints_share_the_canonical_origin_key": true,
+    "parent method preserved except disclosed propagation:http2_client_hints_share_one_session_connection": true,
+    "parent method preserved except disclosed propagation:http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": true,
+    "parent method preserved except disclosed propagation:negotiated_http2_applies_alps_and_retains_response_accept_ch": true,
+    "parent method preserved except disclosed propagation:http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": true,
+    "parent method preserved except disclosed propagation:http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": true,
+    "parent method preserved except disclosed propagation:http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": true,
+    "parent method preserved except disclosed propagation:http2_navigation_template_restart_places_the_hint_after_accept": true,
+    "parent method preserved except disclosed propagation:http2_alps_accept_ch_restart_sends_a_streaming_body_once": true,
+    "parent method preserved except disclosed propagation:http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": true,
+    "parent method preserved except disclosed propagation:http3_navigation_template_restart_places_the_hint_after_accept": true,
+    "parent method preserved except disclosed propagation:http3_client_hints_share_one_session_connection": true,
+    "parent method preserved except disclosed propagation:critical_ch_retries_once_with_only_supported_requested_hints": true,
+    "parent method preserved except disclosed propagation:critical_ch_retry_rejects_a_consumed_streaming_body": true,
+    "parent method preserved except disclosed propagation:client_retains_accept_ch_across_requests": true,
+    "parent method preserved except disclosed propagation:cloned_clients_share_client_hints_while_new_clients_are_isolated": true,
+    "parent method preserved except disclosed propagation:caller_header_type_remains_public_for_overrides": true,
+    "received-order control body exact:real_http2_decoding_distinguishes_equal_maps_with_different_order": true,
+    "received-order control body exact:the_actual_http2_observer_distinguishes_interleaved_duplicate_order": true,
+    "received-order control body exact:real_http3_decoding_distinguishes_equal_maps_with_different_order": true,
+    "received-order control body exact:the_actual_http3_observer_distinguishes_interleaved_duplicate_order": true,
+    "whole child exact:hint_values.rs": true,
+    "whole child exact:deadline_contract.rs": true,
+    "outgoing packaging preserves operation tokens": true,
+    "exchange unchanged except named destructure:exchange_http2": true,
+    "exchange unchanged except named destructure:exchange_http3": true,
+    "assert_observer only fallible propagation": true,
+    "only two assigned files changed": true
+  },
+  "failed": [],
+  "parent_ordinary_preservation": [
+    {
+      "method": "http1_client_hints_share_the_canonical_origin_key",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_client_hints_share_one_session_connection",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_alps_accept_ch_applies_to_the_first_request_without_a_probe",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "negotiated_http2_applies_alps_and_retains_response_accept_ch",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_hint_learned_while_a_request_waits_reaches_only_the_next_request",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_navigation_template_restart_places_the_hint_after_accept",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http2_alps_accept_ch_restart_sends_a_streaming_body_once",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http3_alps_accept_ch_restarts_the_request_with_the_missing_hint",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "http3_navigation_template_restart_places_the_hint_after_accept",
+      "raw_body_unchanged": false,
+      "allowed_delta": "observed_names propagation"
+    },
+    {
+      "method": "http3_client_hints_share_one_session_connection",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "critical_ch_retries_once_with_only_supported_requested_hints",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "critical_ch_retry_rejects_a_consumed_streaming_body",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "client_retains_accept_ch_across_requests",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "cloned_clients_share_client_hints_while_new_clients_are_isolated",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    },
+    {
+      "method": "caller_header_type_remains_public_for_overrides",
+      "raw_body_unchanged": true,
+      "allowed_delta": null
+    }
+  ],
+  "contracts": [
+    "OutgoingRequest retains identical request and ordered HeaderName/HeaderValue elements; two callers only switch destructuring.",
+    "Versioned actual OrderedHeaders extension is required and traversed including duplicates. No HeaderMap.keys order oracle remains.",
+    "Expected hints require exactly one correct baseline/arm/15.5.0 value; absent high entropy fields must truly be absent, including wrong-valued fields.",
+    "H1 validates complete head/separator and typed names/values, preserves duplicates by append, then applies same exact hint assertion.",
+    "Four hint value negatives follow independent actual learned or unsolicited wire capture and valid decoded fields; two order negatives follow nonzero decoded semantic/order prerequisites. Six causal method bodies remain unchanged."
+  ],
+  "baseline_qualification": {
+    "root_provided": "732 both hosts41=35pass6causal fail;25 ordinary+6deadline+4positives pass, fmt/MSRV0, Clippy101 outgoing tuple. Raw runtime logs not freshly reviewed here.",
+    "current": "No Cargo/native execution; source approval only. Parent has 17 local ordinary methods statically preserved; root wider25 ordinary selection includes unchanged source outside this diff and is not credited as25 fresh whole-method reads."
+  },
+  "preservation": {
+    "hint_values_child": "byte-exact raw committed file from732",
+    "deadline_child": "byte-exact raw committed file from732",
+    "parent": "all original parent test bodies exact except the one necessary observed_names? call inside H3 navigation; ALPS helper propagation is not an ordinary test-body rewrite",
+    "received_order": "four test bodies exact; assert_observer adds two ?; outgoing and exchange packaging proved exact operation tokens"
+  },
+  "open_preexisting_supporting_scope": {
+    "A160": "raw hint peer/request ownership and ignored channel outcomes are unchanged",
+    "A163": "ALPS quiet observer match568-570 can accept actual H2 accept failure; not fixed here",
+    "A164": "admission readiness depends on scheduling sleep458-459; not fixed here",
+    "A167": "mixed imports and duplicate drain helper unchanged"
+  },
+  "read_limits": [
+    "Parent and resolved dependency reads are partial, not whole-owner/backend review.",
+    "Failed initial cp1252 read was followed by UTF8 explicit source reads; no credit from failed read.",
+    "Two requested read endpoints exceeded actual lines (parent1335 vs1334, H3 request285 vs273); assertions stopped those scopes before read and corrected valid endpoints were read subsequently. No invalid range retained as source proof.",
+    "No production client-hint defect, browser parity or whole audit closure claim."
+  ],
+  "lane": "read-only clean, no tracked changes"
+}
