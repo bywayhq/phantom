@@ -4,14 +4,13 @@ import asyncio
 import unittest
 from unittest.mock import patch
 
+from scripts.capture import alt_svc_race as race
 from scripts.capture.tests.test_alt_svc_race_startup_lifecycle import (
     DATAGRAM,
     CaptureResources,
     CleanupFailure,
     contains_identity,
 )
-
-from scripts.capture import alt_svc_race as race
 
 
 class CaptureCleanupInterruptionTests(unittest.IsolatedAsyncioTestCase):
