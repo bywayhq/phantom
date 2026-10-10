@@ -236,7 +236,7 @@ mod websocket {
     async fn a_joined_peer_keeps_literal_connect_opening_and_pong() -> TestResult<()> {
         let (peer, observation, mut client) = opening().await?;
         client.write_all(b"\x8a\x8b\0\0\0\0environment").await?;
-        timeout(DEADLINE, peer).await??;
+        timeout(DEADLINE, peer).await???;
         let (connect, opening, pong) = observation.served().await?;
 
         assert_eq!(
@@ -331,7 +331,7 @@ mod sse {
         assert_eq!(events.next_event().await?, None);
         assert_eq!(events.reconnects(), 1);
         assert!(events.is_closed());
-        timeout(DEADLINE, peer).await??;
+        timeout(DEADLINE, peer).await???;
         let heads = observation.served().await?;
 
         assert_eq!(heads.len(), 2);

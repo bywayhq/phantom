@@ -116,7 +116,7 @@ async fn dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live() ->
     assert_eq!(response.version(), http::Version::HTTP_2);
     assert_eq!(response.status(), 200);
     assert_eq!(response.into_body().collect().await?.to_bytes(), "verified");
-    let (connect, relay) = timeout(DEADLINE, proxy).await??;
+    let (connect, relay) = timeout(DEADLINE, proxy).await???;
     assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
 
     drop(relay);
