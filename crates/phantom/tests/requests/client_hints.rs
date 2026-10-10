@@ -441,6 +441,7 @@ async fn http2_hint_learned_while_a_request_waits_reaches_only_the_next_request(
         )
         .add_root_certificate_der(identity.root_der.clone())
         .max_concurrent_http2_requests_per_origin(std::num::NonZeroUsize::MIN)
+        .max_pending_http2_requests_per_origin(std::num::NonZeroUsize::MIN)
         .build()?;
         let url = format!("https://{address}/");
         let first = tokio::spawn({
@@ -451,18 +452,13 @@ async fn http2_hint_learned_while_a_request_waits_reaches_only_the_next_request(
         wait_for_first
             .await
             .map_err(|_| "server stopped before the first request")?;
-        let waiting = tokio::spawn({
-            let session = session.clone();
-            let url = url.clone();
-            async move { send_and_drain(&session, HttpProtocol::Http2, &url).await }
-        });
-        // Long enough for the second request to build its fields and queue.
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        let mut waiting = Box::pin(send_and_drain(&session, HttpProtocol::Http2, &url));
+        require_waiting_http2_admission(waiting.as_mut(), &session, &url).await?;
         answer_first
             .send(())
             .map_err(|_| "server stopped before the first answer")?;
         first.await??;
-        waiting.await??;
+        waiting.await?;
         send_and_drain(&session, HttpProtocol::Http2, &url).await?;
         client_done
             .send(())
@@ -472,6 +468,50 @@ async fn http2_hint_learned_while_a_request_waits_reaches_only_the_next_request(
         Ok(())
     })
     .await
+}
+
+async fn require_waiting_http2_admission<F>(
+    mut waiting: Pin<&mut F>,
+    session: &Client,
+    url: &str,
+) -> TestResult<()>
+where
+    F: std::future::Future<Output = TestResult<()>>,
+{
+    loop {
+        let selected =
+            poll_fn(|context| std::task::Poll::Ready(waiting.as_mut().poll(context))).await;
+        match selected {
+            std::task::Poll::Pending => {}
+            std::task::Poll::Ready(Ok(())) => {
+                return Err("selected HTTP/2 request completed before the first response".into());
+            }
+            std::task::Poll::Ready(Err(error)) => return Err(error),
+        }
+
+        let observed = {
+            let mut probe = std::pin::pin!(session.get(HttpProtocol::Http2, url)?.send());
+            poll_fn(|context| std::task::Poll::Ready(probe.as_mut().poll(context))).await
+        };
+        match observed {
+            std::task::Poll::Ready(Err(error)) => {
+                if error.kind() != RequestErrorKind::Capacity
+                    || error.protocol() != Some(HttpProtocol::Http2)
+                {
+                    return Err(error.into());
+                }
+                // Capacity proves that the selected request owns the only waiting slot.
+                return Ok(());
+            }
+            std::task::Poll::Ready(Ok(_)) => {
+                return Err("HTTP/2 queue probe was admitted before the first response".into());
+            }
+            std::task::Poll::Pending => {}
+        }
+
+        // A pending probe must release its reservation before the selected request advances.
+        tokio::task::yield_now().await;
+    }
 }
 
 /// Chromium restarts only navigations for a connection's ACCEPT_CH, so a
