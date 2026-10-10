@@ -204,15 +204,37 @@ fn observed_client_order(
     expected: &[Connector],
     recipe_orders: &[CapturedOrder],
 ) -> TestResult<CapturedOrder> {
-    let mut client_orders = observations
-        .iter()
-        .flat_map(|observation| observation.orders.iter().cloned())
-        .collect::<Vec<_>>();
-    assert!(client_orders.len() >= expected.len());
-    client_orders.dedup();
-    let [order] = client_orders.as_slice() else {
+    if observations.len() != expected.len() {
+        return Err("trust-anchor capture has an unexpected connector count".into());
+    }
+
+    for connector in expected {
+        let mut batches = observations
+            .iter()
+            .filter(|batch| batch.connector == *connector);
+        let batch = batches
+            .next()
+            .ok_or("missing trust-anchor connector batch")?;
+        if batches.next().is_some() {
+            return Err("duplicate trust-anchor connector batch".into());
+        }
+
+        if batch.orders.is_empty() {
+            return Err("trust-anchor connector has no captured order".into());
+        }
+    }
+
+    let mut client_orders = observations.iter().flat_map(|batch| &batch.orders);
+    let order = client_orders
+        .next()
+        .ok_or("no captured trust-anchor order")?;
+    if client_orders.any(|other| other != order) {
         return Err("one client sent more than one trust-anchor order".into());
-    };
-    assert!(recipe_orders.contains(order));
+    }
+
+    if !recipe_orders.contains(order) {
+        return Err("captured trust-anchor order is absent from the recipe".into());
+    }
+
     Ok(order.clone())
 }
