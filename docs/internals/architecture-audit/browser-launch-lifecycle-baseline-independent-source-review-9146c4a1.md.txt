@@ -1,0 +1,17 @@
+# Browser launcher lifecycle baseline review
+
+Signed 9146c4a1 is approved for causal execution. The complete new 366-line
+control owner and actual unchanged 702-line launcher were manually read.
+Existing 563-line tests are byte-exact; no fresh semantic coverage is claimed.
+
+Real harmless loopback children and disposable profiles precede faults. The
+second independently owned process exercises actual profile discovery; retained
+sockets remain open through snapshots before exact-PID backup. Controlled tree
+and sweep failures follow their actual operations. Cancellation identity is
+observed on one synchronous call stack. Three passes and four failures remain
+forecasts, with downstream typed-cause assertions uncredited until execution.
+
+Author dependency range 2076–2124 exceeds actual Python source EOF 2122. The
+original remains preserved; this review credits only freshly read 2076–2122.
+An additive metadata correction was requested. No control source blocker remains.
+No process execution, native result, integration or full gate claim is made.

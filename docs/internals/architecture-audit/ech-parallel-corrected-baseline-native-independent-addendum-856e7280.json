@@ -1,0 +1,123 @@
+{
+  "kind": "bounded independent native causal baseline addendum",
+  "revision": "856e7280fbf326cff19d3651f6d98942a909329b",
+  "decision": "actual target regressions confirmed; remedy still requires source review and fixed execution",
+  "results_per_host": {
+    "selected": 6,
+    "passed": 2,
+    "failed": 4,
+    "test_and_runner_exit": 100,
+    "same_roster_and_states": true,
+    "roster_digest": "e87ac84293ecf0025bf8b3e31e38d2a01d6975426628858ad9b2b16c188455e5"
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-windows.log",
+      "sha256": "0e2ca6c303290365b660e30cfcb7ea665fbd1383ee3ebc96fd3930d694de22d1",
+      "bytes": 7073,
+      "lines": 150,
+      "manual_read": "complete",
+      "output": "96d90b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-windows.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "lines": 1,
+      "manual_read": "complete",
+      "output": "d37b46"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-windows.revision",
+      "sha256": "6da28a2f9bea4ffd48de7abae6885416e488c8632e4e0207e395d23450f82d9d",
+      "bytes": 41,
+      "lines": 1,
+      "manual_read": "complete",
+      "output": "d37b46"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-windows.runner-exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "lines": 1,
+      "manual_read": "complete",
+      "output": "d37b46"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-linux.log",
+      "sha256": "7107faf4d4df3adf772c192540adec2e9e7374d48860c389e758647bd66fb3ee",
+      "bytes": 7075,
+      "lines": 150,
+      "manual_read": "complete",
+      "output": "96d90b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-linux.exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "lines": 1,
+      "manual_read": "complete",
+      "output": "d37b46"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-linux.revision",
+      "sha256": "6da28a2f9bea4ffd48de7abae6885416e488c8632e4e0207e395d23450f82d9d",
+      "bytes": 41,
+      "lines": 1,
+      "manual_read": "complete",
+      "output": "d37b46"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-corrected-baseline-856e7280-linux.runner-exit",
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "bytes": 4,
+      "lines": 1,
+      "manual_read": "complete",
+      "output": "d37b46"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-ech-parallel-controls.sh",
+      "sha256": "cc28b955b0bddda27c085527fb6c9400eae7218528a123a2598a18e0948b0f2d",
+      "bytes": 1479,
+      "lines": 32,
+      "manual_read": "complete",
+      "output": "4ed8a4"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "856e7280fbf326cff19d3651f6d98942a909329b",
+      "git_blob": "1f4fb804716c7093ea419d93ac817164e943fcc5",
+      "sha256": "6bf8a6a93fd4ec4a358c3cd4ce01226858afcae85e7935a35adbee2e1278dedc",
+      "line_count": 494,
+      "matches_approved_signed_revision": "cd6ef14b128798346c588704e771e970180d7ec4",
+      "scope": "exact binding to retained source review; no new manual source coverage"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "revision": "856e7280fbf326cff19d3651f6d98942a909329b",
+      "git_blob": "d9dbf4c343478579d40e8e2cfa36a2e2676803be",
+      "sha256": "dbcb123119edc96ab742187670477736854cd51df157e53b0482a041ccf7d789",
+      "line_count": 692,
+      "matches_approved_signed_revision": "cd6ef14b128798346c588704e771e970180d7ec4",
+      "scope": "exact binding to retained source review; no new manual source coverage"
+    }
+  ],
+  "prior_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-native-and-prerequisite-independent-addendum-cd6ef14b.json",
+    "sha256": "00f18fd0f80fa1c774c3b95c22b57ec5c248320c744d505138141d0f181d9b1c"
+  },
+  "causal_boundaries": [
+    "All four target negatives now reached: two worker lifetime failures at368 and both missing FixtureFailures errors.",
+    "Truncated response passes corrected Http1/Protocol prerequisite, both actual worker completion checks and release gate before missing aggregate. Later exact aggregate payload/identity assertions remain uncredited.",
+    "Successful actual responses and explicit parent-plus-worker stop pass.",
+    "Initial6b report remains unchanged: truncated675 was a prerequisite flaw, not target causality."
+  ],
+  "scope": [
+    "All nine bound artifacts manually read in full. These focused launchers run only selected test stage, not lint/format/MSRV or broader suites.",
+    "Source identities do not grant fresh whole manual source coverage.",
+    "Finite control backups and retained client/socket/process witnesses are qualified by earlier source review; no permanent leak or joined descendant claim.",
+    "No execution by reviewer; no production/browser parity, integration or full gate credit."
+  ]
+}

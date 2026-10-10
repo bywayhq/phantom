@@ -1,0 +1,10 @@
+# Focused causal baseline native review
+
+Both hosts select the same six controls: two pass, four causal failures. The
+corrected truncated-response prerequisite now passes before missing completed
+causes. Later aggregate payload identities remain uncredited. Original flawed
+6b evidence remains immutable; no ancillary or full gate result is claimed.
+
+All eight host artifacts and launcher were read in full. Signed source bindings
+are exact. The compact JSON preserves hashes and qualified assertion boundaries.
+No process or Cargo execution was performed by reviewer.

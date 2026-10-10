@@ -1,0 +1,163 @@
+{
+  "revision": "59634fd7677d09591e40155f35cf93b13ecc9ab2",
+  "disposition": "approved bounded composed native result",
+  "execution_owner": "integration owner",
+  "independent_execution": false,
+  "hosts": {
+    "windows": {
+      "artifacts": [
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-windows.log",
+          "sha256": "43e91ecd1669e24a1c488b07b7e704f2e4e692ec840b501aacf356528f8cf219",
+          "line_count": 574,
+          "manual_ranges": [
+            [
+              1,
+              574
+            ]
+          ]
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-windows.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "line_count": 1,
+          "manual_ranges": [
+            [
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-windows.revision",
+          "sha256": "dd5fb506d51dee638eb0d4ea61bd062df7e05cbf1376fd14bf3f99fe88a65409",
+          "line_count": 1,
+          "manual_ranges": [
+            [
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-windows.runner-exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "line_count": 1,
+          "manual_ranges": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "total": 486,
+      "passed": 486,
+      "skipped": 0,
+      "roster_sha256": "d8fa37668cdbb80d0fa5d6391d408a89f775d2bf628d61d9f7207e2421e7f520",
+      "outcomes_sha256": "9f94da879738df0e52e78706f7492a2c6d4190dedbbf6950e555f533b27c90a9",
+      "context_controls_passed": 7,
+      "slow_task_diagnostics": 9,
+      "argument_parser_diagnostics": 6,
+      "skip_reasons": []
+    },
+    "linux": {
+      "artifacts": [
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-linux.log",
+          "sha256": "4b692ece5ff832218ef0513c24c1ec5c707ca1edf48d0db847fa7aa52be898c8",
+          "line_count": 559,
+          "manual_ranges": [
+            [
+              1,
+              559
+            ]
+          ]
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-linux.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "line_count": 1,
+          "manual_ranges": [
+            [
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-linux.revision",
+          "sha256": "dd5fb506d51dee638eb0d4ea61bd062df7e05cbf1376fd14bf3f99fe88a65409",
+          "line_count": 1,
+          "manual_ranges": [
+            [
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-composed-59634fd7-linux.runner-exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+          "line_count": 1,
+          "manual_ranges": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "total": 486,
+      "passed": 475,
+      "skipped": 11,
+      "roster_sha256": "d8fa37668cdbb80d0fa5d6391d408a89f775d2bf628d61d9f7207e2421e7f520",
+      "outcomes_sha256": "cccec2459e030ca6e7136327bdd5b6c452e0184bbad4022d59bed0839ce7a355",
+      "context_controls_passed": 7,
+      "slow_task_diagnostics": 0,
+      "argument_parser_diagnostics": 6,
+      "skip_reasons": [
+        "Windows DWORD exit status",
+        "Windows argument parser",
+        "Windows job boundary",
+        "Windows profile sweep"
+      ]
+    }
+  },
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-browser-composed-59634fd7.sh",
+    "sha256": "800af3424e37b2092a6bda7080d94db0189f4cab34c3b60ec3446c3f98e4f719",
+    "line_count": 26,
+    "manual_ranges": [
+      [
+        1,
+        26
+      ]
+    ]
+  },
+  "sources": [
+    {
+      "path": "scripts/capture/proxy_route.py",
+      "git_blob_oid": "46d24a9c395089370d8f8817d49b2ff623c9ccca",
+      "git_sha256": "72bf6bfe23aabd52e9519001d6192f9b189db198056605fa52d7701c148a32f4",
+      "line_count": 1528,
+      "identity_equal_to": "4e9423c090cfcc236eda1598a347349d68e07ea7",
+      "semantic_scope": "retained prior author/source review; identity comparison only in this native addendum"
+    },
+    {
+      "path": "scripts/capture/tests/test_proxy_browser_driver.py",
+      "git_blob_oid": "584d20839b37e73e22e653221f1c040ac6f662e9",
+      "git_sha256": "9e53db12c9283472224605f145204db17575d92168f4917bb578d9d55e269e3c",
+      "line_count": 472,
+      "identity_equal_to": "0519fc93465aac0f15f9a0138ad14927041a223c",
+      "semantic_scope": "retained prior author/source review; identity comparison only in this native addendum"
+    }
+  ],
+  "limitations": [
+    "Full native logs were manually read; roster parsing verifies outcome correspondence, not whole-source semantic coverage.",
+    "The seven context controls use an actual harmless child/profile/socket plus injected cleanup faults; no external browser or actual OS cleanup failure claim.",
+    "Constructor/assertion/note callback and Firefox threaded entry are source-reviewed paths rather than seven independently driven controls.",
+    "Existing synchronous process waits and discovery limits remain; Windows slow-task diagnostics do not establish a short total cleanup deadline.",
+    "Full capture success is not a workspace gate or proof that remaining A188 launcher findings are fixed."
+  ]
+}

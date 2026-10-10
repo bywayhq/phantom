@@ -1,0 +1,18 @@
+# Parallel ECH baseline and prerequisite review
+
+Both complete 6b2178ef logs show six selected controls: two pass and four fail.
+Three failures reach target ownership/result assertions. The truncated-response
+control fails its direct-source Protocol prerequisite first; its later worker
+completion and combined-cause assertions remain uncredited. Original evidence
+and source approval remain unchanged.
+
+Signed cd6ef14b is approved for rerun only. Actual negotiated HTTP/1 dispatch
+retains Http1TlsError between RequestError and Http1Error. The corrected helper
+walks that source chain while preserving the Http1 category and exact Protocol
+variant. All six method bodies and parent bytes remain exact; inverse comparison
+restores the whole prior child. Review covers the helper, complete diff and
+bounded actual mapping scopes, not a new whole-current source read.
+
+Both guarded statuses are 100. The same six roster/state entries and exact two
+baseline source bindings were checked. No ancillary or fixed-run result is
+claimed. No native execution, integration or full gate approval by reviewer.

@@ -1,0 +1,12 @@
+# Browser launcher causal baseline native review
+
+Both complete guarded logs contain the same seven methods: three pass and four
+fail at target resource assertions. Startup faults retain the profile after direct
+child termination. Body faults leave the independent profile process alive while
+the direct child ends. Later typed-cause assertions remain uncredited.
+
+All eight host artifacts and launcher were fully read; three source bindings
+match approved 9146 bytes. No ancillary, actual-browser or full gate claim is made.
+The first metadata parser failed on CRLF before writing this pair. The corrected
+splitline parser verifies all seven unique statuses; original evidence is intact.
+No process or Cargo execution was performed by reviewer.

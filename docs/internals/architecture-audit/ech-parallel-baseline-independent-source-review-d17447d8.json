@@ -1,0 +1,252 @@
+{
+  "kind": "bounded independent regression source review",
+  "revision": "d17447d8a50c55b7a06b9725ecd7195fc3d5754d",
+  "original_baseline": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+  "decision": "approved for causal native execution only",
+  "sources": [
+    {
+      "revision": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "git_blob": "54e6e08dcd28d19a5dda496c01dace952cc7f242",
+      "git_raw_sha256": "09a4b8c6dbc56f5a7e191f24b5a36bbe34ef4657558fed52e3232a6cf68734bf",
+      "line_count": 478,
+      "read_classification": "whole manual original baseline owner",
+      "read_output_ids": [
+        "737a3e",
+        "7dddc2"
+      ],
+      "ranges": [
+        {
+          "first": 1,
+          "last": 478,
+          "sha256": "09a4b8c6dbc56f5a7e191f24b5a36bbe34ef4657558fed52e3232a6cf68734bf"
+        }
+      ]
+    },
+    {
+      "revision": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "git_blob": "f85fb614f10369157b56e19e10b6d909ea1695a3",
+      "git_raw_sha256": "7b4f91e1755547ed19dd6a7fe6534fe847ba70a91d096aceb2e381f252044edc",
+      "line_count": 661,
+      "read_classification": "whole manual original baseline child",
+      "read_output_ids": [
+        "737a3e",
+        "7dddc2"
+      ],
+      "ranges": [
+        {
+          "first": 1,
+          "last": 661,
+          "sha256": "7b4f91e1755547ed19dd6a7fe6534fe847ba70a91d096aceb2e381f252044edc"
+        }
+      ]
+    },
+    {
+      "revision": "d17447d8a50c55b7a06b9725ecd7195fc3d5754d",
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "git_blob": "1f4fb804716c7093ea419d93ac817164e943fcc5",
+      "git_raw_sha256": "6bf8a6a93fd4ec4a358c3cd4ce01226858afcae85e7935a35adbee2e1278dedc",
+      "line_count": 494,
+      "read_classification": "fresh partial correction; complete semantic differential reviewed",
+      "read_output_ids": [
+        "6391fa",
+        "b6fd1d"
+      ],
+      "ranges": [
+        {
+          "first": 120,
+          "last": 232,
+          "sha256": "e07d794555935d41e01207217b90bea2442a482821e913b25784f46426be1b47"
+        }
+      ],
+      "working_raw_sha256": "6bf8a6a93fd4ec4a358c3cd4ce01226858afcae85e7935a35adbee2e1278dedc",
+      "working_crlf_normalized_equals_git": true
+    },
+    {
+      "revision": "d17447d8a50c55b7a06b9725ecd7195fc3d5754d",
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "git_blob": "1c8a4fe86364797bb0274bd5add933695f82ba7f",
+      "git_raw_sha256": "dcd26db7e4ce318a0d1ffaa2f32d66ad6f5fd8178c6a71358e0a5860adf1eafe",
+      "line_count": 682,
+      "read_classification": "fresh partial correction; complete semantic differential reviewed",
+      "read_output_ids": [
+        "6391fa",
+        "e45ca3",
+        "b6fd1d"
+      ],
+      "ranges": [
+        {
+          "first": 49,
+          "last": 57,
+          "sha256": "00f9488b1cb117072752fa022d56534fe92ceeb85104020a5848d4d916ba2f5a"
+        },
+        {
+          "first": 164,
+          "last": 247,
+          "sha256": "3128d71a084e5f5455c513ff2660e17bfc49c334074ca8c915756daea4bb98f3"
+        },
+        {
+          "first": 540,
+          "last": 605,
+          "sha256": "df8c24bbf7c46500042cbe5e3848309c896857bdeb6e6fecd66d520dde468be9"
+        }
+      ],
+      "working_raw_sha256": "dcd26db7e4ce318a0d1ffaa2f32d66ad6f5fd8178c6a71358e0a5860adf1eafe",
+      "working_crlf_normalized_equals_git": true
+    },
+    {
+      "revision": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "git_raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "line_count": 273,
+      "read_classification": "supporting partial only",
+      "read_output_ids": [
+        "bd252f"
+      ],
+      "ranges": [
+        {
+          "first": 70,
+          "last": 210,
+          "sha256": "33d1b012f4e0c216db100e4ba7f69e5c3227f56118e91c69b9df44ef870ff4e7"
+        }
+      ]
+    },
+    {
+      "revision": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial only",
+      "read_output_ids": [
+        "bd252f"
+      ],
+      "ranges": [
+        {
+          "first": 55,
+          "last": 100,
+          "sha256": "ec74d18e3d6eaccac28d23654974efe3042f5d9d09412ba740a3450918956358"
+        }
+      ]
+    },
+    {
+      "revision": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_raw_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "line_count": 268,
+      "read_classification": "supporting partial only",
+      "read_output_ids": [
+        "bd252f"
+      ],
+      "ranges": [
+        {
+          "first": 1,
+          "last": 110,
+          "sha256": "20fb2791c9c3b4c0f2b6709389b006c3cc9d35ef7ebd4c53b6f73ee819e8d277"
+        }
+      ]
+    },
+    {
+      "revision": "a2bf2fc20fe3d648ef11866b57412742e771078d",
+      "path": "crates/phantom-net/src/http1/connection.rs",
+      "git_blob": "4e65fd5d7e6268125e1007f4d4698877ba92b50a",
+      "git_raw_sha256": "a8adff7dd119a1b9d021f4e4490dfffd8254ae9974a65edddb8ba5f5250b6074",
+      "line_count": 654,
+      "read_classification": "supporting partial only",
+      "read_output_ids": [
+        "bd252f"
+      ],
+      "ranges": [
+        {
+          "first": 336,
+          "last": 405,
+          "sha256": "3577276468d4775b298428248de7f337317f8a264f1399eaf31ec4ce296bc940"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-causal-baseline-handoff-a2bf2fc2.md",
+      "sha256": "47bff22515dad1e2786bffe23a2914ea301ef6d0a3d5421b622ebf3355d655f7",
+      "bytes": 2461,
+      "scope": "author evidence read; script comparisons independently replayed without executing writes"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-causal-baseline-handoff-a2bf2fc2.json",
+      "sha256": "092ba843ba41e13e1bb9dee0fd23ef79c7b1bd9ca84fb885687792e3fdb07d9d",
+      "bytes": 11410,
+      "scope": "author evidence read; script comparisons independently replayed without executing writes"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-prime-backup-correction-d17447d8.md",
+      "sha256": "c7412a8b6220f3fe15669961655b671585e39b5edeeadc20e29f68e04c6d3e16",
+      "bytes": 1509,
+      "scope": "author evidence read; script comparisons independently replayed without executing writes"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-prime-backup-correction-d17447d8.json",
+      "sha256": "b6f186ba438168539ac6db5a526f0a4a97d9aeb5a2052b607da4ffe1ac97bfe8",
+      "bytes": 3372,
+      "scope": "author evidence read; script comparisons independently replayed without executing writes"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-ech-parallel-baseline-a2bf2fc2.py",
+      "sha256": "a1b108912a8fc2c1e8501c3f17e120307d733558e094d4e9ea02ac87217309ad",
+      "bytes": 12365,
+      "scope": "author evidence read; script comparisons independently replayed without executing writes"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-ech-prime-backup-d17447d8.py",
+      "sha256": "b195dbd4a37860c259983f7fc04eeff50d7e6345fa3b87c5317a1dcdc233a4ec",
+      "bytes": 6933,
+      "scope": "author evidence read; script comparisons independently replayed without executing writes"
+    }
+  ],
+  "diff_scope": "complete 119485b7..a2 semantic diff and complete a2..d174 correction; new child fully read at a2",
+  "preservation": {
+    "baseline_parent_inverse_tokens_including_literals": true,
+    "three_other_original_method_bodies_exact": true,
+    "existing_owner_and_deadline_children_exact": true,
+    "correction_entire_parent_and_child_inverse_exact": true,
+    "six_control_method_bodies_exact": true,
+    "shared_observation_outcome_and_request_bodies_exact": true,
+    "actual_spawned_worker_body_exact": true,
+    "four_current_ordinary_methods_exact": true
+  },
+  "accepted_finding": {
+    "initial": "a2 Backup omitted acquired raw prime child during priming failure/cancellation; no measured hang or permanent leak",
+    "resolution": "d174 prepares watch before parent spawn, constructs Backup without await/fallible step, publishes actual handle synchronously after worker spawn, and observes parent destruction before rereading/aborting/completion-observing prime"
+  },
+  "contracts": [
+    "Real prime GET/200/HTTP1.1/ok precedes controls; lifetime paths observe actual ECH head, original barrier Pending and next listener accept Pending.",
+    "Snapshots retain external client/socket/runtime before finite backup; active actual worker replaces no toy server.",
+    "Outcome controls require two actual completed responses and post-response faults before opening collector gate; controlled IO payload objects are independent typed identity oracles.",
+    "Incomplete TLS HTTP head requires actual public Http1/Protocol before testing retained completed sibling; this prerequisite is unexecuted.",
+    "Ordinary None retains raw ownership and original collector failure loss; correction is control backup only."
+  ],
+  "checks": {
+    "read_only_preservation_replay": "pass",
+    "git_diff_check": 0,
+    "signature": "G",
+    "clean": true,
+    "Cargo_or_native_execution": false
+  },
+  "forecast": {
+    "methods": 6,
+    "positives": 2,
+    "intended_negatives": 4,
+    "executed": false
+  },
+  "limitations": [
+    "Current source whole-read credit remains a2 only; d174 is fresh changed-range/diff review plus exact preservation, not a new whole read.",
+    "Current-thread controls have no suspension between raw parent spawn and concrete Backup construction.",
+    "AbortHandle.is_finished observes task completion, not awaited child result or reaping. Raw child handles remain in canonical defective collector.",
+    "Backup Drop aborts currently published handles without joining; explicit stop has finite observations, not exhaustive panic/cancellation cleanup proof.",
+    "No production defect, permanent leak, QUIC lifecycle, browser parity, integration or full gate approval.",
+    "The combined source display 3ab5e0 was truncated; changed parent and acquisition ranges were reread in b6fd1d and complete Backup in e45ca3. No credit for truncated missing output."
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "kind": "bounded native baseline assessment and assertion correction source approval",
+  "native_revision": "6b2178efc79104646ae916910992cfc414e5a1ee",
+  "source_correction": "cd6ef14b128798346c588704e771e970180d7ec4",
+  "decision": "three target negatives causal; fourth prerequisite flawed; exact corrected source approved for rerun only",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-windows.log",
+      "bytes": 7897,
+      "sha256": "c9350134ff8a9f0570b266258529354c2f092ba4ba6ef7176695dd022e36de37",
+      "full_manual_read_output": "676bc7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "full_manual_read_output": "4ed8a4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-windows.revision",
+      "bytes": 41,
+      "sha256": "2742aaab5282101371c438d7519633621808ca98265f7c53cb0a33a2fdcff8b9",
+      "full_manual_read_output": "4ed8a4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-windows.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "full_manual_read_output": "4ed8a4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-linux.log",
+      "bytes": 7895,
+      "sha256": "b1e24870c23116098a5001b3d8a8598d34b07e0de2e6bc1277ba8081c77c6e8f",
+      "full_manual_read_output": "676bc7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "full_manual_read_output": "4ed8a4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-linux.revision",
+      "bytes": 41,
+      "sha256": "2742aaab5282101371c438d7519633621808ca98265f7c53cb0a33a2fdcff8b9",
+      "full_manual_read_output": "4ed8a4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-parallel-baseline-6b2178ef-linux.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "full_manual_read_output": "4ed8a4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-ech-parallel-controls.sh",
+      "sha256": "cc28b955b0bddda27c085527fb6c9400eae7218528a123a2598a18e0948b0f2d",
+      "bytes": 1479,
+      "full_manual_read_output": "4ed8a4"
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "native_revision": "6b2178efc79104646ae916910992cfc414e5a1ee",
+      "git_blob": "1f4fb804716c7093ea419d93ac817164e943fcc5",
+      "sha256": "6bf8a6a93fd4ec4a358c3cd4ce01226858afcae85e7935a35adbee2e1278dedc",
+      "line_count": 494,
+      "scope": "exact baseline binding to prior approved d174; no fresh whole-read credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "native_revision": "6b2178efc79104646ae916910992cfc414e5a1ee",
+      "git_blob": "1c8a4fe86364797bb0274bd5add933695f82ba7f",
+      "sha256": "dcd26db7e4ce318a0d1ffaa2f32d66ad6f5fd8178c6a71358e0a5860adf1eafe",
+      "line_count": 682,
+      "scope": "exact baseline binding to prior approved d174; no fresh whole-read credit"
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "6b2178efc79104646ae916910992cfc414e5a1ee",
+      "git_blob": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "scope": "fresh supporting partial",
+      "ranges": [
+        {
+          "first": 873,
+          "last": 916,
+          "sha256": "5198417b10a628b0f645ad2166a74a4e57c64c70976c3bb22da8cfb30ae39442"
+        },
+        {
+          "first": 1544,
+          "last": 1550,
+          "sha256": "c312790284970b6ed3596bbeecb4695b6ad996e4fcd06f9f1a991d45ccb4a9fa"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http1_or_2_pool.rs",
+      "revision": "6b2178efc79104646ae916910992cfc414e5a1ee",
+      "git_blob": "74d1edae94e8b79ca29e3402af6354019043e51c",
+      "sha256": "41aa71813cb80f09c38841c858c8310545cdcdc6e13fab84f42b9e487bc6e647",
+      "line_count": 2321,
+      "scope": "fresh supporting partial",
+      "ranges": [
+        {
+          "first": 1035,
+          "last": 1090,
+          "sha256": "bf6ff053cad522452ac7254c506ff39382a279f3646f7926349af0673b3c81ec"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http1/tls/error.rs",
+      "revision": "6b2178efc79104646ae916910992cfc414e5a1ee",
+      "git_blob": "0fcef90e822216ab967cf2ce9dcbea4774a00fe7",
+      "sha256": "6c69fa7593fde61805952fadaba4b3128b6f95aa98be4dee6228df04559a0e22",
+      "line_count": 160,
+      "scope": "fresh supporting partial",
+      "ranges": [
+        {
+          "first": 31,
+          "last": 97,
+          "sha256": "4e9f0caae12b9f4c6ad3b57e6e5f1be7fb2c16bfab6d06e695feea7c1c9275e4"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech/parallel_contract.rs",
+      "revision": "cd6ef14b128798346c588704e771e970180d7ec4",
+      "git_blob": "d9dbf4c343478579d40e8e2cfa36a2e2676803be",
+      "sha256": "dbcb123119edc96ab742187670477736854cd51df157e53b0482a041ccf7d789",
+      "line_count": 692,
+      "scope": "fresh exact semantic diff and helper partial only",
+      "ranges": [
+        {
+          "first": 670,
+          "last": 692,
+          "sha256": "9863ae844e2b82f73063b0be7c8dad2cb8535aee24ea2b4137823189ad443018"
+        }
+      ]
+    }
+  ],
+  "results_per_host": {
+    "selected": 6,
+    "passed": 2,
+    "failed": 4,
+    "skipped": 318,
+    "nextest_exit": 100,
+    "runner_exit": 100,
+    "same_selected_roster_and_states": true,
+    "roster_digest": "e87ac84293ecf0025bf8b3e31e38d2a01d6975426628858ad9b2b16c188455e5"
+  },
+  "causal_boundaries": {
+    "two_lifetime_negatives": "actual worker barrier/accept and healthy traffic reached; failure368 says worker survives owner. No permanent production leak claim.",
+    "completed_two_worker_negative": "missing FixtureFailures after actual worker completion prerequisites; later exact typed two cause assertions uncredited.",
+    "truncated_response": "RequestErrorKind::Http1 reached but direct immediate-source Http1Error Protocol check675 failed. Worker completion/collector/combined typed target assertions are uncredited.",
+    "two_positives": "explicit stop and actual successful responses pass"
+  },
+  "correction": {
+    "full_diff": "14 inserted/4 removed; assert_client_protocol_error only",
+    "source_contract": "negotiated H1 dispatch wraps Http1Error in Http1TlsError, retained by RequestError::http1. Its StdError::source then exposes Http1Error. Walk actual source chain and retain exact Http1 category/Protocol variant.",
+    "six_method_bodies_exact": true,
+    "entire_child_inverse_exact": true,
+    "parent_exact": true,
+    "signature": "G",
+    "diff_whitespace": 0,
+    "executed": false
+  },
+  "limitations": [
+    "No ancillary lint/format/MSRV results are bound by this six-control launcher.",
+    "The source chain correction is assertion setup only, not collector/ownership repair. No downstream credit until corrected native execution.",
+    "Whole-source approval remains the prior historical a2 whole read plus d174 differential; current cd6 only helper/diff scopes.",
+    "Earlier broad search output91fe12 was truncated and current primary checkout unpinned; it grants no semantic source credit. Exact immutable mappings were reread.",
+    "Initial source locator4ed8a4 failed regex before source read; corrected literal location and exact ranges were read in12f8ea/f47789/2086e9/7563f3.",
+    "No tests/Cargo/process/browser execution, production defect, integration or full gate approval by reviewer."
+  ]
+}

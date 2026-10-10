@@ -47,6 +47,13 @@ Independent review confirms the selected source and changelog. Deferred
 executor cancellation and undriven removal-error combinations remain open.
 Final integration gates remain pending.
 
+The historical [ECH and launcher baselines](ech-launcher-root-baselines-c1f659e3.json)
+confirm four causal failures in each area on both hosts. The ECH controls
+exercise actual primed HTTP requests and pending workers. The launcher
+controls observe harmless child processes and temporary profiles before
+backup cleanup. Original test prerequisite flaws remain separate. Repairs
+and verification of the combined changes are in progress.
+
 The [browser-driver fix](proxy-browser-context-root-fixed-59634fd7.json)
 passes the same seven controls on both hosts at `59634fd7`. The corrected
 baseline passed two and failed five. Cleanup now destroys the acquired

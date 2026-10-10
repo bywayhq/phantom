@@ -1,0 +1,158 @@
+{
+  "kind": "bounded independent causal baseline source review",
+  "revision": "9146c4a16bccd2329b70ac2b6bf36a060c959f9d",
+  "decision": "approved for root causal execution only",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_browser_launch_lifecycle.py",
+      "revision": "9146c4a16bccd2329b70ac2b6bf36a060c959f9d",
+      "git_blob": "0e92ada7cee1c943c51f315413bc22df01c6e25e",
+      "git_sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f",
+      "working_sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f",
+      "working_crlf_normalized_equals_git": true,
+      "line_count": 366,
+      "classification": "fresh whole manual control owner",
+      "outputs": [
+        "c96b4e"
+      ],
+      "ranges": [
+        {
+          "first": 1,
+          "last": 366,
+          "sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "9146c4a16bccd2329b70ac2b6bf36a060c959f9d",
+      "git_blob": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "git_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+      "working_sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+      "working_crlf_normalized_equals_git": true,
+      "line_count": 702,
+      "classification": "fresh whole manual actual launcher owner",
+      "outputs": [
+        "266cc6",
+        "ef55c6"
+      ],
+      "ranges": [
+        {
+          "first": 1,
+          "last": 702,
+          "sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch.py",
+      "revision": "9146c4a16bccd2329b70ac2b6bf36a060c959f9d",
+      "git_blob": "6fb74b92f043224be2fabf38cc8e42e3942abd70",
+      "git_sha256": "89c6f6012a544a57afa5c6bf242802ffda79e12316be25e8b5c7c1aac987fbfc",
+      "working_sha256": "36f1b1cc2476640295f3eb0242bb4292e5651d1b38be2993c8e749a6a1291981",
+      "working_crlf_normalized_equals_git": true,
+      "line_count": 563,
+      "classification": "unchanged identity only; no fresh manual read",
+      "outputs": [],
+      "ranges": []
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\unittest\\case.py",
+      "sha256": "9fa2e873ba608253b6e3d2158e36baf02433a46e68071b76b5e961a7accec2d2",
+      "line_count": 1452,
+      "classification": "resolved Python3.10 supporting partial; actual endpoint verified",
+      "output": "31b41b",
+      "ranges": [
+        {
+          "first": 404,
+          "last": 418,
+          "sha256": "43547ac3ed3747e11b05ad612249be9f4bdb5318594835078519c8131f88c178"
+        },
+        {
+          "first": 620,
+          "last": 639,
+          "sha256": "f6c3bc1be2e209f883240ab49e8f5a5d99dc3ea68f80e0894c715948fdeab242"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\subprocess.py",
+      "sha256": "53bb0d0780e166ef4ae94f3b2a817a8aae49a84d899db1f4c31f933d429057d6",
+      "line_count": 2122,
+      "classification": "resolved Python3.10 supporting partial; actual endpoint verified",
+      "output": "31b41b",
+      "ranges": [
+        {
+          "first": 1191,
+          "last": 1228,
+          "sha256": "5d3b0838426e012ad78cbfbb3b3febbfbfed431fa3690fea38f7bd346743818c"
+        },
+        {
+          "first": 1580,
+          "last": 1600,
+          "sha256": "79c3aa51f95212e9c376d4a0b623b8f9df22234d63553913b29a0f4b27df19e5"
+        },
+        {
+          "first": 2076,
+          "last": 2122,
+          "sha256": "2dfda1c59ce4ec37344fe2b99841c84b485edb79a3bc3816df1c02b844c88ed2"
+        }
+      ]
+    }
+  ],
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-lifecycle-baseline-handoff-9146c4a1.md",
+      "sha256": "139bd77acae150aacd625b580663d36f5206a34a381f2cbcf4cfb64348f9ebc9",
+      "bytes": 2447
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-lifecycle-baseline-handoff-9146c4a1.json",
+      "sha256": "54beb9dc882fcd1e06595e6ce39935ac4cf37d80cdebba7f9731fcb3d2dac9b4",
+      "bytes": 9566
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-lifecycle-baseline-handoff-9146c4a1.diff",
+      "sha256": "ea747ce3ce37e0ed6d2b21903cf6c212bcdfca1f6983c8fb81ca0bb7145d3e72",
+      "bytes": 13808
+    }
+  ],
+  "diff_scope": "only new366-line test owner; exact702 launcher and563 existing-test preservation checked",
+  "contracts": [
+    "Canonical Firefox __enter__/__exit__ creates actual disposable profile; mocked _start starts harmless real loopback child with exact marker and retained Popen before accept/checkpoint fault.",
+    "Second actual child carries the same unique profile argument. POSIX independently verified session prevents parent group stop from serving as discovery; Windows independent PID exercises actual CIM/argument matcher.",
+    "Actual native tree/sweep runs before injecting completed cleanup exceptions. Same synchronous call stack tests CancelledError identity; no cross-Task reconstruction assumption.",
+    "Pre-backup snapshots hold sockets and require finite process termination/profile absence before downstream typed primary/ordered secondary oracles.",
+    "Backup addCleanup registration precedes prepare; it attempts all exact PID waits/socket/listener closes/validated profile removal and patch closure even after failures."
+  ],
+  "forecast": {
+    "methods": 7,
+    "positives": 3,
+    "intended_negatives": 4,
+    "executed": false
+  },
+  "supported_source_defects": [
+    "Entry tree failure replaces initiating checkpoint error and skips acquired profile removal.",
+    "Exit tree failure skips independent profile sweep; rmtree already runs in finally and must remain so. Body primary may be replaced by cleanup errors."
+  ],
+  "evidence_correction": {
+    "original": "author subprocess2076\u20132124 at actualEOF2122 silently clamps",
+    "status": "original preserved; additive author correction requested. Independent actual2076\u20132122 read/hash record above grants only real partial scope.",
+    "source_execution_blocker": false
+  },
+  "checks": {
+    "git_preservation": "pass",
+    "signature": "G",
+    "clean": true,
+    "author_Ruff_claim": "retained author report only; no independent execution",
+    "native_or_process_execution": false
+  },
+  "limitations": [
+    "No actual Firefox/browser navigation, Android, threaded enter_browser cancellation, complete descendant discovery or native OS failure claim.",
+    "Actual process-tree taskkill has no timeout; canonical10+10 waits/discovery60+60 unchanged. Five-second control observations do not prove a total launcher bound.",
+    "Removal failures/constructor/mkdtemp acquisition errors are not separately driven; ignore_errors policy unchanged.",
+    "Primary/secondary identity observations after first forecast-negative boundary need native reproduction and remain uncredited.",
+    "Old563 test preservation is byte identity, not fresh whole semantic review.",
+    "No runtime, Cargo, integration or full gate approval by reviewer."
+  ]
+}
