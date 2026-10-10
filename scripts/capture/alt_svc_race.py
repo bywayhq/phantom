@@ -62,6 +62,7 @@ READ_SIZE = 64 * 1024
 MAX_PORT_ATTEMPTS = 64
 RACE_WINDOW_MS = 1000
 EXIT_WAIT_SECONDS = 60.0
+CLEANUP_WAIT_SECONDS = 5.0
 CANDIDATE_PORTS = (20000, 40000)
 QUIC_MODES = ("serve", "blackhole", "bad-certificate", "bad-alpn")
 # A 1x1 transparent GIF: `/hold` keeps the page's load event pending.
@@ -506,7 +507,10 @@ class Http2Origin:
         self.writers: set[asyncio.StreamWriter] = set()
 
     async def start(self, sock: socket.socket) -> None:
-        self.server = await asyncio.start_server(self.handle, sock=sock)
+        self.server = await asyncio.start_server(
+            self.handle, sock=sock, start_serving=False
+        )
+        await self.server.start_serving()
 
     async def close(self) -> None:
         for writer in list(self.writers):
@@ -712,8 +716,12 @@ class UdpRecorder:
 
 
 class BlackholeProtocol(asyncio.DatagramProtocol):
-    def __init__(self, recorder: UdpRecorder) -> None:
+    def __init__(self, recorder: UdpRecorder, owner: UdpAlternative) -> None:
         self.recorder = recorder
+        self.owner = owner
+
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        self.owner.transport = transport
 
     def datagram_received(self, data: bytes, addr) -> None:
         self.recorder.datagram(addr)
@@ -763,7 +771,7 @@ class UdpAlternative:
         loop = asyncio.get_running_loop()
         if self.mode == "blackhole":
             self.transport, _ = await loop.create_datagram_endpoint(
-                lambda: BlackholeProtocol(self.recorder), sock=sock
+                lambda: BlackholeProtocol(self.recorder, self), sock=sock
             )
             return
         host, port = sock.getsockname()[:2]
@@ -875,6 +883,18 @@ class RunResult:
     exited_gracefully: bool
 
 
+class CaptureCleanupError(Exception):
+    """Ordered failures from independent race-capture cleanup operations."""
+
+    def __init__(self, failures: Sequence[BaseException]) -> None:
+        self.failures = tuple(failures)
+        super().__init__(
+            f"race capture cleanup failed in {len(self.failures)} operations"
+        )
+
+        self.__cause__ = self.failures[0]
+
+
 async def capture_run(
     scenario: Scenario,
     *,
@@ -886,37 +906,52 @@ async def capture_run(
     timeout: float,
 ) -> RunResult:
     asyncio.get_running_loop().set_exception_handler(ignore_peer_resets)
-    certificate = generate_certificate(HOSTNAME)
-    udp_socket, tcp_socket = reserve_ports(listen_host)
-    port = tcp_socket.getsockname()[1]
-    earlier_sockets = [
-        await bind_udp(listen_host) for _ in scenario.earlier_alternatives
-    ]
-    earlier_ports = [sock.getsockname()[1] for sock in earlier_sockets]
-    origin = Origin(scenario, port, earlier_ports)
-    tcp = Http2Origin(origin, certificate)
-    udp = UdpAlternative(origin, certificate, scenario.quic)
-    earlier = [
-        UdpAlternative(origin, certificate, mode, f"earlier-{number}")
-        for number, mode in enumerate(scenario.earlier_alternatives)
-    ]
-    run = new_run()
-    origin.begin(run)
-    await udp.start(udp_socket)
-    for alternative, sock in zip(earlier, earlier_sockets, strict=True):
-        await alternative.start(sock)
-    await tcp.start(tcp_socket)
-    url = f"https://{HOSTNAME}:{port}/start"
-    extra = chromium_extra_arguments(
-        listen_host, certificate.spki_sha256_base64, netlog
-    )
-    plan = LaunchPlan(browser, executable, headless, extra)
-    recorded = plan.recorded_arguments(url).replace(
-        certificate.spki_sha256_base64, "<certificate-spki>"
-    )
-    recorded = recorded.replace(str(netlog), "<netlog>")
-    exited = False
+    sockets: list[socket.socket] = []
+    udp_owners: list[tuple[UdpAlternative, socket.socket]] = []
+    tcp: Http2Origin | None = None
+    tcp_socket: socket.socket | None = None
+    primary: BaseException | None = None
+    failures: list[BaseException] = []
+
     try:
+        certificate = generate_certificate(HOSTNAME)
+        udp_socket, tcp_socket = reserve_ports(listen_host)
+        sockets.extend((udp_socket, tcp_socket))
+        port = tcp_socket.getsockname()[1]
+        earlier_sockets = []
+        for _ in scenario.earlier_alternatives:
+            sock = await bind_udp(listen_host)
+            sockets.append(sock)
+            earlier_sockets.append(sock)
+
+        earlier_ports = [sock.getsockname()[1] for sock in earlier_sockets]
+        origin = Origin(scenario, port, earlier_ports)
+        tcp = Http2Origin(origin, certificate)
+        udp = UdpAlternative(origin, certificate, scenario.quic)
+        udp_owners.append((udp, udp_socket))
+        earlier = []
+        for number, mode in enumerate(scenario.earlier_alternatives):
+            alternative = UdpAlternative(origin, certificate, mode, f"earlier-{number}")
+            udp_owners.append((alternative, earlier_sockets[number]))
+            earlier.append(alternative)
+
+        run = new_run()
+        origin.begin(run)
+        await udp.start(udp_socket)
+        for alternative, sock in zip(earlier, earlier_sockets, strict=True):
+            await alternative.start(sock)
+        await tcp.start(tcp_socket)
+
+        url = f"https://{HOSTNAME}:{port}/start"
+        extra = chromium_extra_arguments(
+            listen_host, certificate.spki_sha256_base64, netlog
+        )
+        plan = LaunchPlan(browser, executable, headless, extra)
+        recorded = plan.recorded_arguments(url).replace(
+            certificate.spki_sha256_base64, "<certificate-spki>"
+        )
+        recorded = recorded.replace(str(netlog), "<netlog>")
+        exited = False
         async with BrowserDriver(plan, url) as driver:
             await asyncio.wait_for(run.done.wait(), timeout=timeout)
             process = driver.browser.process if driver.browser else None
@@ -925,12 +960,80 @@ async def capture_run(
                 # writes the NetLog's closing polled data.
                 exited = await wait_for_exit(process, EXIT_WAIT_SECONDS)
             await asyncio.sleep(0.5)
-    finally:
-        udp.close()
-        for alternative in earlier:
+    except BaseException as error:
+        primary = error
+
+    transferred = set()
+    for alternative, sock in udp_owners:
+        if alternative.transport is not None:
+            transferred.add(sock)
+
+        try:
             alternative.close()
-        await tcp.close()
+        except BaseException as error:
+            failures.append(error)
+
+    if tcp is not None:
+        if tcp.server is not None:
+            transferred.add(tcp_socket)
+
+        try:
+            await asyncio.wait_for(tcp.close(), CLEANUP_WAIT_SECONDS)
+        except BaseException as error:
+            failures.append(error)
+
+    # Transports close their sockets asynchronously, especially on Windows.
+    # Direct closure belongs only to reservations that were never transferred.
+    for sock in sockets:
+        if sock in transferred:
+            continue
+
+        try:
+            sock.close()
+        except BaseException as error:
+            failures.append(error)
+
+    if failures:
+        cleanup = failures[0] if len(failures) == 1 else CaptureCleanupError(failures)
+        if primary is None:
+            raise cleanup
+
+        retain_capture_cleanup(primary, cleanup)
+
+    if primary is not None:
+        raise primary
+
     return RunResult(run, port, netlog, recorded, exited)
+
+
+def retain_capture_cleanup(primary: BaseException, cleanup: BaseException) -> None:
+    """Retain cleanup without replacing an existing initiating error chain."""
+    primary.capture_cleanup_failure = cleanup
+    pending = [cleanup]
+    visited = set()
+    while pending:
+        error = pending.pop()
+        if error is primary:
+            return
+
+        if error is None or id(error) in visited:
+            continue
+
+        visited.add(id(error))
+        pending.extend((error.__cause__, error.__context__))
+
+    current = primary
+    seen = {id(cleanup)}
+    while id(current) not in seen:
+        seen.add(id(current))
+        previous = (
+            current.__cause__ if current.__cause__ is not None else current.__context__
+        )
+        if previous is None:
+            current.__cause__ = cleanup
+            return
+
+        current = previous
 
 
 def ignore_peer_resets(loop: asyncio.AbstractEventLoop, context: dict) -> None:
