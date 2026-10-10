@@ -581,8 +581,8 @@ fn send_http2_data(
             // Probe once: awaiting a reset would hang after a local END_STREAM.
             let mut context = Context::from_waker(Waker::noop());
             match send.poll_reset(&mut context) {
-                Poll::Ready(Ok(::http2::Reason::CANCEL)) => Ok(()),
-                _ => Err(error.into()),
+                Poll::Ready(reset) => http2_reset_result(reset),
+                Poll::Pending => Err(error.into()),
             }
         }
     }
