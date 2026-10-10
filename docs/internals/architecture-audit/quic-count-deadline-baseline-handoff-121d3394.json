@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "kind": "signed regression-only synthetic private count-owner contract",
+  "revision": "121d3394f459b6257c8e0895acae464b99eaf9a0",
+  "parent_revision": "9d3b8952f1721cb5c7b1622ced0f11c7f83872f7",
+  "clean": true,
+  "owned_paths": [
+    "crates/phantom/tests/http3/https_record_ech_http3.rs",
+    "crates/phantom/tests/http3/https_record_ech_http3/count_deadline_contract.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/count_deadline_contract.rs",
+      "revision": "121d3394f459b6257c8e0895acae464b99eaf9a0",
+      "git_blob_oid": "27bbb2a66f31e831e536207c59f95206f9a03ea1",
+      "git_lf_sha256": "eb4a8ee4ababb78584676087403ed2cf43f362d0a534710cf60331ddac223b63",
+      "working_raw_sha256": "eb4a8ee4ababb78584676087403ed2cf43f362d0a534710cf60331ddac223b63",
+      "line_count": 300,
+      "read_scope": "full fresh manually read child",
+      "read_ranges": [
+        [
+          1,
+          300
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            300
+          ],
+          "sha256": "eb4a8ee4ababb78584676087403ed2cf43f362d0a534710cf60331ddac223b63"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "121d3394f459b6257c8e0895acae464b99eaf9a0",
+      "git_blob_oid": "98184b0cea20ee0cd5d12f3b9ae1a4065d6f7060",
+      "git_lf_sha256": "4e7c0bdad1fc67688039f63c6daecb60526198dd9f40df4e7c994d91410f4595",
+      "working_raw_sha256": "4e7c0bdad1fc67688039f63c6daecb60526198dd9f40df4e7c994d91410f4595",
+      "line_count": 627,
+      "read_scope": "partial manually read unchanged owner ranges plus current registration diff",
+      "read_ranges": [
+        [
+          1,
+          340
+        ],
+        [
+          626,
+          627
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            340
+          ],
+          "sha256": "9d5743b81dbc8d28d4354bd0fbdcda1b911a0d276a43f9f01e53d38ae8d8b1a8"
+        },
+        {
+          "range": [
+            626,
+            627
+          ],
+          "sha256": "d7ea759c5531c9f9ca44eda30685cd2a8e6c8d66ea4bfeecb71d2fbc5b26c893"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "121d3394f459b6257c8e0895acae464b99eaf9a0",
+      "git_blob_oid": "8adf85d02e2ddf5d289ae84f6319eb22b5824b93",
+      "git_lf_sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "working_raw_sha256": "fad6e251e3e4105168cd598392c2cb5968f8719daace71f3e27daefa7ee42098",
+      "line_count": 251,
+      "read_scope": "partial supporting constant/context source",
+      "read_ranges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            80
+          ],
+          "sha256": "72aebd9fe222463294cfcf916984ae6582191494fa198c1ced1b4f30825f8730"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "121d3394f459b6257c8e0895acae464b99eaf9a0",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "git_lf_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "read_scope": "full supporting concrete result-combination owner read",
+      "read_ranges": [
+        [
+          1,
+          264
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            264
+          ],
+          "sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "121d3394f459b6257c8e0895acae464b99eaf9a0",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "git_lf_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "working_raw_sha256": "5f4a60a895690644ad565d2828af5320bb09ce98f45ac1ea9936bdf710efba0b",
+      "line_count": 138,
+      "read_scope": "single actual inspected Tokio dev-dependency line, no whole manifest credit",
+      "read_ranges": [
+        [
+          69,
+          69
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            69,
+            69
+          ],
+          "sha256": "0ebb17d33f24b3b7e58419e174dcc2119824f4c2e5f5c73ab28f69c814be7b81"
+        }
+      ]
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "package": "actual resolved Tokio1.53.1 local source",
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "line_count": 249,
+      "read_scope": "partial manually read API support",
+      "read_ranges": [
+        [
+          189,
+          249
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            189,
+            249
+          ],
+          "sha256": "2824f1a4343693715194142ba580af08eb00f128b071983f4f9f1086f23b8ccd"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\clock.rs",
+      "package": "actual resolved Tokio1.53.1 local source",
+      "sha256": "a4769f71bbf20a0df3ad52f477f3118643ea0946148839f2010a6375336d5295",
+      "line_count": 382,
+      "read_scope": "partial manually read API support",
+      "read_ranges": [
+        [
+          226,
+          325
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            226,
+            325
+          ],
+          "sha256": "764004abaeb43d92d72258282ea9979ae54f5374c6c56955894a0a4f837dc1ab"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\watch.rs",
+      "package": "actual resolved Tokio1.53.1 local source",
+      "sha256": "301e9219793f97b513784501c00bc357e3e110f5d73f03742f5169cdb71d7a72",
+      "line_count": 1556,
+      "read_scope": "partial manually read API support",
+      "read_ranges": [
+        [
+          871,
+          937
+        ],
+        [
+          1205,
+          1244
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            871,
+            937
+          ],
+          "sha256": "acc6113f2bc2c765a38e60cd6cb8c0f5202d3fd28cb0507542957c8f099ecfdc"
+        },
+        {
+          "range": [
+            1205,
+            1244
+          ],
+          "sha256": "4e75f95f4f206abb99fbe1bffac10582fb3d43a15531b4996ecb88e5970da1ab"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "package": "actual resolved Tokio1.53.1 local source",
+      "sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_scope": "partial manually read API support",
+      "read_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            1,
+            68
+          ],
+          "sha256": "32cf68fe4a73ff9518586c634d19f009727f124a385325bf8cd9f3d92d339573"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-quic-count-deadline-baseline.py",
+      "sha256": "b4306dd942ea17bfd5fc5ebcccc412487451f30962706c91d19cabab6c018a41",
+      "bytes": 2231
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-preservation.json",
+      "sha256": "38a9854e1df42e0d8e70fb96847a316df2fc9446202af9fe19474d82be4b0e4e",
+      "bytes": 3620
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-fmt.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-diff.log",
+      "sha256": "e8845778b74b1f8ad159cb68e66a064d431f583b285ba090281fe079617a42e0",
+      "bytes": 145
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-diff.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-handoff-121d3394.diff",
+      "sha256": "a221596a012323874a7083942c02c22613291ae17fd650634d8aa67c31f2e1b1",
+      "bytes": 9767
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-handoff-121d3394-signature.log",
+      "sha256": "f7fb5e4a0ccd88f82badfd8a570000512c1868fae56f3e51a8269222cdeba5f4",
+      "bytes": 422
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-deadline-baseline-handoff-121d3394-status.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "preservation": {
+    "parent_revision": "9d3b8952f1721cb5c7b1622ced0f11c7f83872f7",
+    "parent_original_sha256": "811b03d27906d8877f94cf26dd1cc65cc3520e37f9c3dd24a1555927ddc09fd0",
+    "parent_current_sha256": "4e7c0bdad1fc67688039f63c6daecb60526198dd9f40df4e7c994d91410f4595",
+    "parent_line_count": 627,
+    "whole_parent_removing_only_registration_byte_exact": true,
+    "actual_finish_unchanged": true,
+    "all_original_52_methods_and_wire_bodies_preserved": true,
+    "protected_files": [
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech.rs",
+        "git_blob_oid": "c5149d1f299f9841e0ed50edfaad0894a70a1881",
+        "sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3",
+        "line_count": 365,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+        "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "line_count": 59,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+        "git_blob_oid": "f94eeb5923daedda3b31f49a8fa519f4a6ece3ea",
+        "sha256": "db31a722fa776e8549e9901d9143b4fd90355a9d3d2c70be00b9dc6b3a7a93ee",
+        "line_count": 639,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+        "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "line_count": 59,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+        "git_blob_oid": "c4bf91cff0401a2ab09bd0ea7ec34d3bc2320bdc",
+        "sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+        "line_count": 194,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+        "git_blob_oid": "3e47c46a3041497bbf999c497a5e5938855fca26",
+        "sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+        "line_count": 269,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+        "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "line_count": 59,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records.rs",
+        "git_blob_oid": "d4a255dd9aa940589e7fe6341b94439dbfc5368c",
+        "sha256": "306c69677344cb78282a9bb45b8040906d6b8b0f547c642d5d8d6e76588af635",
+        "line_count": 437,
+        "byte_exact": true
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+        "git_blob_oid": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+        "sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+        "line_count": 62,
+        "byte_exact": true
+      }
+    ],
+    "new_child_sha256": "eb4a8ee4ababb78584676087403ed2cf43f362d0a534710cf60331ddac223b63",
+    "new_child_lines": 300,
+    "checks": [
+      {
+        "command": [
+          "rustfmt",
+          "--edition",
+          "2024",
+          "--check",
+          "crates/phantom/tests/http3/https_record_ech_http3.rs"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit": 0
+      }
+    ]
+  },
+  "controls": [
+    {
+      "name": "https_record_ech_http3::count_deadline_contract::a_missing_quic_count_retains_its_actual_elapsed_cause",
+      "forecast": "intended missing-Elapsed failure",
+      "first_predicted_failure_line": 197
+    },
+    {
+      "name": "https_record_ech_http3::count_deadline_contract::a_missing_tcp_count_retains_its_actual_elapsed_cause",
+      "forecast": "intended missing-Elapsed failure",
+      "first_predicted_failure_line": 197
+    },
+    {
+      "name": "https_record_ech_http3::count_deadline_contract::a_ready_quic_count_preserves_the_parent_result",
+      "forecast": "positive",
+      "first_predicted_failure_line": null
+    },
+    {
+      "name": "https_record_ech_http3::count_deadline_contract::ready_quic_and_tcp_counts_preserve_the_tcp_count",
+      "forecast": "positive",
+      "first_predicted_failure_line": null
+    },
+    {
+      "name": "https_record_ech_http3::count_deadline_contract::ready_counts_preserve_a_concrete_parent_inner_failure",
+      "forecast": "positive",
+      "first_predicted_failure_line": null
+    }
+  ],
+  "acceptance": "Actual unchanged QuicOrigin.finish must retain its real timeout Elapsed source and exact existing QUIC/TCP count context; ready counts and original parent inner failure must survive.",
+  "prerequisites": [
+    "Retain actual count senders alive with independent initial values",
+    "QUIC negative has recorded0/target1; TCP negative has already-satisfied QUIC1 and servedTCP0/target1",
+    "Actual private finish future is pinned and explicitly polled once; require its Poll Pending before advancing20 seconds",
+    "All fallible real SslContext preparation occurs before actual controlled task spawning",
+    "Actual parent and optional TCP task entry signals observed before count wait",
+    "Capture finish result, abort both backup tasks before waits, observe both finite destruction results, then make final cause/context assertions"
+  ],
+  "cleanup": "Concrete synchronously acquired AbortHandles plus preconstructed target Drop notifications; finite2s observation of both destruction outcomes and finish_with_cleanup retention. Drop requests abort only on control cancellation/unwind. Destruction is not an awaited join/reaping result.",
+  "evidence_correction": "Original writer overdeclared Tokio timeout189-260; actual EOF249 validation failed before any paired report was written. Original writer and Windows-encoded v2 preserved (v2 failed parsing before writes); additive v3 binds actual189-249 already fully printed/read, no source credit past EOF.",
+  "scope_limits": [
+    "Private synthetic counter/owner state directly exercises actual finish; it does not exercise QuicOrigin constructors, endpoint acquisition, networking, ECH handshakes or actual wire count publication.",
+    "port0 is unused synthetic private metadata, not an ambient listener bind.",
+    "Existing8 ordinary QUIC methods independently exercise actual wire behavior; this source change grants no new wire credit.",
+    "No count-cause remedy, shared support, production API, dependency, native execution or full-gate claim.",
+    "Historical lane lacks root EchDeadline and A184 constructor changes; root must preserve those when composing."
+  ],
+  "manual_standards": "Natural domain child owns count-control tasks, concrete backups and typed sentinel. Operation groups separate preparation, acquisition, actual wait, finite cleanup and observation; literal final assertions occur after cleanup. Every original parent byte remains unchanged apart from module registration.",
+  "checks": [
+    {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "crates/phantom/tests/http3/https_record_ech_http3.rs"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0
+    },
+    {
+      "command": "python C:/code/phantom/target/architecture-audit/validate-quic-count-deadline-baseline.py",
+      "exit": 0
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit": 0
+    }
+  ],
+  "filter": "test(/^https_record_ech_http3::count_deadline_contract::/)",
+  "predictions": {
+    "new": 5,
+    "positive": 3,
+    "negative": 2,
+    "root_combined": 57,
+    "root_combined_positive": 55,
+    "root_combined_negative": 2,
+    "qualification": "Forecast only after root composes approved9d and retains its outer deadline/constructor corrections."
+  }
+}

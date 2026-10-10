@@ -40,6 +40,30 @@ do not establish that need.
 
 ## Recent verification
 
+The [hint remedy review](hint-ownership-remedy-native-independent-addendum-d9418c3a.md.txt)
+confirms all 44 unchanged methods pass on Windows and Linux at `d9418c3a`.
+The seven baseline failures now pass their original destruction and concrete
+peer-cause assertions. Formatting, strict Clippy and Rust 1.88 pass.
+The later import/drain cleanup at `f78f63ca` has separate source approval.
+
+The [exact collector review](https-record-origin-serving-fixed-independent-native-e8a0c593.md.txt)
+confirms all 52 unchanged methods pass on both hosts at `e8a0c593`.
+Both completed serving payload identities are retained. Seven ordinary
+QUIC methods exercise the pre-spawn acquisition correction; no OS lookup
+fault is injected. All ancillary checks pass. Remaining descendants and
+drain-error paths are separate open work.
+
+The [count baseline review](quic-count-deadline-baseline-native-independent-addendum-24857484.md.txt)
+confirms five new synthetic controls within 57 methods at `24857484`.
+Both hosts pass 55 methods and fail the two missing-Elapsed assertions
+after entered, pending waits and the original 20-second expiry. This tests
+private owner/counter state, without endpoint or handshake evidence.
+
+The [capture-owner source pass](capture-owner-evidence-reconciliation-7fd07b02.md.txt)
+completes manual reads of remote, launcher and race owners: 2,466 lines.
+Exact current source and range identities bind those reads. Eight findings
+remain open as A186 through A193; source coverage adds no execution credit.
+
 The [exact serving baseline](https-record-origin-serving-baseline-native-independent-addendum-f75f148b.md.txt)
 runs the same 52 methods on both hosts at `f75f148b`: 51 pass and one fails.
 Two real successful requests and completed worker witnesses precede the

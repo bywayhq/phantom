@@ -1,0 +1,25 @@
+# QUIC count deadline causal native assessment
+
+Both complete24857484 host logs show57 selected:55 pass and two intended
+count-cause failures at child203. All prior52 names and the three new positive
+controls pass. Formatting, strict Clippy and MSRV exit0; nextest100 and runner1
+reflect the two expected failures.259 methods are excluded. Full launcher,
+both test logs, six ancillary logs and all revision/exit records were read.
+
+The whole310-line child was read. Both task-entry barriers and live watch
+sender values precede the actual finish future's explicitly Pending first
+poll. The QUIC negative holds0/target1. The TCP negative has independently
+satisfied QUIC1 and TCP0/target1. Advancing the unchanged20-second clock yields
+the actual count timeout. Finite backup requests both aborts and observes both
+destruction witnesses before assertions. Literal original context equality
+passes, then typed Elapsed fails. No later proof is credited.
+
+The child equals signed06eb exactly and only blank lines differ from121d.
+Actual finish bytes equal the author baseline. Full composition diff preserves
+root EchDeadline/A184 changes separately. Parent/support reads are partial;
+this is synthetic counter/owner state, without constructor/endpoint/handshake
+or wire evidence. No task-join, permanent leak or complete audit claim follows.
+
+No obstacle remains to the narrow original-context plus concrete Elapsed
+remedy. Source ownership/remedy verification and final integration gates remain
+separate. No reviewer rerun or tracked edit occurred.

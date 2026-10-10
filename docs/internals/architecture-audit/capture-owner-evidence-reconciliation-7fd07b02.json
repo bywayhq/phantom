@@ -1,0 +1,1037 @@
+{
+  "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+  "task": "bounded read-only source evidence reconciliation and necessary fresh manual reads of three capture owners",
+  "status": "candidate inventory import; source review complete for named owners, supported findings remain open",
+  "inventory": {
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "raw_sha256": "f0b2d0be2c12ba30ac6878c2ad20fbafc685145a9c8f91833eb305ea8098663a",
+    "original_rows": [
+      "scripts/capture/alt_svc_race.py\ttool\tpending\t",
+      "scripts/capture/browser_launch.py\ttool\tpending\t",
+      "scripts/capture/browser_remote.py\ttool\tpending\t"
+    ]
+  },
+  "source_reads": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+      "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+      "line_count": 505,
+      "byte_basis": "raw committed Git bytes",
+      "read_classification": "fresh full manual owner read; prior partials traced again only where needed for acquisition/error boundaries",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 80,
+          "raw_range_sha256": "c44b229bb83b0be5ba9ec8464480e8d8154b279e3843bd25d8b1e486483d62d7"
+        },
+        {
+          "start": 81,
+          "end": 245,
+          "raw_range_sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+        },
+        {
+          "start": 246,
+          "end": 381,
+          "raw_range_sha256": "218c8b06e72212df18a6f26dee3a1d359b7e2f618448cc570eba05b96fbf4e1e"
+        },
+        {
+          "start": 382,
+          "end": 505,
+          "raw_range_sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+      "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+      "line_count": 702,
+      "byte_basis": "raw committed Git bytes",
+      "read_classification": "fresh full manual owner read; unreviewed gaps plus supporting acquisition/termination traces",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 75,
+          "raw_range_sha256": "6e76a7acd63059d5556dbae0b410e290fb2b413483904cb505af39be079ed74d"
+        },
+        {
+          "start": 76,
+          "end": 282,
+          "raw_range_sha256": "10e74dd80da4130d6f5f1df5a037d183d23612f3d675440ed65c27a0b3c11bce"
+        },
+        {
+          "start": 283,
+          "end": 471,
+          "raw_range_sha256": "b8a4cfc70d3d9c699797318037c7de711adb1db20ff4cb5874ec37ffa2068520"
+        },
+        {
+          "start": 472,
+          "end": 519,
+          "raw_range_sha256": "bca81af9179335ddb02cf000c046dcebfd97d79a09513d42b9f94bcef9286e3b"
+        },
+        {
+          "start": 520,
+          "end": 702,
+          "raw_range_sha256": "02c21de71961d5fce25a65fb2b9e9c37e4e1bbf7043beb2ad91de588bc2cb24e"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+      "git_blob_oid": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+      "raw_sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+      "line_count": 1259,
+      "byte_basis": "raw committed Git bytes",
+      "read_classification": "fresh full manual owner read; no retained full Python owner evidence found",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 280,
+          "raw_range_sha256": "e967cde805d918ebe65432c5b1d10e413e10586f47182f0b3754fb6311f01110"
+        },
+        {
+          "start": 281,
+          "end": 570,
+          "raw_range_sha256": "f22de92771a41234f197f1e60abf52decbb28a035b3e8dd0014ff65d2332c1a7"
+        },
+        {
+          "start": 571,
+          "end": 860,
+          "raw_range_sha256": "f6f29c0ea4037e40699bdbf919620a9482d3b81fe07a1a3bfa8b2d5ee590adc1"
+        },
+        {
+          "start": 861,
+          "end": 1150,
+          "raw_range_sha256": "6dbb8c07db4c9c6bce91f18626cc3a9d115afcbc5b015f351a4fb07cb8313beb"
+        },
+        {
+          "start": 1151,
+          "end": 1259,
+          "raw_range_sha256": "6667bfdf0c7cbd8832fd0df7c8b32de936dac243750eb7d7bf2a86d1a54d4e09"
+        }
+      ]
+    }
+  ],
+  "historical_partial_validation": [
+    {
+      "artifact": "capture-ownership-independent-review.json",
+      "artifact_raw_sha256": "3347535c2dd9bd4e0d996c96e0bdddfd146c5911a9b5d2c351c0c5842b477369",
+      "json_pointer": "/files/2",
+      "original_record_unchanged": {
+        "path": "scripts/capture/browser_launch.py",
+        "sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+        "total_lines": 702,
+        "reviewed_ranges": [
+          [
+            1,
+            75
+          ],
+          [
+            283,
+            471
+          ],
+          [
+            520,
+            702
+          ]
+        ],
+        "status": "changed_diff_complete_context_partial"
+      },
+      "declared_digest_basis": "derived CRLF representation of immutable Git bytes",
+      "derived_crlf_sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+      "canonical_resolved_proof": {
+        "path": "scripts/capture/browser_launch.py",
+        "revision": "c913653f9d1a0c94210e44a02e4f2d1ad9aa7084",
+        "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+        "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+        "line_count": 702,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "historical retained partial; identity validation is not a new reading",
+        "manual_read_ranges": [
+          {
+            "start": 1,
+            "end": 75,
+            "raw_range_sha256": "6e76a7acd63059d5556dbae0b410e290fb2b413483904cb505af39be079ed74d"
+          },
+          {
+            "start": 283,
+            "end": 471,
+            "raw_range_sha256": "b8a4cfc70d3d9c699797318037c7de711adb1db20ff4cb5874ec37ffa2068520"
+          },
+          {
+            "start": 520,
+            "end": 702,
+            "raw_range_sha256": "02c21de71961d5fce25a65fb2b9e9c37e4e1bbf7043beb2ad91de588bc2cb24e"
+          }
+        ]
+      },
+      "current_bytes_equal_historical": true,
+      "eligible_scope": "partial only; never full owner from this record"
+    },
+    {
+      "artifact": "browser-remote-resource-source-investigation-0418ee46.json",
+      "artifact_raw_sha256": "607b022b1a28792307ac036cc57a6e20f9295ae70c61ace8bcd7faa9fdf5877f",
+      "json_pointer": "/sources/1",
+      "original_record_unchanged": {
+        "path": "scripts/capture/browser_remote.py",
+        "revision": "0418ee465656dc0880d577901d854524c66e112c",
+        "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+        "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+        "working_raw_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+        "line_count": 505,
+        "scope": "supporting partial current socket/reader/connection close and navigation/driver API paths; no whole production owner claim",
+        "actual_manual_ranges": [
+          {
+            "start": 81,
+            "end": 245,
+            "sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+          },
+          {
+            "start": 382,
+            "end": 505,
+            "sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+          }
+        ]
+      },
+      "declared_digest_basis": "raw Git bytes",
+      "derived_crlf_sha256": "37e1a1cede80c7dde232a9efb8d7da9d5424a2079ec45f67a09d086d1ef6c46c",
+      "canonical_resolved_proof": {
+        "path": "scripts/capture/browser_remote.py",
+        "revision": "0418ee465656dc0880d577901d854524c66e112c",
+        "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+        "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+        "line_count": 505,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "historical retained partial; identity validation is not a new reading",
+        "manual_read_ranges": [
+          {
+            "start": 81,
+            "end": 245,
+            "raw_range_sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+          },
+          {
+            "start": 382,
+            "end": 505,
+            "raw_range_sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+          }
+        ]
+      },
+      "current_bytes_equal_historical": true,
+      "eligible_scope": "partial only; never full owner from this record"
+    },
+    {
+      "artifact": "capture-session-source-standards-review-42858688.json",
+      "artifact_raw_sha256": "3d695d7aedf35cc5742cc732e62ea6817096d4e170bf0428c936c85019eb5ede",
+      "json_pointer": "/supporting_reads/0",
+      "original_record_unchanged": {
+        "path": "scripts/capture/browser_launch.py",
+        "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+        "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+        "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+        "line_count": 702,
+        "read_classification": "fresh partial browser acquisition/cancellation/cleanup contract",
+        "manual_read_ranges": [
+          {
+            "start": 305,
+            "end": 468,
+            "raw_range_sha256": "ff743fd4bec115a48be0044a642caebdcebf7886e557d01d6dcbf01bef3d05ff"
+          }
+        ],
+        "byte_basis": "immutable raw Git LF bytes",
+        "working_raw_sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+        "working_identity_check": "CRLF-to-LF comparison only; raw hashes remain distinct"
+      },
+      "declared_digest_basis": "raw Git bytes",
+      "derived_crlf_sha256": "992f7a151319dd931f630a5fdd30e3a2c17881e8824bbcd13233936a3f239b23",
+      "canonical_resolved_proof": {
+        "path": "scripts/capture/browser_launch.py",
+        "revision": "42858688871f7658cdb92b79d840004be7a267e2",
+        "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+        "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+        "line_count": 702,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "historical retained partial; identity validation is not a new reading",
+        "manual_read_ranges": [
+          {
+            "start": 305,
+            "end": 468,
+            "raw_range_sha256": "ff743fd4bec115a48be0044a642caebdcebf7886e557d01d6dcbf01bef3d05ff"
+          }
+        ]
+      },
+      "current_bytes_equal_historical": true,
+      "eligible_scope": "partial only; never full owner from this record"
+    },
+    {
+      "artifact": "process-ownership-review-coverage.json",
+      "artifact_raw_sha256": "41ad8de64465c02afbd097909b58077e34c211ac73dc277c200fc557e63bb88c",
+      "json_pointer": "/source/2",
+      "original_record_unchanged": {
+        "path": "scripts/capture/browser_launch.py",
+        "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+        "sha256": "5e102b303ae5db573390e2f27dba9c5787aa6b110db12ea6baa0ee21cf3f0edd",
+        "physical_lines": 626,
+        "ranges": [
+          [
+            1,
+            44
+          ],
+          [
+            305,
+            626
+          ]
+        ],
+        "read_kind": "partial_source"
+      },
+      "declared_digest_basis": "raw Git bytes",
+      "derived_crlf_sha256": "89145296fa2b413578c23136ebfc9d3ec664eefe7bf1aa6b3292963a091d415d",
+      "canonical_resolved_proof": {
+        "path": "scripts/capture/browser_launch.py",
+        "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+        "git_blob_oid": "81e52c9d79f04e6cc304b3f83f2b1ffa24c1f0da",
+        "raw_sha256": "5e102b303ae5db573390e2f27dba9c5787aa6b110db12ea6baa0ee21cf3f0edd",
+        "line_count": 626,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "historical retained partial; identity validation is not a new reading",
+        "manual_read_ranges": [
+          {
+            "start": 1,
+            "end": 44,
+            "raw_range_sha256": "bd52f6e6285a9e6d95d8ca7b19ba5ca148a7b1902dd9ddcf382ebdec839e5823"
+          },
+          {
+            "start": 305,
+            "end": 626,
+            "raw_range_sha256": "2f726a0015e5054ff8189663a0f4f46c17aa88cfa22784e69f1260f9a765dbae"
+          }
+        ]
+      },
+      "current_bytes_equal_historical": false,
+      "eligible_scope": "partial only; never full owner from this record"
+    }
+  ],
+  "disposition_records": [
+    {
+      "artifact": "tooling-review-disposition-index.json",
+      "raw_sha256": "51e66b17794339c79651475a4577a9e4e76d684d4c93e1732468fc553eece218",
+      "selected_records_unchanged": [
+        {
+          "json_pointer": "/additional_historical_records/2",
+          "record": {
+            "path": "scripts/capture/browser_launch.py",
+            "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "sha256": "5e102b303ae5db573390e2f27dba9c5787aa6b110db12ea6baa0ee21cf3f0edd",
+            "physical_lines": 626,
+            "ranges": [
+              [
+                1,
+                44
+              ],
+              [
+                305,
+                626
+              ]
+            ],
+            "read_kind": "partial_source",
+            "original_record": "process-ownership-review-coverage.json",
+            "hash_basis": "raw original Git blob bytes",
+            "original_git_oid": "81e52c9d79f04e6cc304b3f83f2b1ffa24c1f0da",
+            "current_git_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+            "same_git_object_at_current_snapshot": false
+          }
+        },
+        {
+          "json_pointer": "/dispositions/3",
+          "record": {
+            "path": "scripts/capture/alt_svc_race.py",
+            "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+            "git_oid": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+            "sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+            "hash_basis": "raw committed Git blob bytes",
+            "line_count": 1259,
+            "original_inventory_review": "pending",
+            "historical_tooling_record": null,
+            "other_prior_source_records": [],
+            "disposition": "capture owner continuation required",
+            "reviewed_ranges": [],
+            "limitations": "Source metadata does not establish source coverage or execution; original revision/ranges govern historical evidence."
+          }
+        },
+        {
+          "json_pointer": "/dispositions/11",
+          "record": {
+            "path": "scripts/capture/browser_launch.py",
+            "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+            "git_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+            "sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+            "hash_basis": "raw committed Git blob bytes",
+            "line_count": 702,
+            "original_inventory_review": "pending",
+            "historical_tooling_record": null,
+            "other_prior_source_records": [
+              {
+                "path": "scripts/capture/browser_launch.py",
+                "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+                "sha256": "5e102b303ae5db573390e2f27dba9c5787aa6b110db12ea6baa0ee21cf3f0edd",
+                "physical_lines": 626,
+                "ranges": [
+                  [
+                    1,
+                    44
+                  ],
+                  [
+                    305,
+                    626
+                  ]
+                ],
+                "read_kind": "partial_source",
+                "original_record": "process-ownership-review-coverage.json",
+                "hash_basis": "raw original Git blob bytes",
+                "original_git_oid": "81e52c9d79f04e6cc304b3f83f2b1ffa24c1f0da",
+                "current_git_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+                "same_git_object_at_current_snapshot": false
+              }
+            ],
+            "disposition": "capture owner continuation required",
+            "reviewed_ranges": [],
+            "limitations": "Source metadata does not establish source coverage or execution; original revision/ranges govern historical evidence."
+          }
+        },
+        {
+          "json_pointer": "/dispositions/11/other_prior_source_records/0",
+          "record": {
+            "path": "scripts/capture/browser_launch.py",
+            "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "sha256": "5e102b303ae5db573390e2f27dba9c5787aa6b110db12ea6baa0ee21cf3f0edd",
+            "physical_lines": 626,
+            "ranges": [
+              [
+                1,
+                44
+              ],
+              [
+                305,
+                626
+              ]
+            ],
+            "read_kind": "partial_source",
+            "original_record": "process-ownership-review-coverage.json",
+            "hash_basis": "raw original Git blob bytes",
+            "original_git_oid": "81e52c9d79f04e6cc304b3f83f2b1ffa24c1f0da",
+            "current_git_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+            "same_git_object_at_current_snapshot": false
+          }
+        },
+        {
+          "json_pointer": "/dispositions/12",
+          "record": {
+            "path": "scripts/capture/browser_remote.py",
+            "revision": "2cb59371ee00b4ae6369dfff06683d090e5762f5",
+            "git_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+            "sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+            "hash_basis": "raw committed Git blob bytes",
+            "line_count": 505,
+            "original_inventory_review": "pending",
+            "historical_tooling_record": null,
+            "other_prior_source_records": [],
+            "disposition": "capture owner continuation required",
+            "reviewed_ranges": [],
+            "limitations": "Source metadata does not establish source coverage or execution; original revision/ranges govern historical evidence."
+          }
+        }
+      ],
+      "credit": "disposition/context only; no automatic range or whole-owner credit"
+    },
+    {
+      "artifact": "pending-first-party-source-inventory-proposal-6ee7d658.json",
+      "raw_sha256": "c4a6af7ed72dbbbde57ec8a14cb7598947ab200b9ada350b842842af10d43d94",
+      "selected_records_unchanged": [
+        {
+          "json_pointer": "/pending_classifications/113",
+          "record": {
+            "path": "scripts/capture/alt_svc_race.py",
+            "inventory_row": {
+              "path": "scripts/capture/alt_svc_race.py",
+              "surface": "tool",
+              "review": "pending",
+              "evidence": ""
+            },
+            "status": "not-established-in-selected-report-set",
+            "current_git_blob": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+            "eligible_anchors": [],
+            "historical_anchors": [],
+            "partial_anchors": []
+          }
+        },
+        {
+          "json_pointer": "/pending_classifications/113/inventory_row",
+          "record": {
+            "path": "scripts/capture/alt_svc_race.py",
+            "surface": "tool",
+            "review": "pending",
+            "evidence": ""
+          }
+        },
+        {
+          "json_pointer": "/pending_classifications/121",
+          "record": {
+            "path": "scripts/capture/browser_launch.py",
+            "inventory_row": {
+              "path": "scripts/capture/browser_launch.py",
+              "surface": "tool",
+              "review": "pending",
+              "evidence": ""
+            },
+            "status": "not-established-in-selected-report-set",
+            "current_git_blob": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+            "eligible_anchors": [],
+            "historical_anchors": [],
+            "partial_anchors": []
+          }
+        },
+        {
+          "json_pointer": "/pending_classifications/121/inventory_row",
+          "record": {
+            "path": "scripts/capture/browser_launch.py",
+            "surface": "tool",
+            "review": "pending",
+            "evidence": ""
+          }
+        },
+        {
+          "json_pointer": "/pending_classifications/122",
+          "record": {
+            "path": "scripts/capture/browser_remote.py",
+            "inventory_row": {
+              "path": "scripts/capture/browser_remote.py",
+              "surface": "tool",
+              "review": "pending",
+              "evidence": ""
+            },
+            "status": "not-established-in-selected-report-set",
+            "current_git_blob": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+            "eligible_anchors": [],
+            "historical_anchors": [],
+            "partial_anchors": []
+          }
+        },
+        {
+          "json_pointer": "/pending_classifications/122/inventory_row",
+          "record": {
+            "path": "scripts/capture/browser_remote.py",
+            "surface": "tool",
+            "review": "pending",
+            "evidence": ""
+          }
+        }
+      ],
+      "credit": "disposition/context only; no automatic range or whole-owner credit"
+    },
+    {
+      "artifact": "remote-capture-peer-remedy-independent-source-review-cf1bfd76.json",
+      "raw_sha256": "2aefbb7db21de32bae3f37d491d15b1978fd5a3a406416f38da8928cdf2f8988",
+      "selected_records_unchanged": [
+        {
+          "json_pointer": "/sources/1",
+          "record": {
+            "path": "scripts/capture/browser_remote.py",
+            "revision": "cf1bfd7691a2b6d8d83f5da815e03cc28295e1b7",
+            "blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+            "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+            "line_count": 505,
+            "read_classification": "historical manual supporting partial read; unchanged-byte rebind, not fresh whole-file credit",
+            "read_ranges": [
+              {
+                "start": 81,
+                "end": 245,
+                "raw_sha256": "a2ad99a826f46d5c3d6fa5f5e47f6eff402a47f3dc45844d23e30d8e399e0a1e"
+              },
+              {
+                "start": 382,
+                "end": 505,
+                "raw_sha256": "a34b3bfbb788c4d46b018e3949f9fb747f4837b77e31bafb15f49d1366fd46dd"
+              }
+            ]
+          }
+        }
+      ],
+      "credit": "disposition/context only; no automatic range or whole-owner credit"
+    },
+    {
+      "artifact": "process-ownership-review-coverage.json",
+      "raw_sha256": "41ad8de64465c02afbd097909b58077e34c211ac73dc277c200fc557e63bb88c",
+      "selected_records_unchanged": [
+        {
+          "json_pointer": "/source/2",
+          "record": {
+            "path": "scripts/capture/browser_launch.py",
+            "revision": "df2ae9b7d87567907a2f273068220349dcd4750b",
+            "sha256": "5e102b303ae5db573390e2f27dba9c5787aa6b110db12ea6baa0ee21cf3f0edd",
+            "physical_lines": 626,
+            "ranges": [
+              [
+                1,
+                44
+              ],
+              [
+                305,
+                626
+              ]
+            ],
+            "read_kind": "partial_source"
+          }
+        }
+      ],
+      "credit": "disposition/context only; no automatic range or whole-owner credit"
+    }
+  ],
+  "supporting_partial_reads": [
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/asyncio/streams.py",
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "line_count": 726,
+      "read_classification": "fresh supporting partial dependency source only",
+      "manual_read_ranges": [
+        {
+          "start": 224,
+          "end": 265,
+          "raw_range_sha256": "542f1502183a5fd9139590ac1808f6b997c4432b7a681534e99c373af49ba415"
+        },
+        {
+          "start": 330,
+          "end": 346,
+          "raw_range_sha256": "70ed6d9d1d1bd2231a03beb4f9c25fc99acbba9c888102faad2b0fd3cab8536b"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10.20-windows-x86_64-none/Lib/asyncio/base_events.py",
+      "raw_sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "line_count": 1934,
+      "read_classification": "fresh supporting partial dependency source only",
+      "manual_read_ranges": [
+        {
+          "start": 335,
+          "end": 392,
+          "raw_range_sha256": "999ffcf7e1b31cd1f848b33b7eccc9997c139e9fbd6d44a4c199de4e2e956960"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/k5uT8EWhGOo9v6Y5/Lib/site-packages/aioquic/asyncio/server.py",
+      "raw_sha256": "591b0563ec69b76d4d59b24f13daed57ad7562e90a18dbe3f51daa72e9009ef8",
+      "line_count": 218,
+      "read_classification": "fresh supporting partial dependency source only",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 95,
+          "raw_range_sha256": "53012eca10750abb419c83c84322bd6c84a355d4333c76e9e4494aaef67ea021"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "CR1",
+      "owner": "scripts/capture/browser_remote.py",
+      "ranges": [
+        [
+          91,
+          122
+        ],
+        [
+          235,
+          240
+        ],
+        [
+          387,
+          410
+        ]
+      ],
+      "cause": "After open_connection, upgrade reads/errors/cancellation have no all-path acquired-writer cleanup. An already-failed reader can escape close before socket.close; navigation cleanup can supersede its primary error.",
+      "contract": "Every acquired writer must have bounded cleanup attempted across setup, cancellation and completed reader failure, retaining primary plus cleanup causes.",
+      "control_proposal": "Canonical actual loopback upgrade with literal request then incomplete head/cancellation; retain peer/runtime until observed closure, finite independent backup. Separately completed handler failure plus initiating navigation error.",
+      "status": "supported source finding; no permanent leak or native reproduction claim",
+      "exact_source_proof": {
+        "path": "scripts/capture/browser_remote.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+        "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+        "line_count": 505,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 91,
+            "end": 122,
+            "raw_range_sha256": "b1ab2239e3aa1d20ec9118cb3d8f7e70e568bd27e27c68c1f2e2bfeb5cc35074"
+          },
+          {
+            "start": 235,
+            "end": 240,
+            "raw_range_sha256": "645a3b6099774512444e9be1ad7a621e197d4293796cad5ede50e3e72c52fece"
+          },
+          {
+            "start": 387,
+            "end": 410,
+            "raw_range_sha256": "852c9ec90a79d1952a24d0b00e8301a47fd5b9debaa4d3cab118c65e5856e621"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR2",
+      "owner": "scripts/capture/browser_remote.py",
+      "ranges": [
+        [
+          180,
+          189
+        ],
+        [
+          204,
+          222
+        ]
+      ],
+      "cause": "Caught read-loop failures are replaced with ConnectionError(str(error)); unexpected handler exceptions leave pending commands waiting, and a failing send leaves its registered future in pending.",
+      "contract": "Pending calls must receive the original concrete failure (with operation context) and be removed when sending or waiting fails.",
+      "control_proposal": "Actual upgraded loopback text exchange, controlled typed receive/handler failure, two pending calls and failed send; require original source object and emptied pending state after explicit cleanup.",
+      "status": "supported source finding; controlled exception category is distinct from actual OS failure",
+      "exact_source_proof": {
+        "path": "scripts/capture/browser_remote.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+        "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+        "line_count": 505,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 180,
+            "end": 189,
+            "raw_range_sha256": "095c5418cd3a90b6a444c212dd6842f9d6c34ce0c37010e403e0adf08dc4ddb2"
+          },
+          {
+            "start": 204,
+            "end": 222,
+            "raw_range_sha256": "71e36ae95871d59fdcb3924373f6678a61b5d6d26cd15cbeb764c64c90d3ee64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR3",
+      "owner": "scripts/capture/browser_launch.py",
+      "ranges": [
+        [
+          346,
+          370
+        ],
+        [
+          399,
+          411
+        ],
+        [
+          434,
+          468
+        ]
+      ],
+      "cause": "If terminate_process_tree raises in __enter__ failure cleanup, the original exception and later profile cleanup are lost. In __exit__, it prevents the profile-process sweep; cleanup can also replace the caller primary.",
+      "contract": "Attempt independent process/profile cleanup steps and preserve initiating and secondary concrete exceptions; cancellation guard remains active.",
+      "control_proposal": "Canonical actual finite child/profile acquisition with controlled termination error and separate profile cleanup witness; direct caller primary plus cleanup failures. Do not launch browsers.",
+      "status": "supported source finding; existing launch guard and process-discovery repairs preserved",
+      "exact_source_proof": {
+        "path": "scripts/capture/browser_launch.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+        "raw_sha256": "3da3ee670de472ccdea1c28eeb1b7426ee4d2bae6540cfe8240485fa60a1a151",
+        "line_count": 702,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 346,
+            "end": 370,
+            "raw_range_sha256": "ff76397937a7a468c20fb53b78148e32e3145bfb11014091a81a71d060ddf1d6"
+          },
+          {
+            "start": 399,
+            "end": 411,
+            "raw_range_sha256": "c44fd20f05e4f5690477fa97577bf81e6c0baed06a70afe5a16c8bdb91bd7786"
+          },
+          {
+            "start": 434,
+            "end": 468,
+            "raw_range_sha256": "bb0b2104d8618499d95d4ccdfbc5f03a5f4165506d7fb8f6bc80b53bafcbe719"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR4",
+      "owner": "scripts/capture/alt_svc_race.py",
+      "ranges": [
+        [
+          797,
+          843
+        ],
+        [
+          877,
+          932
+        ]
+      ],
+      "cause": "Socket construction/listen/nonblocking conversion and capture listener startup occur before the protecting cleanup region. A later startup error can abandon earlier resources; cleanup itself is sequential.",
+      "contract": "Own each acquired socket/listener immediately and attempt all finite cleanup on partial startup, main error and cancellation, retaining encountered causes.",
+      "control_proposal": "Use canonical startup with an actual first loopback listener, controlled later startup failure and observed retained resource closure before independent backup; no browser launch.",
+      "status": "supported source finding; no measured OS leak",
+      "exact_source_proof": {
+        "path": "scripts/capture/alt_svc_race.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+        "raw_sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+        "line_count": 1259,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 797,
+            "end": 843,
+            "raw_range_sha256": "2d8d1225d8cba370dd608b132719f86389f2b9b9f4672b8fb491f0d2ba773452"
+          },
+          {
+            "start": 877,
+            "end": 932,
+            "raw_range_sha256": "ca5ca2682559dedb118dd03714a681821217f8afcdf37792db1ac049f663f6aa"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR5",
+      "owner": "scripts/capture/alt_svc_race.py",
+      "ranges": [
+        [
+          498,
+          543
+        ]
+      ],
+      "cause": "start_server schedules accepted handler tasks but Http2Origin retains only writers. close aborts writers and waits only for listener closure, not accepted callback outcomes. TlsStream construction is before the handler try/finally.",
+      "contract": "Own accepted handlers from synchronous acquisition, finitely observe completed outcomes and writer cleanup; intentional partial capture failures must remain explicitly visible.",
+      "control_proposal": "Actual accepted TLS/H2 request and literal response before held handler cancellation; completed typed handler failure must be observed independently of listener close. Preserve partial-evidence policy.",
+      "status": "supported source ownership/outcome finding; listener wait_closed is not handler join",
+      "exact_source_proof": {
+        "path": "scripts/capture/alt_svc_race.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+        "raw_sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+        "line_count": 1259,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 498,
+            "end": 543,
+            "raw_range_sha256": "3ba938a9cf3ae381f2e4693c9917c9afa0a8dd6a575cc41038eec02184e07390"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR6",
+      "owner": "scripts/capture/alt_svc_race.py",
+      "ranges": [
+        [
+          465,
+          485
+        ],
+        [
+          590,
+          615
+        ]
+      ],
+      "cause": "TlsStream.read maps any ssl.SSLError to empty bytes and read_raw maps every ConnectionError to EOF; the responder also discards every H2Error.",
+      "contract": "Deliberate clean shutdown/retired-stream outcomes need narrow classification; unrelated TLS, transport and protocol errors must remain visible in capture evidence and cleanup results.",
+      "control_proposal": "Real TLS/H2 exchange plus controlled actual typed read/send errors, positive clean close and expected retired-stream outcome. Resolve h2 reset categories before implementation.",
+      "status": "supported broad-classification source gap; exact send whitelist remains to be established",
+      "exact_source_proof": {
+        "path": "scripts/capture/alt_svc_race.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+        "raw_sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+        "line_count": 1259,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 465,
+            "end": 485,
+            "raw_range_sha256": "d934043448b440412cfeae40a37da7bd3bd1cc91a510ab552cd39f6a1b82fecb"
+          },
+          {
+            "start": 590,
+            "end": 615,
+            "raw_range_sha256": "94dd9125839ee9f38e9f8fb94fdd8fd308d10ae3d4815860194329b7b86dc9f2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR7",
+      "owner": "scripts/capture/alt_svc_race.py",
+      "ranges": [
+        [
+          304,
+          330
+        ],
+        [
+          692,
+          710
+        ]
+      ],
+      "cause": "RunRecord.udp uses only remote source address as its key; both origin and earlier alternative recorders share it. Same source address on two listeners merges datagrams, handshake/request state and listener attribution.",
+      "contract": "Distinct listener observations must remain distinct even when a peer source address is reused across destinations.",
+      "control_proposal": "Feed canonical origin and earlier-alternative UdpRecorder instances the same literal source tuple, require two distinct listener records and independent nonzero counters; add actual loopback exchange if needed. No source-port uniqueness assumption.",
+      "status": "supported deterministic source attribution defect; occurrence in a real browser unmeasured",
+      "exact_source_proof": {
+        "path": "scripts/capture/alt_svc_race.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+        "raw_sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+        "line_count": 1259,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 304,
+            "end": 330,
+            "raw_range_sha256": "884aa7c970f34eb4d6f7f08abeeb30962f21e0b54c11db755db9809414c9925d"
+          },
+          {
+            "start": 692,
+            "end": 710,
+            "raw_range_sha256": "9f224c636956f40de866f7bcf317d32a123e052085fea784776d39d26006071a"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CR8",
+      "owner": "scripts/capture/browser_remote.py",
+      "ranges": [
+        [
+          37,
+          40
+        ]
+      ],
+      "cause": "Credentials uses default dataclass repr, which includes username/password values.",
+      "contract": "Credential containers must not expose secrets in default diagnostic representation.",
+      "control_proposal": "Literal sentinel credentials repr test through the actual value type; no logging or leak claim.",
+      "status": "supported diagnostic-policy source gap; no observed disclosure",
+      "exact_source_proof": {
+        "path": "scripts/capture/browser_remote.py",
+        "revision": "7fd07b027ada478ab1ca32437180fdbd66ac9fd3",
+        "git_blob_oid": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+        "raw_sha256": "a1c2a77eb9c7b36a09c38a5eb94c5b87f327e5edef1e11ca67c5f8d38dffd0a2",
+        "line_count": 505,
+        "byte_basis": "raw committed Git bytes",
+        "read_classification": "finding scopes within the fresh full manual read; no execution",
+        "manual_read_ranges": [
+          {
+            "start": 37,
+            "end": 40,
+            "raw_range_sha256": "2743bbb21ec8cbbf8ecf5fe49531f8fafe15e61d7c28b43dfb7b8e9a99b085d3"
+          }
+        ]
+      }
+    }
+  ],
+  "qualified_candidates_and_retained_limits": [
+    {
+      "owner": "scripts/capture/browser_launch.py",
+      "scope": "terminate_profile_processes POSIX ps check=False and process-discovery/kill identity race",
+      "disposition": "Existing historical source limitations retained, not a new rediscovery or runtime proof."
+    },
+    {
+      "owner": "scripts/capture/browser_launch.py",
+      "scope": "Windows lock_file retries every OSError",
+      "disposition": "Source candidate: determine actual contention errno versus unrelated error before a narrow retry remedy; no measured hang."
+    },
+    {
+      "owner": "scripts/capture/alt_svc_race.py",
+      "scope": "repeat/timeout and /done result schema",
+      "disposition": "Validation candidate: zero repeat can publish zero runs; timeout accepts nonfinite values; /done accepts arbitrary decoded JSON. Inspect intended CLI/fixture contract and direct tests before designing controls."
+    },
+    {
+      "owner": "scripts/capture/alt_svc_race.py",
+      "scope": "loop-global exception handler and callback retirement",
+      "disposition": "The handler is installed without restoring the prior handler. Standalone asyncio.run limits scope; reuse/caller contract requires supporting caller review before a separate finding."
+    },
+    {
+      "owner": "all three",
+      "scope": "names, paragraph grouping, responsibility",
+      "disposition": "Concrete protocol/domain classes remain justified; dense independent validation/acquisition operations can be grouped with any bounded remedy. No arbitrary split or new framework recommended."
+    }
+  ],
+  "rejected_claims": [
+    "Full repaired test_browser_remote.py does not credit full browser_remote.py.",
+    "Rust alt_svc_race fixture reports do not credit Python alt_svc_race.py.",
+    "Default WebSocket subset is not a promise of complete RFC validation.",
+    "No actual browser source-port alias, permanent leak, OS failure or whole audit closure has been measured.",
+    "Source coverage is separate from unresolved findings and final integration gates."
+  ],
+  "observed_later_head": "f78f63cac769641b4903a76f2d8d5fa3c4c06c99",
+  "later_head_comparison": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "frozen_blob": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "observed_head_blob": "d1c3b7cccbe0d063a50f6cf5a7d00eec5cbfb10e",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "frozen_blob": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "observed_head_blob": "c03765a2d1766c67f85cb59a941b1684fffd9d16",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "frozen_blob": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+      "observed_head_blob": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+      "unchanged": true
+    }
+  ],
+  "proposed_inventory_updates": [
+    {
+      "path": "scripts/capture/browser_remote.py",
+      "from": "pending",
+      "to": "source-complete",
+      "evidence": "capture-owner-evidence-reconciliation-7fd07b02.json#/source_reads/0",
+      "qualification": "root review/import only; open findings not closed"
+    },
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "from": "pending",
+      "to": "source-complete",
+      "evidence": "capture-owner-evidence-reconciliation-7fd07b02.json#/source_reads/1",
+      "qualification": "root review/import only; open findings not closed"
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "from": "pending",
+      "to": "source-complete",
+      "evidence": "capture-owner-evidence-reconciliation-7fd07b02.json#/source_reads/2",
+      "qualification": "root review/import only; open findings not closed"
+    }
+  ],
+  "remaining_scope": [
+    "Focused test owners were not newly read in full in this bounded task; prior test evidence is retained separately.",
+    "External callers outside the three source owners remain supporting scope gaps where not already covered.",
+    "New findings require independent controls and bounded remediation assignments; no code was changed.",
+    "No native execution, Cargo, live browser or final gate was performed."
+  ],
+  "validator_qualification": "Initial metadata attempt used source_reads for a supporting_reads record and stopped before output; initial script preserved. Corrected schema location is explicit; original reports unchanged."
+}

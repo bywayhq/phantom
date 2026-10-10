@@ -1,0 +1,5 @@
+Signed06eb52f5fda50be7e4e1f307ea58e1d13a508482 adds only the ten requested operation paragraphs to the count control child. Every nonblank line, token, assertion and actual parent byte is unchanged from121d. Targeted format and whitespace checks passed; no Cargo or native execution.
+
+The complete blank-only diff was read. The original whole300-line child read is retained through exact nonblank-line equivalence, rather than claiming a separate fresh whole310-line read. Original handoff and failed evidence writers remain preserved.
+
+An evidence-only correction: the current QUIC parent contains seven ordinary test methods, all listed in the JSON and earlier52 runtime rosters. The original121d prose said eight. Selected totals and predictions are unchanged: five new controls forecast three positives/two missing-source negatives, or57 total after composing the separately approved root mappings. No wire, constructor, fixed-native or final-gate credit is added.

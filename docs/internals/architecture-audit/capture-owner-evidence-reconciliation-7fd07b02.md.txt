@@ -1,0 +1,37 @@
+# Three capture-owner evidence reconciliation
+
+Frozen source `7fd07b027ada478ab1ca32437180fdbd66ac9fd3`. The three inventory rows are genuinely incomplete in
+the retained owner reviews. Remote has unchanged partial81-245/382-505;
+launcher has unchanged partial1-75/283-471/520-702 and305-468; race had no
+retained full Python owner evidence. Full repaired test fixtures and similarly
+named Rust race reports cannot fill those gaps.
+
+Fresh manual reading now covers all505 remote,702 launcher and1,259 race lines.
+Supporting acquisition/error ranges were retraced as needed; each inclusive
+range and raw Git blob/SHA is in JSON. Historical records remain unchanged.
+The launcher reviewer digest is the derived CRLF representation, explicitly
+distinct from canonical Git LF bytes. It is not silently normalized.
+
+| Finding | Supported source cause |
+| --- | --- |
+| CR1 | Acquired remote writer cleanup can be skipped or supersede a primary |
+| CR2 | Remote pending-command failures lose typed causes or remain registered |
+| CR3 | Launcher cleanup stops on the first failure and can lose its primary |
+| CR4 | Race startup acquires sockets/listeners before its cleanup region |
+| CR5 | Race accepted TCP callback results are not owned/observed on close |
+| CR6 | Race TLS/transport/protocol failures can be classified as clean EOF |
+| CR7 | Race UDP observations merge a reused source address across listeners |
+| CR8 | Default credential representation includes secret values |
+
+These are source findings with concrete control proposals, not runtime
+reproductions. Existing launcher process-discovery limits remain separately
+retained. Windows lock errors, CLI/result-schema validation and loop-global
+handler restoration need their precise caller/error contracts before separate
+remedies. Dense operation grouping can accompany bounded repairs; no split or
+framework is proposed.
+
+Candidate inventory disposition is `source-complete` for the three named
+owners only. Root must inspect/import; every finding remains open. Later HEAD
+`f78f63cac769641b4903a76f2d8d5fa3c4c06c99` was compared by exact Git bytes for each owner. This report
+does not credit focused tests, external callers, native verification, browser
+parity or the final architecture gate.

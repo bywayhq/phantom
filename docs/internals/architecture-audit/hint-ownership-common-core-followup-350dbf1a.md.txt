@@ -1,0 +1,7 @@
+# Hint common finish follow-up
+
+Signed clean350dbf1a changes only the eager factory body, three additions and six removals. The guard is constructed before the returned future. That future now uses the same owned operation/join and cleanup functions as the real callers, so the frozen512 controls exercise the common core rather than a parallel implementation.
+
+The complete follow-up diff and current1395–1433 common functions were read. An exact inverse restores the entire610 parent. All sixteen ordinary method bodies and five children remain byte-exact to610. The full source reconstruction against7452 still passes. Targeted formatting, whitespace and preservation checks each pass; signatureG and clean checkout confirmed. Original610 evidence remains historical and incomplete until this follow-up.
+
+The shared stop API treats cancelled joins after abort as successful cleanup. It does not establish universal cancellation provenance; unexpected pre-existing cancellation remains a separate unmeasured contract. Completed non-cancellation peer errors retain their cause. Drop aborts but cannot join. Root must independently review and execute the unchanged44 cases on both hosts. No Cargo, native execution or shared/production changes occurred.
