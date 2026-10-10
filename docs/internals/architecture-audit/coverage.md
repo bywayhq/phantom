@@ -47,6 +47,9 @@ Independent review confirms the selected source and changelog. Deferred
 executor cancellation and undriven removal-error combinations remain open.
 Final integration gates remain pending.
 
+The earlier [focused launcher verification](browser-launch-root-fixed-6dd79222.json)
+records the original seven-control comparison and remaining boundaries.
+
 The historical [ECH and launcher baselines](ech-launcher-root-baselines-c1f659e3.json)
 confirm four causal failures in each area on both hosts. The ECH controls
 exercise actual primed HTTP requests and pending workers. The launcher

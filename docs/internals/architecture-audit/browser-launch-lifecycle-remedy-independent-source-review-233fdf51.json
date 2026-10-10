@@ -1,0 +1,112 @@
+{
+  "kind": "bounded independent source remedy review with retained threaded residual",
+  "revision": "233fdf51deef2c06709d80c7977e782b23612597",
+  "base": "9146c4a16bccd2329b70ac2b6bf36a060c959f9d",
+  "decision": "approved for focused seven-case verification only; deferred threaded cancellation remains open",
+  "sources": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "revision": "233fdf51deef2c06709d80c7977e782b23612597",
+      "git_blob": "9735a6e216d26fbaff37604ac2990854f80c8739",
+      "git_sha256": "31b8be4cba1c133a0d51f87ae3571ab2739b0dc1e97ca33e5cf9c662d13c2bea",
+      "working_sha256": "a2955d59a74360b3c0d42b0c26a50afb39b8c3e4a310d7847d456ed380bde838",
+      "working_crlf_normalized_equals_git": true,
+      "line_count": 778,
+      "scope": "fresh partial complete changed error/launcher owner plus actual BrowserDriver/enter_browser callers; full semantic diff read",
+      "ranges": [
+        {
+          "first": 305,
+          "last": 550,
+          "sha256": "f133251977fd6a99ac90ed09065a8ed21104873468acc781259a7d4e1e9831d3"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch_lifecycle.py",
+      "revision": "233fdf51deef2c06709d80c7977e782b23612597",
+      "git_blob": "0e92ada7cee1c943c51f315413bc22df01c6e25e",
+      "git_sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f",
+      "working_sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f",
+      "working_crlf_normalized_equals_git": true,
+      "line_count": 366,
+      "scope": "exact366 frozen controls only; earlier whole read retained",
+      "ranges": []
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch.py",
+      "revision": "233fdf51deef2c06709d80c7977e782b23612597",
+      "git_blob": "6fb74b92f043224be2fabf38cc8e42e3942abd70",
+      "git_sha256": "89c6f6012a544a57afa5c6bf242802ffda79e12316be25e8b5c7c1aac987fbfc",
+      "working_sha256": "36f1b1cc2476640295f3eb0242bb4292e5651d1b38be2993c8e749a6a1291981",
+      "working_crlf_normalized_equals_git": true,
+      "line_count": 563,
+      "scope": "exact563 old tests only; no fresh whole read",
+      "ranges": []
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\shutil.py",
+      "sha256": "d96cf3b8b17c717f14dc67643cc8ad0943fb4b960d3e32981b2991613d39dde9",
+      "line_count": 1517,
+      "scope": "resolvedPython3.10 supporting partial fresh read",
+      "ranges": [
+        {
+          "first": 688,
+          "last": 750,
+          "sha256": "0519d57c3f68de5aadd6c42d99013579a50475dcbe8816c2f646825496175657"
+        }
+      ]
+    }
+  ],
+  "scope_outputs": [
+    "b11735 complete semantic diff",
+    "b2411b actual changed owner/callers305\u2013550",
+    "11f88a shutil supporting partial"
+  ],
+  "diff_sha256": "957d9aaab2b94bae56f96857cba675de0cc063e0a287facfe9b2722bd230927d",
+  "preservation": {
+    "whole_source_inverse_exact_after_owner_replacement_and_new_error_block_removal": true,
+    "frozen366_controls_exact": true,
+    "old563_tests_exact": true
+  },
+  "approved_contracts": [
+    "Tree, independent profile sweep and strict profile removal are individually attempted in that order after every captured ordinary/interruption cleanup failure.",
+    "Initiating exact object and ordered cleanup objects are owned; previous primary and interruption chains retained in concrete BrowserLaunchFailures.",
+    "Clean startup-error cleanup rethrows original primary; body with healthy cleanup remains original context-manager propagation. Sole cleanup-only error retains identity.",
+    "CancelledError/KeyboardInterrupt/SystemExit remain exact original interruption raised from owned contextual aggregate when secondary failures exist.",
+    "Strict removal suppresses only FileNotFoundError naming absent requested root; descendant failure and other IO causes are retained.",
+    "Entered=True threaded cancellation forwards same primary to actual __exit__; actual caller/body details now reach ownership combination."
+  ],
+  "remaining_confirmed_source_boundary": {
+    "path": "scripts/capture/browser_launch.py",
+    "lines": [
+      521,
+      544
+    ],
+    "cause": "If outer cancellation occurs before worker entry completes, state retains abandoned bool only. Later enter() calls __exit__(None,None,None)530; original cancellation is unavailable and deferred future failure observation/association is not established.",
+    "classification": "retained preexisting threaded-entry protocol, excluded from seven controls; root assigned separate real executor causal baseline before repair",
+    "no_claim": "No measured thread leak or native failure; not claimed closed by current remedy."
+  },
+  "checks": {
+    "independent_read_only_inverse": "pass",
+    "signature": "G",
+    "clean": true,
+    "Cargo_or_native_execution": false
+  },
+  "evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-lifecycle-baseline-independent-source-review-9146c4a1.json",
+      "sha256": "8c955ddb2a1151441d1a7801ec2669722b6c38b69ce44d1477b300aafeb8d55b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-baseline-native-independent-addendum-c1f659e3.json",
+      "sha256": "8bf66256cd77fa63844c273f23b63f71690cc01d7268582b9bf4e0736fa49fd7"
+    }
+  ],
+  "limitations": [
+    "Current778 parent is not freshly read whole: changed owner/callers305\u2013550 plus diff only; earlier702 full read remains historical.",
+    "Only source approval pending fixed seven native cases; no downstream baseline cause identity credit before green unchanged controls.",
+    "Threaded entry, Android, preacquisition constructor/creation failures, actual removal failure inputs and interruption combinations beyond synchronous control remain unmeasured.",
+    "Canonical taskkill has no explicit deadline; sync wait/discovery bounds and profile-matching process scan preserved.",
+    "No actual browser/native OS failure, full process discovery, integration or full gate approval."
+  ]
+}

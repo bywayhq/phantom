@@ -1,0 +1,123 @@
+{
+  "tested_revision": "6dd79222d8b502998549a163f19f0049e6b6d1a1",
+  "recording_revision": "6f145c6907187b3aa3e8b3e79440c95bfad79108",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/browser_launch.py",
+      "lines": 778,
+      "sha256": "31b8be4cba1c133a0d51f87ae3571ab2739b0dc1e97ca33e5cf9c662d13c2bea"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch_lifecycle.py",
+      "lines": 366,
+      "sha256": "a7844181dd496aeff2c0336d123e7f2739bdaa702f2dcfa79ed4586fdc46255f"
+    },
+    {
+      "path": "scripts/capture/tests/test_browser_launch.py",
+      "lines": 563,
+      "sha256": "89c6f6012a544a57afa5c6bf242802ffda79e12316be25e8b5c7c1aac987fbfc"
+    }
+  ],
+  "focused": {
+    "windows": {
+      "pass": 7
+    },
+    "linux": {
+      "pass": 7
+    }
+  },
+  "composed": {
+    "windows": {
+      "pass": 493
+    },
+    "linux": {
+      "pass": 482,
+      "skip": 11
+    }
+  },
+  "comparison": "Identical366-line controls at c1f659e3 pass three positives and fail four causal cases. The fixed cases now reach actual process/profile destruction and original/ordered cleanup assertions.",
+  "root_scope": "Whole366 controls and complete93+/17- remedy diff/current305-550 owner/caller scopes. Both whole focused logs read; full composed logs parsed for roster count, terminal results and diagnostics. No whole production or manual every composed method-line claim.",
+  "static_checks": [
+    "Ruff0.16.9 check scripts/capture:0",
+    "Ruff0.16.9 format --check scripts/capture:0,74 files",
+    "documentation checker:0 errors,0 warnings",
+    "git diff --check:0"
+  ],
+  "reports": {
+    "browser-launch-lifecycle-remedy-independent-source-review-233fdf51": "02a60f9019365ef789899414a1e32f0672bcdee9f811e05a55807af9f6141478",
+    "browser-launch-fixed-native-independent-addendum-6dd79222": "2f0a6fa112e79eaaa4f35bb4dfd5f4b2243e25982b07b7879a7c26e364ad0bd4"
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-windows.log",
+      "sha256": "6af1f92c17d6e2a68db1dad1a211ad25bd70e0e3ab291a9017cffc2d22915921"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-windows.revision",
+      "sha256": "c67f538b269683177338f5f5eda940be09a8c0a3155dd7076ad7a0b83718db1c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-linux.log",
+      "sha256": "2a6d25af8baa18c8620fb7919a66fae93413ac879733eae3c8427eb2fe94189e"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-linux.revision",
+      "sha256": "c67f538b269683177338f5f5eda940be09a8c0a3155dd7076ad7a0b83718db1c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\browser-launch-fixed-6dd79222-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-windows.log",
+      "sha256": "f9f7ec5c9f6bb56d93408a419f4d4deb575847d193d0cc421cd5c95ac133fe20"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-windows.revision",
+      "sha256": "c67f538b269683177338f5f5eda940be09a8c0a3155dd7076ad7a0b83718db1c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-linux.log",
+      "sha256": "69ab8ecbcd7034adfa7b0ef5092d42b86888b34368b3eccfa612edb70f121d2c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-linux.revision",
+      "sha256": "c67f538b269683177338f5f5eda940be09a8c0a3155dd7076ad7a0b83718db1c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\launcher-composed-6dd79222-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "limits": [
+    "Deferred threaded cancellation remains open for separate real-executor controls and remediation",
+    "Profile-removal error combinations source-reviewed but individually undriven",
+    "Android and installed browser behavior outside seven controls",
+    "No complete process-discovery or total synchronous shutdown deadline claim",
+    "Remaining ECH controls are intentionally failing local work; final full gate and exact-head CI pending"
+  ]
+}
