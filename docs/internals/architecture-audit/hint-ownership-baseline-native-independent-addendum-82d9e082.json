@@ -1,0 +1,626 @@
+{
+  "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+  "author_source_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+  "verdict": "Seven intended causal boundaries confirmed on both hosts; no obstacle to bounded remedy",
+  "hosts": {
+    "windows": {
+      "selected": 44,
+      "pass": 37,
+      "fail": 7,
+      "excluded": 456,
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::critical_ch_retries_once_with_only_supported_requested_hints"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::caller_header_type_remains_public_for_overrides"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_navigation_template_restart_places_the_hint_after_accept"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::client_retains_accept_ch_across_requests"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http1_client_hints_share_the_canonical_origin_key"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::quiet_contract::the_actual_alps_quiet_check_keeps_a_post_response_read_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http3_navigation_template_restart_places_the_hint_after_accept"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http3_client_hints_share_one_session_connection"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_client_hints_share_one_session_connection"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::quiet_contract::the_actual_alps_origin_rejects_a_second_request"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::directly_joining_the_alps_peer_retains_its_typed_read_failure"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_alps_operation_error_retains_its_completed_peer_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::explicit_cancel_releases_the_actual_http1_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::explicit_cancel_releases_the_actual_http3_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_http1_operation_error_releases_the_actual_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::quiet_contract::the_actual_alps_origin_accepts_a_finite_quiet_connection"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_http3_operation_error_releases_the_actual_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_unpolled_http1_finish_owns_the_actual_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_unpolled_http3_finish_owns_the_actual_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::an_ordinary_alps_operation_observes_its_actual_completed_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_expired_http1_operation_releases_the_actual_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_expired_http3_operation_releases_the_actual_hint_peer"
+        }
+      ],
+      "failures": [
+        "client_hints::task_ownership::an_alps_operation_error_retains_its_completed_peer_failure",
+        "client_hints::task_ownership::an_http1_operation_error_releases_the_actual_hint_peer",
+        "client_hints::task_ownership::an_http3_operation_error_releases_the_actual_hint_peer",
+        "client_hints::task_ownership::an_unpolled_http1_finish_owns_the_actual_hint_peer",
+        "client_hints::task_ownership::an_unpolled_http3_finish_owns_the_actual_hint_peer",
+        "client_hints::task_ownership::an_expired_http1_operation_releases_the_actual_hint_peer",
+        "client_hints::task_ownership::an_expired_http3_operation_releases_the_actual_hint_peer"
+      ],
+      "hints_exit": 100,
+      "runner_exit": 1,
+      "other_step_exits": 0
+    },
+    "linux": {
+      "selected": 44,
+      "pass": 37,
+      "fail": 7,
+      "excluded": 456,
+      "roster": [
+        {
+          "status": "PASS",
+          "name": "client_hints::caller_header_type_remains_public_for_overrides"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::critical_ch_retries_once_with_only_supported_requested_hints"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_navigation_template_restart_places_the_hint_after_accept"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http1_client_hints_share_the_canonical_origin_key"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_alps_operation_error_retains_its_completed_peer_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::quiet_contract::the_actual_alps_origin_rejects_a_second_request"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::quiet_contract::the_actual_alps_origin_accepts_a_finite_quiet_connection"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::quiet_contract::the_actual_alps_quiet_check_keeps_a_post_response_read_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::directly_joining_the_alps_peer_retains_its_typed_read_failure"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::client_retains_accept_ch_across_requests"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http2_client_hints_share_one_session_connection"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_unpolled_http1_finish_owns_the_actual_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_http1_operation_error_releases_the_actual_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::explicit_cancel_releases_the_actual_http1_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http3_navigation_template_restart_places_the_hint_after_accept"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::explicit_cancel_releases_the_actual_http3_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::task_ownership::an_ordinary_alps_operation_observes_its_actual_completed_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http3_client_hints_share_one_session_connection"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_http3_operation_error_releases_the_actual_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_unpolled_http3_finish_owns_the_actual_hint_peer"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated"
+        },
+        {
+          "status": "PASS",
+          "name": "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_expired_http1_operation_releases_the_actual_hint_peer"
+        },
+        {
+          "status": "FAIL",
+          "name": "client_hints::task_ownership::an_expired_http3_operation_releases_the_actual_hint_peer"
+        }
+      ],
+      "failures": [
+        "client_hints::task_ownership::an_alps_operation_error_retains_its_completed_peer_failure",
+        "client_hints::task_ownership::an_unpolled_http1_finish_owns_the_actual_hint_peer",
+        "client_hints::task_ownership::an_http1_operation_error_releases_the_actual_hint_peer",
+        "client_hints::task_ownership::an_http3_operation_error_releases_the_actual_hint_peer",
+        "client_hints::task_ownership::an_unpolled_http3_finish_owns_the_actual_hint_peer",
+        "client_hints::task_ownership::an_expired_http1_operation_releases_the_actual_hint_peer",
+        "client_hints::task_ownership::an_expired_http3_operation_releases_the_actual_hint_peer"
+      ],
+      "hints_exit": 100,
+      "runner_exit": 1,
+      "other_step_exits": 0
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-clippy-windows.log",
+      "raw_sha256": "4791cd06af9fd4081cf323728505d31d8d1aa6dfc7cfa69a80703cefcf3339df",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-hints-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-hints-windows.log",
+      "raw_sha256": "1257e02f652dcc6cbd00d2a908658b8fdb44f254e819fab50ee52662ea372a5c",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-msrv-windows.log",
+      "raw_sha256": "95c2126fea0d2c8754cc1b059efe9605a29f490bcebf4477491aee3f91a17788",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-windows.revision",
+      "raw_sha256": "c279a784250da34159eb051da2fce99cd652f0be5139d0624bbfd14de96db83d",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-clippy-linux.log",
+      "raw_sha256": "a0ebc07af276e0f31abb1722759ce9877a0e4c87e0f079f10823fb8d2932e670",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-hints-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-hints-linux.log",
+      "raw_sha256": "f6582cf33cc7c3805c346d7307e0659228640f1fd417f5d5cbc64d9d27f30b39",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-linux.revision",
+      "raw_sha256": "c279a784250da34159eb051da2fce99cd652f0be5139d0624bbfd14de96db83d",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-owner-corrected-82d9e082-msrv-linux.log",
+      "raw_sha256": "a54c226fd6e24ff6ebc14c9380f5cf4594b6dc63dcbbb5f12c96a96d4923376d",
+      "read_scope": "full raw log or metadata"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-hint-admission.sh",
+      "raw_sha256": "a39af99ee76723f9ea7b7e40df4ac13625a7888c297841377f6b9c3bfd9c18d4",
+      "read_scope": "full current launcher; actual historical invocation reported by root, label produces this prefix"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-ownership-baseline-independent-source-review-c15fbcee.json",
+      "raw_sha256": "d01733a5f3d10e5027ce66766e2925085986f51afedde6f2817081a8e70ad069",
+      "read_scope": "prior own source review retained unchanged"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-ownership-enum-followup-7452a502.diff",
+      "raw_sha256": "1b14cfaf8960bbc90d1b187b2f8debd861d193be82b05a98aa821ed4993ccd62",
+      "read_scope": "full one-line wildcard diff"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+      "git_blob_oid": "f292097d4bf266b5f35ab4d45aeeb887797787e8",
+      "raw_sha256": "1417d83d394eb11763b38d4338577f712adffe7021df5215c168b6c5c04b5807",
+      "line_count": 1476,
+      "author_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+      "author_git_blob_oid": "f292097d4bf266b5f35ab4d45aeeb887797787e8",
+      "author_bytes_exact": true,
+      "semantic_read_scope": "Byte binding to prior source review; no new whole parent/child credit."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/task_ownership.rs",
+      "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+      "git_blob_oid": "0f2caa7f03dac04cbb37c16ac43d89ae082a753e",
+      "raw_sha256": "b57028a1f83012bd5865de53d7e8000be39744317286bbabb810c02673d19afc",
+      "line_count": 512,
+      "author_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+      "author_git_blob_oid": "0f2caa7f03dac04cbb37c16ac43d89ae082a753e",
+      "author_bytes_exact": true,
+      "semantic_read_scope": "Byte binding to prior source review; no new whole parent/child credit."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "author_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+      "author_git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "author_bytes_exact": true,
+      "semantic_read_scope": "Byte binding to prior source review; no new whole parent/child credit."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+      "git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "line_count": 258,
+      "author_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+      "author_git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "author_bytes_exact": true,
+      "semantic_read_scope": "Byte binding to prior source review; no new whole parent/child credit."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+      "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "line_count": 253,
+      "author_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+      "author_git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "author_bytes_exact": true,
+      "semantic_read_scope": "Byte binding to prior source review; no new whole parent/child credit."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+      "git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "line_count": 318,
+      "author_revision": "7452a502f3aff1ae8f3fb90f9a8415ee09b627e5",
+      "author_git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "author_bytes_exact": true,
+      "semantic_read_scope": "Byte binding to prior source review; no new whole parent/child credit."
+    }
+  ],
+  "fresh_supporting_manual_read": {
+    "path": "crates/phantom/tests/requests/client_hints/task_ownership.rs",
+    "revision": "82d9e082581504854f45d9ed61f90799337618aa",
+    "read_classification": "partial current source plus exact prior full511/wildcard inverse",
+    "actual_inclusive_read_ranges": [
+      {
+        "start": 110,
+        "end": 240,
+        "raw_range_sha256": "4ac2a13d090064c8026908f41bf243e7ca2f5f2317ec94d44824adc2fa17b126"
+      },
+      {
+        "start": 242,
+        "end": 300,
+        "raw_range_sha256": "34c1fab17f775892f55ccfbdced605a1c9e426554cde383ecb37821c7c90518c"
+      },
+      {
+        "start": 343,
+        "end": 438,
+        "raw_range_sha256": "d81e82834b27a48a6d779e188487d62824d0fb73110f55f8ba4aeccdd8342f1c"
+      }
+    ]
+  },
+  "correction_validation": "Deleting only the non-exhaustive protocol wildcard restores the prior full511 child exactly; parent and all four existing children byte-equal author revision.",
+  "actual_prerequisites": [
+    "Each H1/H3 negative reaches actual collected204/emptybody and literalGET/decoded hint observation before raw owner transfer.",
+    "Unpolled controls construct and drop the actual finish future without polling it, then snapshot destruction while client/runtime remain live.",
+    "Operation-error controls verify actual InvalidUri cause before final destruction assertion; deadline controls verify original five-second context and typed Elapsed first.",
+    "Six finite destruction snapshots are captured before backup abort and completion cleanup; no channel failure counts as destruction.",
+    "ALPS control consumes real204 and observes nonempty decoded fields before enabling its canonical read fault; fault invocation and task completion precede InvalidUri and missing FixtureFailures."
+  ],
+  "first_failures": {
+    "six_owner_negatives": "task_ownership.rs:233 assertion, message at235; snapshot predates backup",
+    "completed_alps_negative": "task_ownership.rs:428 missing FixtureFailures error after primary InvalidUri; secondary typed get_io assertion429 remains unreached"
+  },
+  "limits": [
+    "Focused44 selection only,456excluded; not full workspace/integration gate.",
+    "No permanent OS leak, browser fidelity, production routing defect or whole-source closure claim.",
+    "ALPS fault is deliberately injected into actual wrapped read; public H2 retains kind/text rather than original injected marker identity.",
+    "Parent/child whole coverage derives from prior independent reads plus exact source inverse; fresh supporting ranges listed explicitly.",
+    "Initial guessed tests-log filenames did not exist; actual hints-log filenames were discovered and then read in full.",
+    "No native execution, Cargo, edits, push or merge by this review."
+  ]
+}

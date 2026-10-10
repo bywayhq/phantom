@@ -1,0 +1,11 @@
+# Hint ownership corrected baseline native review
+
+Both complete host logs confirm 44 selected tests: 37 pass and 7 fail. All four new positive controls and 33 existing methods pass. The same seven negative names fail on both hosts. Formatting, strict Clippy and MSRV exits are 0; nextest 100 and runner 1 reflect the expected failures. 456 methods are excluded.
+
+All six H1/H3 negatives reach task_ownership.rs:233 after actual 204/empty-body consumption, literal GET or decoded hint observations, and a live peer witness. Operation-error cases verify InvalidUri first. Deadline cases verify the original five-second message and typed Elapsed first. Unpolled cases construct and drop the actual finish future before it is first polled. Each destruction snapshot is recorded before backup abort while the client and runtime stay live. The snapshot remains finite; this is not a permanent resource-leak claim.
+
+The ALPS negative reaches the missing FixtureFailures error at 428 only after a real H2 GET/204 exchange, decoded nonempty ordered fields, actual fault invocation and completed peer, then the typed InvalidUri prerequisite. Its later cleanup get_io assertions are not reached. The direct-join positive does verify retained PermissionDenied and context. The fault is deliberately controlled and does not establish a native OS read failure.
+
+Six current source blobs at aggregate 82d9 are byte-exact to signed 7452. Deleting only the added unsupported-protocol wildcard restores the prior 511-line child exactly. Original source approval remains unchanged and separate from the earlier E0004 compilation failure. Fresh supporting source ranges are recorded without inflating them to new whole-owner reads.
+
+Both entire test logs, all six short ancillary logs, exits, host revisions and current launcher were read. Raw artifact hashes and full unique host rosters are retained in JSON. No runtime or source edits occurred in this review. This is focused causal-baseline evidence, not remedy or full-gate approval.

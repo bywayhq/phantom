@@ -40,6 +40,18 @@ do not establish that need.
 
 ## Recent verification
 
+The [hint ownership baseline](hint-ownership-baseline-native-independent-addendum-82d9e082.md.txt)
+reproduces seven failures in 44 selected methods on each host at `82d9e082`.
+Thirty-seven methods pass. Six failures concern finite task destruction
+after caller exit; one concerns a discarded completed peer error. Actual
+request and cause prerequisites pass before those assertions. The repair
+is in progress. Formatting, strict Clippy and Rust 1.88 checks pass.
+
+The [fixed HTTPS review](https-record-origin-fixed-independent-native-aed0b559.md.txt)
+independently approves the identical fifty-method roster on both hosts.
+The unchanged abandonment control now observes destruction before backup
+and socket closure. Serving-child outcomes remain separate open work.
+
 The [native progress receipt](native-progress-aed0b559.json) records the
 outer deadline repair, exact-origin cancellation repair and reserved-port
 fixture correction. All fifty selected HTTPS methods pass on both hosts
