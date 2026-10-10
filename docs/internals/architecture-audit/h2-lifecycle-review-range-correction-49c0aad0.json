@@ -1,0 +1,31 @@
+{
+  "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+  "scope": "evidence writer correction only; source and decision unchanged",
+  "failed_writer": "C:\\code\\phantom\\target\\architecture-audit\\review-h2-lifecycle-baseline-49c0aad0.py",
+  "failed_writer_sha256": "3c4d1ad0a250e6a016327f4e35af0e69e43b4b20c29d464487c0bc37dc70dc06",
+  "failure": "registration supporting range was declared 1-22 but actual EOF is 21; validator rejected before any paired report write",
+  "additive_corrected_writer": "C:\\code\\phantom\\target\\architecture-audit\\review-h2-lifecycle-baseline-49c0aad0-v2.py",
+  "corrected_writer_sha256": "63cbe69eb7fca591aabb2bb9492c58be4b0acac5c7831d3ec4f72050c39905d1",
+  "corrected_range": {
+    "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+    "path": "crates/phantom/tests/proxies/main.rs",
+    "blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+    "raw_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+    "line_count": 21,
+    "read_classification": "fresh supporting partial read; no whole-file credit",
+    "inclusive_read_ranges": [
+      {
+        "start": 1,
+        "end": 21,
+        "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+      }
+    ],
+    "working_raw_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+    "working_equals_git": false,
+    "working_crlf_to_lf_equals_git": true
+  },
+  "bound_report_sha256": "2a623de84d96307919d53ebc42e1115eec1021bd13e3efd732d14089aedf8cae",
+  "owned_full_15_records_unaffected": true,
+  "nonexistent_source_credit": false,
+  "original_failed_writer_preserved": true
+}

@@ -1,0 +1,90 @@
+# H2 lifecycle regression independent source review
+
+Revision `49c0aad05be061772cbc7c71db832de3eff045ac` is approved as a regression
+baseline for composition and native causal execution. No remedy, runtime or full
+gate approval is given. The lane is clean, signed, and unchanged by this review.
+
+## Actual source scope
+
+All fifteen current owned sources were manually read in full: both parents and
+all thirteen domain children, totaling 5,802 lines. Both complete signed parent
+semantic diffs were read separately. The JSON records exact Git blobs, LF raw
+SHA256, inclusive ranges and separate working-byte/CRLF comparisons. Supporting
+TLS, task ownership, H2 error/reset/final-send, module registration and resolved
+Tokio listener sources are bounded reads; they do not receive whole owner credit.
+
+The assigned source reads were complete bounded outputs. Some combined author
+JSON/instruction prints were truncated. Those do not earn full manual metadata
+read credit; every author source identity and range was mechanically validated.
+The initially requested nonexistent `proxies.rs` earned no credit; actual
+`proxies/main.rs` registration was subsequently read completely.
+
+## Preservation and standards
+
+Read-only replay of the reviewed preservation comparisons passed. All twenty-four
+ordinary method names remain. Eighteen retain identical operation tokens; six
+explicit caller adaptations are qualified in JSON. The extracted H2 origin body
+reconstructs the former complete closure after removing the disabled I/O adapter
+and remapping its two parameters. All nine adopted helper token sequences and
+the complete decoder child match the previously approved e0 source. These token
+checks support the manual review; they do not prove compiled semantic equivalence.
+The original author validator and output remain untouched.
+
+Imports precede domain declarations, natural module resolution is supported by
+the actual integration root, and the new children have concrete fault, lifecycle,
+stream or observation responsibilities. Fault wrappers delegate actual I/O until
+enabled; lock guards do not cross awaits. Expected fields, payloads and raw traffic
+remain literal. No new dependency, generic ownership framework or production
+protocol change is present. Existing success-shaped and ignored-error branches
+are intentionally retained as baseline targets, not approved final behavior.
+
+## Causal boundary assessment
+
+The new controls acquire actual fixture workers after trusted H2 forwarding or
+CONNECT traffic. Literal tunneled H1 GET/200/ok, forwarded bodies, actual recorded
+method/authority/path, and nonzero role/fault observations precede cancellation
+or failure checks. External clients and held sockets remain alive through the
+pre-backup observations. Raw-task cancellation, completed results and actual
+nested/forward/CONNECT drivers are tested through ordinary helper seams.
+
+Single and multiplex relay controls pass a literal GET and complete response
+through the real relay before controlled PermissionDenied or a real independently
+observed INTERNAL_ERROR reset. BodyReset and ResponseReset are the same reset
+scenario with opposite assertion ordering to expose both downstream and final-send
+loss; they are not two different network phenomena. CANCEL and END_STREAM positive
+controls distinguish the actual processed body states. Flow-control release and
+capacity error branches remain source-only obligations.
+
+Actual recording/log poisoning follows healthy nonzero observations. Invalid
+TLS traffic uses a separate real socket after a successful trusted request. Origin
+write failure additionally requires a received second request and a failed client
+request. Completed secondary types are explicitly injected after real exchanges;
+they are not claimed to be production failures. The actual HTTP/WSS 502 positives
+independently check public Proxy categories and Rejected status before substituted
+observer inputs are tested.
+
+The TaskProbe reports captured future lifetime and retains AbortHandles for finite
+backup. It does not await child results. `is_finished` is completion, not reaping.
+The 150 ms pre-backup observation and listener rebind are separate witnesses;
+neither proves an indefinite native leak. First missing-result assertions can
+prevent later exact-type/downcast assertions from being reached in the red run.
+JSON records those precise boundaries; forecast causes are not reported as measured.
+Unexpected setup/prerequisite errors can still leave raw baseline tasks for runtime
+teardown, which is explicitly not the final ownership contract.
+
+## Decision and verification limits
+
+Source inventory is 99 methods: 41 existing plus 58 new. The new source predicts
+14 positives and 44 negatives. Compilation, strict lint, MSRV and these runtime
+outcomes have not been executed by this reviewer. Both-host native results must
+confirm the first causal boundaries before any repair is authorized.
+
+Git signature verification and diff whitespace checks passed. One uncompiled
+candidate remains explicitly qualified: the free `peer_io` trait-object lookup at
+outcome_contract.rs:57 may require named input/output lifetime binding. This is
+not a measured compiler diagnostic or a confirmed source defect. Root compilation
+must resolve it without weakening the controls if it is reported.
+
+No new source blocker was established. The intentionally failing fixture ownership,
+result aggregation, reset, observation and TLS error contracts remain open for the
+subsequent remedy. Whole-project source completion and final gates remain open.

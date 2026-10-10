@@ -1,0 +1,60 @@
+# CONNECT baseline independent source review
+
+Exact signed source: `931bb8d74358ad136cced4826bd8995418a23d5e`. Parent: `551e639d218edb19d34230d4e48ff35f530d65e4`.
+
+Decision: approve this regression-only checkpoint for root native causal
+execution. There is no source blocker. Compilation and nine predicted outcomes
+remain unobserved here; this is not remedy or full-gate approval.
+
+Both new children were manually read completely: 357 control lines and 233 peer
+lines. The parent was read at 1-100 and 641-780, and its complete semantic diff
+was read. Historical whole-parent/auth reads remain separate. All handoff Git
+OIDs, raw hashes and inclusive ranges validate; their author read labels do not
+become independent review credit. The reviewed read-only comparison prefix
+passes all eight extraction/preservation checks. SSH verification and signed
+diff whitespace checks return zero.
+
+The actual CONNECT and TLS POST exchange precedes each applicable observation.
+The proxy reports ordered CONNECT bytes after the existing flush. The origin
+reports literal POST bytes and payload. Full-response controls consume status
+200 and through. Held-origin observations retain an external Client until after
+finite backup cleanup. Unpolled and explicitly Pending-polled future cancellation
+exercise the raw-handle owner, without treating spawn alone as readiness.
+
+Destruction is captured before release or backup abort, using a finite 150 ms
+observation for each actual future. Receiver errors remain failures. Backup
+observes both destruction markers within ten seconds and preserves simultaneous
+cleanup causes. These markers do not observe the discarded JoinHandle output or
+establish synchronous OS teardown. Prerequisite assertion unwind still relies
+on the abort fallback; no indefinite leak is asserted.
+
+The invalid-DER case traverses actual client trust preparation and requires a
+typed TrustStore BuildError before its ownership assertion. The truncated case
+sends actual Content-Length 7 with only th. The resolved HTTP/1 Length decoder
+returns incomplete-body UnexpectedEof; the net and facade boundaries preserve
+Protocol and Http1 causes. Separately injected PermissionDenied 911 and
+Unsupported 912 arise after actual exchanges. The missing FixtureFailures checks
+are predicted first failures; later typed-object assertions are not credited
+before root execution reaches them.
+
+The five-second bounded control polls the actual pending timer under paused
+time, preserves the old message check, and then asks for Elapsed. Inner typed
+failure and ready success remain positives. This proves no measured network
+timing result here. The nine-method source forecast is three positives and six
+intended negatives.
+
+The original preparation/request/join and wire assertion operations compare
+exactly after explicit reference/field substitutions. Fallible preparation now
+receives raw handles and finish receives a captured request Result; those shape
+changes are stated rather than called unchanged error behavior. Other parent
+functions and auth bytes remain exact. Optional observation adds no relay I/O.
+Existing auth and remaining raw caller owners still need their assigned remedy.
+
+The original invalid installed Tokio341-392 declaration is preserved as a
+failed validator attempt. Actual EOF377 and corrected341-377 validate here.
+The TLS support selection similarly credits its actual217-225 bytes only.
+Parent/new-child module ordering is a retained baseline layout consideration
+for the remedy. No source was changed and no Cargo command was run.
+
+The paired JSON contains exact independently read ranges, source hashes,
+installed dependency scopes, artifact identities, roster and qualifications.

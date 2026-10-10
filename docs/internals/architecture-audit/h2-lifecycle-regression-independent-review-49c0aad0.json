@@ -1,0 +1,1617 @@
+{
+  "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+  "parent": "7fbac1868677881190e87b08c74ab771dfe09b83",
+  "decision": "approve regression baseline for composition and native causal execution; no remedy/native/full-gate approval",
+  "source_records": [
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "blob_oid": "32010ab386ad11ddbf08eb08b221df41c8b0d1f0",
+      "raw_sha256": "e003c74d6b5f94cd44ecbd9237e55b2a8649c5b397af6386c09b2dcf1d3145b3",
+      "line_count": 2146,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 2146,
+          "sha256": "e003c74d6b5f94cd44ecbd9237e55b2a8649c5b397af6386c09b2dcf1d3145b3"
+        }
+      ],
+      "working_raw_sha256": "29888d5ee9b4877b580386336613b684d4656d5d4941e031c4fcc7c92ff94892",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "blob_oid": "99100c2721bb759d0f4ba036c04a24bc77e14b11",
+      "raw_sha256": "97d47f6356b3cb6ff3d867f0d6563bc60def38464df8c7ae0e47ee2bf6b232f9",
+      "line_count": 713,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 713,
+          "sha256": "97d47f6356b3cb6ff3d867f0d6563bc60def38464df8c7ae0e47ee2bf6b232f9"
+        }
+      ],
+      "working_raw_sha256": "97d47f6356b3cb6ff3d867f0d6563bc60def38464df8c7ae0e47ee2bf6b232f9",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "blob_oid": "6c36cc5fd76e0cd0758586f08933285c4d81f5fe",
+      "raw_sha256": "1b64d940d15a4f2c54e2f67c110c50303e3d379a30bafb384b63b8fba8a86edd",
+      "line_count": 651,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "sha256": "1b64d940d15a4f2c54e2f67c110c50303e3d379a30bafb384b63b8fba8a86edd"
+        }
+      ],
+      "working_raw_sha256": "1b64d940d15a4f2c54e2f67c110c50303e3d379a30bafb384b63b8fba8a86edd",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "line_count": 59,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62"
+        }
+      ],
+      "working_raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+      "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "line_count": 253,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 253,
+          "sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf"
+        }
+      ],
+      "working_raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+      "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "line_count": 274,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 274,
+          "sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7"
+        }
+      ],
+      "working_raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "line_count": 399,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 399,
+          "sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b"
+        }
+      ],
+      "working_raw_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "blob_oid": "59d8ea447f7d2ffd3a4f111ec975e83dedf4e4ca",
+      "raw_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+      "line_count": 202,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 202,
+          "sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218"
+        }
+      ],
+      "working_raw_sha256": "6fb4ddd02e1a9626bb4b268ad7cdbe8ec752a022041f83ce9466102e9600b218",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "line_count": 59,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76"
+        }
+      ],
+      "working_raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "blob_oid": "437c3c3bc35df59c998f665d136e475d74a92976",
+      "raw_sha256": "c10e051853194377a2c510096c112dad1e833860c66e7b79ed49ae1e8a5903eb",
+      "line_count": 179,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 179,
+          "sha256": "c10e051853194377a2c510096c112dad1e833860c66e7b79ed49ae1e8a5903eb"
+        }
+      ],
+      "working_raw_sha256": "c10e051853194377a2c510096c112dad1e833860c66e7b79ed49ae1e8a5903eb",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "blob_oid": "2ceb3f14b102da8b86c36ba784c9df99bff97c4b",
+      "raw_sha256": "a3e44fa1ae411e945b32509a7867039c18d9aa56285e4ee7375f2faf76eb7b2c",
+      "line_count": 181,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 181,
+          "sha256": "a3e44fa1ae411e945b32509a7867039c18d9aa56285e4ee7375f2faf76eb7b2c"
+        }
+      ],
+      "working_raw_sha256": "a3e44fa1ae411e945b32509a7867039c18d9aa56285e4ee7375f2faf76eb7b2c",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "blob_oid": "552b3829a501cf810519e3fe685184db62a21c80",
+      "raw_sha256": "52829a6ad3a765b2f2980997d68755b6b42fbff0226485516cfa5a02e2edec6f",
+      "line_count": 220,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 220,
+          "sha256": "52829a6ad3a765b2f2980997d68755b6b42fbff0226485516cfa5a02e2edec6f"
+        }
+      ],
+      "working_raw_sha256": "52829a6ad3a765b2f2980997d68755b6b42fbff0226485516cfa5a02e2edec6f",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "blob_oid": "9794365a52acaa948ab587646f8da763f839ee7f",
+      "raw_sha256": "219a63f371735111fa7585b91ef31c2ace06a79cde97b543a58e832b92cde247",
+      "line_count": 315,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 315,
+          "sha256": "219a63f371735111fa7585b91ef31c2ace06a79cde97b543a58e832b92cde247"
+        }
+      ],
+      "working_raw_sha256": "219a63f371735111fa7585b91ef31c2ace06a79cde97b543a58e832b92cde247",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+      "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "line_count": 28,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 28,
+          "sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf"
+        }
+      ],
+      "working_raw_sha256": "a8368e0041fe3dd97ff8bbfe3cea02eb18e63d9525e8331e1654a8d371182378",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "blob_oid": "455bc658c09e4444d82c59acc791759b108ecff0",
+      "raw_sha256": "2e6a7fb147c383b7a28705ea55073f60ee7a01f870db76cd7f94c3a9cbd50090",
+      "line_count": 123,
+      "read_classification": "fresh full manual current signed-source read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 123,
+          "sha256": "2e6a7fb147c383b7a28705ea55073f60ee7a01f870db76cd7f94c3a9cbd50090"
+        }
+      ],
+      "working_raw_sha256": "2e6a7fb147c383b7a28705ea55073f60ee7a01f870db76cd7f94c3a9cbd50090",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 115,
+          "sha256": "1c5332ff244da8f6d93402ee07a52d27bacc85ce5921c339cd0072de693abe50"
+        }
+      ],
+      "working_raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 118,
+          "sha256": "ce65b5a478def212c5821ca9a080b56b01434fde8a1f9f32e8cb064a95e0b55a"
+        }
+      ],
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "blob_oid": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "raw_sha256": "c0a29cc700e6d210ef1dfc141d9f33cf8621427116eb24aa30ee9b7c1ab0bb21",
+      "line_count": 655,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 95,
+          "sha256": "bed3b4ddc296aaf49ce65730a2b5f62dddd2a96c5cf33cf8f7f68a384d95cc0e"
+        },
+        {
+          "start": 328,
+          "end": 365,
+          "sha256": "8286bb00164e49adf60990b0194943032d4872f051e1c5c46a30faacc12df3c5"
+        }
+      ],
+      "working_raw_sha256": "650846b88be7563c7df9783ccb73687148736af8e072c0fd839ba8077b7c52a3",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "blob_oid": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "line_count": 253,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 130,
+          "end": 149,
+          "sha256": "a14180fae9abbd590197f75344b534d58c09d7ba9fb44bb8f24e70c6493e0890"
+        }
+      ],
+      "working_raw_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "vendor/http2/src/error.rs",
+      "blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 52,
+          "end": 135,
+          "sha256": "32f19c880740cb61a0da604e54addfeb0e81775d7bbf0c926cab8988f79f596b"
+        },
+        {
+          "start": 196,
+          "end": 234,
+          "sha256": "223b35bee50c86f88766b4f2fdacb111e40194c826103d533bf5d167439f3243"
+        }
+      ],
+      "working_raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "vendor/http2/src/proto/streams/prioritize.rs",
+      "blob_oid": "3ab72cfe99a4487927a3c31876a85a7a9e631c7f",
+      "raw_sha256": "c0588ad24c2a16e81491a7a6ee2eb0ebc292376628f97f732a092ea1be02439d",
+      "line_count": 1008,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 209,
+          "end": 244,
+          "sha256": "5841b1ba51ae3e6a56d7a65823056924cb0e86fbfb509bdf73dbb11677ed1050"
+        }
+      ],
+      "working_raw_sha256": "c0588ad24c2a16e81491a7a6ee2eb0ebc292376628f97f732a092ea1be02439d",
+      "working_equals_git": true,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "Cargo.toml",
+      "blob_oid": "fdde756fc4aeddbee72aba9397ba03b4b3626fa9",
+      "raw_sha256": "667de67be5962b425501739da82d77c799d7d6929275c1fe1ea577396ac95b26",
+      "line_count": 80,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 38,
+          "end": 73,
+          "sha256": "993f39d14a42556bb1bcac5e10c71d0adda6a317f907d770d2f8263af25a88e3"
+        }
+      ],
+      "working_raw_sha256": "017681656d869b9ab838aa5a3a5fdbc2261635095aa1187a2477ba792cb49e58",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "Cargo.lock",
+      "blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 2219,
+          "end": 2222,
+          "sha256": "da10db867703413b3b7c66ed13c548767a2db2eede5e9efebfaaca811b2fa5fb"
+        }
+      ],
+      "working_raw_sha256": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    },
+    {
+      "revision": "49c0aad05be061772cbc7c71db832de3eff045ac",
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "raw_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_classification": "fresh supporting partial read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+        }
+      ],
+      "working_raw_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+      "working_equals_git": false,
+      "working_crlf_to_lf_equals_git": true
+    }
+  ],
+  "resolved_dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\net\\tcp\\listener.rs",
+      "raw_sha256": "7deb1f8a9b64b02178e07e2d9b93acc36d743b5216d6ad17d09cacaceeb94f4b",
+      "line_count": 459,
+      "read_classification": "fresh actual resolved installed Tokio supporting partial; not first-party source credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 150,
+          "end": 198,
+          "sha256": "c765598a3519726ebfbfdce6a3c7a74177fbe9a97c1428c7f7c61758fd7d8f2b"
+        }
+      ]
+    }
+  ],
+  "manual_read_total_owned_lines": 5802,
+  "manual_read_owned_files": 15,
+  "complete_signed_parent_diffs_read": true,
+  "author_record_validation": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/prioritize.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "Cargo.toml",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "Cargo.lock",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\net\\tcp\\listener.rs",
+      "identity_and_ranges_valid": true,
+      "not_independent_semantic_credit_by_validation": true
+    }
+  ],
+  "preservation_replay": {
+    "original_methods": 24,
+    "operation_token_exact_methods": 18,
+    "qualified_changed_methods": [
+      "h2_origin_over_h2_proxy_tunnel_completes_request",
+      "h2_forwarding_fails_after_a_second_challenge",
+      "h2_connect_sends_the_captured_profile_fields",
+      "h2_connect_closes_the_challenged_stream_as_the_profile_does",
+      "h2_wss_connect_sends_the_captured_profile_fields",
+      "websocket_tunnels_use_the_connection_the_profile_gives_them"
+    ],
+    "nine_adopted_helpers_exact": true,
+    "origin_disabled_reader_reconstruction_exact": true,
+    "decoder_child_exact_e0": true,
+    "author_output_unchanged": true,
+    "uses_reviewed_author_lexical_parser": "token comparison supports manual review; not a Rust compiler or independent semantic oracle"
+  },
+  "test_roster": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "plaintext_proxy_rejects_h2_transport_configuration"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h1_origin_over_h2_proxy_tunnel_completes_request"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_origin_over_h2_proxy_tunnel_completes_request"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_proxy_basic_challenge_replays_once_on_the_challenged_connection"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_proxy_rejection_is_typed"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "default_https_proxy_transport_remains_http1"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_proxy_transport_rejects_http1_selection_without_fallback"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_forwarding_fails_after_a_second_challenge"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_forwarding_places_proxy_credentials_as_captured"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_connect_sends_the_captured_profile_fields"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_connect_closes_the_challenged_stream_as_the_profile_does"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_wss_connect_sends_the_captured_profile_fields"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "method": "h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "method": "tunnels_to_different_origins_share_one_proxy_connection"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "method": "forwarded_requests_join_the_tunnel_connection_as_the_profile_says"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "method": "opted_in_routes_open_another_connection_at_the_proxy_stream_limit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "method": "a_proxy_connection_maximum_above_the_ceiling_fails_the_build"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "method": "separately_built_clients_never_share_a_proxy_connection"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "method": "websocket_tunnels_use_the_connection_the_profile_gives_them"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "caller_failure_stops_its_acquired_actual_peer"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "eager_caller_drop_stops_its_acquired_actual_peer"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "an_unpolled_caller_finish_owns_its_acquired_actual_peer"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "ordinary_forward_finish_stops_its_actual_driver"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "eager_forward_drop_stops_its_actual_driver"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "an_unpolled_forward_finish_owns_its_actual_driver"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "ordinary_connect_finish_stops_driver_and_relays"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "eager_connect_drop_stops_driver_and_relays"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "an_unpolled_connect_finish_owns_driver_and_relays"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "a_completed_peer_failure_survives_a_primary_caller_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "a_completed_peer_failure_is_observed_after_a_healthy_caller"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "ordinary_forward_completion_keeps_nonzero_observations"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "a_caller_failure_keeps_its_concrete_type"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "poisoned_recording_keeps_its_actual_observer_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "healthy_recording_keeps_real_h2_bytes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "deliberate_http_connect_502_is_typed_after_real_traffic"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "the_rejection_observer_accepts_the_actual_typed_502"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "the_rejection_observer_rejects_an_unrelated_typed_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "the_rejection_observer_rejects_an_unexpected_success"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "deliberate_wss_connect_502_is_typed_after_real_traffic"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "method": "expiry_keeps_the_actual_elapsed_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "method": "an_inner_error_keeps_its_type"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "method": "a_ready_operation_completes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "odd_hex_is_a_recoverable_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "non_ascii_hex_is_a_recoverable_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "signed_hex_is_a_recoverable_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "short_priority_payload_is_a_recoverable_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "a_partial_frame_header_is_rejected"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "overflowing_hpack_integer_is_a_recoverable_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "a_truncated_pseudo_value_is_rejected"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "valid_capture_and_frame_inputs_are_kept"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "literal_remembered_authorization_does_not_prove_dynamic_indexing"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "actual_dynamic_entry_is_accepted_after_its_replay"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "method": "an_unrelated_dynamic_entry_does_not_prove_credential_indexing"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "method": "an_actual_h2_origin_keeps_its_postexchange_accept_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "method": "a_forward_driver_keeps_its_actual_postexchange_accept_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "method": "a_connect_driver_keeps_its_actual_postexchange_accept_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_a_postexchange_write_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_a_postexchange_read_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_an_internal_error_body_reset"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_its_rejected_final_send_after_a_reset"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_finishes_after_nonzero_traffic_and_end_stream"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "method": "an_actual_internal_error_keeps_its_body_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "method": "an_actual_cancel_is_distinct_from_end_stream"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "method": "an_actual_end_stream_is_observed"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "method": "expiry_keeps_the_actual_elapsed_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "method": "an_inner_error_keeps_its_type"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "method": "a_ready_operation_completes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "method": "actual_proxy_listener_keeps_its_postexchange_accept_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "method": "actual_origin_listener_keeps_its_postexchange_accept_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "method": "actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "method": "actual_origin_keeps_a_postexchange_read_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "method": "actual_origin_keeps_a_postexchange_write_error"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "method": "actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "ordinary_finish_keeps_a_completed_actual_handler_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "a_primary_failure_keeps_the_completed_actual_handler_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "a_poisoned_actual_writer_does_not_answer_an_unrecorded_request"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "a_healthy_actual_writer_records_both_forwarded_requests"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "ordinary_finish_stops_actual_listener_and_relay_descendants"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "eager_drop_stops_actual_listener_and_relay_descendants"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "explicit_backup_observes_actual_fixture_destruction"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "a_poisoned_log_returns_an_error_after_a_real_forwarded_request"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "ordinary_origin_finish_stops_its_actual_listener_and_connection"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "eager_origin_drop_stops_its_actual_listener_and_connection"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "an_unpolled_origin_finish_stops_its_actual_listener_and_connection"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_a_postexchange_write_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_a_postexchange_read_failure"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_an_internal_error_body_reset"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_finishes_after_traffic_and_end_stream"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "a_websocket_caller_failure_stops_its_actual_origin"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "eager_websocket_peer_drop_stops_its_actual_origin"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "an_unpolled_websocket_finish_owns_its_actual_origin"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "a_healthy_websocket_close_keeps_actual_wire_observations"
+    }
+  ],
+  "new_control_predictions": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "caller_failure_stops_its_acquired_actual_peer",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "eager_caller_drop_stops_its_acquired_actual_peer",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "an_unpolled_caller_finish_owns_its_acquired_actual_peer",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "ordinary_forward_finish_stops_its_actual_driver",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "eager_forward_drop_stops_its_actual_driver",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "an_unpolled_forward_finish_owns_its_actual_driver",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "ordinary_connect_finish_stops_driver_and_relays",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "eager_connect_drop_stops_driver_and_relays",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "an_unpolled_connect_finish_owns_driver_and_relays",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "a_completed_peer_failure_survives_a_primary_caller_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "a_completed_peer_failure_is_observed_after_a_healthy_caller",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "ordinary_forward_completion_keeps_nonzero_observations",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "a_caller_failure_keeps_its_concrete_type",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "poisoned_recording_keeps_its_actual_observer_cause",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "healthy_recording_keeps_real_h2_bytes",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "deliberate_http_connect_502_is_typed_after_real_traffic",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "the_rejection_observer_accepts_the_actual_typed_502",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "the_rejection_observer_rejects_an_unrelated_typed_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "the_rejection_observer_rejects_an_unexpected_success",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "method": "deliberate_wss_connect_502_is_typed_after_real_traffic",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "method": "an_actual_h2_origin_keeps_its_postexchange_accept_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "method": "a_forward_driver_keeps_its_actual_postexchange_accept_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "method": "a_connect_driver_keeps_its_actual_postexchange_accept_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_a_postexchange_write_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_a_postexchange_read_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_an_internal_error_body_reset",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_keeps_its_rejected_final_send_after_a_reset",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "method": "an_actual_relay_finishes_after_nonzero_traffic_and_end_stream",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "method": "an_actual_internal_error_keeps_its_body_cause",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "method": "an_actual_cancel_is_distinct_from_end_stream",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "method": "an_actual_end_stream_is_observed",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "method": "actual_proxy_listener_keeps_its_postexchange_accept_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "method": "actual_origin_listener_keeps_its_postexchange_accept_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "method": "actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "method": "actual_origin_keeps_a_postexchange_read_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "method": "actual_origin_keeps_a_postexchange_write_error",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "method": "actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "ordinary_finish_keeps_a_completed_actual_handler_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "a_primary_failure_keeps_the_completed_actual_handler_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "a_poisoned_actual_writer_does_not_answer_an_unrecorded_request",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "method": "a_healthy_actual_writer_records_both_forwarded_requests",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "ordinary_finish_stops_actual_listener_and_relay_descendants",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "eager_drop_stops_actual_listener_and_relay_descendants",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "explicit_backup_observes_actual_fixture_destruction",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "a_poisoned_log_returns_an_error_after_a_real_forwarded_request",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "ordinary_origin_finish_stops_its_actual_listener_and_connection",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "eager_origin_drop_stops_its_actual_listener_and_connection",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "method": "an_unpolled_origin_finish_stops_its_actual_listener_and_connection",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_a_postexchange_write_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_a_postexchange_read_failure",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_an_internal_error_body_reset",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "method": "an_actual_multiplex_relay_finishes_after_traffic_and_end_stream",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "a_websocket_caller_failure_stops_its_actual_origin",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "eager_websocket_peer_drop_stops_its_actual_origin",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "an_unpolled_websocket_finish_owns_its_actual_origin",
+      "predicted_outcome": "causal negative",
+      "execution": "not run by author"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "method": "a_healthy_websocket_close_keeps_actual_wire_observations",
+      "predicted_outcome": "positive",
+      "execution": "not run by author"
+    }
+  ],
+  "contracts": [
+    {
+      "scope": "single acquired peer and returned forward/CONNECT descendants",
+      "paths": [
+        "proxy_h2/connection_contract.rs"
+      ],
+      "ranges": [
+        [
+          33,
+          286
+        ]
+      ],
+      "prerequisites": "actual trusted H2 forwarded 200/body and literal tunneled H1 GET/200/ok; held origin and live external client before cancellation",
+      "negative_boundary": "remaining task roles captured after 150 ms and before backup must be empty",
+      "limits": "Drop and unpolled finish are raw-handle baseline behaviors; probe reports future lifetime, not awaited join; CONNECT backup and origin stop preserve cleanup outcomes"
+    },
+    {
+      "scope": "completed single-peer outcomes",
+      "paths": [
+        "proxy_h2/connection_contract.rs"
+      ],
+      "ranges": [
+        [
+          288,
+          421
+        ]
+      ],
+      "prerequisites": "real forwarded body before oneshot release; completed task before caller finish",
+      "negative_boundary": "FixtureFailures downcast at 361-363; later typed primary and CompletedPeerFailure checks are forecast only",
+      "limits": "secondary type is intentionally injected postexchange, not a production protocol failure"
+    },
+    {
+      "scope": "recording and HTTP/WSS rejection",
+      "paths": [
+        "proxy_h2/connection_contract.rs"
+      ],
+      "ranges": [
+        [
+          423,
+          651
+        ]
+      ],
+      "prerequisites": "actual nonzero H2 preface/HEADERS before actual mutex poisoning; independent actual Proxy Rejected 502 before substituted observer outcomes",
+      "negative_boundary": "typed poison source walk at 489-493; substituted success/unrelated outcomes rejected at 597-600",
+      "limits": "poison baseline may fail first on an erased cause; actual 502 typed positives check independent public request and WebSocket categories"
+    },
+    {
+      "scope": "actual nested-origin, forward and CONNECT drivers",
+      "paths": [
+        "proxy_h2/driver_contract.rs"
+      ],
+      "ranges": [
+        [
+          1,
+          274
+        ]
+      ],
+      "prerequisites": "trusted real response, nonzero actual wire observations, live driver, disabled fault before enable; controlled PermissionDenied returned by actual I/O and completed driver before finish",
+      "negative_boundary": "missing typed result at 106-108/169-171/264-266",
+      "limits": "is_finished is task completion only; baseline later exact PermissionDenied extraction remains unreached until native establishes branch"
+    },
+    {
+      "scope": "single and multiplex real relay error branches",
+      "paths": [
+        "proxy_h2/relay_contract.rs",
+        "proxy_h2_multiplex/relay_contract.rs"
+      ],
+      "ranges": [
+        [
+          125,
+          377
+        ],
+        [
+          1,
+          28
+        ]
+      ],
+      "prerequisites": "actual H2 CONNECT then literal TCP GET/200/ok, actual single returned write/read fault or independently observed actual INTERNAL_ERROR reset",
+      "negative_boundary": "downstream missing error 303-305, upstream missing error 320-322, reset missing outcomes 346-370",
+      "limits": "BodyReset and ResponseReset exercise the same actual reset event, with opposite assertion ordering to independently expose the downstream and final-send gaps; not distinct network phenomena; release/capacity errors are source-only untested branches"
+    },
+    {
+      "scope": "processed request-body reset versus EOF",
+      "paths": [
+        "proxy_h2/stream_contract.rs"
+      ],
+      "ranges": [
+        [
+          1,
+          202
+        ]
+      ],
+      "prerequisites": "actual initial forwarded body, two real CONNECT streams, first-stream data/reset and second SendResponse reset independently observed",
+      "negative_boundary": "has_ended must preserve INTERNAL_ERROR rather than false at 171-181",
+      "limits": "CANCEL false and END_STREAM true are positive distinction controls; no copied decoder oracle"
+    },
+    {
+      "scope": "multiplex fixture, origin and WebSocket cancellation",
+      "paths": [
+        "proxy_h2_multiplex/peer_contract.rs",
+        "proxy_h2_multiplex/websocket_contract.rs"
+      ],
+      "ranges": [
+        [
+          1,
+          315
+        ],
+        [
+          21,
+          123
+        ]
+      ],
+      "prerequisites": "actual forwarded or tunneled requests and live role observations; actual text echo before WS cancellation; external client/socket remains live through destruction observation",
+      "negative_boundary": "remaining roles before backup or listener rebind captured before backup; initial empty-role assertion may make later rebind assertion unreached",
+      "limits": "TaskProbe owns concrete AbortHandles solely for finite backup and future-lifetime observation; it does not recover joined child results; intentional mutex poison is test-only"
+    },
+    {
+      "scope": "multiplex completed errors, log reader and writer",
+      "paths": [
+        "proxy_h2_multiplex/outcome_contract.rs",
+        "proxy_h2_multiplex/peer_contract.rs"
+      ],
+      "ranges": [
+        [
+          74,
+          220
+        ],
+        [
+          210,
+          254
+        ]
+      ],
+      "prerequisites": "real nonzero forwarded observation before actual injected I/O or actual log poisoning; accepted handler completion before finish",
+      "negative_boundary": "missing result/FixtureFailures at 120-126, log writer second request must fail at 194-197, poisoned log read must fail rather than empty success",
+      "limits": "InvalidInput primary is deliberately injected after healthy exchange; exact typed cleanup downcasts are later assertions, not assumed measured"
+    },
+    {
+      "scope": "multiplex listener and origin read/write/unrelated TLS",
+      "paths": [
+        "proxy_h2_multiplex/listener_contract.rs",
+        "proxy_h2_multiplex/origin_contract.rs"
+      ],
+      "ranges": [
+        [
+          1,
+          179
+        ],
+        [
+          1,
+          181
+        ]
+      ],
+      "prerequisites": "healthy real GET/CONNECT first; disabled I/O count zero; actual fault returned/completed handler, or real separate non-TLS socket after healthy TLS exchange",
+      "negative_boundary": "listener missing error 110-112, proxy TLS missing cause 169-174, origin missing IO/TLS cause 143-160",
+      "limits": "origin write requires independently received second request plus failed client request; completed status alone does not prove concrete cause; typed causes remain forecast until native"
+    }
+  ],
+  "findings": [],
+  "open_compile_uncertainties": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "range": [
+        57,
+        71
+      ],
+      "candidate": "free function trait-object input/output lifetime elision may require explicit named lifetime",
+      "status": "uncompiled concern only; no measured diagnostic and no source finding; root actual compile required"
+    }
+  ],
+  "rejected_candidates": [
+    "No indefinite OS/socket leak claim follows from raw JoinHandle drops or finite future-lifetime observation.",
+    "No nonzero observations are inferred from a successful client alone: controls separately assert literal bodies, recorded paths/methods/authorities, reset reasons or actual fault return counts.",
+    "Intentional poisoned-mutex panic and catch_unwind are test controls, not runtime library panic policy exceptions.",
+    "File length alone is not a reason to split either parent; domain child responsibilities are concrete and existing test controls reuse the real owners."
+  ],
+  "standards_review": "imports/module topology, names, domain grouping, real consumer wrappers, lock scopes, partial failure and independent wire expectations manually reviewed; known ignored baseline errors are deliberate causal targets, not approved final behavior",
+  "read_log": {
+    "whole_owner_batches": {
+      "proxy_h2.rs": [
+        [
+          1,
+          450
+        ],
+        [
+          451,
+          900
+        ],
+        [
+          901,
+          1350
+        ],
+        [
+          1351,
+          1750
+        ],
+        [
+          1751,
+          2146
+        ]
+      ],
+      "proxy_h2_multiplex.rs": [
+        [
+          1,
+          280
+        ],
+        [
+          281,
+          713
+        ]
+      ],
+      "children": "all thirteen complete; driver_contract and peer_contract whole reads retained from preceding portion of this same review"
+    },
+    "terminal_truncations": "combined author JSON/instructions prints were truncated; no full manual report/metadata read credit is granted from those prints. Every assigned source file read was bounded and complete. All source identities and ranges independently validated mechanically.",
+    "failed_path_lookup": "proxies.rs did not exist; actual proxies/main.rs was then read in full and validated; no nonexistent file credited"
+  },
+  "static_observations": {
+    "git_verify_commit_exit": 0,
+    "signature_output": "Good \"git\" signature for alexanderaryaalikhani@gmail.com with ED25519 key SHA256:vIMSaGK5znvgeFI1QVKRLIEnCghPD3nFA1maOEjhc+o\n",
+    "git_diff_check_exit": 0,
+    "clean_lane": true,
+    "head_equals_requested_revision": true,
+    "compilation": "not run: assignment prohibits Cargo/builds",
+    "tests_lint_msrv": "not executed; all 58 new outcomes remain predictions"
+  },
+  "retained_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-regression-handoff-49c0aad0.json",
+      "raw_sha256": "f9ffdd580fa71b1a5a93245dd8922a05fae5c8e024dfe6f9c41e13c7838e88cd",
+      "scope": "retained source report/validator metadata only; root report not credited as our manual source read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-regression-handoff-49c0aad0.md",
+      "raw_sha256": "1fc9d1584c8710e9f20a58c8618c905322d3872de4e8492c312cb49dd14cd7f6",
+      "scope": "retained source report/validator metadata only; root report not credited as our manual source read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-source-validation.py",
+      "raw_sha256": "ae6de90c18c0a5f40fe8dacc36b8fdc904f88ed57c9feb6d7f5d3d5f9da9b2f8",
+      "scope": "retained source report/validator metadata only; root report not credited as our manual source read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-source-validation.json",
+      "raw_sha256": "a2dbc5ae53c248d31864ff98d5df6b1a8e1b816e6e717dc73b12d868f8044556",
+      "scope": "retained source report/validator metadata only; root report not credited as our manual source read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\root-driver-stream-source-49c0aad0.json",
+      "raw_sha256": "724d413244893069118784d1fde058510e667072274bed58ed1e5141d3dbfb33",
+      "scope": "retained source report/validator metadata only; root report not credited as our manual source read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\root-driver-stream-source-49c0aad0.md",
+      "raw_sha256": "3b4a659447d828ada569446486252354508dcd88a888913f348ba3f040821324",
+      "scope": "retained source report/validator metadata only; root report not credited as our manual source read"
+    }
+  ],
+  "limits": [
+    "No production protocol behavior, browser parity or full capture corpus is revalidated by this source review.",
+    "No whole-project completion or full-gate approval.",
+    "Supporting source is partial except small fully read registration; untouched vendor files remain supporting context only.",
+    "Unanticipated prerequisite errors can leave intentionally raw baseline tasks until runtime drop; finite backup behavior is not a final fixture ownership remedy.",
+    "Native Windows/Linux execution must compile and establish actual first failure and downstream assertion reachability before fixes."
+  ]
+}

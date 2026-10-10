@@ -1,0 +1,94 @@
+# Cookie recorder lifecycle remedy
+
+Signed source checkpoint: `211099a63fac6dacf7d641ca0330f5673a10ff04`.
+Parent: `2cea08afa5353dd105e6204ca00623af4d8466d4`.
+Lane: `C:/code/phantom-worktrees/audit-cookie-lifecycle-remedy`.
+Only changed path: `crates/phantom/tests/requests/cookie_crumbs.rs`.
+Both commit identities are Arya Alikhani <AryaAlikhani@icloud.com>.
+Configured SSH verification reports a good signature. The worktree is clean.
+
+## Result and contracts
+
+The existing raw-handle control seams now adopt `ConnectionPeer` in a normal
+function before returning their future. Dropping an unpolled collection future
+therefore aborts its transferred task. The ordinary H2 replay and H3 cookie
+workflow acquire concrete owners directly. Fallible client construction occurs
+before spawning their recorder. H2 preparation, request, timeout, and body
+errors are captured for explicit peer cleanup while the client stays alive.
+Success still drops the H2 client before collecting the final recorder, allowing
+its existing final-driver close contract to complete.
+
+Explicit failure and deadline finish paths call the existing bounded `stop` and
+`finish_with_cleanup`. They retain the concrete primary error and a completed
+secondary error in `FixtureFailures`. No result is rendered into a substitute
+string. The server deadline wrappers retain the actual `Elapsed`; H3 request
+deadline and collection-channel failures retain actual `Elapsed` and `RecvError`
+through their contextual error source. Literal existing messages remain.
+
+The H2 recorder now observes `poll_closed`. It accepts successful completion or
+an actual `get_io()` disconnect recognized by the existing narrow classifier:
+BrokenPipe, ConnectionReset, ConnectionAborted, or UnexpectedEof. PermissionDenied,
+protocol, and TLS failures propagate. Resolved backend `proto/connection.rs`
+613–637 explains that a server with no buffered output can itself turn EOF into
+clean closure; 280–298 retains unrelated GOAWAY errors. `server.rs` 499–533
+documents driver progress, and `error.rs` 77–97 restricts `get_io()` to I/O errors.
+The baseline's real healthy-close positive and explicitly injected read-fault
+negative remain unchanged. This is a fixture remedy, not a production H2 defect.
+
+## Preservation and exact source
+
+The final parent has 825 lines, Git blob
+`a32bc494fcb27a261c33e30d547b40f5b2750624`, raw SHA256
+`0eeb7b4b2307ebe2838e11bbc29ef3e84d1ab406184364a5e396625ad683d4c2`.
+Initial parent735 and final parent825 were manually read fully. The accompanying
+JSON contains their exact revision, blob, raw SHA, line count and inclusive
+range SHA256. Git blob bytes are the evidence basis; working CRLF is not silently
+normalized into identity credit. The three lifecycle control files were read
+fully:116/228/290 lines. The 118-line parser-control file is an unchanged rebind
+to prior parser source evidence, not a new full read.
+
+All four child files are byte-identical to parent2cea. All 23 regression bodies,
+inputs and assertions are unchanged. Six ordinary H2 methods, assertion helpers,
+the entire parser/RecordingIo suffix and the H3 recorder are byte-exact. The
+ordinary seventh method preserves its 101-cookie request, status, body,
+collection signal, and order assertions. Its necessary migration moves client
+setup before task acquisition, uses an owned task and the corresponding owned
+finish helper, and removes a redundant trait import now present at module scope.
+The validator reconstructs the original method and compares every nonblank line.
+
+The H2 accepted request/response operations retain all original nonblank lines.
+Ordered request/header/send expressions are exact after the explicitly declared
+`sent` to `response` binding rename. Result handling changes deliberately capture
+all fallible operations for cleanup. The original deadline remains ten seconds.
+Imports, module/constant placement and independent operation paragraphs were
+reviewed manually. The roughly800-line ceiling prompted responsibility review:
+existing controls already have domain children; no arbitrary parser or lifecycle
+split was added solely to reduce the parent count.
+
+## Verification and limits
+
+Targeted direct `rustfmt --edition 2024 --check` and `git diff --check` returned0.
+The latter emitted only the supported working-copy LF-to-CRLF notice. Twelve
+source preservation checks pass in `validate-cookie-lifecycle-remedy-211099a6-v2.py`.
+The original validator remains unchanged: its first run failed one comparison
+because it had not accounted for the declared local result binding rename. It
+wrote no JSON. The additive v2 corrects that comparison explicitly; every other
+check and source range stays unchanged.
+
+No Cargo, native test, Clippy, MSRV, socket operation or external network operation
+was executed in this lane. Root's retained `h2-cookie-corrected-root-2cea08af`
+receipt reports each host30 cookie cases:20pass/10 intended failures, with focused
+checks green. That baseline attribution is separate from this source remedy.
+Independent source review and repaired Windows/Linux execution remain required:
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http \
+  --test requests --all-features --locked -E 'test(cookie_crumbs::)'
+```
+
+Run the same30 cases plus focused format, strict Clippy and MSRV on both hosts.
+The shared owner aborts on Drop and cannot synchronously join. Explicit stop waits
+at most five seconds and preserves a completed failure; cancellation fallback is
+intentional. The frozen finite destruction controls do not prove permanent
+resource leaks. Supporting reads are separately labeled full or partial, and
+neither this source handoff nor metadata validation closes the whole audit.

@@ -1,0 +1,175 @@
+# Request-session standards review 5a28f55f
+
+Read-only review at `5a28f55fe510e8bb8d89814ad1d324a934079444`, begun at `2cea08afa5353dd105e6204ca00623af4d8466d4`. The root advanced only a
+documentation checkpoint during reading. All three source blobs and normalized
+working bytes match both revisions. No source edits, Cargo, native execution,
+lane creation, push or merge. H2 baselines remain frozen.
+
+Whole manual reads: `requests/client.rs` 1–1469, `requests/cookies.rs` 1–722,
+and `requests/client_hints.rs` 1–1279: 3470 lines. Their inclusive read slices,
+raw Git/working SHA256 and Git blob identities are in the paired JSON.
+Supporting source is explicitly partial. The undelivered original draft pair is
+preserved; final supporting ends are actual EOF 116 and 261, with no
+claimed read beyond EOF. Searches and identity comparisons
+do not add semantic coverage.
+
+## Prior findings reconciled
+
+`client.rs` incorporates A90–A92: peer/request work is lexically joined, failed
+upload helpers distinguish stated disconnect/CANCEL cases from unexpected
+errors, and the outer five-second deadline preserves Elapsed. Those findings
+are not refiled. Existing exact body, header, query, error-category, before-I/O,
+runtime and profile controls retain independent observations. A93 belongs to
+other owners. A152/A154 concern `cookie_crumbs`, not the distinct live-cookie
+server and redirect drivers reviewed here.
+
+## Supported source candidates
+
+The following are source findings and regression proposals, not native results
+or production defect claims. Root owns central IDs and disposition.
+
+### REQ-ST1 (P2): acquired fixture/request tasks remain owned and results are observed on all exits
+
+Evidence: cookies raw server handles at 63, 151, 191, 241, 299, 354, 419, 475; raw proxy 442. Hint raw servers 49,84,156,223,311,367,533,572,651,732,844,916,973,1016,1045 and request tasks 422/430 span fallible work.
+
+Cause: raw JoinHandle drop detaches the actual task and loses its result; normal success awaits do not cover earlier client/setup/body failures or outer expiry.
+
+Concrete counterexample: after a literal healthy response and actual live-peer readiness, fail/cancel the owning client workflow while an independently held Client/runtime remains alive; the raw server survives scoped owner destruction until explicit backup.
+
+Remedy: lexically join actual peer/request workflows where driving permits; otherwise use existing concrete guarded owners, bounded finish and typed primary/completed-secondary collection.
+
+Regression: ordinary/eager/unpolled cancellation after real traffic with finite live-peer/destructor and backup observations; separately release a completed typed actual worker failure before a primary operation failure.
+
+Limit: source-supported fixture contract gap only; no native leak or whole-old-test false green measured; unrelated cookie_crumbs A152 is a different owner.
+
+### REQ-ST2 (P2): redirect H2 driver results remain observable during cleanup
+
+Evidence: redirect worker spawns first_driver 89 and second_driver 104; abort 110/111 without await or result inspection after wait_for_client.
+
+Cause: abort does not inspect an already completed poll_closed error or panic; early outer-server failure also drops raw driver handles.
+
+Concrete counterexample: after real 307/204 traffic, make one actual H2 driver complete with a distinguishable typed error before completion signal; current parent still returns Ok.
+
+Remedy: own both actual drivers, abort and join all of them within finite bounds, allow only requested cancellation and retain any completed typed errors alongside the primary.
+
+Regression: real redirect/credential and learned-cookie positives plus independent actual late-read/driver failure and primary-plus-secondary controls.
+
+Limit: source diagnosis; actual allowable teardown outcomes must be established by root native execution.
+
+### REQ-ST3 (P3): fixture expiry preserves actual tokio Elapsed and context
+
+Evidence: cookie bounded 715–722 and client-hint bounded 1266–1273 replace Elapsed with a string.
+
+Cause: map_err discards the actual timed-out error.
+
+Concrete counterexample: poll actual bounded pending workflow under paused time, advance its original five-second limit, then require Elapsed through the real source chain.
+
+Remedy: retain the exact context through a small concrete contextual error owning Elapsed or use direct await? where no context is needed.
+
+Regression: actual paused-time expiry, concrete inner-error and ready-operation controls for each helper.
+
+Limit: fixture diagnostics only; A92 already repairs client.rs, so that owner is not duplicated.
+
+### REQ-ST4 (P2): ALPS no-second-request observation distinguishes transport/protocol failure from quiet completion
+
+Evidence: alps_origin_answering 518–555 matches only Ok(Some(Ok(_))) as failure; every other outcome including Ok(Some(Err(error))) becomes Ok(names).
+
+Cause: wildcard success discards a real connection.accept error after the first answered request.
+
+Concrete counterexample: after actual first H2 request/body and preserved ordinary names, inject a distinct read/protocol error into the existing actual connection during the quiet window; helper returns its names successfully.
+
+Remedy: match all actual accept outcomes explicitly, preserve typed errors and document the finite quiet/clean-close contract.
+
+Regression: healthy first exchange and quiet/allowed close positives; actual distinguishable postresponse I/O or non-CANCEL protocol-error negative with backup before causal assertion.
+
+Limit: no live failure measured; 200 ms quiet can establish only a finite no-request window.
+
+### REQ-ST5 (P2): the admission-wait test proves the second request reached preparation/admission before learning is released
+
+Evidence: second request task 430–434; fixed sleep 436 is the only second-request readiness signal before answer_first release 437–439.
+
+Cause: elapsed wall time does not establish that the new task ran or reached its queue boundary.
+
+Concrete counterexample: gate actual second task scheduling until after the first answer; a correct client can then build with newly learned hints and fail the test which asserts old hints.
+
+Remedy: use an actual request preparation/admission observation and keep the first response held until it is reached; remove the assumed scheduling delay.
+
+Regression: deliberately delayed second-task scheduling still establishes real readiness before release, then observes no hints on waiting and actual hints on next request.
+
+Limit: source-supported test determinism gap; no current flake reproduced and no production admission defect inferred.
+
+### REQ-ST6 (P2): navigation field-order assertions observe exact decoded ordinary wire order
+
+Evidence: H2 helper 539 and H3 test 736 collect HeaderMap.keys; order assertions 496–508 and 778–785 use resulting positions; locked http 1.5.0 documents arbitrary unique-key iteration.
+
+Cause: semantic HeaderMap keys do not preserve an independent ordinary-field sequence or duplicate positions.
+
+Concrete counterexample: a valid decoded block with a repeated existing name between accept and the expected new hint retains the same unique-key iteration but changes actual adjacent wire fields.
+
+Remedy: use resolved H2 OrderedHeaders; for H3 first validate/address the missing received-request ordered extension or observe actual raw/QPACK fields; preserve value and first-name assertions.
+
+Regression: actual decoded unique-field positive plus a valid interleaved duplicate negative requiring the exact ordinary sequence; demonstrate both semantic-map equality and different wire positions.
+
+Limit: contract/oracle gap, not measured current wrong request ordering; H3 extension availability is independently qualified below.
+
+### REQ-ST7 (P3): state-learning helpers observe the actual configured high-entropy hint values
+
+Evidence: assert_hints 1242–1250 verifies baseline value but only presence for arch/platform-version; client_hint_settings 1114–1124 specifies arm and 15.5.0. assert_http1_hints 1252–1263 tests expected literal presence, so its high_entropy=false branch does not reject a high-entropy name carrying another value.
+
+Cause: present but wrong high-entropy values satisfy common H2/H3 learned-hint positives; H1 absent-hint assertions test absence of the expected literal rather than absence of the field.
+
+Concrete counterexample: baseline remains correct and both high-entropy names carry wrong values; assert_hints(headers,true) passes. An H1 raw head with wrong values on those names passes assert_http1_hints(head,false).
+
+Remedy: retain exact H1 requested literals, require actual field absence when not requested, and add independently expected literal values to the semantic H2/H3 observer.
+
+Regression: same actual state transitions with configured literals positive, wrong literal values rejected by the learned-state observer, and wrong-valued unsolicited H1 fields rejected by the absent-state observer.
+
+Limit: narrow common-helper assertion gap; separate ALPS tests already verify exact values, so no whole-suite false green claim.
+
+### REQ-ST8 (P3): standards import grouping and single responsibility for identical helpers
+
+Evidence: both owners put local support imports before std/external imports; client_hints send_and_drain 1126–1131 and send_client_and_drain 1133–1142 have identical operations and callers.
+
+Cause: layout breaks supplied imports order; duplicate helper names imply separate behavior where none exists.
+
+Remedy: move local imports into their existing final group and use the one existing drain helper; manually pace setup/operation/assert paragraphs without broad formatting or crate extraction.
+
+Regression: source equivalence only; no new runtime tests needed for these mechanical changes.
+
+Limit: cleanup standards finding, not a behavior defect; large source lengths prompt review rather than mandatory splitting.
+
+## H3 order dependency qualification
+
+The locked `http` 1.5.0 keys iterator explicitly has arbitrary order and yields
+each name once. H2's exact decoded OrderedHeaders is available. H3's ext rustdoc
+says received requests carry ordinary QPACK order, but the necessary actual
+decoder trace shows it retained in Header and then discarded by
+into_request_parts/RequestResolver reconstruction. This partial-source candidate
+requires its own vendor-owned real decode baseline and review. Do not invent
+an extension in the H3 hint-test migration or claim outgoing/response paths
+have this issue. An actual raw QPACK order observation is another possible
+test-scoped route. No whole-vendor coverage or execution is claimed.
+
+## Rejected or bounded candidates
+
+All direct TCP binds use loopback and port 0. The read H3 support path delegates
+UDP to the Windows-aware testkit binder. ALPS width/varint panics are fixed-input
+test guards, not library-input failures. Cookie get_all checks per-name values
+and order; its canonical HeaderName assertion adds no wire-case evidence.
+Dynamic trailer tests claim per-name duplicate order, with separate wire owners
+covering global order. Specific ALPS cases already check exact hint values.
+Long files prompt navigation review; this scope does not justify a crate split.
+
+Grouping review covered setup, request/peer lifetime, body observation and
+independent assertion paragraphs in all three owners. The concrete cleanup
+issue is local-import ordering and an identical hint drain helper; no new
+generic fixture framework is recommended.
+
+Every proposed lifetime negative must drive actual healthy traffic and verify
+the relevant resource is live with external Client/runtime retained before
+finite observation and backup. Every failure-retention negative must reach an
+actual distinguishable error/result before its assertion. Source predictions
+cannot establish native leaks, scheduler flakes, runtime acceptance or final
+gate success.
+
+JSON SHA256: `d22bf53d0ec1e82b86bf8136413dbfa7fc4de68ddfea41602e9dc6d178fe74ca`.

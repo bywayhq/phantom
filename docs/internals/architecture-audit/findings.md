@@ -158,16 +158,46 @@ No finding is resolved by an assignment or a proposed fix.
 | A149 | P3 | H2 proxy fixtures group imports and independent operations | Both owners have mixed import groups and dense operation boundaries | H2P9 full manual source evidence; narrow cleanup with lifecycle repair pending |
 | A150 | P2 | Field capture hexadecimal is validated before slicing | UTF8 byte slicing panics and radix parsing accepts signed pairs | Both actual negatives reproduced at `623e18fd`; reviewed narrow ASCII validation passes all twenty-two field methods on Windows/Linux at ed320379; private fixture parser only; final gates pending |
 | A151 | P2 | Cookie capture helpers reject malformed data | Unchecked HPACK arithmetic, short priority slicing, partial frames, signed hex and unknown Huffman flags | Seven actual parser negatives reproduced at 76f86667; reviewed repair passes all seventeen previous cookie methods at 767c116a and 2cea08af on both hosts; 767c116a native independently reviewed; final gates pending |
-| A152 | P2 | Cookie exchange tasks remain owned and retain sibling failures | Raw server handles cross fallible work; completed client/server causes become text or are skipped | Corrected 2cea08af baseline reaches four actual owner-destruction negatives and completed H2/H3 secondary-cause failures on both hosts; aggregate cause assertions remain unreached; remedy pending |
-| A153 | P3 | Cookie fixture timers and receivers retain concrete causes | Elapsed and receiver failures become strings | Actual receiver and both contextual Elapsed negatives fail on both hosts at 2cea08af after real H3 response prerequisites; remedy pending |
-| A154 | P2 | Cookie H2 recording reports unexpected driver failures | Final poll_closed result is ignored before observations are returned | Actual injected final H2 read failure is discarded on both hosts at 2cea08af; clean client-close positive passes; fixture-only propagation evidence, remedy pending |
-| A155 | P3 | Cookie fixtures group imports and independent operations | Local import precedes standard/external imports; several independent operations run together | Fresh manual readability assessment; narrow cleanup with lifecycle repair pending |
-| A156 | P2 | Public CONNECT callers own peers and retain completed siblings | Raw handles span fallible preparation and success-only sequential joins in both public fixture owners | Complete root source review at 76f86667; actual causal baseline assigned, remedy pending |
-| A157 | P3 | Public CONNECT deadlines retain Elapsed | Shared five-second wrapper replaces the concrete cause with text | Complete root source review; actual expiry control and remedy pending |
+| A152 | P2 | Cookie exchange tasks remain owned and retain sibling failures | Raw server handles cross fallible work; completed client/server causes become text or are skipped | Source-approved eager ownership and explicit cleanup at 211099a6 pass all thirty unchanged methods on both hosts at 2fb596ad, including previously unreached typed aggregate assertions; independent native review approved, final gates pending |
+| A153 | P3 | Cookie fixture timers and receivers retain concrete causes | Elapsed and receiver failures become strings | Source-approved contextual Elapsed and RecvError repair passes actual receiver and both expiry controls on both hosts at 2fb596ad; independent native review approved, final gates pending |
+| A154 | P2 | Cookie H2 recording reports unexpected driver failures | Final poll_closed result is ignored before observations are returned | Source-approved narrow get_io disconnect classification passes healthy-close and unrelated final-read controls on both hosts at 2fb596ad; fixture-only repair, final gates pending |
+| A155 | P3 | Cookie fixtures group imports and independent operations | Local import precedes standard/external imports; several independent operations run together | Current complete 825-line manual source and independent review approve narrow import/operation cleanup at 211099a6; thirty methods pass each host, final gates pending |
+| A156 | P2 | Public CONNECT callers own peers and retain completed siblings | Raw handles span fallible preparation and success-only sequential joins in both public fixture owners | Independently approved 2234a8c3 native baseline reaches five ownership/cause failures on both hosts; actual invalid DER, truncated body and completed worker prerequisites pass; full caller remedy in progress |
+| A157 | P3 | Public CONNECT deadlines retain Elapsed | Shared five-second wrapper replaces the concrete cause with text | Actual paused expiry reaches missing Elapsed assertion on both hosts at 2234a8c3; independent native evidence approved, remedy in progress |
 | A158 | P3 | Public CONNECT fixtures group imports and independent operations | Redundant auth path and mixed import/operation groups hinder reading | Complete manual source review; narrow cleanup with lifecycle repair pending |
 | A159 | P2 | Every named trust-anchor connector has an actual observation | Aggregate capture counts allow duplicate observations from one operation to substitute for another | Complete root owner review; source-supported assertion gap, no missing connector measured; causal control and remedy pending |
+| A160 | P2 | Cookie and hint fixture tasks remain owned on all exits | Raw server, proxy and request handles span fallible work | REQ-ST1 source-supported candidate in complete request-session review; actual lifecycle controls and repair pending |
+| A161 | P2 | Cookie redirect cleanup observes both H2 drivers | Raw drivers are aborted without inspecting completed outcomes | REQ-ST2 source-supported candidate; actual late-driver and combined-cause controls pending |
+| A162 | P3 | Cookie and hint expiry retains concrete Elapsed | Both contextual wrappers substitute text | REQ-ST3 source-supported fixture candidate; actual paused expiry and repair pending; existing client A92 remains separate |
+| A163 | P2 | ALPS quiet observation preserves accept errors | Only a successful unexpected request is rejected | REQ-ST4 source-supported fixture candidate; real postresponse fault and finite quiet controls pending |
+| A164 | P2 | Hint admission tests observe readiness before learning | A fixed sleep substitutes for actual preparation/admission readiness | REQ-ST5 source-supported determinism candidate; no current flake measured, delayed-scheduling control pending |
+| A165 | P2 | Hint order assertions observe decoded ordinary wire order | HeaderMap keys have arbitrary unique-name order | REQ-ST6 source-supported oracle gap; decoded duplicate control and H2/H3 observer migrations pending |
+| A166 | P3 | Learned hint assertions check actual values and absence | High-entropy positives test presence; H1 absence checks only an expected literal | REQ-ST7 source-supported common-helper gap; wrong-value and unsolicited-field controls pending |
+| A167 | P3 | Request fixtures group imports and use one drain helper | Local imports precede external imports; two hint helpers have identical operations | REQ-ST8 manual standards candidate; narrow source cleanup pending, no crate split justified |
+| A168 | P2 | Received H3 requests retain documented ordered headers | Request parts and resolver discard the decoded ordinary sidecar | Partial resolved-source contract candidate; real QPACK receive baseline and vendor remedy pending; outgoing and response paths are not implicated |
 
 ## Current proxy evidence
+
+At `2fb596ad`, all thirty cookie methods pass on Windows and Linux. The
+[root receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt) records the
+unchanged baseline roster, including ten previously failing controls.
+Typed aggregate assertions now execute and pass. Formatting, strict selected
+Clippy and Rust 1.88 checks pass. Independent source and native reviews
+approve these focused results. Full integration gates remain open.
+
+The [CONNECT baseline](connect-route-baseline-root-2234a8c3.md.txt) runs
+106 methods per host: one hundred pass and six intended negatives fail.
+The substring filter also selects other proxy owners. Its exact public
+CONNECT subset is 24 methods: eighteen pass and six fail. The
+[independent native review](connect-route-baseline-native-independent-addendum-2234a8c3.md.txt)
+confirms reached assertions and their prerequisites. The remedy is in progress.
+
+The [request-session review](request-session-standards-review-5a28f55f-final.md.txt)
+records complete reads of three owners and eight source candidates. Its H3
+received-order dependency trace is partial. No new runtime result follows
+from these source findings. Existing A90-A92 are reconciled separately.
+
+The following evidence describes earlier revisions.
 
 At `2cea08af`, Windows and Linux each pass all 41 selected H2 methods.
 The signed-hex and two credential-oracle negatives now pass with their

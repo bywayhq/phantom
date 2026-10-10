@@ -1,0 +1,9 @@
+# H2 independent review evidence-range correction
+
+The initial writer requested registration lines 1-22, but the actual signed
+proxies/main.rs ends at line 21. Its range assertion rejected the request before
+any paired report was written. The original failed writer remains preserved.
+The additive v2 writer uses the actual fully read 1-21 range and produced the
+independent report. No range was silently clamped. All fifteen complete owned
+source records and the regression source decision remain unchanged. JSON binds
+the corrected registration blob, range and final report bytes.

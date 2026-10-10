@@ -1,0 +1,41 @@
+# Recent evidence checkpoint independent review
+
+Runtime source is `2cea08afa5353dd105e6204ca00623af4d8466d4`. This review binds dirty metadata bytes, not a signed
+documentation checkpoint. Decision: Approve bounded dirty metadata checkpoint after corrected current-partial labels; full integration remains open.
+
+All64 imports are byte-identical to their scratch originals:60 historical
+records and the paired current root and independent native receipts. Original source/native limitations,
+failed validators and setup-masked observations remain preserved. Large initial
+terminal prints truncated; full structural/raw-copy validation and bounded
+semantic inspection, rather than those prints, establish this import proof.
+
+The four new complete labels bind unchanged prior root whole-file reads, with
+actual complete range coverage and exact Git OID/raw hash equality. There is no
+fresh independent source credit from that metadata check. The trust-anchor owner
+was separately read fully at current154lines; its aggregate cardinality permits
+duplicate captures to substitute for a missing named connector. A159 records a
+source-supported assertion gap, not an executed missing connector or client bug.
+
+Current inventory has2900 unique rows,2156 previously committed and744additions.
+All old paths retain their original order. Only seven old rows actually change.
+The additions are679 tracked discoveries,64 imported records and the receipt.
+Fourteen crate files and48 historical reports are discovery-only. The one
+changed vendor patch remains pending. All616 other discovered dependency paths
+are absent from main-to2cea changes and marked upstream-context, without review
+credit or a requirement to exhaustively audit untouched upstream code.
+
+The three changed H2/cookie parent labels are now source-partial while retaining
+historical complete anchors and their bounded current source identities. A
+source-complete disposition cannot be made current by an historical prose
+qualification. This initial labeling finding was corrected before the frozen
+working-byte snapshot reviewed here, without rewriting historical evidence.
+
+A144/A147/A148 and A151 focused local greens match actual independently read
+2cea evidence. A152-A154 correctly remain red: fourH2/sixH3 intended boundaries
+are reached, with later combined-cause assertions still unreached. Historical78
+setup masking remains qualified. CONNECT A156-A158 stay source-only/native
+baseline assigned. Final integration, lifecycle remedies and gates stay open.
+
+The focused native approval now follows the additive independently read2cea
+report. Original raw reports remain unchanged. No aggregate edits, Cargo or
+runtime checks were performed here.

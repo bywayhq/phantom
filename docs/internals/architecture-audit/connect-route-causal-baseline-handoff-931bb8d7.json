@@ -1,0 +1,580 @@
+{
+  "schema": "connect-route-causal-baseline-handoff-v1",
+  "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+  "parent": "551e639d218edb19d34230d4e48ff35f530d65e4",
+  "worktree": "C:\\code\\phantom-worktrees\\audit-connect-route-contracts",
+  "branch": "lane/audit-connect-route-contracts",
+  "purpose": "Regression-only source checkpoint; native baseline and remedy not executed here",
+  "owned_changed_files": [
+    "crates/phantom/tests/proxies/proxy.rs",
+    "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+    "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs"
+  ],
+  "preserved_owned_auth": "crates/phantom/tests/proxies/proxy/auth.rs",
+  "source_reads": [
+    {
+      "revision": "551e639d218edb19d34230d4e48ff35f530d65e4",
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "blob_oid": "d5bcb9bda513c894aebe0e0d23114dab2f267f2a",
+      "raw_sha256": "a73a9cb95cf2d244d4afbb04d506279c7a10f7cdfbce7d4c31a7ab6834ee72bb",
+      "line_count": 729,
+      "read_classification": "full original manual owner read; current extraction compared",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 729,
+          "sha256": "a73a9cb95cf2d244d4afbb04d506279c7a10f7cdfbce7d4c31a7ab6834ee72bb"
+        }
+      ],
+      "working_raw_sha256_at_validation": "9c0d9942c2290524f82b17c29922b7cd5234aab668f1475903a49c7f697c6682",
+      "working_crlf_count": 0,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": false,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "blob_oid": "3f0a059261c02f47f76012df33c9e832c06114e0",
+      "raw_sha256": "9c0d9942c2290524f82b17c29922b7cd5234aab668f1475903a49c7f697c6682",
+      "line_count": 780,
+      "read_classification": "fresh changed helper/first caller ranges; remaining original bytes independently rebound, not a fresh whole final read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "sha256": "241267635d704ed094913d15aa7bd3667eca965d9fabce4115e6c06450084330"
+        },
+        {
+          "start": 644,
+          "end": 780,
+          "sha256": "fee2bfbb1f1681ad605d5f14732715c091e43227d6f9f0796191fd7c295e49e8"
+        }
+      ],
+      "working_raw_sha256_at_validation": "9c0d9942c2290524f82b17c29922b7cd5234aab668f1475903a49c7f697c6682",
+      "working_crlf_count": 0,
+      "working_equals_git_blob": true,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/proxies/proxy/auth.rs",
+      "blob_oid": "d24a8dcf0e62bd6d7171972775513d14487f01a2",
+      "raw_sha256": "ee9234fe08900486c09086f5ede4b2e8c6c90b67d7b329847260de13033901f8",
+      "line_count": 289,
+      "read_classification": "full original/manual unchanged owner read; exact unchanged-current rebind",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 289,
+          "sha256": "ee9234fe08900486c09086f5ede4b2e8c6c90b67d7b329847260de13033901f8"
+        }
+      ],
+      "working_raw_sha256_at_validation": "0fd094efa6b831c43bc35d4372743210baf663543a014637fc64f0ca2e26a4d9",
+      "working_crlf_count": 289,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract.rs",
+      "blob_oid": "f4c04886c6c325ec8a65342a54ea77b7e6735207",
+      "raw_sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388",
+      "line_count": 357,
+      "read_classification": "full manual authored control read plus final whitespace-only differential",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 357,
+          "sha256": "5c6ede22db583e0c4975bdcf1303eac5eaaaea823fdd0bed395f8f611b832388"
+        }
+      ],
+      "working_raw_sha256_at_validation": "4871ca2651f776800edf9a72b59c4b5e72558b4f51a7ce24767b97483caf744a",
+      "working_crlf_count": 345,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/proxies/proxy/upload_contract/peers.rs",
+      "blob_oid": "7e165bcad101a8dbe8d006a8b687535a93602480",
+      "raw_sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60",
+      "line_count": 233,
+      "read_classification": "full manual authored peer/observation read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 233,
+          "sha256": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60"
+        }
+      ],
+      "working_raw_sha256_at_validation": "a4319b4ea5104b3f525319b4419a7205fd16a1c72c07e9740daf4bc2fd7bfd60",
+      "working_crlf_count": 0,
+      "working_equals_git_blob": true,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 115,
+          "sha256": "1c5332ff244da8f6d93402ee07a52d27bacc85ce5921c339cd0072de693abe50"
+        }
+      ],
+      "working_raw_sha256_at_validation": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "working_crlf_count": 258,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 42,
+          "sha256": "e80ad3b53c5f62e189f0e3b4d8b64fd357a2cac64566dbecf91941530822aaba"
+        }
+      ],
+      "working_raw_sha256_at_validation": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "working_crlf_count": 629,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 105,
+          "end": 119,
+          "sha256": "6a520f6e96a3af4274b3462722be39adc12eef0c2ef7c8814afce3dc5c7b9ba9"
+        }
+      ],
+      "working_raw_sha256_at_validation": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_crlf_count": 225,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/src/client.rs",
+      "blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1841,
+          "end": 1920,
+          "sha256": "fea5384ad9205fe44ca969ea05b8c76aed2b4e0be1734347d3fe8653d245ea76"
+        },
+        {
+          "start": 1935,
+          "end": 1962,
+          "sha256": "57cc1432139dec25540d6206c1add2d77959b6d7695012f9e6d38203b5409613"
+        }
+      ],
+      "working_raw_sha256_at_validation": "c32602ff16aeedb56436e3e8717614b2861d6345e10894f6858ccd7b5eeea421",
+      "working_crlf_count": 2362,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/src/error.rs",
+      "blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 85,
+          "sha256": "65df5081ed8b6354ff9bace4385665f29cc4cb7963659a6f00c6c7ef93f18a9c"
+        },
+        {
+          "start": 140,
+          "end": 167,
+          "sha256": "fb59070720ba579008d6a0fb8fb47f5328c16d9b96778d5b8a3e625191ec163b"
+        },
+        {
+          "start": 178,
+          "end": 239,
+          "sha256": "c4cd9c3e71e248dd7d0abb9373372fb876fea6d8845f7716cd2fa92133e1d555"
+        },
+        {
+          "start": 281,
+          "end": 314,
+          "sha256": "ead9bbd85e95d0a04992a3495a85afcdc32fe35275c1126105228349f5f19d39"
+        },
+        {
+          "start": 1171,
+          "end": 1188,
+          "sha256": "4f27a9d9cf4aecab2bc63baa21286b74523e8f60cd0b0d3ab344bd3ecf7e59c1"
+        }
+      ],
+      "working_raw_sha256_at_validation": "d69b4fac9964ef650bdd1b50725cf247b1e3849100edc705fb7da96a3df51e42",
+      "working_crlf_count": 1553,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/src/body.rs",
+      "blob_oid": "58d436e84dd38a7c2123183995f0974174d723e9",
+      "raw_sha256": "1c33512543d4b2853fa2805ddb7e90afcab3c69a432cd4e4dcc515b26aabec56",
+      "line_count": 550,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 95,
+          "sha256": "fb6d75b9e29d5b6869f72db4c5a5a1f211e11c4ab2cff0eced0715017d61b7e2"
+        },
+        {
+          "start": 201,
+          "end": 300,
+          "sha256": "853e0f7efb5ce49386717fd408335403028f08c8676b01d55f43907fe0ebf802"
+        }
+      ],
+      "working_raw_sha256_at_validation": "bdd52c4ada7506148d57deaa313ec3c0d4ba0c9119afa1ed05c37ccc437cdf34",
+      "working_crlf_count": 550,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom-net/src/http1/body.rs",
+      "blob_oid": "50cf835d9a7cea22d2a0383ca9763cef10e5df83",
+      "raw_sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a",
+      "line_count": 228,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 75,
+          "sha256": "26ae34f22bfb40b978d4275b7470343151bf6d6c4827dfd44d8127a7cb7bcd76"
+        },
+        {
+          "start": 124,
+          "end": 181,
+          "sha256": "855175f4ea702bcc8afac973a9a99f7e6174b56c0be6b2d2f5ccc163fbc509af"
+        }
+      ],
+      "working_raw_sha256_at_validation": "edcdf2f58fb288ac01096b97bd9740cfe70f88c33d6b20c6f95eea181f85fe2e",
+      "working_crlf_count": 228,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom-net/src/http1.rs",
+      "blob_oid": "6a5f624f782e924085866e1c1df1367cf25623a9",
+      "raw_sha256": "e83ce088a35a55c0283496f210b5f2a45b4e982a70eab9f4f0b6b81761f48d80",
+      "line_count": 637,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 176,
+          "end": 300,
+          "sha256": "3ac5d2fa116721c6c52c23669b43daf201e0571f10828cfc60cd896049ff117a"
+        },
+        {
+          "start": 338,
+          "end": 370,
+          "sha256": "a7758272b42b6a5579c0d8894042b24fb99c1fc4ee078cabd78284342c387197"
+        },
+        {
+          "start": 411,
+          "end": 458,
+          "sha256": "a4cf5dac7ed1cfc93a4d72c1e5a2945a4a5cefd7ea65966e8d816ac9cf48e561"
+        }
+      ],
+      "working_raw_sha256_at_validation": "f22ee78be25932a0ed8438ce88dfba9a7e596d87960658e5d4216fd6718b9ea1",
+      "working_crlf_count": 637,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom-net/src/tls.rs",
+      "blob_oid": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "raw_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 376,
+          "end": 396,
+          "sha256": "924e4c806ac9e097326cdd1b7afb39c2d1dcb79723bd9669276757987c0111b4"
+        },
+        {
+          "start": 404,
+          "end": 458,
+          "sha256": "c4773aad7b46cad9713300a20f087362fda2ac05c8887b8734c8deae3f3c58e5"
+        }
+      ],
+      "working_raw_sha256_at_validation": "1cc7e579ec39876648688149b92cb2764f2fe07e942f4505678d5733805f1a01",
+      "working_crlf_count": 1360,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "raw_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+        }
+      ],
+      "working_raw_sha256_at_validation": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+      "working_crlf_count": 21,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "docs/internals/documentation.md",
+      "blob_oid": "afc3da64aa6bb6840c54563c0dcb246132c5cfaa",
+      "raw_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297",
+      "line_count": 204,
+      "read_classification": "supporting partial manual read; no whole-file credit",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 105,
+          "sha256": "db596034e83db33a3557b73d62b00ef69908d41a05a855136b50ddd56c1a3103"
+        }
+      ],
+      "working_raw_sha256_at_validation": "5b163b932317766497e0ea05b86e3906610bc46fc26afe4076f07136f60bd96f",
+      "working_crlf_count": 204,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    },
+    {
+      "revision": "931bb8d74358ad136cced4826bd8995418a23d5e",
+      "path": "Cargo.lock",
+      "blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "raw_sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "line_count": 2772,
+      "read_classification": "supporting partial locked dependency identity read",
+      "inclusive_read_ranges": [
+        {
+          "start": 2219,
+          "end": 2241,
+          "sha256": "74096c9329619b696d1b9c281176dfda51afab6cb9ab93037b28556b140e3c9a"
+        }
+      ],
+      "working_raw_sha256_at_validation": "f807c9789d23c3db0738484c582d279413575f146d0f3089758809a69b58cce8",
+      "working_crlf_count": 2772,
+      "working_equals_git_blob": false,
+      "working_equals_git_after_explicit_crlf_to_lf_comparison": true,
+      "identity_basis": "raw committed Git blob; working-byte comparison separately declared"
+    }
+  ],
+  "resolved_dependency_reads": [
+    {
+      "package": "tokio 1.53.1",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "supporting partial dependency read",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 46,
+          "sha256": "da956628e130e1342bce8f6451ae09cefc3cd00a6f8d92f5b5ce80c31e65338a"
+        },
+        {
+          "start": 341,
+          "end": 377,
+          "sha256": "5406a69b303a09236dae534bad1ad3b6d2e75b1a9f965a14ecf3ca46583f1c46"
+        }
+      ]
+    },
+    {
+      "package": "tokio 1.53.1",
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_classification": "supporting partial dependency read",
+      "inclusive_read_ranges": [
+        {
+          "start": 45,
+          "end": 62,
+          "sha256": "39f47fa68e949aaeb645d2cfa2a78501cfe885e5bb5110e5d8316059efe0dc64"
+        }
+      ]
+    }
+  ],
+  "extraction_validation": {
+    "first_upload_acquisition_prefix_exact": true,
+    "route_and_build_extraction_exact_with_reference_parameter": true,
+    "request_status_body_extraction_exact": true,
+    "sequential_join_and_wire_assertions_exact_with_owner_fields": true,
+    "all_other_parent_functions_exact": true,
+    "auth_entire_blob_exact": true,
+    "ordinary_forward_flow_exact_without_optional_observation": true,
+    "changed_set_exact": true
+  },
+  "unchanged_parent_functions": [
+    "streams_http1_through_verified_https_proxy",
+    "disabled_proxy_authentication_still_verifies_the_origin",
+    "disabled_proxy_authentication_does_not_authenticate_the_origin",
+    "https_proxy_and_origin_trust_are_independent",
+    "untrusted_https_proxy_fails_without_direct_fallback",
+    "unicode_origin_uses_one_canonical_connect_and_host_authority",
+    "plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+    "https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers",
+    "proxy_rejection_never_connects_direct",
+    "invalid_origin_and_connect_fields_fail_before_proxy_io",
+    "polling_proxy_request_without_tokio_returns_runtime_error",
+    "forward_one_https_connect"
+  ],
+  "qualification": [
+    "Same first caller operations and assertions extracted into preparation/request/finish; raw task storage and sequential error loss retained.",
+    "Fallible route/build now receive task handles in a normal preparation function; this intentionally exposes the same raw-handle Drop failure.",
+    "Request result is captured then passed to finish, whose initial operation? retains the original early-return loss.",
+    "Ordinary forward helper wraps the actual observed helper with None; instrumentation sends head after the existing flush without added I/O.",
+    "Completion helper remains async and raw-owned; unpolled future drop and explicitly Pending cancellation exercise real transferred ownership.",
+    "Marker observation proves finite destruction only; baseline fallback abort observes marker destruction without claiming joined original task output.",
+    "No permanent OS socket leak, browser parity, production route defect, or full audit/gate claim.",
+    "Injected permission/unsupported errors occur after real wire exchanges; they are not claimed to be operating-system failures.",
+    "Paused-clock deadline checks concern the existing fixture timeout, not measured network timeout.",
+    "Auth caller defects remain source findings; these controls exercise the first-upload vertical slice, not all ordinary task owners."
+  ],
+  "controls": [
+    {
+      "test": "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers",
+      "source_forecast": "intended failure; prerequisite/runtime result unverified"
+    },
+    {
+      "test": "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers",
+      "source_forecast": "intended failure; prerequisite/runtime result unverified"
+    },
+    {
+      "test": "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers",
+      "source_forecast": "intended failure; prerequisite/runtime result unverified"
+    },
+    {
+      "test": "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup",
+      "source_forecast": "intended failure; prerequisite/runtime result unverified"
+    },
+    {
+      "test": "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure",
+      "source_forecast": "intended failure; prerequisite/runtime result unverified"
+    },
+    {
+      "test": "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes",
+      "source_forecast": "pass"
+    },
+    {
+      "test": "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause",
+      "source_forecast": "intended failure; prerequisite/runtime result unverified"
+    },
+    {
+      "test": "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error",
+      "source_forecast": "pass"
+    },
+    {
+      "test": "proxy::upload_contract::bounded_connect_ready_operation_succeeds",
+      "source_forecast": "pass"
+    }
+  ],
+  "source_forecast_counts": {
+    "new_controls": 9,
+    "positive": 3,
+    "intended_negative": 6
+  },
+  "verification": {
+    "targeted_rustfmt_check": "exit 0",
+    "git_diff_check": "exit 0; expected LF/CRLF Git notice only",
+    "cargo": "not run; integration owner owns compilation/Clippy/MSRV/native execution",
+    "root_command": "scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http --test proxies --all-features --locked -E 'test(proxy::upload_contract::)'",
+    "commit_signature": {
+      "result": "Good git signature under the existing configured allowed-signers file",
+      "key_fingerprint": "SHA256:vIMSaGK5znvgeFI1QVKRLIEnCghPD3nFA1maOEjhc+o",
+      "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+      "clean_worktree": "git status --short returned no paths",
+      "initial_verification_qualification": "An initial command supplied a nonexistent alternate allowed-signers path. It showed the valid cryptographic signature but no principal; corrected verification used the existing configured C:/Users/arya/.config/git/allowed_signers and matched a principal."
+    }
+  },
+  "original_root_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-fixture-whole-source-root-76f86667.md",
+      "raw_sha256": "15aec940132fbe07e0c4dcea732c0ae23ba2597f914cacb7dd2bd2bb37322f6c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-fixture-whole-source-root-76f86667.json",
+      "raw_sha256": "5822548125600262f4b29ef0131ecdbe5418b25c11cc9f34eb776fd1aa28627a"
+    }
+  ],
+  "validator": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-connect-route-baseline-931bb8d7-v2.py",
+    "raw_sha256": "184502351b4faa0c8d56fc4d1999d222839fd4daeeba1057dfa7607e41b92aa6"
+  },
+  "resolved_tokio_package": {
+    "version": "1.53.1",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "checksum": "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
+    "lock_range": [
+      2219,
+      2231
+    ]
+  },
+  "validator_correction": {
+    "original_failed_script": "C:\\code\\phantom\\target\\architecture-audit\\validate-connect-route-baseline-931bb8d7.py",
+    "original_script_raw_sha256": "bd7d361ae6272dfb2bb0033e5e6814c5f4e7a71aada3dbbfe42373bdd727f6ea",
+    "original_result": "exit 1 at dependency-range assertion before writing any JSON",
+    "file": "tokio 1.53.1/src/runtime/task/join.rs",
+    "original_invalid_declared_range": [
+      341,
+      392
+    ],
+    "actual_file_line_count": 377,
+    "corrected_actual_read_range": [
+      341,
+      377
+    ],
+    "reason": "Selected output requested 52 lines after line 340, but the actual file ends at 377. The returned source included only 341-377. No credit for nonexistent 378-392.",
+    "correction_script": "C:\\code\\phantom\\target\\architecture-audit\\validate-connect-route-baseline-931bb8d7-v2.py",
+    "correction_script_raw_sha256": "184502351b4faa0c8d56fc4d1999d222839fd4daeeba1057dfa7607e41b92aa6"
+  }
+}

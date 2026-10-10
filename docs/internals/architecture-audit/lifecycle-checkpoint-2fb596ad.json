@@ -1,0 +1,201 @@
+{
+  "revision": "2fb596ad2f0d60f868c16ae3831bda9da5e840a7",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-causal-baseline-handoff-931bb8d7.md",
+      "target": "docs/internals/architecture-audit/connect-route-causal-baseline-handoff-931bb8d7.md.txt",
+      "sha256": "767c4d5c33b14cd82fec1fe655337fbbf55277df58beaecf6ae03f9384e117d1",
+      "bytes": 7517
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-causal-baseline-handoff-931bb8d7.json",
+      "target": "docs/internals/architecture-audit/connect-route-causal-baseline-handoff-931bb8d7.json",
+      "sha256": "4401c568688ad73f37b138dfba3b4331ad4b16d61d16dacfa63f6da3663f5044",
+      "bytes": 27533
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-causal-baseline-independent-review-931bb8d7.md",
+      "target": "docs/internals/architecture-audit/connect-route-causal-baseline-independent-review-931bb8d7.md.txt",
+      "sha256": "008f07a1626d729c2d468c51b8c8b5ac8be25b1e080822f97111e004f968ed10",
+      "bytes": 3712
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-causal-baseline-independent-review-931bb8d7.json",
+      "target": "docs/internals/architecture-audit/connect-route-causal-baseline-independent-review-931bb8d7.json",
+      "sha256": "800b6d45898fc66f91d48a5cb2392ffb0161eb45a64bd267d42dfd4c6e4bb4cc",
+      "bytes": 24193
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-baseline-root-2234a8c3.md",
+      "target": "docs/internals/architecture-audit/connect-route-baseline-root-2234a8c3.md.txt",
+      "sha256": "e80d2ac6607f46d5d8165830a0ac7f8a50a5d88eafdf62894f71ff5fac4ae408",
+      "bytes": 1531
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-baseline-root-2234a8c3.json",
+      "target": "docs/internals/architecture-audit/connect-route-baseline-root-2234a8c3.json",
+      "sha256": "b23eafbbfdb435e50040986049d01583bdc6fd9b368a3c73d1d4d676004c323e",
+      "bytes": 43414
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-baseline-native-independent-addendum-2234a8c3.md",
+      "target": "docs/internals/architecture-audit/connect-route-baseline-native-independent-addendum-2234a8c3.md.txt",
+      "sha256": "dd8eed66183a142d8c07d8706c19bfc7de94041f1e28f707f9c477919f12f079",
+      "bytes": 2588
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\connect-route-baseline-native-independent-addendum-2234a8c3.json",
+      "target": "docs/internals/architecture-audit/connect-route-baseline-native-independent-addendum-2234a8c3.json",
+      "sha256": "406a6cd1d61f04009da9869f45322d40135c25e20e9713ad461b14baa6a47cd7",
+      "bytes": 56547
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-handoff-211099a6.md",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-handoff-211099a6.md.txt",
+      "sha256": "16132f79c3e452e5a9b458b4e9c194a89650f600d0fe04125632fccf88e02f05",
+      "bytes": 5721
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-handoff-211099a6.json",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-handoff-211099a6.json",
+      "sha256": "8fe548327471eaf281e27b15a6a4126a243e859c21b44aefc13f9213def473bb",
+      "bytes": 10417
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-independent-source-review-211099a6.md",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-independent-source-review-211099a6.md.txt",
+      "sha256": "cab811c68af65967dcb975c4758692caf7409ba871832cfd9ba544acd0a7fbb6",
+      "bytes": 4178
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-independent-source-review-211099a6.json",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-independent-source-review-211099a6.json",
+      "sha256": "4b76919b164864e8574f448f50565741f5a6cbba515afb5cae6fec9ce7148009",
+      "bytes": 15644
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-root-2fb596ad.md",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-root-2fb596ad.md.txt",
+      "sha256": "83038bdc363445fb0d80ad47f0662e5923468af1d683a33a12a903047d5134b4",
+      "bytes": 1309
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-root-2fb596ad.json",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-root-2fb596ad.json",
+      "sha256": "e726ddc3bcdd29bf6ca20e8d79f4ad5cc7ce0ded7ca975abef17dea445ef6e9d",
+      "bytes": 16270
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-standards-review-5a28f55f-final.md",
+      "target": "docs/internals/architecture-audit/request-session-standards-review-5a28f55f-final.md.txt",
+      "sha256": "9fe253f4d74c3b36f1550d8cd3379d9784d096f669e201e9ecaf559354ed7025",
+      "bytes": 12177
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-standards-review-5a28f55f-final.json",
+      "target": "docs/internals/architecture-audit/request-session-standards-review-5a28f55f-final.json",
+      "sha256": "d22bf53d0ec1e82b86bf8136413dbfa7fc4de68ddfea41602e9dc6d178fe74ca",
+      "bytes": 25903
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-regression-handoff-49c0aad0.md",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-regression-handoff-49c0aad0.md.txt",
+      "sha256": "1fc9d1584c8710e9f20a58c8618c905322d3872de4e8492c312cb49dd14cd7f6",
+      "bytes": 7566
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-regression-handoff-49c0aad0.json",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-regression-handoff-49c0aad0.json",
+      "sha256": "f9ffdd580fa71b1a5a93245dd8922a05fae5c8e024dfe6f9c41e13c7838e88cd",
+      "bytes": 65949
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-regression-independent-review-49c0aad0.md",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-regression-independent-review-49c0aad0.md.txt",
+      "sha256": "17338a62e3c26a1f62316be0cbff9f9eb32c673665f7a13d2f85673b8b10aacd",
+      "bytes": 5659
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-regression-independent-review-49c0aad0.json",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-regression-independent-review-49c0aad0.json",
+      "sha256": "2a623de84d96307919d53ebc42e1115eec1021bd13e3efd732d14089aedf8cae",
+      "bytes": 68887
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-review-range-correction-49c0aad0.md",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-review-range-correction-49c0aad0.md.txt",
+      "sha256": "83960137f7cf02d75b4cc228b2ac965b79d71743c5612c731c0b19c3c998f597",
+      "bytes": 592
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-review-range-correction-49c0aad0.json",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-review-range-correction-49c0aad0.json",
+      "sha256": "327ad527a05e6c5a2d897084472eddaa2d3247562a428f8ce8d88e972515e55a",
+      "bytes": 1687
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\root-driver-stream-source-49c0aad0.md",
+      "target": "docs/internals/architecture-audit/root-driver-stream-source-49c0aad0.md.txt",
+      "sha256": "3b4a659447d828ada569446486252354508dcd88a888913f348ba3f040821324",
+      "bytes": 489
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\root-driver-stream-source-49c0aad0.json",
+      "target": "docs/internals/architecture-audit/root-driver-stream-source-49c0aad0.json",
+      "sha256": "724d413244893069118784d1fde058510e667072274bed58ed1e5141d3dbfb33",
+      "bytes": 1951
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\recent-evidence-checkpoint-independent-review-2cea08af.md",
+      "target": "docs/internals/architecture-audit/recent-evidence-checkpoint-independent-review-2cea08af.md.txt",
+      "sha256": "d08194a2883d9bf9cc22ba205bcae5985ecda3fe3db55c71e5dbd9aab9d8ff3d",
+      "bytes": 2712
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\recent-evidence-checkpoint-independent-review-2cea08af.json",
+      "target": "docs/internals/architecture-audit/recent-evidence-checkpoint-independent-review-2cea08af.json",
+      "sha256": "9f15a647647ccba6e1ff835e2d85ef6f6f5f259c803a5b1141a2fe9d6e1ab532",
+      "bytes": 510129
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.md",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.md.txt",
+      "sha256": "e21da5d8e927671d1e307a3677d9b4e55241e375666faef640ebb6db1f07d4de",
+      "bytes": 2290
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.json",
+      "target": "docs/internals/architecture-audit/cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.json",
+      "sha256": "cf27c45e6f845a0dd59c4f653fd698882c841cfc95789d190ccb94503de3e217",
+      "bytes": 22306
+    }
+  ],
+  "unchanged_request_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/client.rs",
+      "revision": "2fb596ad2f0d60f868c16ae3831bda9da5e840a7",
+      "blob_oid": "f788bfe0f92a658bb09e1953685ebfd0cc898e8e",
+      "sha256": "a70208796f70ec4115d0ae29c4eb7cfaa166f15791896c6d1a6dcc8610b61435",
+      "line_count": 1469,
+      "scope": "Identity preserves specifically recorded complete auditor reads; root read report and validates ranges, not a new root whole source claim."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "2fb596ad2f0d60f868c16ae3831bda9da5e840a7",
+      "blob_oid": "cbe671bc9876a27ca2e14992c5f0d6fb21d32dc6",
+      "sha256": "16dd4a547982fd1448ebc3567de9943124d73ba7267b2f718c37c16693ee7d7d",
+      "line_count": 722,
+      "scope": "Identity preserves specifically recorded complete auditor reads; root read report and validates ranges, not a new root whole source claim."
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "2fb596ad2f0d60f868c16ae3831bda9da5e840a7",
+      "blob_oid": "a9f995058a5e647da32f6ab1f13c270677700c79",
+      "sha256": "982cc454863130e27a4fcad9dbe370d8961b7ef742701d5bba6a6a6ff8b274fc",
+      "line_count": 1279,
+      "scope": "Identity preserves specifically recorded complete auditor reads; root read report and validates ranges, not a new root whole source claim."
+    }
+  ],
+  "inventory_rows": 2931,
+  "scope": "Exact28 report import and qualified source bindings/discovery. Cookie source and focused native30/30 both hosts independently approved. Current CONNECT owner complete oldanchor is historical; broaderH2 forecasts unexecuted. Combined architecture and final gates remain open."
+}

@@ -1,0 +1,125 @@
+# CONNECT fixture regression baseline
+
+Signed checkpoint: `931bb8d74358ad136cced4826bd8995418a23d5e`.
+Parent: `551e639d218edb19d34230d4e48ff35f530d65e4`.
+Lane: `C:/code/phantom-worktrees/audit-connect-route-contracts`, branch
+`lane/audit-connect-route-contracts`. The worktree is clean.
+
+This checkpoint adds nine controls. The source forecast is six failures and
+three passes. Compilation, native execution, and the remedy belong to the
+integration owner. No Cargo command was run in this lane.
+
+## Owned source and preservation
+
+Only these files changed:
+
+- `crates/phantom/tests/proxies/proxy.rs`: 780 lines.
+- `crates/phantom/tests/proxies/proxy/upload_contract.rs`: 357 lines.
+- `crates/phantom/tests/proxies/proxy/upload_contract/peers.rs`: 233 lines.
+
+The 289-line auth child is byte-identical to the parent revision. Every other
+existing parent function is byte-identical, including the verified HTTPS
+proxy, Unicode authority, HTTP/2 trailers, rejection/no-direct-fallback,
+invalid-fields-before-I/O and runtime tests, relay classifier, and deadline.
+The first-upload task acquisition prefix is exact. The validator reconstructs
+the route/client preparation, request/status/body, sequential joins and exact
+wire assertions from the extracted helpers. Only reference parameters and
+the raw task field names differ in those reconstructed operations.
+
+The first caller captures its request result and passes it to an async finish
+helper whose first operation is `operation?`. This preserves its early return
+and missing peer error. Raw JoinHandles remain in the private upload value.
+Preparation still builds the actual client after receiving raw task handles.
+No ownership or error-retention fix has been applied.
+
+The original forwarding helper delegates to the actual instrumented helper
+with `None`. The new optional observation sends the parsed CONNECT head
+after the existing response write and flush. Ordinary callers perform no
+extra I/O. Instrumented sender failure returns a BrokenPipe error.
+
+## Independent control contracts
+
+All new methods are under `proxy::upload_contract::`.
+
+| Method | Observable prerequisite and intended boundary | Forecast |
+| --- | --- | --- |
+| `dropping_an_unpolled_upload_finish_destroys_both_ready_peers` | Literal CONNECT, POST, payload and consumed 200/through; drop transferred future before polling; destruction captured before backup | Fail at `(true, true)` |
+| `cancelling_a_polled_upload_finish_destroys_both_ready_peers` | Same real exchange; finish is explicitly polled Pending while origin is held, then dropped | Fail at `(true, true)` |
+| `invalid_trust_preparation_destroys_already_acquired_connect_peers` | Same real exchange; rebuild from actual invalid DER after raw task transfer; require typed TrustStore BuildError | Fail at destruction assertion |
+| `truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup` | Actual 200 with Content-Length 7 and only `th`; require Http1 RequestError/Protocol cause and separately observed completed PermissionDenied 911 | Fail when caller returns primary without FixtureFailures |
+| `completed_proxy_failure_keeps_the_completed_origin_failure` | Actual full 200/through; independently observe both completed typed PermissionDenied 911 and Unsupported 912 | Fail when sequential join omits origin cause |
+| `healthy_upload_finish_keeps_literal_connect_and_origin_bytes` | Same actual path with full response and joined literal wire/body assertions | Pass |
+| `bounded_connect_deadline_keeps_context_and_elapsed_cause` | Existing five-second wrapper on a pending operation, paused clock; require original message and Elapsed in source chain | Fail after message check |
+| `bounded_connect_operation_keeps_the_original_inner_error` | Existing wrapper returns controlled typed PermissionDenied 915 | Pass |
+| `bounded_connect_ready_operation_succeeds` | Existing wrapper completes successfully | Pass |
+
+These are predictions. A prerequisite failure or compilation failure would
+not prove the intended boundary. Later aggregate and typed-cause assertions
+are not credited before execution reaches them.
+
+## Ownership and evidence limits
+
+Both peers are ready through actual parsed wire observations, rather than
+sleeps. The origin supplies literal POST bytes and the seven-byte payload.
+The proxy supplies literal ordered CONNECT fields from its actual parser.
+Each held-origin check consumes the complete response body before observing
+the owner's boundary. A client handle remains live through backup cleanup.
+
+Task destruction has a finite 150 ms observation per peer. The observation
+is saved before releasing the origin or aborting backups. Backups then abort
+both raw tasks and observe destruction within ten seconds. Already consumed
+receivers are not repolled. Receiver errors remain errors. The guard is
+created before spawning, and its destructor runs after each peer's stream
+locals are dropped.
+
+The transferred baseline handles cannot be joined after the defective owner
+drops them. Backup markers establish destruction, not observation of their
+discarded task result. Successful finish does observe the raw joins. Drop
+fallback aborts on panic or external cancellation; it does not synchronously
+join. No permanent socket-leak claim is made.
+
+PermissionDenied 911 and Unsupported 912 are deliberately injected after
+actual peer exchanges. The truncated response is real loopback TLS/HTTP.
+Neither injected cause is presented as a native OS failure. The deadline
+control advances the test clock and makes no network timing claim.
+
+Controls capture fallible operations before backup cleanup. When both the
+operation and cleanup fail, their original boxed causes are retained through
+the existing `finish_with_cleanup`. Prerequisite assertions can still panic;
+the abort guard is the fallback for that path.
+
+The auth and remaining ordinary caller owners remain source findings. These
+new controls exercise the actual first-upload path and shared bound, not an
+entirely new fixture implementation or all public proxy behavior.
+
+## Source identities and static checks
+
+The JSON records exact committed Git blob OIDs, raw SHA256, inclusive ranges,
+and separate working-byte/CRLF comparisons. The original full parent/auth
+read is distinct from current changed-range reading plus unchanged-byte
+rebind. New control and observation files were read completely. Supporting
+client/body/TLS/shared owner and locked Tokio reads remain partial.
+
+All eight extraction and file-preservation checks passed. Targeted
+`rustfmt --edition 2024 --check` returned 0. `git diff --check` returned 0;
+Git emitted expected LF/CRLF conversion notices. The SSH signature verifies
+under the existing configured signers file. Author and committer are both
+Arya Alikhani with the agreed iCloud address.
+
+The first validator failed before writing JSON because it declared Tokio
+join.rs lines 341-392, while that file has 377 lines. The returned source
+actually ended at 377. The original script remains unchanged. The additive
+v2 validator records the invalid declaration and the corrected 341-377
+range. Nonexistent lines receive no credit.
+
+Root selection:
+
+```sh
+scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-http \
+  --test proxies --all-features --locked \
+  -E 'test(proxy::upload_contract::)'
+```
+
+The ordinary `proxy::` selection also needs to run after integration. This
+handoff provides source/static evidence only, not native or full-gate
+approval. The cookie and parser lanes were left unchanged.

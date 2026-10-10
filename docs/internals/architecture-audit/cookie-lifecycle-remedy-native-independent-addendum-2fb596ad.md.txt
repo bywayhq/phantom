@@ -1,0 +1,36 @@
+# Cookie recorder repair independent native review
+
+Accept focused Windows and Linux results at `2fb596ad2f0d60f868c16ae3831bda9da5e840a7`.
+Both hosts run the exact thirty-case corrected `2cea08af` roster: thirty pass,
+410 skipped. All ten previously reached negatives pass and all twenty previous
+passes remain. Formatting, selected strict Clippy and Rust 1.88 checks return
+zero; both exact revision receipts and terminal runner statuses validate.
+
+Both complete new cookie logs, six ancillary logs, all exits/revisions, empty
+format logs and the complete launcher were read. Twenty-one raw root artifacts
+validate by exact SHA256 and length. Both complete prior corrected cookie logs
+were reread. Independently parsed unique rosters agree with both structured
+receipts and identify the same ten failed controls now passing.
+
+Five tested source blobs exactly equal source-approved `211099a6` and the prior
+independent full source review. All 23 controls remain unchanged. This identity
+rebind adds no new manual semantic coverage. Passing unchanged straight-line
+controls supports formerly unreached H2 combined RequestError and concrete
+HTTP2/IO assertions at193–207 and H3 primary RequestError and actual cleanup
+RecvError checks at178–184. Actual unrelated PermissionDenied913, receiver,
+contextual Elapsed and both cancellation-destruction controls pass after their
+retained real traffic prerequisites.
+
+Root reports the initial default-distribution launch failed before bash/runner
+and generated no Linux artifacts. The retained Linux terminal receipts establish
+the sole successful exact-revision run. Missing startup artifacts were not
+reconstructed independently; that launch history remains root-attributed.
+
+These are private fixture checks. Injected read faults are controlled seams,
+not native OS faults. Finite destruction witnesses do not prove permanent leaks.
+Paused timers establish cause retention rather than live network timing. Logs
+show tests pass, rather than tracing every assertion. No Cargo, build, socket
+operation or tracked source edit was executed by this reviewer. Full integration
+gates and combined architecture closure remain open.
+
+JSON SHA256: `cf27c45e6f845a0dd59c4f653fd698882c841cfc95789d190ccb94503de3e217`.

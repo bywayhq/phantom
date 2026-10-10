@@ -40,6 +40,34 @@ do not establish that need.
 
 ## Recent verification
 
+At `2fb596ad`, the [cookie repair receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt)
+records thirty passes per host with all original controls unchanged. Ten
+formerly failing lifecycle cases now pass, including concrete combined
+causes, receiver errors and expiry. Formatting, strict selected Clippy and
+Rust 1.88 checks pass on Windows and Linux. The current complete 825-line
+owner has root and independent source review. Independent native review is
+approved; final gates remain open.
+
+At `2234a8c3`, the [CONNECT baseline](connect-route-baseline-root-2234a8c3.md.txt)
+records 106 methods per host: one hundred pass and six intended failures.
+The exact public CONNECT prefix gives a derived 24-method subset, with
+eighteen passes and six failures. This is not a separate execution. The
+[independent review](connect-route-baseline-native-independent-addendum-2234a8c3.md.txt)
+confirms actual preparation, traffic and completed-cause prerequisites.
+The current parent retains historical whole-read and current bounded-diff
+scope. Full caller cleanup is in progress.
+
+The [request-session source review](request-session-standards-review-5a28f55f-final.md.txt)
+reads client, cookie and hint owners completely. It reconciles existing
+client fixes and adds eight source candidates, without runtime claims.
+The received H3 ordered-header trace remains a partial vendor review.
+The [broader H2 baseline review](h2-lifecycle-regression-independent-review-49c0aad0.md.txt)
+reads all fifteen current owners and children. Root has reviewed two children
+and bounded other changes; composition, compilation and causal execution
+remain pending. Source forecasts receive no runtime credit.
+
+The following evidence describes earlier revisions.
+
 At `2cea08af`, the [root native receipt](h2-cookie-corrected-root-2cea08af.md.txt)
 records all 41 H2 methods passing on Windows and Linux. Cookie fixtures run
 thirty methods per host: twenty pass and ten intended lifecycle negatives

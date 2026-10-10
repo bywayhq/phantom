@@ -1,0 +1,9 @@
+# H2 driver and stream control source review
+
+Root read both complete new children at signed `49c0aad0`: 274 driver lines
+and 202 stream lines. Paired JSON binds their exact committed bytes and
+records the actual response/reset prerequisites and finite cleanup scope.
+
+Other current parent and control files remain unread in this root pass.
+This partial review does not approve the whole baseline or establish native
+causal results. Compilation and both-host reproduction remain required.
