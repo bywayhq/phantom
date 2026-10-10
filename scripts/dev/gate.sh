@@ -138,7 +138,7 @@ mkdir -p -- "$logs"
 
 # A Cargo diagnostic, a failed Rust or Python test, a nextest failure line, or
 # a docs checker finding. Each is a failure even when the command exits 0.
-failure_pattern='^(error|warning)(\[[^]]*\])?:|FAILED|^ +(FAIL|SIGSEGV|SIGABRT|TIMEOUT|ABORT) \[|^[1-9][0-9]* error\(s\)|, [1-9][0-9]* warning\(s\)'
+failure_pattern='^(error|warning)(\[[^]]*\])?:|FAILED|^ +(FAIL|LEAK(-FAIL)?|SIGSEGV|SIGABRT|TIMEOUT|ABORT) \[|^[1-9][0-9]* error\(s\)|, [1-9][0-9]* warning\(s\)'
 
 # run_step NAME TARGET COMMAND...: runs COMMAND with its output in NAME's log
 # and records its exit status, duration, and first suspicious log lines.

@@ -14,6 +14,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Reject leaked test output in local gates and CI. Migrate: treat `LEAK`
+  and `LEAK-FAIL` as failures. Investigate the output holders before
+  rerunning the tests. The existing 200 ms detection interval is unchanged.
+
 - Give shared support-crate types one public path. Migrate: import settings
   and TCP bounds from `phantom_profile` instead of its protocol modules.
   Import shared request types from `phantom_net::request` instead of
