@@ -1,0 +1,199 @@
+{
+  "revision": "732d30064422fe219c421a0941844c896e15e7e4",
+  "hosts": {
+    "windows": {
+      "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+      "client_hints::client_retains_accept_ch_across_requests": "PASS",
+      "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+      "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+      "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+      "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "FAIL",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "FAIL",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "FAIL",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "FAIL",
+      "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+      "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+      "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+      "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+      "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+      "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+      "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+      "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+      "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+      "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+      "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "FAIL",
+      "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "FAIL",
+      "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+      "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+      "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+      "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+      "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+      "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS"
+    },
+    "linux": {
+      "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+      "client_hints::client_retains_accept_ch_across_requests": "PASS",
+      "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+      "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+      "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+      "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "FAIL",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "FAIL",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "FAIL",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "FAIL",
+      "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+      "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+      "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+      "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+      "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+      "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+      "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+      "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+      "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+      "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+      "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "FAIL",
+      "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "FAIL",
+      "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+      "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+      "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+      "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+      "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+      "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "request-hint-observers-baseline-732d3006-windows.revision",
+      "bytes": 41,
+      "sha256": "e4b8f0009b2465068596a6257c7ab76627b911157bd9c0ce822d28414241808f"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-msrv-windows.log",
+      "bytes": 167,
+      "sha256": "87489251a9e6553febd66efca3c2202ea0cb047a42e010907bada9412852d24a"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-clippy-windows.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-clippy-windows.log",
+      "bytes": 749,
+      "sha256": "5c57acb73c6acc279e69f991066f877a7c27efd0a8c17e4ea2045237093abc4f"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-request-session-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-request-session-windows.log",
+      "bytes": 14556,
+      "sha256": "fb0ebb38f15cf2389f8a2895e3a124766dc8ec8500a1565c74c0568c8e983973"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-linux.revision",
+      "bytes": 41,
+      "sha256": "e4b8f0009b2465068596a6257c7ab76627b911157bd9c0ce822d28414241808f"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "951bbd239916f5fc1e80938d81f2c797312e3983f0e753d15f4dbf65ba6084a0"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-clippy-linux.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-clippy-linux.log",
+      "bytes": 759,
+      "sha256": "bfffae0190844cf35c80531a23e1baebf9ad00dd9300af450d3492f560f0b734"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-request-session-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "request-hint-observers-baseline-732d3006-request-session-linux.log",
+      "bytes": 14556,
+      "sha256": "5f2dd38f12dedbf54570fc2943fdef8d489d476c4d5ca1547aaf336f9dd6128a"
+    },
+    {
+      "path": "run-request-hint-observers-baseline.sh",
+      "bytes": 2214,
+      "sha256": "837729231512640d1ee81be5288ea4d7df82019cc779a1c38e1866b31f53d8d2"
+    }
+  ],
+  "scope": "Root reviewed test roster and causal failure blocks on both hosts, complete strict lint diagnostics. Six private observer negatives reproduced after actual traffic; all25 ordinary methods, six deadline methods and four new positives pass. New control tuple fails strict lint on both hosts; formatting and Rust1.88 pass. Source correction and oracle remedies pending; no production emission claim or final gate credit."
+}

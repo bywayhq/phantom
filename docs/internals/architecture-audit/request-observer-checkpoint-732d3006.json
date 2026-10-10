@@ -1,0 +1,103 @@
+{
+  "revision": "732d30064422fe219c421a0941844c896e15e7e4",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-observer-remedy-native-independent-addendum-1ac70fe1.md",
+      "target": "docs/internals/architecture-audit/trust-observer-remedy-native-independent-addendum-1ac70fe1.md.txt",
+      "bytes": 658,
+      "sha256": "8041ee74df19c16a7bf77107923b2f707843e814687a45924e3095a3e476e32e"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-observer-remedy-native-independent-addendum-1ac70fe1.json",
+      "target": "docs/internals/architecture-audit/trust-observer-remedy-native-independent-addendum-1ac70fe1.json",
+      "bytes": 11980,
+      "sha256": "bd4b584294fc4869c37122036abc959d1d791a8089a3db7974a89f243ed9a9c3"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-native-independent-addendum-3e48645c.md",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.md.txt",
+      "bytes": 973,
+      "sha256": "9267f5e707c9b3c625a07912e92a768c10ec687b838b87e9f0872a23845e2e15"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-native-independent-addendum-3e48645c.json",
+      "target": "docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.json",
+      "bytes": 100027,
+      "sha256": "f895a04770e547a9722b6949ef2a490a8ffa1bb1eaba5cf8fb54001241ed8e5b"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-independent-source-review-ae12132e.md",
+      "target": "docs/internals/architecture-audit/request-session-deadline-remedy-independent-source-review-ae12132e.md.txt",
+      "bytes": 731,
+      "sha256": "105d0d9bd2efcb13448e98da9fdec8f8ff8cbfe951c0561e44914a1dabe850a7"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-remedy-independent-source-review-ae12132e.json",
+      "target": "docs/internals/architecture-audit/request-session-deadline-remedy-independent-source-review-ae12132e.json",
+      "bytes": 5007,
+      "sha256": "09eb4835373ee6311912abb016f2bc1d67ae64065396b90668099531d648b35b"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-native-85f2d58b.md",
+      "target": "docs/internals/architecture-audit/request-session-deadline-native-85f2d58b.md.txt",
+      "bytes": 851,
+      "sha256": "8d5e60a8ef233876d402a7eb02b8704dd97f2891cf3d58989d18d1ef102d1c98"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-session-deadline-native-85f2d58b.json",
+      "target": "docs/internals/architecture-audit/request-session-deadline-native-85f2d58b.json",
+      "bytes": 20775,
+      "sha256": "967873288fc0ad28ab32432d12c1cc00d72a1ef3b108c4c270f2aa1d257a74e0"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-order-baseline-independent-source-review-1ab8107c.md",
+      "target": "docs/internals/architecture-audit/request-order-baseline-independent-source-review-1ab8107c.md.txt",
+      "bytes": 1252,
+      "sha256": "d43187e1953c03f702e6210442637b31adfe07df71accb200864439ae0383abb"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-order-baseline-independent-source-review-1ab8107c.json",
+      "target": "docs/internals/architecture-audit/request-order-baseline-independent-source-review-1ab8107c.json",
+      "bytes": 15242,
+      "sha256": "b32e0f7ede79b7cac7bbdf9301c474f81016252a26b1a4067188035b16d8acb8"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-values-baseline-independent-source-review-2534762d.md",
+      "target": "docs/internals/architecture-audit/request-hint-values-baseline-independent-source-review-2534762d.md.txt",
+      "bytes": 1234,
+      "sha256": "df533d6828868d2d19ffe289e0dff6f16fbde1aa0a44f7fd40c1ca247fdcfb2c"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-values-baseline-independent-source-review-2534762d.json",
+      "target": "docs/internals/architecture-audit/request-hint-values-baseline-independent-source-review-2534762d.json",
+      "bytes": 11971,
+      "sha256": "3de651457492540673d858b0423aaa8edb1c3ada6fd76c2422539b8089efb45c"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-values-paragraph-independent-addendum-6b4a0247.md",
+      "target": "docs/internals/architecture-audit/request-hint-values-paragraph-independent-addendum-6b4a0247.md.txt",
+      "bytes": 460,
+      "sha256": "f14acb05da2f9a719c71e18cc27b8561805657884f9de06cefc51446671a88df"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-values-paragraph-independent-addendum-6b4a0247.json",
+      "target": "docs/internals/architecture-audit/request-hint-values-paragraph-independent-addendum-6b4a0247.json",
+      "bytes": 1375,
+      "sha256": "1821a15a129b697dd4957af9cd7b7ce5a17eaa0ce19ce0a54f2adcad3f8aab8b"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-native-732d3006.md",
+      "target": "docs/internals/architecture-audit/request-hint-observers-baseline-native-732d3006.md.txt",
+      "bytes": 800,
+      "sha256": "5c9565d1a582b0846bc5deac503709eab9324498ccd4b811f0d0b52b889e66af"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-native-732d3006.json",
+      "target": "docs/internals/architecture-audit/request-hint-observers-baseline-native-732d3006.json",
+      "bytes": 12583,
+      "sha256": "d9f66639f490649432f7d86dbfc32682806b3e97046b724042f2aa83c07452e2"
+    }
+  ],
+  "inventory_rows": 3002,
+  "scope": "Preserved bounded source and focused native evidence; final integration gates remain open."
+}

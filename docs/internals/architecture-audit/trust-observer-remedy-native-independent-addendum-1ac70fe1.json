@@ -1,0 +1,283 @@
+{
+  "revision": "1ac70fe121879ca9ac72f9aebc24e0fb2a8bfcd6",
+  "decision": "approve focused native evidence for the private trust observation remedy",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "1ac70fe121879ca9ac72f9aebc24e0fb2a8bfcd6",
+      "git_blob_oid": "53bcd1b91759c07a81eb85b48905cf97ac678346",
+      "raw_sha256": "6f7f99f25de6eec752b70882b952e6734543c554a6d6a8548076972c3e9c31da",
+      "line_count": 240,
+      "scope": "exact source identity only; no new whole semantic credit",
+      "inclusive_ranges": [],
+      "prior_full_read_anchor": "trust-observer-remedy-independent-source-review-581c7650.json"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "revision": "1ac70fe121879ca9ac72f9aebc24e0fb2a8bfcd6",
+      "git_blob_oid": "0cf0c6762ef7fe75e00082f0321f814a9c393e64",
+      "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+      "line_count": 250,
+      "scope": "exact source identity only; no new whole semantic credit",
+      "inclusive_ranges": [],
+      "prior_full_read_anchor": "trust-observer-remedy-independent-source-review-581c7650.json"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "trust-observer-remedy-1ac70fe1-windows.revision",
+      "bytes": 41,
+      "raw_sha256": "649bae76a248e1af30979882108f05bb4e30239d51762053e0ae4243cdcacbdc",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-windows.runner-exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-fmt-windows.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-fmt-windows.log",
+      "bytes": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-windows.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-windows.log",
+      "bytes": 1019,
+      "raw_sha256": "11d8ced2ae06b52a5a5520bd05c688f5a1dae14ee1e2b1f8efd4e33c85d074de",
+      "line_count": 11,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-default-windows.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-default-windows.log",
+      "bytes": 1675,
+      "raw_sha256": "122536fceec30a4b3ee56540e96c37b4bd909c87ed0f41b22252c4d098747d6a",
+      "line_count": 17,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-clippy-windows.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-clippy-windows.log",
+      "bytes": 168,
+      "raw_sha256": "7a3d88923c17f6874aeaa1cf0220eb3a0b7458b50a761f632280bb48302ff3e5",
+      "line_count": 2,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-msrv-windows.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-msrv-windows.log",
+      "bytes": 168,
+      "raw_sha256": "9b2258f96f99dc689f686e42fb3d2397c8181f2bad320eb12b918b5229450d52",
+      "line_count": 2,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-linux.revision",
+      "bytes": 41,
+      "raw_sha256": "649bae76a248e1af30979882108f05bb4e30239d51762053e0ae4243cdcacbdc",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-linux.runner-exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-fmt-linux.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-fmt-linux.log",
+      "bytes": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-linux.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-linux.log",
+      "bytes": 1029,
+      "raw_sha256": "c9d61b6219e323db6401183fafe01487bf444cd4cb5d08463b86c4597005a693",
+      "line_count": 11,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-default-linux.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-trust-default-linux.log",
+      "bytes": 1794,
+      "raw_sha256": "1a9448ad6c21a663ffe8e6b091fa1a69115f0063b81ed7a975f190b45234831e",
+      "line_count": 19,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-clippy-linux.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-clippy-linux.log",
+      "bytes": 177,
+      "raw_sha256": "d46da9469c94996c80a1604f2580f0b4405f6dd25e4068afe2b12eec1f206a75",
+      "line_count": 2,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-msrv-linux.exit",
+      "bytes": 2,
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-1ac70fe1-msrv-linux.log",
+      "bytes": 177,
+      "raw_sha256": "5bdaa87b83b8ba9656bcc5660791ffbb66936973900d159e1f583f0ca247953b",
+      "line_count": 2,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "run-trust-observer-remedy.sh",
+      "bytes": 2343,
+      "raw_sha256": "2036cd48a0c35682cf15e3d617c044cf27b07aa1b987803af0dc36ad84162282",
+      "line_count": 49,
+      "scope": "complete artifact manually read"
+    },
+    {
+      "path": "trust-observer-remedy-native-1ac70fe1.md",
+      "bytes": 1063,
+      "raw_sha256": "25fd45ce275cae92d2562d6e6a39b7a9fbad207d08129436365148f0e94e2f77",
+      "line_count": 17,
+      "scope": "complete root Markdown manually read"
+    },
+    {
+      "path": "trust-observer-remedy-native-1ac70fe1.json",
+      "bytes": 7323,
+      "raw_sha256": "fbc933f753bdf5d798a30812885185a2b58206291703073ddee2f4e5e1d61c72",
+      "line_count": 183,
+      "scope": "complete root paired report manually read"
+    },
+    {
+      "path": "trust-observer-remedy-independent-source-review-581c7650.json",
+      "bytes": 3460,
+      "raw_sha256": "ad1dc28724dd7598dbc090618aea80fafbbf22b453b73812a134f4ea95cf87e1",
+      "line_count": 61,
+      "scope": "prior source approval identity anchor; not fresh manual complete reread"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "stages": {
+        "fmt": 0,
+        "trust": 0,
+        "trust-default": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "rosters": {
+        "trust": [
+          "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction",
+          "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations",
+          "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order",
+          "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors"
+        ],
+        "trust-default": [
+          "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction",
+          "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations",
+          "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order",
+          "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors"
+        ]
+      }
+    },
+    "linux": {
+      "stages": {
+        "fmt": 0,
+        "trust": 0,
+        "trust-default": 0,
+        "clippy": 0,
+        "msrv": 0
+      },
+      "rosters": {
+        "trust": [
+          "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction",
+          "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations",
+          "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order",
+          "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors"
+        ],
+        "trust-default": [
+          "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction",
+          "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations",
+          "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order",
+          "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors"
+        ]
+      }
+    }
+  },
+  "observations": [
+    "Each host actually executes the same four methods under all features and default features; all eight observations per host pass. These are overlapping selections, not eight distinct methods.",
+    "All-feature tests exercise the five-name configured connector roster; default-feature tests exercise its four-name roster without WebSocket. Passing frozen controls support actual nonempty captured orders and reject the equal-count substitution of another HTTP/1 batch for HTTP/2.",
+    "Formatting, selected strict Clippy and Rust 1.88 checks and runner exits are zero on both hosts."
+  ],
+  "findings": [],
+  "limitations": [
+    "Reviewer executed no Cargo or native tests.",
+    "Source blobs are exact prior approved source, with no new full source read credited by equality.",
+    "This repairs a private observation oracle; ordinary exceptional task cleanup, browser parity and the final integration gate are not newly proven."
+  ]
+}

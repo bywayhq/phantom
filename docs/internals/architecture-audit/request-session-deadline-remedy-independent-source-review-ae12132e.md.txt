@@ -1,0 +1,5 @@
+The signed private deadline remedy is approved for root native verification. The complete two-file diff, both concrete error types and both actual wrappers were read.
+
+CookieDeadline and HintDeadline preserve the original context and expose the actual Elapsed cause. The five-second limits and inner errors are unchanged. Reversing only the owned source edits reconstructs both prior owners exactly; all 25 original test bodies and the two frozen children are retained.
+
+The review credits bounded changed-source ranges, not whole-current owner reads. No Cargo, compilation or native execution was performed. The reported 337 baseline remains separate evidence; task ownership, request ordering and the full gate remain open.

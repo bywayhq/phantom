@@ -1,0 +1,333 @@
+{
+  "writer_correction": "Original independent writer counted a shorter indentation substring inside the longer indentation and failed before report creation. Additive v2 counts complete lines; original script preserved. A second writer attempt omitted the original synchronous test from its count and failed before report creation; additive v3 includes that existing method. No source or oracle change.",
+  "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+  "parent": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+  "decision": "approve A165 regression-only source baseline for root causal execution",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "70100cb621ec52a34c7c613d7c142a77ea7065bb",
+      "raw_sha256": "ceb0edf738bd3cf9e2c6f2a55eefb2a6aaf72ed0b874d8f01362c2a2c92fd7d8",
+      "line_count": 310,
+      "read_scope": "fresh complete manual owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 310,
+          "raw_sha256": "ceb0edf738bd3cf9e2c6f2a55eefb2a6aaf72ed0b874d8f01362c2a2c92fd7d8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "4adf411175af657d793c8d9e3f0d45e405dfc88f",
+      "raw_sha256": "b88814798740580b6047cd740362449f1bc882ab6af7468c105ee8524e61bc3c",
+      "line_count": 1282,
+      "read_scope": "fresh bounded caller/helper reads plus complete semantic diff",
+      "inclusive_ranges": [
+        {
+          "start": 28,
+          "end": 48,
+          "raw_sha256": "4336d036d8f0512f08bcab4c511b05eca6fa2e9660338ec22a22ebbe4990c0c0"
+        },
+        {
+          "start": 530,
+          "end": 565,
+          "raw_sha256": "3c3975214e10dbc57e7d0de07a0abb6e1ba15e5d1fc0e626ade97a2d3f720390"
+        },
+        {
+          "start": 721,
+          "end": 780,
+          "raw_sha256": "aefb8025fc718a464a256d3528f0e4f5af14ab54f04b7dbc66f32bf1c83a6b6c"
+        },
+        {
+          "start": 1234,
+          "end": 1244,
+          "raw_sha256": "7691dd604cb3d0c351cd3cd804c2707c2b4c9ca657cc3dc76d546d310919ff9c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "line_count": 116,
+      "read_scope": "fresh complete manual supporting owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 116,
+          "raw_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_scope": "fresh complete manual supporting owner read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 264,
+          "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_scope": "complete package manifest manually read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 138,
+          "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/ext.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "e67c245952be5b59917796d2ffec08c512c5f869",
+      "raw_sha256": "8f9e7170dce8e26741344b5be0048f9e7d3b985c3a5a1ffcf6f71fd8c926d761",
+      "line_count": 608,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 86,
+          "raw_sha256": "d8faa08a59dfeba5a255536519ef3cddfde4f008521874112394a0a0c14dff21"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 95,
+          "end": 117,
+          "raw_sha256": "f66098d545a0c7f7056f1208b00972cc05e8c50a55f53534072a0ad8c0e3d442"
+        },
+        {
+          "start": 290,
+          "end": 325,
+          "raw_sha256": "351bc1e95e95bec380e48f167c5a1e5f996651ee39c7dd1b59eeae8937c710a0"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/client.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "d0f7bef26c31b9c422e222d8e30a7229bb3ffb43",
+      "raw_sha256": "ac843c22552f28d8cd632951383c23ada72381044ead24dcfdfcb0c75adfa272",
+      "line_count": 2124,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 590,
+          "end": 635,
+          "raw_sha256": "f4fcc61ea760a8b8715cc686670923ab291209d06f13a58ae0a1dd7470e4eee3"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 435,
+          "end": 456,
+          "raw_sha256": "4fe7f8336f56fece4c5659ec62de70ac199d3426796f3a82dc583365d836c1ac"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/ext.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "9932aa19234f80e2794a159d30aa22a29a44a8b4",
+      "raw_sha256": "e1ef604bb26588612015b0205cac71ba2ee87b140cb5b6f267d37aa21bde45a5",
+      "line_count": 153,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 127,
+          "raw_sha256": "58ee3081c3a13f1a7c4fffeffe95287e0c303be1e0a6ce7eb699d384ca86e03e"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/client/connection.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "6d98535fd433b4b7fb9919d3a376941f30789285",
+      "raw_sha256": "a2551912dbd7edcc27081d96fec9b2b3aefcae8d61290720803a8cf87bc89e2a",
+      "line_count": 794,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 213,
+          "end": 244,
+          "raw_sha256": "1a05b72d5d3f391f3744f93ace4b76c27eecdeca854ef7ef70b619a91a9586bb"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "raw_sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "line_count": 273,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 220,
+          "end": 272,
+          "raw_sha256": "6731c0042c43a6cc594935375c792c0968c4c9879a7ccfc971bd98ca1e900a9a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "7a321813dbdc80d4bfe0e0b394ab31ae3a380e6c",
+      "raw_sha256": "4ccfce75cf51c39d66175b2266c34afb2b28f134af80da933636365c403136ef",
+      "line_count": 1224,
+      "read_scope": "fresh bounded actual API/decode contract manual read",
+      "inclusive_ranges": [
+        {
+          "start": 131,
+          "end": 176,
+          "raw_sha256": "2ebca1946103973c1021457712ad016a5070d1f3a7c4fba72916daff784d385f"
+        }
+      ]
+    }
+  ],
+  "local_dependency_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\http-1.5.0\\src\\header\\map.rs",
+      "raw_sha256": "fff2c8490382c7e739e0b2d0ac344c2acc33e8d47f80643c85742b57950da648",
+      "line_count": 4044,
+      "read_scope": "fresh resolved dependency partial read",
+      "inclusive_ranges": [
+        {
+          "start": 967,
+          "end": 1002,
+          "raw_sha256": "9976a90622fc1f586bfb4a34f96130bb5a989fc1883b88b6a4ff0eb664e929af"
+        },
+        {
+          "start": 2227,
+          "end": 2238,
+          "raw_sha256": "291a78fc532f38d60fd0ced7941036f2ff7e99155144f939acb6f8bd61eedd44"
+        }
+      ]
+    }
+  ],
+  "unchanged_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "4b8bdbaf800b4935a39e33fde02172c116c40853",
+      "raw_sha256": "5e84bf6d83dfce1e11780adeb92da19ce7df2e600271bf1439798f9b149506bc",
+      "line_count": 724,
+      "read_scope": "whole-byte comparison only, no new manual source review",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "read_scope": "whole-byte comparison only, no new manual source review",
+      "inclusive_ranges": []
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "1ab8107c91937dcdd0ed6c69fcb804174987f820",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "read_scope": "whole-byte comparison only, no new manual source review",
+      "inclusive_ranges": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "request-order-baseline-handoff-1ab8107c.md",
+      "bytes": 2212,
+      "raw_sha256": "a3cf8df5d847707a6719c9ebdce3d0a3b1e590054c899b9612a75d7b9646d0bb",
+      "scope": "complete handoff/preservation artifact manually read; independent comparison repeated"
+    },
+    {
+      "path": "request-order-baseline-handoff-1ab8107c.json",
+      "bytes": 13951,
+      "raw_sha256": "72ba5cd7eae91ed57823cda888ac9644f4c1bbce7dcf08cfed99eb1ba0f186bd",
+      "scope": "complete handoff/preservation artifact manually read; independent comparison repeated"
+    },
+    {
+      "path": "request-order-baseline-preservation-1ab8107c.json",
+      "bytes": 738,
+      "raw_sha256": "04616d16a0e8c1917a30bc2a8cbffa4fd9fe9b8f60a20d23bca487b9504fc281",
+      "scope": "complete handoff/preservation artifact manually read; independent comparison repeated"
+    }
+  ],
+  "preservation": {
+    "reconstructed_previous_parent_exact": true,
+    "changed_paths": [
+      "crates/phantom/tests/requests/client_hints.rs",
+      "crates/phantom/tests/requests/client_hints/received_order.rs"
+    ],
+    "parent_diff_bytes": 2353,
+    "parent_diff_sha256": "37123dfc1a873e290a90d4fe560314cc677c50baa516416dc173374466dcf0b0",
+    "original_methods": 25,
+    "qualifications": [
+      "Two key expressions mechanically extracted into the same private helper; one original test body changes by the equivalent call.",
+      "Other 24 original methods and the two deadline child blobs are preserved. Full parent reconstruction, not token identity alone, was independently checked."
+    ]
+  },
+  "control_roster": [
+    "real_http2_decoding_distinguishes_equal_maps_with_different_order",
+    "the_actual_http2_observer_distinguishes_interleaved_duplicate_order",
+    "real_http3_decoding_distinguishes_equal_maps_with_different_order",
+    "the_actual_http3_observer_distinguishes_interleaved_duplicate_order"
+  ],
+  "predictions": {
+    "positive": 2,
+    "negative": 2,
+    "first_negative_boundary": "received_order.rs103 assert_ne after actual decoded ordinary sequences and 204/empty response bodies; later literal names107-108 are unreached until repair"
+  },
+  "observations": [
+    "Independent literal sequences interleave or place adjacent the same duplicate x-repeat values. Actual decoded order must equal each literal sequence; equality of the semantic maps is separately asserted.",
+    "Receiver OrderedHeaders comes through the actual decoder extension insertion; it is not injected on receipt. Only sender metadata chooses outgoing order.",
+    "H2 uses real codec over duplex, a retained sender, two eager concrete task owners and explicit finite stop calls. Typed primary and cleanup errors are composed. Drop requests cancellation without implying an awaited join.",
+    "H3 uses trusted actual loopback QUIC/QPACK, lexical peer/client/driver flows, close on both retained endpoints and bounded wait_idle. try_join and select do not establish retention of every simultaneous completed error; no such claim is granted.",
+    "Resolved HeaderMap keys yields each name once and equality compares per-name values, so the old observer is insufficient for global ordinary field order. No production ordering defect is inferred.",
+    "Names, imports, companion responsibility, setup/operation/assertion paragraphs and changed error/cleanup paths were manually checked against the attached standards. No generic framework, suppression, copied decoder or redundant module path is introduced."
+  ],
+  "findings": [],
+  "limitations": [
+    "No Cargo, compile, native run, network or socket execution by reviewer; forecasts remain unmeasured.",
+    "The live lane contains a later draft; only signed Git objects at the exact revision were reviewed.",
+    "Current parent receives bounded supporting-read credit only. Mechanical preservation and old full anchors do not create fresh whole-current coverage.",
+    "This proves no browser parity, outgoing production defect, sensitivity, dynamic QPACK, fault-injected cancellation or multiple H3 completed-error retention.",
+    "Root owns compilation, causal execution, integration and final gate."
+  ]
+}

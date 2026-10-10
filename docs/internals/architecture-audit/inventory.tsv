@@ -2980,3 +2980,24 @@ docs/internals/architecture-audit/trust-observer-remedy-independent-source-revie
 docs/internals/architecture-audit/trust-observer-remedy-native-1ac70fe1.json	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 docs/internals/architecture-audit/trust-observer-remedy-native-1ac70fe1.md.txt	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 vendor/h3/patches/ordered-received-request-headers.patch	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
+crates/phantom/tests/requests/client_hints/deadline_contract.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+crates/phantom/tests/requests/client_hints/hint_values.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+crates/phantom/tests/requests/client_hints/received_order.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+crates/phantom/tests/requests/cookies/deadline_contract.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-hint-observers-baseline-native-732d3006.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-hint-observers-baseline-native-732d3006.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-hint-values-baseline-independent-source-review-2534762d.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-hint-values-baseline-independent-source-review-2534762d.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-hint-values-paragraph-independent-addendum-6b4a0247.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-hint-values-paragraph-independent-addendum-6b4a0247.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-observer-checkpoint-732d3006.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-order-baseline-independent-source-review-1ab8107c.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-order-baseline-independent-source-review-1ab8107c.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-session-deadline-native-85f2d58b.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-session-deadline-native-85f2d58b.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-session-deadline-remedy-independent-source-review-ae12132e.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/request-session-deadline-remedy-independent-source-review-ae12132e.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/trust-observer-remedy-native-independent-addendum-1ac70fe1.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+docs/internals/architecture-audit/trust-observer-remedy-native-independent-addendum-1ac70fe1.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.

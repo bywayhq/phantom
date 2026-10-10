@@ -1,0 +1,7 @@
+The signed A165 source baseline is approved for causal execution. The full 310-line child, complete parent diff and actual bounded decoder/caller contracts were read.
+
+Four controls make real H2 and H3 GET exchanges with 204 and empty response bodies. Independently literal sequences have equal semantic maps but distinct decoded ordinary order, including both duplicate values. That prerequisite precedes the unchanged key-based observer. Two decoder controls should pass and two observer controls should fail at line 103; these remain source predictions.
+
+The parent reconstructs the previous signed bytes exactly when the two expressions are restored and the helper/registration removed. One original test body is mechanically changed; the other 24 methods and both deadline children are retained. Current whole-parent review is not claimed.
+
+H2 task owners and sender remain available for finite explicit cleanup. H3 uses lexical flows and closes both endpoints before bounded idle cleanup. Typed expiry and primary/cleanup causes survive. Multiple simultaneous H3 completed failures and fault-injected cancellation are not proven by this slice. No source edits or Cargo were performed; runtime, integration and final gate remain with root.

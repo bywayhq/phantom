@@ -1,0 +1,5 @@
+The corrected H2 causal baseline evidence is approved. Windows and Linux each run 99 selected methods: 55 pass and 44 fail as intended, with 285 skipped. All 24 ordinary methods pass. Formatting, selected strict Clippy and Rust 1.88 pass; nextest exits 100 and both runners exit 1.
+
+The EOF control passes. All four corrected reset cases get through real exchange and same-stream reset prerequisites, then reach the missing body and final-send errors. The later typed H2 downcasts and reason assertions remain unreached. The fixture remedies are still pending.
+
+Manual scope is the complete pre-Summary rosters, all 44 failure stderr blocks and four complete reset blocks on each host, plus full ancillary logs and launcher. Whole raw test-log hashes are validated without claiming whole manual reads. The paired JSON binds exact read intervals, raw evidence and prior approved source blobs. No permanent leak, production defect count or full gate result is inferred.

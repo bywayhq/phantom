@@ -54,8 +54,9 @@ passes all four methods on both hosts, with default features and all
 features. Each named connector must have its own nonempty batch. The
 unchanged control now rejects equal-count HTTP/1 substitution for HTTP/2.
 The earlier `d0a45c1e` baseline failed that assertion on both hosts.
-Independent source review is approved; native assessment and final gates
-remain separate. Original exceptional cleanup is not newly proved.
+Independent source and [native review](trust-observer-remedy-native-independent-addendum-1ac70fe1.md.txt)
+are approved. Final gates remain open. Original exceptional cleanup is not
+newly proved.
 
 At `3e48645c`, the [corrected HTTP/2 baseline](h2-lifecycle-baseline-native-3e48645c.md.txt)
 runs 99 methods per host: 55 pass and 44 fail. All 24 original methods pass.
@@ -64,6 +65,23 @@ missing-cause assertions. The earlier compiler and control-setup failures
 remain preserved. Fixture ownership, transport causes and poisoned
 observations still need repair. Formatting, selected strict Clippy and
 Rust 1.88 checks pass. Failures count test cases, not production defects.
+The [independent assessment](h2-lifecycle-baseline-native-independent-addendum-3e48645c.md.txt)
+confirms the corrected baseline within its recorded log-reading scope.
+
+At `85f2d58b`, the [request-session deadline repair](request-session-deadline-native-85f2d58b.md.txt)
+passes all 31 cookie and hint methods on both hosts. The two actual timer
+controls failed at `33715620`; all 25 previous methods and four positive
+controls passed there. The reviewed private wrappers now retain their
+context and concrete timeout causes. Formatting, strict selected Clippy
+and Rust 1.88 checks pass. Independent native assessment remains open.
+
+At `732d3006`, the [hint observer baseline](request-hint-observers-baseline-native-732d3006.md.txt)
+runs 41 methods per host: 35 pass and six fail. Real H2/H3 order controls
+reach collapsed-order assertions. Four actual-client controls expose
+wrong-value and unsolicited-header acceptance. All previous methods and
+the positive controls pass. Strict Clippy rejects a new test-helper tuple;
+formatting and Rust 1.88 checks pass. Source correction and observer
+remedies are pending. These results do not establish production defects.
 
 At `2fb596ad`, the [cookie repair receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt)
 records thirty passes per host with all original controls unchanged. Ten

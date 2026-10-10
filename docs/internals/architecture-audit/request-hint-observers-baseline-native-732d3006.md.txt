@@ -1,0 +1,14 @@
+# Client-hint observer baseline
+
+At732d3006 both hosts run41 methods:35 pass and six fail. Actual decoded
+H2/H3 controls reach order-collapse assertions. Four actual-client controls
+reach wrong-value or unsolicited-header acceptance failures. All25 ordinary
+methods, six deadline controls and four new positive controls pass.
+
+Formatting and Rust1.88 checks pass. Strict Clippy fails on both hosts for
+the new order-control outgoing tuple type. No lint exception is introduced.
+The source correction and observer repairs require review and execution.
+Root reviewed the rosters, causal failures and complete lint diagnostics.
+These are private test gaps; production emission and final gates are separate.
+
+JSON SHA256: `d9f66639f490649432f7d86dbfc32682806b3e97046b724042f2aa83c07452e2`.
