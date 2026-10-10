@@ -1,4 +1,6 @@
 use std::{
+    error::Error,
+    fmt,
     future::{Future, poll_fn},
     io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6},
@@ -177,6 +179,7 @@ async fn a_fresh_stored_entry_reports_a_cache_hit_without_another_resolution() -
     assert_eq!(addresses, [SocketAddr::new(V4, 8443)]);
     assert_eq!(recorder.calls(), 1);
     assert!(stored);
+
     let (literal, stored) = cache.lookup_noting_cache("127.0.0.1", 443).await?;
     assert_eq!(literal, [SocketAddr::new(V4, 443)]);
     assert!(!stored, "an IP literal is not a cache entry");
@@ -553,6 +556,256 @@ async fn failures_are_kept_for_the_negative_ttl() -> TestResult {
     }
 
     assert_eq!(recorder.calls(), 1);
+    Ok(())
+}
+
+#[derive(Debug)]
+struct ResolverFailure {
+    identity: Arc<()>,
+    cause: NestedResolverFailure,
+}
+
+impl fmt::Display for ResolverFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("resolver refused the name")
+    }
+}
+
+impl Error for ResolverFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
+
+#[derive(Debug)]
+struct NestedResolverFailure(u32);
+
+impl fmt::Display for NestedResolverFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "resolver detail {}", self.0)
+    }
+}
+
+impl Error for NestedResolverFailure {}
+
+fn failing_resolver(
+    identity: &Arc<()>,
+    calls: &Arc<AtomicUsize>,
+    gate: watch::Receiver<bool>,
+) -> AddressResolver {
+    let identity = Arc::clone(identity);
+    let calls = Arc::clone(calls);
+    AddressResolver::from_fn(move |host| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        let identity = Arc::clone(&identity);
+        let mut gate = gate.clone();
+        async move {
+            if host == "held.phantom.test" {
+                gate.wait_for(|open| *open)
+                    .await
+                    .map_err(io::Error::other)?;
+                return Ok(vec![V4]);
+            }
+
+            gate.wait_for(|open| *open)
+                .await
+                .map_err(io::Error::other)?;
+            Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                ResolverFailure {
+                    identity,
+                    cause: NestedResolverFailure(47),
+                },
+            ))
+        }
+    })
+}
+
+fn assert_typed_resolver_cause<'a>(
+    error: &'a io::Error,
+    identity: &Arc<()>,
+) -> TestResult<&'a io::Error> {
+    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    assert_eq!(error.to_string(), "resolver refused the name");
+    let mut cause: &(dyn Error + 'static) = error;
+    loop {
+        if let Some(original) = cause.downcast_ref::<io::Error>()
+            && let Some(resolver) = original
+                .get_ref()
+                .and_then(|payload| payload.downcast_ref::<ResolverFailure>())
+        {
+            assert!(Arc::ptr_eq(&resolver.identity, identity));
+            let nested = original
+                .source()
+                .and_then(|source| source.downcast_ref::<NestedResolverFailure>())
+                .ok_or("the resolver's nested source was lost")?;
+            assert_eq!(nested.0, 47);
+            return Ok(original);
+        }
+
+        cause = cause
+            .source()
+            .ok_or("the original resolver error was lost")?;
+    }
+}
+
+async fn consume_failure(cache: &AddressCache, answer: Answer) -> TestResult<io::Error> {
+    tokio::time::timeout(Duration::from_secs(5), cache.consume_answer(answer, 443))
+        .await?
+        .err()
+        .ok_or_else(|| "the failing resolver returned addresses".into())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_uncached_resolver_preserves_its_typed_and_nested_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let resolver = failing_resolver(&identity, &calls, watch::channel(true).1);
+
+    let error = resolver
+        .lookup("missing.phantom.test")
+        .await
+        .err()
+        .ok_or("the failing resolver returned addresses")?;
+
+    assert_typed_resolver_cause(&error, &identity)?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_first_cached_lookup_preserves_the_resolver_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_resolver(
+        long_lived(),
+        failing_resolver(&identity, &calls, watch::channel(true).1),
+    );
+    let selected = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(selected, Answer::Wait(_)));
+
+    let error = consume_failure(&cache, selected).await?;
+
+    assert_typed_resolver_cause(&error, &identity)?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(cache.is_empty(), "no negative TTL was configured");
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn joined_cached_lookups_share_the_original_resolver_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (open, gate) = watch::channel(false);
+    let cache =
+        AddressCache::with_resolver(long_lived(), failing_resolver(&identity, &calls, gate));
+    let first = cache.cached_or_pending("missing.phantom.test".into())?;
+    let joined = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(first, Answer::Wait(_)));
+    assert!(matches!(joined, Answer::Wait(_)));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    open.send(true)?;
+
+    let first = consume_failure(&cache, first).await?;
+    let joined = consume_failure(&cache, joined).await?;
+
+    let original = assert_typed_resolver_cause(&first, &identity)?;
+    let shared = assert_typed_resolver_cause(&joined, &identity)?;
+    assert!(std::ptr::eq(original, shared));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_stored_negative_answer_preserves_the_original_resolver_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), Some(Duration::from_secs(600))),
+        failing_resolver(&identity, &calls, watch::channel(true).1),
+    );
+    let first = cache.cached_or_pending("missing.phantom.test".into())?;
+    let first = consume_failure(&cache, first).await?;
+    let stored = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(stored, Answer::Stored(_)));
+    assert_eq!(cache.len(), 1);
+
+    let stored = consume_failure(&cache, stored).await?;
+
+    let original = assert_typed_resolver_cause(&first, &identity)?;
+    let retained = assert_typed_resolver_cause(&stored, &identity)?;
+    assert!(std::ptr::eq(original, retained));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_inline_lookup_preserves_the_resolver_cause_without_new_shared_work() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (open, gate) = watch::channel(false);
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), None),
+        failing_resolver(&identity, &calls, gate),
+    );
+    let held = cache.cached_or_pending("held.phantom.test".into())?;
+    assert!(matches!(held, Answer::Wait(_)));
+    let inline = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(inline, Answer::Inline { .. }));
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    open.send(true)?;
+
+    let error = consume_failure(&cache, inline).await?;
+    let (addresses, stored) =
+        tokio::time::timeout(Duration::from_secs(5), cache.consume_answer(held, 443)).await??;
+
+    assert_typed_resolver_cause(&error, &identity)?;
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert!(!stored);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cached_failures_retain_the_original_os_error_code() -> TestResult {
+    const OS_CODE: i32 = 0x5a31;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let resolver = AddressResolver::from_fn({
+        let calls = Arc::clone(&calls);
+        move |_| {
+            calls.fetch_add(1, Ordering::SeqCst);
+            async { Err(io::Error::from_raw_os_error(OS_CODE)) }
+        }
+    });
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), Some(Duration::from_secs(600))),
+        resolver,
+    );
+    let expected = io::Error::from_raw_os_error(OS_CODE);
+
+    for _ in 0..2 {
+        let error = cache
+            .lookup("missing.phantom.test", 443)
+            .await
+            .err()
+            .ok_or("the failing resolver returned addresses")?;
+        assert_eq!(error.kind(), expected.kind());
+        assert_eq!(error.to_string(), expected.to_string());
+        let mut cause: &(dyn Error + 'static) = &error;
+        loop {
+            if let Some(original) = cause.downcast_ref::<io::Error>()
+                && original.raw_os_error() == Some(OS_CODE)
+            {
+                break;
+            }
+
+            cause = cause
+                .source()
+                .ok_or("the original OS error code was lost")?;
+        }
+    }
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
     Ok(())
 }
 
