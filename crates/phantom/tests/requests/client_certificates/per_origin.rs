@@ -677,8 +677,18 @@ pub(super) async fn https_proxy_exchange_with_origin(
             get(&client, format!("https://{origin_address}/"))
         );
 
-        assert_eq!(status?, StatusCode::NO_CONTENT);
-        assert_eq!(presented_to_origin?, Some(mapped.leaf_der));
+        let (status, presented_to_origin) = match (status, presented_to_origin) {
+            (Ok(status), Ok(presented)) => (status, presented),
+            (status, presented) => {
+                return finish_with_cleanup(
+                    status.map(|_| ()).map_err(Into::into),
+                    presented.map(|_| ()),
+                );
+            }
+        };
+
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert_eq!(presented_to_origin, Some(mapped.leaf_der));
 
         if let Some(release) = release {
             release
