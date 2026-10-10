@@ -5,7 +5,9 @@ use http_body_util::BodyExt;
 use phantom::{HttpProtocol, RedirectPolicy, RequestHeader};
 use tokio::{net::TcpListener, sync::oneshot, task::AbortHandle, time::timeout};
 
-use crate::support::tunnel_proxy::{ConnectionPeer, FixtureFailures, finish_with_cleanup};
+use crate::support::tunnel_proxy::{
+    ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
+};
 
 use super::{H2_ALPN, TestIdentity, TestResult, cookie_client_builder, spawn_cookie_redirect_peer};
 
