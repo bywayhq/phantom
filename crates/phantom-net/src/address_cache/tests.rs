@@ -297,22 +297,34 @@ async fn concurrent_lookups_share_one_resolution() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V6, V4]));
-
-    let lookups = (0..8)
-        .map(|_| {
-            let cache = cache.clone();
-            tokio::spawn(async move { cache.lookup("origin.phantom.test", 443).await })
-        })
+    let mut lookups = (0..8)
+        .map(|_| Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443)))
         .collect::<Vec<_>>();
-    tokio::task::yield_now().await;
+
+    for lookup in &mut lookups {
+        if let Poll::Ready(result) =
+            poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context))).await
+        {
+            result?;
+            return Err("a gated lookup finished before its resolver was released".into());
+        }
+    }
+    assert_eq!(
+        recorder.calls(),
+        1,
+        "all eight lookups selected pending work"
+    );
+
     open.send(true)?;
     for lookup in lookups {
+        let (addresses, stored) = tokio::time::timeout(Duration::from_secs(5), lookup).await??;
+
         assert_eq!(
-            lookup.await??,
+            addresses,
             [SocketAddr::new(V6, 443), SocketAddr::new(V4, 443)]
         );
+        assert!(!stored, "a pending lookup did not select a stored answer");
     }
-
     assert_eq!(recorder.calls(), 1);
     Ok(())
 }
@@ -342,43 +354,90 @@ fn a_lookup_does_not_depend_on_another_runtime_being_driven() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V4]));
-
-    // The first runtime starts the shared resolution, then is never driven
-    // again while it stays alive.
     let first = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    let abandoned = first.block_on(async {
-        tokio::time::timeout(
-            Duration::from_millis(20),
-            cache.lookup("origin.phantom.test", 443),
-        )
-        .await
-    });
-    assert!(abandoned.is_err(), "the gated lookup finished early");
-    let second = std::thread::spawn({
-        let cache = cache.clone();
-        move || -> Result<Vec<SocketAddr>, String> {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .build()
-                .map_err(|error| error.to_string())?;
-            runtime
-                .block_on(cache.lookup("origin.phantom.test", 443))
-                .map_err(|error| error.to_string())
-        }
-    });
-    std::thread::sleep(Duration::from_millis(20));
-    open.send(true)?;
-    let addresses = second.join().map_err(|_| "the second lookup panicked")??;
+    let mut first_lookup = Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
 
-    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
-    assert_eq!(
-        recorder.calls(),
-        1,
-        "the second runtime joined the first resolution"
-    );
+    let first_poll = first.block_on(poll_fn(|context| {
+        Poll::Ready(first_lookup.as_mut().poll(context))
+    }));
+    let first_calls = recorder.calls();
+
+    // The first runtime and its pending lookup stay alive without being driven.
+    let observed = std::thread::scope(|scope| -> TestResult {
+        let (ready, readiness) = std::sync::mpsc::channel();
+        let (completed, completion) = std::sync::mpsc::channel();
+        let second = match std::thread::Builder::new().spawn_scoped(scope, {
+            let cache = cache.clone();
+            move || {
+                let result = (|| -> io::Result<(Vec<SocketAddr>, bool)> {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()?;
+                    let mut lookup =
+                        Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
+
+                    runtime.block_on(async {
+                        if let Poll::Ready(result) =
+                            poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context))).await
+                        {
+                            result?;
+                            return Err(io::Error::other(
+                                "the second lookup finished before its resolver was released",
+                            ));
+                        }
+
+                        ready.send(()).map_err(io::Error::other)?;
+
+                        tokio::time::timeout(Duration::from_secs(5), lookup)
+                            .await
+                            .map_err(io::Error::other)?
+                    })
+                })();
+
+                completed.send(result)
+            }
+        }) {
+            Ok(second) => second,
+            Err(error) => {
+                open.send(true)?;
+                return Err(error.into());
+            }
+        };
+
+        let ready_result = readiness.recv_timeout(Duration::from_secs(5));
+        let calls_before_release = recorder.calls();
+        let released = open.send(true);
+        let second_result = completion.recv_timeout(Duration::from_secs(10));
+        let joined = second.join().map_err(|_| "the second lookup panicked");
+
+        // Release the resolver and observe the thread before any failing assertion.
+        joined??;
+
+        if let Poll::Ready(result) = first_poll {
+            result?;
+            return Err("the first lookup finished before its resolver was released".into());
+        }
+
+        let (addresses, stored) = second_result??;
+        ready_result?;
+        released?;
+
+        assert_eq!(first_calls, 1, "the first lookup invoked the real resolver");
+        assert_eq!(
+            calls_before_release, 1,
+            "the second lookup joined pending work"
+        );
+        assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+        assert!(!stored, "the second runtime did not select a stored answer");
+        assert_eq!(recorder.calls(), 1);
+        Ok(())
+    });
+
+    drop(first_lookup);
     drop(first);
-    Ok(())
+    observed
 }
 
 #[test]
@@ -868,15 +927,25 @@ async fn clear_forgets_answers_and_drops_resolutions_in_flight() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V4]));
+    let mut in_flight = Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
 
-    let in_flight = tokio::spawn({
-        let cache = cache.clone();
-        async move { cache.lookup("origin.phantom.test", 443).await }
-    });
-    tokio::task::yield_now().await;
+    if let Poll::Ready(result) =
+        poll_fn(|context| Poll::Ready(in_flight.as_mut().poll(context))).await
+    {
+        result?;
+        return Err("the pre-clear lookup finished before its resolver was released".into());
+    }
+    assert_eq!(recorder.calls(), 1, "the pre-clear resolution was invoked");
+
     cache.clear();
     open.send(true)?;
-    assert_eq!(in_flight.await??, [SocketAddr::new(V4, 443)]);
+    let (addresses, stored) = tokio::time::timeout(Duration::from_secs(5), in_flight).await??;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert!(
+        !stored,
+        "the pre-clear lookup did not select a stored answer"
+    );
     assert!(
         cache.is_empty(),
         "an answer started before the clear was stored"
