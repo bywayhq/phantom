@@ -1,0 +1,575 @@
+{
+  "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+  "decision": "fresh whole source review complete for four assigned owners; supported fixture findings await causal controls/remediation",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "0d52031cad9bcce6f2e7d436bf5ecd4c1ec2b736",
+      "sha256": "0d2a6c3953dcd2ed5bf9c25136a44b36cad2e7923cb9c43191d1ce9f018d7516",
+      "line_count": 435,
+      "read_scope": "fresh full manual read of immutable current owner; continuous complete terminal output",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 435,
+          "sha256": "0d2a6c3953dcd2ed5bf9c25136a44b36cad2e7923cb9c43191d1ce9f018d7516"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "ac90c5a5f47fdeba3ea4c274fc5e0923ee9c8668",
+      "sha256": "857ab17234e3ea9761c709e7d619fa55822a1f76454e8944c3fd5683472a03d3",
+      "line_count": 361,
+      "read_scope": "fresh full manual read of immutable current owner; continuous complete terminal output",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 361,
+          "sha256": "857ab17234e3ea9761c709e7d619fa55822a1f76454e8944c3fd5683472a03d3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "1b00bfb3c46b0638624d37e96823daca978e3bec",
+      "sha256": "50ef98ff038460e395581fe9f3e6e819d106edc59f20dfc1ca95cb4f4b9bc1e5",
+      "line_count": 556,
+      "read_scope": "fresh full manual read of immutable current owner; continuous complete terminal output",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 556,
+          "sha256": "50ef98ff038460e395581fe9f3e6e819d106edc59f20dfc1ca95cb4f4b9bc1e5"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "4ecf0afb0aa4dc95fde4c743372ecfcf7b44040d",
+      "sha256": "53ab0e2f4ebf052d993d200468111b19fd59f102821ab7ba55c1a9e83bf73810",
+      "line_count": 624,
+      "read_scope": "fresh full manual read of immutable current owner; continuous complete terminal output",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 624,
+          "sha256": "53ab0e2f4ebf052d993d200468111b19fd59f102821ab7ba55c1a9e83bf73810"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "8adf85d02e2ddf5d289ae84f6319eb22b5824b93",
+      "sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2",
+      "line_count": 251,
+      "read_scope": "fresh whole support read; first output printed1-202 and212-251 then failed at requested286; separate203-211 read completes actual251 without nonexistent coverage",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 251,
+          "sha256": "001a4a5bf0310abd55acf25e3612890d424dd9cf7b82d0ad84ba1910e1af70d2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_scope": "partial current acquisition/finish/Drop; repaired A106 contract retained, no whole owner promotion",
+      "read_ranges": [
+        {
+          "start": 278,
+          "end": 458,
+          "sha256": "8cd8927d19d3ffd67fc236f581d529c0dcaa0fe65dbf38361b18c918b78f4382"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/tcp.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "d0cb00c4950006fccb86b4f550aee26146fec0a1",
+      "sha256": "a2a8caaafb04bbe013baee6d9ee985e38ad6717b8bf700b93fdc9ba203895961",
+      "line_count": 140,
+      "read_scope": "partial current ReservedPort contract and implementation including macOS limitation",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 107,
+          "sha256": "df4675934bc39a82f851bb29c2bf631698e5e482f05f23265d6f75169d83651e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/dns.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "149d9afae04e28ae4ec1b90a7e3895be944521a5",
+      "sha256": "df173d900e50823f79907842223e4c6da9ac84c02594bd7e7cc094918cfce919",
+      "line_count": 448,
+      "read_scope": "partial current DNS acquisition, query observation and abort-on-Drop/JoinSet owner",
+      "read_ranges": [
+        {
+          "start": 150,
+          "end": 247,
+          "sha256": "97fe9e05c51807ee6fdbe9af759c7917af31059c4554c877c596028e98825e08"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_scope": "partial exact resolved public concrete H2 error inspection, not whole vendor review",
+      "read_ranges": [
+        {
+          "start": 46,
+          "end": 125,
+          "sha256": "6941fc19befa6be597e98c4195254699a140e3d09bc4ad81657411f38caf5e05"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/alt_svc/https_records.rs",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "1d5776782f5e63bc6f71aa080a5f4340ce72884e",
+      "sha256": "c55365b065ef9ceb2b8640b894b0f0b90ee40946f9354130a8f9d4d779870f81",
+      "line_count": 527,
+      "read_scope": "partial actual TCP/QUIC ECH cache/pending lookup contracts; no new production review",
+      "read_ranges": [
+        {
+          "start": 210,
+          "end": 265,
+          "sha256": "eb80a85ffcd41c684ab617978ad57c553387f831fa1469f7c95202e973b78d28"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "read_scope": "partial actual test-util feature line; search locator only outside these lines",
+      "read_ranges": [
+        {
+          "start": 69,
+          "end": 70,
+          "sha256": "bf763d46d5c48c1658bb873f55f8623dc41876c58e0c76ff46e234b36014373d"
+        }
+      ]
+    }
+  ],
+  "external_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "package": "tokio1.53.1 resolved local registry source",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_scope": "partial primary source; not a repository inventory owner",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 65,
+          "sha256": "4097ab25ba63449b4e51b3b370188f4f764adb91ea123e72fd671cf400666762"
+        },
+        {
+          "start": 344,
+          "end": 369,
+          "sha256": "fecb16cb791e773e3dfd441b49951dfd0cd9f60331880189c20b6b8fb9f4c22c"
+        }
+      ]
+    }
+  ],
+  "current_comparisons": [
+    {
+      "path": "crates/phantom/tests/http3/https_records.rs",
+      "current_head": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "current_git_blob_oid": "0d52031cad9bcce6f2e7d436bf5ecd4c1ec2b736",
+      "equal_frozen_blob": true,
+      "working_raw_sha256": "5918df7513dd7d3d633e1082319737b5ca6950c74e0b4c3aa45abcaab4b88e8c",
+      "working_lf_normalized_equal": true,
+      "qualification": "Identity comparison only; review remains exact108."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech.rs",
+      "current_head": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "current_git_blob_oid": "ac90c5a5f47fdeba3ea4c274fc5e0923ee9c8668",
+      "equal_frozen_blob": true,
+      "working_raw_sha256": "6db1e79b5d938380dc8edf0836625a8b9343b907b06152f2ec4154c920584973",
+      "working_lf_normalized_equal": true,
+      "qualification": "Identity comparison only; review remains exact108."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "current_head": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "current_git_blob_oid": "1b00bfb3c46b0638624d37e96823daca978e3bec",
+      "equal_frozen_blob": true,
+      "working_raw_sha256": "28eb6cb2c5cc8dbe65c7268b39cf8bd8bbb145bbc7e17cf76f7ad8ce09c10214",
+      "working_lf_normalized_equal": true,
+      "qualification": "Identity comparison only; review remains exact108."
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "current_head": "1088701d86f8f52fe812f0ad115f5f8c82b326de",
+      "current_git_blob_oid": "4ecf0afb0aa4dc95fde4c743372ecfcf7b44040d",
+      "equal_frozen_blob": true,
+      "working_raw_sha256": "c79c1dd4fa4324388461df663c96d421a9e82af4651d5a33f9cc1a757a1efc71",
+      "working_lf_normalized_equal": true,
+      "qualification": "Identity comparison only; review remains exact108."
+    }
+  ],
+  "manual_owned_file_count": 4,
+  "manual_owned_line_count": 1976,
+  "manual_support_whole": "ech.rs251 separately counted",
+  "method_rosters": {
+    "https_records": [
+      "sequential_client_uses_http3_once_the_https_record_is_known",
+      "misdirected_http3_marks_the_https_record_location_broken",
+      "delayed_https_record_does_not_delay_the_request",
+      "failed_lookup_leaves_the_request_on_the_origin",
+      "disabled_discovery_leaves_requests_unchanged",
+      "routes_without_direct_dns_send_no_https_query",
+      "discovery_requires_an_alt_svc_store"
+    ],
+    "https_record_ech": [
+      "a_known_record_encrypts_the_client_hello_to_the_origin",
+      "a_profile_without_the_field_keeps_ech_grease",
+      "parallel_http1_connections_each_offer_the_cached_configuration",
+      "a_proxied_request_sends_the_origin_name_without_ech"
+    ],
+    "https_record_ech_exact": [
+      "exact_http1_offers_the_records_ech",
+      "exact_http2_offers_the_records_ech",
+      "exact_http1_retries_a_rejection_once",
+      "exact_http2_retries_a_rejection_once",
+      "exact_http1_without_the_field_keeps_grease",
+      "exact_http2_without_the_field_keeps_grease",
+      "exact_http1_through_a_proxy_sends_no_ech",
+      "exact_http2_through_a_proxy_sends_no_ech",
+      "websocket_opening_offers_the_records_ech",
+      "websocket_over_exact_http2_offers_the_records_ech",
+      "websocket_opening_retries_a_rejection_once",
+      "websocket_over_exact_http2_retries_a_rejection_once",
+      "websocket_opening_through_a_proxy_sends_no_ech",
+      "websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+      "websocket_opening_without_the_field_keeps_grease",
+      "websocket_over_exact_http2_without_the_field_keeps_grease",
+      "websocket_opening_takes_the_record_for_its_alpn_offer",
+      "exact_http2_with_ech_connects_to_an_overridden_name"
+    ],
+    "https_record_ech_http3": [
+      "exact_http3_offers_the_records_ech",
+      "https_record_alternative_offers_the_records_ech",
+      "exact_http3_rejection_fails_without_a_quic_retry",
+      "exact_http3_without_the_field_keeps_grease",
+      "a_rejected_ticketed_connection_is_not_repeated_without_the_ticket",
+      "racing_client_serves_a_rejected_alternative_from_the_origin",
+      "sequential_client_fails_a_rejected_alternative_then_uses_the_origin"
+    ]
+  },
+  "findings": [
+    {
+      "id": "HTTPS-ECH-F1",
+      "priority": "P2",
+      "title": "Acquired raw ECH tasks escape exceptional caller ownership",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech.rs",
+          "ranges": [
+            [
+              79,
+              108
+            ],
+            [
+              133,
+              156
+            ],
+            [
+              175,
+              211
+            ],
+            [
+              241,
+              274
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+          "ranges": [
+            [
+              193,
+              238
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+          "ranges": [
+            [
+              76,
+              87
+            ],
+            [
+              147,
+              185
+            ],
+            [
+              200,
+              219
+            ],
+            [
+              228,
+              253
+            ]
+          ]
+        }
+      ],
+      "cause": "Negotiated raw top-level and parallel Vec JoinHandles detach when preparation/request/await returns early or bounded future is cancelled. Exact Origin has no guard for parent/serving tasks. QuicOrigin has no guard and its optional TCP listener plus TCP connection tasks are raw/unregistered. Sender Drop can signal a parent waiting in select; it does not interrupt current handshake awaits or own TCP descendants.",
+      "remedy": "Prepare before acquisition; eagerly own real peers with existing ConnectionPeer where contracts fit, and concrete lexical child ownership for actual multi-connection origins. Drop must stop/abort every owned task/endpoint; explicit returned failures must finitely drain outcomes. Do not introduce a global task framework.",
+      "regression": "At each distinct canonical owner seam, complete real handshake/request/response or actual GET readiness, retain Client/socket/runtime externally, cancel owner before next accept/serving completion, observe actual peer destruction/socket release before finite backup. Parallel acquisition/first-child failure must observe all started children; include unchanged success positives.",
+      "limits": "Source-supported detach contract only; no host leak measured, no indefinite resource leak claimed. Sender closure can cooperatively stop a parent. Drop cancellation is not an awaited join."
+    },
+    {
+      "id": "HTTPS-ECH-F2",
+      "priority": "P2",
+      "title": "Normal and error finish discard completed serving and protocol failures",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech.rs",
+          "ranges": [
+            [
+              100,
+              108
+            ],
+            [
+              263,
+              269
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+          "ranges": [
+            [
+              139,
+              172
+            ],
+            [
+              207,
+              227
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+          "ranges": [
+            [
+              162,
+              173
+            ],
+            [
+              200,
+              219
+            ],
+            [
+              233,
+              253
+            ]
+          ]
+        }
+      ],
+      "cause": "Exact/H3 parents abort/drop serving handles without awaiting their completed TestResults; H3 TCP descendants detach and return unit while ignoring handshake/head/write/shutdown failures. Exact H2 accept drain loops match only Some(Ok), swallowing any terminal H2 error; H1 WebSocket read_to_end explicitly ignores its result. Negotiated sequential await?? and completed request result? loops can discard other already-completed failures.",
+      "remedy": "Retain completed child results, abort and finitely join live children on failure, and combine original primary/secondary typed causes using current concrete fixture facilities. Distinguish actual expected shutdown/disconnect/rejection from unrelated protocol/I/O error; do not replace broad swallowing with blanket suppression.",
+      "regression": "Drive actual GET/opening and healthy response first, then inject distinct typed completed failures into two real canonical children or drive actual H2/WS read fault. Require original types/backend get_io and context survive explicit finish, and sibling destruction precedes return; use positive deliberate disconnect and normal completion controls. No copied serving implementation.",
+      "limits": "Existing response/ECH assertions do not establish late child or shutdown error health. Actual H2 I/O source inspection supports a causal read-fault test, but its reachable fault setup still needs implementation review/native proof. Existing shared A106 owner repair remains closed."
+    },
+    {
+      "id": "HTTPS-ECH-F3",
+      "priority": "P2",
+      "title": "Fixture bounds replace actual Elapsed with strings",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/https_records.rs",
+          "ranges": [
+            [
+              428,
+              435
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech.rs",
+          "ranges": [
+            [
+              154,
+              156
+            ],
+            [
+              209,
+              211
+            ],
+            [
+              272,
+              274
+            ],
+            [
+              358,
+              361
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+          "ranges": [
+            [
+              253,
+              257
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+          "ranges": [
+            [
+              200,
+              210
+            ],
+            [
+              370,
+              374
+            ]
+          ]
+        }
+      ],
+      "cause": "Outer deadline mappings discard Elapsed. H3 finish count waits also discard it in formatted count messages. Existing contexts are useful and must survive alongside the concrete cause.",
+      "remedy": "Use existing compatible PeerDeadline where its context fits, or one concrete owner-local contextual error holding Elapsed. Keep all existing periods and messages; ensure acquired tasks still take owned cleanup on expiry.",
+      "regression": "Poll the actual canonical bounded path under entered paused time with a pending future; require typed Elapsed through source plus literal original context, inner typed error and immediate ready positives. Count-wait expiry should retain actual Elapsed as well as count context. Test-util is enabled; no bound increase.",
+      "related": "New owner scope of the established typed-deadline pattern; do not imply existing A104/A125/A162 repairs regressed."
+    },
+    {
+      "id": "HTTPS-ECH-F4",
+      "priority": "P2",
+      "title": "No-direct-DNS route control assumes fixed port9 is refused",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/https_records.rs",
+          "ranges": [
+            [
+              305,
+              329
+            ]
+          ]
+        }
+      ],
+      "cause": "Nothing in the test owns or checks127.0.0.1:9. Another listener/service can accept the proxy connection; the comment does not establish refusal.8443 likewise is an ambient origin port though intended to be unreachable through refused proxy.",
+      "remedy": "Use held testkit tcp::ReservedPort ephemeral address for all refusal routes, preserving Proxy category and zero DNS queries. Its macOS release/rebind limitation is documented and remains qualified.",
+      "regression": "Retain positive actual direct discovery/DNS exchange and existing successful proxy no-ECH tests; verify selected refusal address remains the reserved handle and all three route categories stay Proxy. This is fixture input isolation, not production DNS evidence. No need to test a duplicate of ReservedPort implementation."
+    },
+    {
+      "id": "HTTPS-ECH-F5",
+      "priority": "P3",
+      "title": "QUIC owner acquisition changes local-address error to port0",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+          "ranges": [
+            [
+              147,
+              155
+            ]
+          ]
+        }
+      ],
+      "cause": "endpoint.local_addr().map_or(0,...) silently replaces an actual I/O failure with a valid-shaped zero port, so later request setup can obscure the acquisition cause.",
+      "remedy": "Resolve address fallibly before spawning TCP/QUIC owners and propagate the original error. Keep constructor ownership coherent if spawn_with_tcp has already acquired a task. No shim or new configuration.",
+      "regression": "Existing actual origin spawn/request positives cover ordinary acquisition; use a narrowly source-justified acquisition-error seam only if needed for a reachable causal test. Do not add constructor-mirror controls or claim this OS error was measured."
+    },
+    {
+      "id": "HTTPS-ECH-S1",
+      "priority": "P3",
+      "title": "Local aliases precede standard and external imports",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/https_records.rs",
+          "ranges": [
+            [
+              1,
+              15
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech.rs",
+          "ranges": [
+            [
+              1,
+              15
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+          "ranges": [
+            [
+              1,
+              15
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+          "ranges": [
+            [
+              1,
+              15
+            ]
+          ]
+        }
+      ],
+      "cause": "All four modules place crate support aliases before std/external imports, contrary to the supplied import-group rule. Several operation paragraphs also join unrelated lookup/readiness/assertion operations.",
+      "remedy": "Move existing local aliases to the local group and manually group only actual touched flows. Preserve cfg declarations and natural domain module responsibilities. No arbitrary file-size split or layout tests.",
+      "related": "Same standards issue as existing A129, with new four-file scope."
+    }
+  ],
+  "prior_context": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\a106-caller-boundary-ranges.json",
+      "sha256": "24369f5c023c0bc766dde90374618d65969359853d8f7a442d1be63ce9814ccd",
+      "scope": "locator/context only, not fresh whole report review or inherited full source credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-integration-standards-review.json",
+      "sha256": "f9053e1e9bab8c037d2b654aa3533567e75d9e404655afa9e206bc4becb393c2",
+      "scope": "locator/context only, not fresh whole report review or inherited full source credit"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\client-http3-altsvc-standards-review.json",
+      "sha256": "6c4e4f68c114b5515493d4210af1e3ac9c0df21612c49b966b57e963b2d2953f",
+      "scope": "locator/context only, not fresh whole report review or inherited full source credit"
+    }
+  ],
+  "rejected_or_qualified_candidates": [
+    "A106 Http3UpgradeFixture now closes endpoints/signals all owners and observes every task. DnsServer Drop aborts receiver with JoinSet-owned replies. These shared repaired contracts are not reopened as raw detach findings.",
+    "200ms/SETTLE sleeps assume cache scheduling; strict later route/ECH/name/count assertions actually validate outcomes. Exact tcp_ech/quic_ech await pending summaries. No observed flake or universal readiness failure inferred, and no blind retry/longer sleep proposed.",
+    "query_ids(&dns)[0] can panic when positive lookup is absent; that remains a test failure, not a false green or runtime-library input bug. No separate assertion-layout regression needed.",
+    "Shared try_handshake intentionally permits failed ECH retry handshake. It discards broad TLS/timeout causes; supporting observation alone does not establish a new production defect. Any stricter expected-rejection contract needs an actual independent alert/cause control before remediation.",
+    "ECH positive assertions inspect actual outer/inner names and acceptance; QUIC rejection checks independent ECH_REQUIRED0x179 and exact observed connection count. No fingerprint, browser parity, outgoing QPACK or unsupported route claim is added.",
+    "File sizes prompt responsibility review; these integration files have coherent domain helpers and shallow natural modules. No crate split, speculative generic framework or size-only split is justified."
+  ],
+  "limits": [
+    "No Cargo, source edits, native tests, browser/network experiments or central inventory mutation. Parent certificate lane remains frozen.",
+    "Full current owner reads were actual complete outputs, not searches/hash equality. A failed supporting read requested ech.rs286 after actualEOF251, then actual203-211 was read separately to complete251; no nonexistent range credit.",
+    "Prior broad scratch/ledger searches were locators and included truncated search output; no full historical report read credit. Ledger current A23/A43/A104/A106/A125/A129/A132 dispositions were checked only in actual retrieved scopes.",
+    "No full source credit for HTTP2 vendor, production HTTPS cache, whole DNS/upgrader/TCP owners or registry dependency. Supporting scopes are explicit. Final gates and whole-codebase audit remain open."
+  ]
+}

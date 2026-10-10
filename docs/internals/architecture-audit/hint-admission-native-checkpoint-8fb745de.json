@@ -1,0 +1,114 @@
+{
+  "revision": "8fb745de633e0c1e8b589f9785c9cf89c98fbf12",
+  "result": "33 selected hint methods pass on each host; all four stages and runners zero;456 methods outside filter",
+  "root_review": "both complete test logs and all ancillary step logs/metadata manually read; exact launcher fully read",
+  "source_boundary": "root changed function/helper/diff, full143-line supporting admission owner and partial actual pool scopes; independent source and native review bind49c to8fb",
+  "limits": "source-supported determinism remedy; no measured historical flake or production defect; A160/A167 and final full gates remain open",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-windows.revision",
+      "bytes": 41,
+      "sha256": "e0dfcf07cbd05d3e6f22e1bd7ed9ae0518e266c7b52127c44b93ab2ee52dd18e"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-hints-windows.log",
+      "bytes": 4970,
+      "sha256": "7d18dc5b380c611e1ff80cf99d4e5ab7c8c59dcef09f7d933f4871ab39444e94"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-hints-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-clippy-windows.log",
+      "bytes": 167,
+      "sha256": "281c2e2837d7bda1cc3f875b78727c9c02d629141f76b98299c44290d2897454"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-msrv-windows.log",
+      "bytes": 168,
+      "sha256": "8fae3df1644cd57ecc51bd994e68c62fa669597f44aff92980a3343bbe25eef4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-linux.revision",
+      "bytes": 41,
+      "sha256": "e0dfcf07cbd05d3e6f22e1bd7ed9ae0518e266c7b52127c44b93ab2ee52dd18e"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-hints-linux.log",
+      "bytes": 4980,
+      "sha256": "9b462e8fb44f81ac8c7dfd54dacf1ad178789a446aa3ef4fc7e9634272f91639"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-hints-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-clippy-linux.log",
+      "bytes": 177,
+      "sha256": "ad6b4a675c0b66255db9c7ca3b49498c6d29ae4376edcddd668d9b5828e96d37"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "e699958f6bb6ccacfeaccbb53b0ae61732f378610200792504ee84af50ef7ba3"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-8fb745de-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-hint-admission.sh",
+      "bytes": 2172,
+      "sha256": "a39af99ee76723f9ea7b7e40df4ac13625a7888c297841377f6b9c3bfd9c18d4"
+    }
+  ]
+}

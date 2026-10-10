@@ -40,6 +40,20 @@ do not establish that need.
 
 ## Recent verification
 
+The [hint admission review](hint-admission-native-independent-addendum-8fb745de.md.txt)
+confirms all thirty-three selected methods pass on Windows and Linux at `8fb745de`.
+The retained waiting request reaches actual same-key HTTP/2 capacity before
+the first response is released. Every pending probe is dropped before that
+request advances. Formatting, strict focused Clippy and Rust 1.88 pass.
+This verifies a source-supported timing correction, not a historical flake.
+Hint peer ownership and structural cleanup remain separate.
+
+The [HTTPS-record source pass](https-record-fixture-standards-review-1088701d.md.txt)
+records four complete independent owner reads and bounded root checks of
+actual acquisition, serving, finish and deadline scopes. New fixture
+ownership/error findings await causal controls and repairs. This does not
+establish a production ECH failure or a whole-owner root sign-off.
+
 The [certificate repair](certificate-inline-origin-fixed-native-independent-addendum-1088701d.md.txt)
 passes all forty-three unchanged methods on Windows and Linux at `1088701d`.
 The two inline-origin controls first failed after their actual protocol

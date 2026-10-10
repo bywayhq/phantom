@@ -1,0 +1,13 @@
+# H2 hint admission fixture correction
+
+Signed `49c9d0cad948340dd7a0f3296448e501982fe5ee`, parent `a444cb496d052aa7b4ea3d28a1ec0ee247fd89f6`. Human author/committer and signature G verified; lane clean.
+
+A164 is a source-supported determinism gap: the old 200 ms sleep did not observe that the selected request had reached admission. No historical flake or production failure is claimed. The integration owner explicitly authorized a direct fixture correction without manufacturing an unsatisfiable scheduling negative.
+
+The original peer first accepts the real H2 request and holds its response. Both active and pending bounds are one. The caller retains the selected real request future, polls it, and polls an independently created same-key probe once. Only `Capacity` with protocol `Some(Http2)` permits response release. Pending is never readiness evidence. A pending probe is dropped completely before yielding and polling the selected request again, so its temporary reservation cannot make the selected request fail Capacity. Unexpected selected completion or any completed non-Capacity probe error is retained as failure. The existing five-second bound limits this observation.
+
+The original server closure, literal responses, profile, first/waiting absence checks and next learned fields remain exact. The selected raw task becomes the same-operation pinned future, so its final await loses only the JoinHandle layer. The attached validator explicitly reverses those caller changes and the new private helper to reconstruct the entire base parent. Four existing children remain exact. This is source preservation, not native proof.
+
+Current parent 1–715 and 716–1430 were fully reread after signing, plus the complete semantic diff. Existing children were fully read at base and rebound only because exact Git bytes match: deadline 61, hint-values 258, quiet 253, received-order 318. The JSON binds all actual inclusive ranges, Git blob IDs, raw Git/working hashes and supporting partial ranges. Admission 1–143, ConnectionPeer 1–264 and H3 support 1–116 were full supporting reads; other supporting scopes are explicitly partial.
+
+Targeted formatting/check, diff check and textual preservation all pass. Compilation, strict lint, MSRV and both-host execution remain with the integration owner. A160 raw first/server tasks and recoverable cleanup are a separate causal checkpoint before repair; A167 remains unchanged. No production/shared source, manifests, docs, vendor or unrelated lane changed.

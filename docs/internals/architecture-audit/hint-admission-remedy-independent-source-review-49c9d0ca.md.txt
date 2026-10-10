@@ -1,0 +1,11 @@
+# Hint admission determinism source review
+
+Approved signed 49c for exact both-host verification. No source blocker. This is a direct source-supported readiness correction, not evidence of a reproduced historical flake.
+
+The entire changed function/helper and semantic diff were read. Actual server receipt precedes the probe loop and the first response remains held. Active and pending limits are one. Selected request and probe share the same Client, URL, HTTPS origin, route and pool key. Only concrete HTTP2 Capacity permits response release. Pending itself never does.
+
+The selected future is retained. Each temporary probe is lexically destroyed before yielding or polling selected again; actual admission and semaphore Drop source confirm its reservation is released. Hints are prepared before admission, so the existing first/waiting/next assertions retain their original contract.
+
+Signed-object inverse validation restores the entire old parent. Four children remain exact. The selected test body intentionally changes its owner, pending limit and readiness expression. Five-second outer timeout, server/wire/profile values and assertions remain exact.
+
+A160 first/server task ownership and A167 structural cleanup remain separate. The paired JSON records partial parent/production scopes, full 143-line supporting admission owner, exact identities and preservation. No compilation/native or whole-audit approval is claimed.

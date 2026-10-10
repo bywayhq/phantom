@@ -1,0 +1,7 @@
+# Hint admission focused native review
+
+Exact 8fb: all 33 selected client-hint tests pass on Windows and Linux. Formatting, strict Clippy, MSRV and both runners return zero; 456 unrelated methods remain outside the anchored filter.
+
+Both complete test logs and all ancillary logs/metadata were read. The actual launcher checks exact clean revision before and after every stage. Parent and four children exactly equal signed 49c, rebinding the prior independent source review without new whole-owner coverage.
+
+The retained waiting-request test passes its same-key Capacity readiness and original first/waiting/next wire assertions. This is native verification of a source-supported determinism correction, not proof of a reproduced historical flake. A160 and A167 remain separate open work. No full integration-gate claim or reviewer execution is included.

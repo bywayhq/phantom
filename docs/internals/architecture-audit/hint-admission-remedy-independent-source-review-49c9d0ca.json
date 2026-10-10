@@ -1,0 +1,189 @@
+{
+  "kind": "independent bounded source review",
+  "finding": "A164",
+  "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+  "parent": "a444cb496d052aa7b4ea3d28a1ec0ee247fd89f6",
+  "verdict": "approved for exact both-host verification; no source blocker",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "blob_oid": "07503589fff0107ee8c4e56d7000ba74bff8576a",
+      "raw_sha256": "2ccad55eac28442474c4f85200050103e373dc665e320e0c6f2f39d5a23ce049",
+      "line_count": 1430,
+      "read_classification": "fresh supporting partial: full changed function/helper, send/drain and timeout; no whole1430 credit",
+      "read_ranges": [
+        {
+          "start": 355,
+          "end": 516,
+          "raw_sha256": "4231e88f9803195232c78d5f2c1fa7f15c84e3de6dfd52057abd86e18fcb1541"
+        },
+        {
+          "start": 40,
+          "end": 48,
+          "raw_sha256": "a5fe3e51410422c760c8d3671a0d16d9d78f912c498759b6ac33ce405b1e9291"
+        },
+        {
+          "start": 1231,
+          "end": 1239,
+          "raw_sha256": "600e30e7c466d12b3cd4df1ccbc9fbb60581520a6ff9036c3f60c5de2f31c5a8"
+        },
+        {
+          "start": 1417,
+          "end": 1430,
+          "raw_sha256": "b996e5dfdd6af22dec88452419924c6c6634491506369a8b3a70b13aa2d09739"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/admission.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "blob_oid": "9b5d5ca3e6cfd840e66d38edeb440a748cae01c8",
+      "raw_sha256": "9ff34766ab99933d67cfe626ec78493136e16aef898713739db31e46dce2b1c2",
+      "line_count": 143,
+      "read_classification": "fresh full supporting owner read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 143,
+          "raw_sha256": "9ff34766ab99933d67cfe626ec78493136e16aef898713739db31e46dce2b1c2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/session/http2_pool.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "blob_oid": "42f2985174b3200d34a42b51399ed0ba60743b90",
+      "raw_sha256": "d06e96081394304105e38aaf744ce625748e0f084c78e451bd81a879dc95ff01",
+      "line_count": 1085,
+      "read_classification": "fresh supporting partial actual key/entry/admit order",
+      "read_ranges": [
+        {
+          "start": 160,
+          "end": 245,
+          "raw_sha256": "b65de8b538bf5280d0f2dfc5e0b3840a76aa9d5195a8f169cc6dc622552f5fe8"
+        },
+        {
+          "start": 365,
+          "end": 478,
+          "raw_sha256": "d64c56f51e763d52e6bc449cbf65e187a7f76dca429123fc1f5c71ebab24aa67"
+        },
+        {
+          "start": 490,
+          "end": 535,
+          "raw_sha256": "e5c8ca55b23c4a74d0d51ef58628f748e12f61ee36534721cfbf3b8a17abc705"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "blob_oid": "fad10d7f056af2dab30e360dd533807399a91901",
+      "raw_sha256": "dae9ce8102ad1f6e365dc78063d7138809fd857efa3fc5defd34c3321283daf6",
+      "line_count": 1409,
+      "read_classification": "supporting partial actual preparation before dispatch",
+      "read_ranges": [
+        {
+          "start": 870,
+          "end": 940,
+          "raw_sha256": "663c06c4d88da0526bd23e84174f2ca19807d759f077c386988ad0ff13168117"
+        },
+        {
+          "start": 990,
+          "end": 1050,
+          "raw_sha256": "5f60322339c6d059827d201cad03c2855f72e60aa0e3e18cc881afc14b4b6f22"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "49c9d0cad948340dd7a0f3296448e501982fe5ee",
+      "blob_oid": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "raw_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "line_count": 1553,
+      "read_classification": "supporting partial typed capacity construction",
+      "read_ranges": [
+        {
+          "start": 775,
+          "end": 803,
+          "raw_sha256": "60b08d0219f501655e286e1c55d73dad14997216156f4a29b49d260be12597e0"
+        }
+      ]
+    }
+  ],
+  "dependency_support": {
+    "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\semaphore.rs",
+    "raw_sha256": "8d4693d43e9286249de2bcd70a263ae3a2b9a39b7a1fe5bc295c901c58068f21",
+    "line_count": 1235,
+    "read_classification": "resolved local supporting partial; permit Drop only",
+    "read_ranges": [
+      {
+        "start": 1231,
+        "end": 1237,
+        "raw_sha256": "6c88abb638ec3621bd31296780f79c15302f99acf979225a72d2cd5e072601c6"
+      }
+    ]
+  },
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-remedy-handoff-49c9d0ca.md",
+      "raw_sha256": "17aa71653007f4355488c848774426780e4b53f214ef9678b5ee0f74b89f17f1"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-remedy-handoff-49c9d0ca.json",
+      "raw_sha256": "e2912e04c8f960333e8e2c7e727a521700dbae139c90c4f6d2e989604f577c6c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-remedy-handoff-49c9d0ca.diff",
+      "raw_sha256": "c3016c74ac68af03ce0c65ce472d6f5f016fcda60c8f6cc8be0fa1a40e83a204"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-admission-remedy-handoff-49c9d0ca-preservation.json",
+      "raw_sha256": "c9c999a6b9be8c477aa40ce9aa9400b1e79ceea4364f389b6652704ec53cd46b"
+    }
+  ],
+  "preservation": {
+    "signed_whole_parent_inverse_exact": true,
+    "four_children_exact": [
+      {
+        "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+        "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+        "line_count": 61,
+        "read_classification": "preservation identity only; no fresh full-child credit"
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+        "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+        "line_count": 258,
+        "read_classification": "preservation identity only; no fresh full-child credit"
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+        "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+        "line_count": 253,
+        "read_classification": "preservation identity only; no fresh full-child credit"
+      },
+      {
+        "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+        "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+        "line_count": 318,
+        "read_classification": "preservation identity only; no fresh full-child credit"
+      }
+    ],
+    "qualification": "Changed selected ordinary body is intentional pinned-future/pending-bound/readiness migration; no claim it is byte-identical. Server, original wire/hint assertions, request operations and5s bound inverse exactly."
+  },
+  "causal_reasoning": [
+    "Actual server accepts and asserts first request before caller proceeds; answer remains held, so first owns the sole active permit.",
+    "Selected real request and probe share Client, exact URL, HTTPS origin/route/mode and runtime pool. Admission registry keys share the origin allocation.",
+    "Selected future remains retained across polling; its hints are prepared before pool admission. Pending alone is not accepted as readiness.",
+    "Only Capacity with Some(Http2) passes. With pending1 and held active1, the probe cannot acquire pending unless selected has not acquired it; a Pending probe is destroyed before the next selected poll.",
+    "OwnedSemaphorePermit Drop returns capacity; probe cannot obstruct selected by a lingering future. Unexpected completion or different error remains an actual failure.",
+    "Response release follows Capacity witness. Subsequent original absence/learned-value assertions and all literal status/profile values remain exact."
+  ],
+  "limits": [
+    "Direct source-supported determinism remedy. No reproduced historical flake or manufactured causal red claimed.",
+    "No runtime, compilation, Cargo or broad gate executed by reviewer; root owns both-host checks.",
+    "A160 raw first/server ownership and error cleanup remain open for separate assigned work; A167 import/duplicate draining remains unchanged.",
+    "Fresh scope is partial parent/production except the full143-line admission owner. No whole-parent or whole-repository promotion."
+  ]
+}
