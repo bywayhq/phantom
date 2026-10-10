@@ -38,6 +38,7 @@ use ech_support::{
 };
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, H2_ALPN, TestResult, read_head};
+use tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup};
 
 /// How a test reaches the origin.
 #[derive(Clone, Copy, Debug)]
@@ -219,48 +220,76 @@ impl Origin {
         let port = listener.local_addr()?.port();
         let (stop, mut stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
-            let mut observed = Vec::new();
-            let mut plan = plan.into_iter();
             let mut serving = Vec::new();
-            loop {
-                let tcp = tokio::select! {
-                    accepted = listener.accept() => accepted?.0,
-                    _ = &mut stopped => break,
-                };
-                let pending = if observed.len() == 1 {
-                    observation
-                        .as_mut()
-                        .and_then(|observation| observation.pending_handshake.take())
-                } else {
-                    None
-                };
-
-                let handshake = try_handshake(tcp, &acceptor);
-                let (seen, tls) = match pending {
-                    Some(pending) => {
-                        owner_contract::observe_pending_handshake(handshake, pending).await?
-                    }
-                    None => handshake.await?,
-                };
-
-                // A rejection completes under the public name, and the client
-                // then aborts it to retry, so it is not served.
-                let rejected =
-                    !seen.ech_accepted && seen.outer_server_name.as_deref() == Some(PUBLIC_NAME);
-                observed.push(seen);
-                if let Some(tls) = tls.filter(|_| !rejected) {
-                    let opening = plan.next().ok_or("more connections than planned")?;
-                    let task = match &mut serving_observation {
-                        Some(observation) => observation.spawn(opening.serve(tls))?,
-                        None => tokio::spawn(opening.serve(tls)),
+            let outcome: TestResult<Vec<Observed>> = async {
+                let mut observed = Vec::new();
+                let mut plan = plan.into_iter();
+                loop {
+                    let tcp = tokio::select! {
+                        accepted = listener.accept() => accepted?.0,
+                        _ = &mut stopped => break,
                     };
-                    serving.push(task);
+                    let pending = if observed.len() == 1 {
+                        observation
+                            .as_mut()
+                            .and_then(|observation| observation.pending_handshake.take())
+                    } else {
+                        None
+                    };
+
+                    let handshake = try_handshake(tcp, &acceptor);
+                    let (seen, tls) = match pending {
+                        Some(pending) => {
+                            owner_contract::observe_pending_handshake(handshake, pending).await?
+                        }
+                        None => handshake.await?,
+                    };
+
+                    // A rejection completes under the public name, and the client
+                    // then aborts it to retry, so it is not served.
+                    let rejected = !seen.ech_accepted
+                        && seen.outer_server_name.as_deref() == Some(PUBLIC_NAME);
+                    observed.push(seen);
+                    if let Some(tls) = tls.filter(|_| !rejected) {
+                        let opening = plan.next().ok_or("more connections than planned")?;
+                        let task = match &mut serving_observation {
+                            Some(observation) => {
+                                ConnectionPeer::from_task(observation.spawn(opening.serve(tls))?)
+                            }
+                            None => ConnectionPeer::spawn(opening.serve(tls)),
+                        };
+                        serving.push(task);
+                    }
                 }
+                Ok(observed)
             }
-            for task in serving {
-                task.abort();
+            .await;
+
+            drop(listener);
+            let serving = serving
+                .into_iter()
+                .map(|task| {
+                    let abort_requested = !task.is_finished();
+                    if abort_requested {
+                        task.abort();
+                    }
+                    (task, abort_requested)
+                })
+                .collect::<Vec<_>>();
+
+            let mut cleanup = Ok(());
+            for (task, abort_requested) in serving {
+                let outcome = if abort_requested {
+                    task.stop().await
+                } else {
+                    match task.await {
+                        Ok(result) => result,
+                        Err(error) => Err(error.into()),
+                    }
+                };
+                cleanup = finish_with_cleanup(cleanup, outcome);
             }
-            Ok(observed)
+            finish_with_cleanup(outcome, cleanup)
         });
         Ok(Self {
             port,
