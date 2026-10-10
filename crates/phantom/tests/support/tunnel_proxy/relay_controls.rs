@@ -1,4 +1,4 @@
-use std::{io, net::Ipv4Addr, time::Duration};
+use std::{net::Ipv4Addr, time::Duration};
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -6,7 +6,7 @@ use tokio::{
     time::timeout,
 };
 
-use super::{TestResult, http1_connect};
+use super::{ConnectionPeer, TestResult, http1_connect};
 
 const DEADLINE: Duration = Duration::from_secs(5);
 
@@ -16,7 +16,7 @@ async fn dropping_an_established_tunnel_closes_its_actual_relay() -> TestResult<
     let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let proxy_address = proxy.local_addr()?;
     let origin_address = origin.local_addr()?;
-    let launcher = tokio::spawn(http1_connect(proxy, origin_address));
+    let launcher = ConnectionPeer::spawn(http1_connect(proxy, origin_address));
     let mut client = TcpStream::connect(proxy_address).await?;
     client
         .write_all(b"CONNECT retained.test:443 HTTP/1.1\r\nHost: retained.test\r\n\r\n")
@@ -42,7 +42,7 @@ async fn dropping_an_established_tunnel_closes_its_actual_relay() -> TestResult<
     drop(client);
     drop(upstream);
 
-    assert!(matches!(closed, Ok(Err(ref error)) if error.kind() == io::ErrorKind::UnexpectedEof));
+    assert!(matches!(closed, Ok(Err(ref error)) if super::super::tls::is_peer_gone(error)));
     Ok(())
 }
 
@@ -51,7 +51,7 @@ async fn a_connect_relay_forwards_nonzero_bytes_in_both_directions() -> TestResu
     let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = proxy.local_addr()?;
-    let launcher = tokio::spawn(http1_connect(proxy, origin.local_addr()?));
+    let launcher = ConnectionPeer::spawn(http1_connect(proxy, origin.local_addr()?));
     let mut client = TcpStream::connect(address).await?;
     client
         .write_all(b"CONNECT positive.test:443 HTTP/1.1\r\n\r\n")
