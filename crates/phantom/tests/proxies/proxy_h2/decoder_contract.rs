@@ -13,17 +13,15 @@ use super::{
 
 const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const CREDENTIAL: &[u8] = b"Basic YWxpY2U6c2VjcmV0";
+const CREDENTIAL_LENGTH: u8 = 22;
 
 fn malformed_hex(hex: &str) -> TestResult<()> {
     let fixture = format!(
         "run_0_connection_0_headers_0_field_count=1\nrun_0_connection_0_headers_0_field_0=repr:literal,name_hex:{hex},value_hex:none\n"
     );
     let outcome = catch_unwind(AssertUnwindSafe(|| captured_h2_blocks(&fixture)));
-    assert!(outcome.is_ok(), "capture decoder panicked on malformed hex");
-    assert!(
-        outcome.expect("checked panic result").is_err(),
-        "capture decoder accepted malformed hex"
-    );
+    let decoded = outcome.map_err(|_| "capture decoder panicked on malformed hex")?;
+    assert!(decoded.is_err(), "capture decoder accepted malformed hex");
     Ok(())
 }
 
@@ -106,10 +104,7 @@ fn valid_capture_and_frame_inputs_are_kept() -> TestResult<()> {
 }
 
 fn replay() -> Vec<u8> {
-    let mut block = vec![
-        0x71,
-        u8::try_from(CREDENTIAL.len()).expect("short credential"),
-    ];
+    let mut block = vec![0x71, CREDENTIAL_LENGTH];
     block.extend_from_slice(CREDENTIAL);
     block
 }
@@ -117,7 +112,7 @@ fn replay() -> Vec<u8> {
 fn literal_remembered() -> Vec<u8> {
     let mut block = vec![0, 19];
     block.extend_from_slice(b"proxy-authorization");
-    block.push(u8::try_from(CREDENTIAL.len()).expect("short credential"));
+    block.push(CREDENTIAL_LENGTH);
     block.extend_from_slice(CREDENTIAL);
     block
 }
@@ -161,8 +156,10 @@ async fn decoded_credentials(replay: &[u8], remembered: &[u8]) -> TestResult<()>
     let values = match result {
         Ok(joined) => joined??,
         Err(elapsed) => {
-            server.stop().await?;
-            return Err(elapsed.into());
+            return crate::support::tunnel_proxy::finish_with_cleanup(
+                Err(elapsed.into()),
+                server.stop().await,
+            );
         }
     };
     assert_eq!(values, [CREDENTIAL.to_vec(), CREDENTIAL.to_vec()]);
