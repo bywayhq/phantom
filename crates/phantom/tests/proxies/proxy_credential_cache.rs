@@ -576,7 +576,7 @@ async fn serve_origin_connections(
 fn credential_handler_result(
     joined: Result<TestResult<()>, tokio::task::JoinError>,
 ) -> TestResult<()> {
-    joined.map_err(Into::into)?
+    joined?
 }
 
 async fn finish_credential_handlers(
