@@ -98,8 +98,8 @@ fn assert_decoded(requests: &[Request<()>], version: Version) -> TestResult<()> 
 }
 
 fn assert_observer(requests: &[Request<()>]) -> TestResult<()> {
-    let first = observed_names(&requests[0]);
-    let second = observed_names(&requests[1]);
+    let first = observed_names(&requests[0])?;
+    let second = observed_names(&requests[1])?;
     assert_ne!(
         first, second,
         "actual hint observer collapsed distinct decoded ordinary sequences"

@@ -16,7 +16,7 @@ use std::{
 
 use btls::ssl::{Ssl, SslAcceptor, SslVersion};
 use bytes::Bytes;
-use http::{Request, Response, StatusCode};
+use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode, Version};
 use http_body_util::{BodyExt, Full};
 use phantom::{
     Client, HttpProtocol, PreparedRequestTemplate, RequestErrorKind, RequestHeader,
@@ -557,7 +557,7 @@ async fn alps_origin_answering(
         let stream = accept_tls_with_alps(&listener, &acceptor, &application_settings).await?;
         let mut connection = ::http2::server::handshake(stream).await?;
         let (request, mut response) = accept_http2(&mut connection).await?;
-        let names = observed_names(&request);
+        let names = observed_names(&request)?;
         response.send_response(
             Response::builder()
                 .status(StatusCode::NO_CONTENT)
@@ -750,7 +750,7 @@ async fn http3_navigation_template_restart_places_the_hint_after_accept() -> Tes
         let (client_done, wait_for_client) = oneshot::channel::<()>();
         let server = tokio::spawn(async move {
             let (request, mut stream, _connection) = accept_request(&endpoint).await?;
-            let names = observed_names(&request);
+            let names = observed_names(&request)?;
             stream
                 .send_response(
                     Response::builder()
@@ -1254,36 +1254,68 @@ async fn drive_http2_until_client_done(
     }
 }
 
-fn observed_names<T>(request: &Request<T>) -> Vec<String> {
-    request
-        .headers()
-        .keys()
-        .map(|name| name.as_str().to_owned())
-        .collect()
+fn observed_names<T>(request: &Request<T>) -> TestResult<Vec<String>> {
+    let ordered = match request.version() {
+        Version::HTTP_2 => request
+            .extensions()
+            .get::<::http2::ext::OrderedHeaders>()
+            .ok_or("HTTP/2 hint request omitted decoded header order")?
+            .as_slice(),
+        Version::HTTP_3 => request
+            .extensions()
+            .get::<h3::ext::OrderedHeaders>()
+            .ok_or("HTTP/3 hint request omitted decoded header order")?
+            .as_slice(),
+        _ => return Err("hint order observer requires HTTP/2 or HTTP/3".into()),
+    };
+
+    Ok(ordered
+        .iter()
+        .map(|(name, _)| name.as_str().to_owned())
+        .collect())
 }
 
 fn assert_hints(headers: &http::HeaderMap, high_entropy: bool) -> TestResult<()> {
-    assert_eq!(headers.get("sec-ch-ua"), Some(&"baseline".parse()?));
-    assert_eq!(headers.contains_key("sec-ch-ua-arch"), high_entropy);
-    assert_eq!(
-        headers.contains_key("sec-ch-ua-platform-version"),
-        high_entropy
-    );
+    assert_hint_value(headers, "sec-ch-ua", Some("baseline"))?;
+    assert_hint_value(headers, "sec-ch-ua-arch", high_entropy.then_some("\"arm\""))?;
+    assert_hint_value(
+        headers,
+        "sec-ch-ua-platform-version",
+        high_entropy.then_some("\"15.5.0\""),
+    )?;
+    Ok(())
+}
+
+fn assert_hint_value(headers: &HeaderMap, name: &str, expected: Option<&str>) -> TestResult<()> {
+    match expected {
+        Some(value) => {
+            assert_eq!(headers.get_all(name).iter().count(), 1, "{name}");
+            assert_eq!(headers.get(name), Some(&value.parse()?), "{name}");
+        }
+        None => assert!(!headers.contains_key(name), "unsolicited {name}"),
+    }
     Ok(())
 }
 
 fn assert_http1_hints(head: &[u8], high_entropy: bool) -> TestResult<()> {
     let text = std::str::from_utf8(head)?;
-    assert!(text.contains("\r\nsec-ch-ua: baseline\r\n"));
-    assert_eq!(
-        text.contains("\r\nsec-ch-ua-arch: \"arm\"\r\n"),
-        high_entropy
-    );
-    assert_eq!(
-        text.contains("\r\nsec-ch-ua-platform-version: \"15.5.0\"\r\n"),
-        high_entropy
-    );
-    Ok(())
+    let block = text
+        .strip_suffix("\r\n\r\n")
+        .ok_or("incomplete HTTP/1 hint head")?;
+    let (_, fields) = block
+        .split_once("\r\n")
+        .ok_or("HTTP/1 hint head has no headers")?;
+    let mut headers = HeaderMap::new();
+    for field in fields.split("\r\n") {
+        let (name, value) = field
+            .split_once(':')
+            .ok_or("HTTP/1 hint header has no separator")?;
+        let name: HeaderName = name.parse()?;
+        let value: HeaderValue = value.trim_matches([' ', '\t']).parse()?;
+        headers.append(name, value);
+    }
+
+    assert_hints(&headers, high_entropy)
 }
 
 async fn bounded<F, T>(future: F) -> TestResult<T>
