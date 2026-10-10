@@ -81,7 +81,7 @@ async fn a_reset_upload_keeps_the_original_http2_error() -> TestResult<()> {
         timeout(CONTROL_TIMEOUT, post_rx).await??;
         match timeout(CONTROL_TIMEOUT, upload).await?? {
             Ok(_) => Err("reset upload returned a response".into()),
-            Err(error) => Ok(error.into()),
+            Err(error) => Ok(error),
         }
     }
     .await;
@@ -130,7 +130,7 @@ async fn an_unreset_upload_keeps_the_actual_elapsed_cause() -> TestResult<()> {
         let upload_cleanup = match timeout(CONTROL_TIMEOUT, upload).await? {
             Err(error) if error.is_cancelled() => Ok(()),
             Err(error) => Err(error.into()),
-            Ok(Err(error)) => Err(error.into()),
+            Ok(Err(error)) => Err(error),
             Ok(Ok(_)) => Err("zero-window upload completed without cancellation".into()),
         };
         let release_result = release
