@@ -31,7 +31,7 @@ impl Drop for PeerDestroyed {
     fn drop(&mut self) {
         if let Some(sender) = self.0.take() {
             // A cancelled observation does not require another owner to wait.
-            drop(sender.send(()));
+            let _ = sender.send(());
         }
     }
 }
