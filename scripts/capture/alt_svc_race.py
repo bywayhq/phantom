@@ -820,18 +820,45 @@ def reserve_ports(
     )
     for port in ports:
         udp = socket.socket(family, socket.SOCK_DGRAM)
-        tcp = socket.socket(family, socket.SOCK_STREAM)
+        tcp = None
+        primary = None
+        retry = False
         try:
-            udp.bind((host, port))
-            tcp.bind((host, port))
-        except OSError:
-            udp.close()
-            tcp.close()
-            continue
-        tcp.listen(64)
-        tcp.setblocking(False)
-        udp.setblocking(False)
-        return udp, tcp
+            tcp = socket.socket(family, socket.SOCK_STREAM)
+            try:
+                udp.bind((host, port))
+                tcp.bind((host, port))
+            except OSError as error:
+                primary = error
+                retry = True
+            else:
+                tcp.listen(64)
+                tcp.setblocking(False)
+                udp.setblocking(False)
+                return udp, tcp
+        except BaseException as error:
+            primary = error
+
+        failures = []
+        for sock in (udp, tcp):
+            if sock is None:
+                continue
+
+            try:
+                sock.close()
+            except BaseException as error:
+                failures.append(error)
+
+        if failures:
+            cleanup = (
+                failures[0] if len(failures) == 1 else CaptureCleanupError(failures)
+            )
+            retain_capture_cleanup(primary, cleanup)
+            raise primary
+
+        if not retry:
+            raise primary
+
     raise OSError("no loopback port is free for both UDP and TCP")
 
 
@@ -843,11 +870,17 @@ async def bind_udp(host: str) -> socket.socket:
         sock = socket.socket(family, socket.SOCK_DGRAM)
         try:
             sock.bind((address, port))
-        except OSError:
+            sock.setblocking(False)
+            return sock
+        except BaseException as error:
+            primary = error
+
+        try:
             sock.close()
-            raise
-        sock.setblocking(False)
-        return sock
+        except BaseException as cleanup:
+            retain_capture_cleanup(primary, cleanup)
+
+        raise primary
 
     return await open_past_reserved_ports(open_at, host, 0)
 
