@@ -1,4 +1,4 @@
-//! Borrowed routes used to open TCP connections to an origin.
+//! Borrowed routes used to connect to an origin.
 
 use crate::proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth};
 use crate::{
@@ -23,7 +23,7 @@ pub type EchLookup<'a> = std::pin::Pin<
 pub struct Endpoint<'a> {
     /// Host name or IP address, without IPv6 brackets.
     pub host: &'a str,
-    /// TCP port.
+    /// Target port.
     pub port: u16,
 }
 
