@@ -25,6 +25,13 @@ use tokio::{
 
 use super::tls::{TestResult, accept_tls_stream, read_head};
 
+#[path = "tunnel_proxy/connection_peer.rs"]
+mod connection_peer;
+pub(crate) use connection_peer::ConnectionPeer;
+
+#[path = "tunnel_proxy/relay_controls.rs"]
+mod relay_controls;
+
 const ESTABLISHED: &[u8] = b"HTTP/1.1 200 Connection Established\r\n\r\n";
 const BASIC_CHALLENGE: &[u8] = b"HTTP/1.1 407 Proxy Authentication Required\r\n\
     Proxy-Authenticate: Basic realm=\"websocket\"\r\nContent-Length: 0\r\n\r\n";

@@ -13,6 +13,8 @@ use tokio::{
     time::timeout,
 };
 
+use crate::support::tunnel_proxy::ConnectionPeer;
+
 type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 fn client() -> Result<Client, phantom::BuildError> {
@@ -76,7 +78,7 @@ async fn failed_redirect_hop_reports_its_origin_and_setup_observation() -> TestR
         let initial = listener.local_addr()?;
         let refused = phantom_testkit::tcp::ReservedPort::bind()?;
         let destination = refused.address();
-        let peer = tokio::spawn(async move {
+        let peer = ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let observed = head(&mut stream).await?;
             let response = format!(
@@ -127,7 +129,7 @@ async fn deferred_body_failure_and_collection_limit_keep_the_response_origin() -
         ] {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;
-            let peer = tokio::spawn(async move {
+            let peer = ConnectionPeer::spawn(async move {
                 let (mut stream, _) = listener.accept().await?;
                 let observed = head(&mut stream).await?;
                 stream.write_all(wire).await?;

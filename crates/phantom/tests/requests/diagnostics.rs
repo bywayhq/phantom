@@ -18,11 +18,15 @@ use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, RequestErrorKind, Route,
     profile::{CipherSuite, ClientProfile, NamedGroup, TlsSettings, TlsVersion},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use h3_support::{accept_request, client_settings, server_endpoint};
 // `tunnel_proxy` reaches the TLS helpers as `super::tls`.
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
+
+use tunnel_proxy::ConnectionPeer;
+
+mod cleanup_controls;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -40,7 +44,8 @@ async fn key_log_holds_the_secrets_of_a_loopback_tls_connection() -> TestResult<
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("https://{}/", listener.local_addr()?);
-    let origin = tokio::spawn(serve_one_tls_request(listener, identity.acceptor(H1_ALPN)?));
+    let origin =
+        ConnectionPeer::spawn(serve_one_tls_request(listener, identity.acceptor(H1_ALPN)?));
 
     let client = Client::builder(ClientProfile::new(tls13_http1_settings()))
         .add_root_certificate_der(identity.root_der.clone())
@@ -74,7 +79,7 @@ async fn key_log_holds_the_secrets_of_a_loopback_quic_handshake() -> TestResult<
     let handshakes = drain_key_log(&client);
     drop(response);
     drop(client);
-    server.abort();
+    server.stop().await?;
     let handshakes = handshakes?;
     assert_eq!(handshakes.len(), 1, "{handshakes:?}");
     Ok(())
@@ -85,7 +90,7 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
     let origin_identity = TestIdentity::generate()?;
     let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let origin_address = origin_listener.local_addr()?;
-    let origin = tokio::spawn(serve_one_tls_request(
+    let origin = ConnectionPeer::spawn(serve_one_tls_request(
         origin_listener,
         origin_identity.acceptor(H1_ALPN)?,
     ));
@@ -93,7 +98,7 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
     let proxy_identity = TestIdentity::generate()?;
     let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let proxy_address = proxy_listener.local_addr()?;
-    let proxy = tokio::spawn(tunnel_proxy::https1_connect(
+    let proxy = ConnectionPeer::spawn(tunnel_proxy::https1_connect(
         proxy_listener,
         proxy_identity.acceptor(H1_ALPN)?,
         origin_address,
@@ -135,11 +140,11 @@ async fn key_log_is_absent_unless_enabled() -> TestResult<()> {
 #[tokio::test]
 async fn qlog_dir_receives_a_file_for_a_loopback_http3_connection() -> TestResult<()> {
     let dir = scratch_dir("qlog")?;
-    let result = send_http3_with_qlog(&dir).await;
-    let files = std::fs::read_dir(&dir)?
+    let result = send_http3_with_qlog(dir.path()).await;
+    let files = std::fs::read_dir(dir.path())?
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<Result<Vec<_>, _>>();
-    remove_scratch_dir(&dir).await;
+    dir.cleanup().await?;
     let contents = result?;
     let files = files?;
 
@@ -216,7 +221,7 @@ async fn send_http3_with_qlog(dir: &Path) -> TestResult<Vec<u8>> {
     )
     .await;
     drop(client);
-    server.abort();
+    server.stop().await?;
     assert_eq!(response??.status(), StatusCode::NO_CONTENT);
 
     let file = std::fs::read_dir(dir)?
@@ -272,9 +277,9 @@ async fn serve_one_tls_request(listener: TcpListener, acceptor: SslAcceptor) -> 
 /// Starts an HTTP/3 endpoint that answers one request with 204.
 fn serve_one_http3_request(
     identity: &TestIdentity,
-) -> TestResult<(SocketAddr, JoinHandle<TestResult<()>>)> {
+) -> TestResult<(SocketAddr, ConnectionPeer<TestResult<()>>)> {
     let (address, endpoint) = server_endpoint(identity)?;
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
         stream
             .send_response(
@@ -332,19 +337,34 @@ fn drain_key_log(client: &Client) -> TestResult<BTreeMap<String, Vec<String>>> {
 /// Removes a scratch directory, retrying while Windows reports the qlog file
 /// of a closing connection as still open. A directory that outlives the
 /// retries stays behind in the temporary directory.
-async fn remove_scratch_dir(dir: &Path) {
+async fn remove_scratch_dir(dir: &Path) -> std::io::Result<()> {
     for _ in 0..50 {
         if std::fs::remove_dir_all(dir).is_ok() {
-            return;
+            return Ok(());
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    Ok(())
+}
+
+struct ScratchDir {
+    path: PathBuf,
+}
+
+impl ScratchDir {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    async fn cleanup(self) -> std::io::Result<()> {
+        remove_scratch_dir(&self.path).await
     }
 }
 
 /// Creates an empty directory under the system temporary directory.
-fn scratch_dir(prefix: &str) -> TestResult<PathBuf> {
+fn scratch_dir(prefix: &str) -> TestResult<ScratchDir> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
     let dir = std::env::temp_dir().join(format!("phantom-{prefix}-{}-{nanos}", std::process::id()));
     std::fs::create_dir(&dir)?;
-    Ok(dir)
+    Ok(ScratchDir { path: dir })
 }
