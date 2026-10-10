@@ -14,8 +14,87 @@ use tokio::{task::JoinHandle, time::timeout};
 
 use super::{
     Blackhole, TEST_TIMEOUT, TestResult, UntrustedAlternative, after_admission_released, bounded,
-    client_builder, identity, initial_identity, wait_until,
+    client_builder, identity, initial_identity, observe_blackhole_receive, wait_until,
 };
+
+async fn blackhole_with_observed_datagram() -> TestResult<Blackhole> {
+    let blackhole = Blackhole::bind().await?;
+    let sender = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
+    let initial = [0xc0, 0, 0, 0, 1, 8, 1, 2, 3, 4, 5, 6, 7, 8, 0];
+    sender
+        .send_to(&initial, (Ipv4Addr::LOCALHOST, blackhole.port))
+        .await?;
+    wait_until(|| Ok(blackhole.datagrams()? == 1)).await?;
+
+    assert_eq!(blackhole.connection_attempts()?, 1);
+    Ok(blackhole)
+}
+
+#[tokio::test]
+async fn a_receive_failure_cannot_be_reported_as_a_quiet_datagram_count() -> TestResult<()> {
+    bounded(async {
+        let blackhole = blackhole_with_observed_datagram().await?;
+        let count = blackhole.datagrams()?;
+        observe_blackhole_receive(
+            Err(io::Error::from_raw_os_error(0x5a31)),
+            &blackhole.initials,
+            &blackhole.datagrams,
+        );
+
+        let error = blackhole
+            .datagrams()
+            .err()
+            .ok_or("receive failure was reported as an unchanged datagram count")?;
+        assert_eq!(count, 1);
+        let mut cause: &(dyn std::error::Error + 'static) = error.as_ref();
+        loop {
+            if let Some(original) = cause.downcast_ref::<io::Error>()
+                && original.raw_os_error() == Some(0x5a31)
+            {
+                break;
+            }
+
+            cause = cause
+                .source()
+                .ok_or("the original receive error was lost")?;
+        }
+        assert!(blackhole.connection_attempts().is_err());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_stopped_receiver_cannot_report_a_quiet_datagram_count() -> TestResult<()> {
+    bounded(async {
+        let mut blackhole = blackhole_with_observed_datagram().await?;
+        blackhole.task.abort();
+        let result = (&mut blackhole.task).await;
+        assert!(result.is_err_and(|error| error.is_cancelled()));
+
+        assert!(blackhole.datagrams().is_err());
+        assert!(blackhole.connection_attempts().is_err());
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn a_poisoned_observer_cannot_report_a_quiet_datagram_count() -> TestResult<()> {
+    bounded(async {
+        let blackhole = blackhole_with_observed_datagram().await?;
+        let poisoned = std::panic::catch_unwind(|| {
+            let _held = blackhole.initials.lock().expect("healthy observation lock");
+            panic!("inject observation lock poisoning");
+        });
+        assert!(poisoned.is_err());
+
+        assert!(blackhole.datagrams().is_err());
+        assert!(blackhole.connection_attempts().is_err());
+        Ok(())
+    })
+    .await
+}
 
 #[tokio::test]
 async fn distinct_initial_identities_share_one_udp_source() -> TestResult<()> {
@@ -30,7 +109,7 @@ async fn distinct_initial_identities_share_one_udp_source() -> TestResult<()> {
         sender.send_to(&first, destination).await?;
         sender.send_to(&first, destination).await?;
         sender.send_to(&second, destination).await?;
-        wait_until(|| Ok(blackhole.datagrams() == 3)).await?;
+        wait_until(|| Ok(blackhole.datagrams()? == 3)).await?;
 
         assert_eq!(blackhole.connection_attempts()?, 2);
         Ok(())
@@ -76,7 +155,7 @@ async fn one_initial_identity_is_not_counted_again_from_another_udp_source() -> 
         let destination = (Ipv4Addr::LOCALHOST, blackhole.port);
         first.send_to(&header, destination).await?;
         second.send_to(&header, destination).await?;
-        wait_until(|| Ok(blackhole.datagrams() == 2)).await?;
+        wait_until(|| Ok(blackhole.datagrams()? == 2)).await?;
 
         assert_eq!(blackhole.connection_attempts()?, 1);
         Ok(())

@@ -8,6 +8,7 @@ use std::{
     collections::HashSet,
     convert::Infallible,
     future::Future,
+    io,
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
     pin::Pin,
@@ -253,13 +254,13 @@ async fn blackholed_quic_loses_after_configured_delay_and_marks_alternative_brok
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
         // QUIC went first and the origin started only after the delay.
-        assert!(blackhole.datagrams() > 0);
+        assert!(blackhole.datagrams()? > 0);
         assert!(elapsed >= origin_delay, "origin won after {elapsed:?}");
 
         // The unfinished alternative fails its connect deadline in the
         // background and is marked broken; its datagrams stop.
         wait_until(|| Ok(started.elapsed() > Duration::from_millis(900))).await?;
-        let after_failure = blackhole.datagrams();
+        let after_failure = blackhole.datagrams()?;
         let second = client
             .get_negotiated(&fixture.origin_url("/second"))?
             .send()
@@ -267,7 +268,7 @@ async fn blackholed_quic_loses_after_configured_delay_and_marks_alternative_brok
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
         tokio::time::sleep(Duration::from_millis(200)).await;
-        assert_eq!(blackhole.datagrams(), after_failure);
+        assert_eq!(blackhole.datagrams()?, after_failure);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -322,7 +323,7 @@ async fn blackholed_alternative_connects_once_and_is_not_raced_after_its_limit()
 
         // Chrome's orphaned QUIC job fails after 4 s (`udp-blackhole`).
         wait_until(|| Ok(started.elapsed() > Duration::from_millis(4_500))).await?;
-        let after_limit = blackhole.datagrams();
+        let after_limit = blackhole.datagrams()?;
         assert!(after_limit > 0);
         let third = client
             .get_negotiated(&fixture.origin_url("/third"))?
@@ -334,7 +335,7 @@ async fn blackholed_alternative_connects_once_and_is_not_raced_after_its_limit()
         // Only one QUIC connection was ever attempted: the queued second
         // setup never connected, and the alternative abandoned at its limit
         // is broken, so the third request does not race it.
-        assert_eq!(blackhole.datagrams(), after_limit);
+        assert_eq!(blackhole.datagrams()?, after_limit);
         assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
@@ -382,10 +383,10 @@ async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_so
         drain(first).await?;
         // Well before the default 4 s, the attempt has stopped sending.
         tokio::time::sleep(Duration::from_millis(900)).await;
-        let after_limit = blackhole.datagrams();
+        let after_limit = blackhole.datagrams()?;
         assert!(after_limit > 0);
         tokio::time::sleep(Duration::from_millis(600)).await;
-        assert_eq!(blackhole.datagrams(), after_limit);
+        assert_eq!(blackhole.datagrams()?, after_limit);
 
         // The abandoned alternative is broken, so it is not raced again.
         let second = client
@@ -395,7 +396,7 @@ async fn configured_alternative_setup_limit_abandons_a_blackholed_alternative_so
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
-        assert_eq!(blackhole.datagrams(), after_limit);
+        assert_eq!(blackhole.datagrams()?, after_limit);
         assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
@@ -454,7 +455,7 @@ async fn race_uses_the_first_listed_alternative_and_never_dials_the_second() -> 
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_request_count, 0);
         assert_eq!(observed.alternative_connections, 1);
-        assert_eq!(blackhole.datagrams(), 0);
+        assert_eq!(blackhole.datagrams()?, 0);
         Ok(())
     })
     .await
@@ -508,7 +509,7 @@ async fn race_moves_to_the_next_alternative_once_the_first_is_broken() -> TestRe
         // The first alternative is abandoned at its setup limit and broken;
         // the slack allows for a slow runner's timers.
         tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
-        assert!(blackhole.datagrams() > 0);
+        assert!(blackhole.datagrams()? > 0);
         assert_eq!(fixture.snapshot()?.alternative_connections, 0);
 
         let second = client
@@ -574,9 +575,9 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         // The first listed alternative was dialed too, and keeps connecting
         // in the background until its setup limit; the slack allows for a
         // slow runner's timers.
-        wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+        wait_until(|| Ok(blackhole.datagrams()? > 0)).await?;
         tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
-        let after_limit = blackhole.datagrams();
+        let after_limit = blackhole.datagrams()?;
 
         // The broken first alternative is not raced again, and the second
         // request reuses the pooled connection to the second.
@@ -587,7 +588,7 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         assert_eq!(protocol(&second)?, HttpProtocol::Http3);
         assert_eq!(second.into_body().collect().await?.to_bytes(), "second");
         tokio::time::sleep(Duration::from_millis(200)).await;
-        assert_eq!(blackhole.datagrams(), after_limit);
+        assert_eq!(blackhole.datagrams()?, after_limit);
         assert_eq!(blackhole.connection_attempts()?, 1);
 
         drop(client);
@@ -718,10 +719,10 @@ async fn origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken
         assert_eq!(first.into_body().collect().await?.to_bytes(), "first");
         assert!(elapsed >= origin_delay, "origin won after {elapsed:?}");
         for blackhole in &blackholes {
-            wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+            wait_until(|| Ok(blackhole.datagrams()? > 0)).await?;
         }
         tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
-        let after_limit = blackholes.each_ref().map(Blackhole::datagrams);
+        let after_limit = [blackholes[0].datagrams()?, blackholes[1].datagrams()?];
 
         let second = client
             .get_negotiated(&fixture.origin_url("/second"))?
@@ -730,7 +731,10 @@ async fn origin_wins_over_every_blackholed_alternative_and_each_is_marked_broken
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
         tokio::time::sleep(Duration::from_millis(200)).await;
-        assert_eq!(blackholes.each_ref().map(Blackhole::datagrams), after_limit);
+        assert_eq!(
+            [blackholes[0].datagrams()?, blackholes[1].datagrams()?],
+            after_limit
+        );
         assert_eq!(
             [
                 blackholes[0].connection_attempts()?,
@@ -790,11 +794,11 @@ async fn an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked() -
             .await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
-        wait_until(|| Ok(admitted.datagrams() > 0)).await?;
+        wait_until(|| Ok(admitted.datagrams()? > 0)).await?;
         // The admitted setup ends at its limit and gives its admission back;
         // the cancelled one never sent anything.
         tokio::time::sleep(limit + Duration::from_millis(1_500)).await;
-        assert_eq!(waiting.datagrams(), 0);
+        assert_eq!(waiting.datagrams()?, 0);
 
         // The first alternative is broken and the second is not, so the
         // next race dials the second while the pooled H2 connection carries
@@ -805,7 +809,7 @@ async fn an_alternative_waiting_for_admission_is_cancelled_and_left_unmarked() -
             .await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http2);
         drain(second).await?;
-        wait_until(|| Ok(waiting.datagrams() > 0)).await?;
+        wait_until(|| Ok(waiting.datagrams()? > 0)).await?;
         assert_eq!(admitted.connection_attempts()?, 1);
 
         drop(client);
@@ -1002,7 +1006,7 @@ async fn exact_http3_is_not_delayed_by_a_background_alternative_setup() -> TestR
             elapsed < Duration::from_secs(2),
             "exact H3 took {elapsed:?}"
         );
-        assert!(blackhole.datagrams() > 0);
+        assert!(blackhole.datagrams()? > 0);
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -1055,7 +1059,7 @@ async fn available_http2_connection_skips_the_origin_delay() -> TestResult<()> {
             elapsed < Duration::from_secs(2),
             "origin waited {elapsed:?}"
         );
-        wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+        wait_until(|| Ok(blackhole.datagrams()? > 0)).await?;
 
         drop(client);
         let observed = fixture.finish().await?;
@@ -1099,7 +1103,7 @@ async fn raced_setup_releases_admission_after_cancel_and_abandon() -> TestResult
             let url = fixture.origin_url("/cancelled");
             async move { client.get_negotiated(&url)?.send().await }
         });
-        wait_until(|| Ok(blackhole.datagrams() > 0)).await?;
+        wait_until(|| Ok(blackhole.datagrams()? > 0)).await?;
         cancelled.abort();
         assert!(cancelled.await.is_err_and(|error| error.is_cancelled()));
         assert_eq!(
@@ -1312,7 +1316,7 @@ async fn race_refuses_an_unplaceable_requested_hint_before_either_candidate_conn
         drop(client);
         origin_task.abort();
         assert_eq!(origin_connections.load(Ordering::SeqCst), 0);
-        assert_eq!(alternative.datagrams(), 0);
+        assert_eq!(alternative.datagrams()?, 0);
         Ok(())
     })
     .await
@@ -1569,20 +1573,11 @@ impl Blackhole {
             // Windows reports ICMP port-unreachable for earlier sends as a
             // receive error; the blackhole ignores it and keeps listening.
             loop {
-                if let Ok((length, _)) = socket.recv_from(&mut buffer).await {
-                    if let Ok(mut observed) = observed.lock() {
-                        match initial_identity(&buffer[..length]) {
-                            Ok(Some(identity)) => {
-                                observed.identities.insert(identity);
-                            }
-                            Ok(None) => {}
-                            Err(error) => {
-                                observed.error.get_or_insert(error);
-                            }
-                        }
-                    }
-                    counter.fetch_add(1, Ordering::SeqCst);
-                }
+                let received = socket
+                    .recv_from(&mut buffer)
+                    .await
+                    .map(|(length, _)| &buffer[..length]);
+                observe_blackhole_receive(received, &observed, &counter);
             }
         });
         Ok(Self {
@@ -1593,8 +1588,8 @@ impl Blackhole {
         })
     }
 
-    fn datagrams(&self) -> usize {
-        self.datagrams.load(Ordering::SeqCst)
+    fn datagrams(&self) -> TestResult<usize> {
+        Ok(self.datagrams.load(Ordering::SeqCst))
     }
 
     /// Counts Initial identities, not UDP ports. The peer never replies, so
@@ -1614,6 +1609,27 @@ impl Blackhole {
 impl Drop for Blackhole {
     fn drop(&mut self) {
         self.task.abort();
+    }
+}
+
+fn observe_blackhole_receive(
+    received: io::Result<&[u8]>,
+    observed: &Mutex<InitialObservations>,
+    counter: &AtomicUsize,
+) {
+    if let Ok(datagram) = received {
+        if let Ok(mut observed) = observed.lock() {
+            match initial_identity(datagram) {
+                Ok(Some(identity)) => {
+                    observed.identities.insert(identity);
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    observed.error.get_or_insert(error);
+                }
+            }
+        }
+        counter.fetch_add(1, Ordering::SeqCst);
     }
 }
 
