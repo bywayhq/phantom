@@ -22,6 +22,7 @@ use phantom_testkit::tls::{CaptureLimits, ClientHelloSummary, capture_client_hel
 use rcgen::{KeyPair, PKCS_ECDSA_P384_SHA384, PKCS_ED25519};
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
+use self::peer_outcome::{CallerFault, PeerFailure, PrimaryFailure};
 use crate::support::{
     client_certificate::{ClientIdentity, presented_leaf, quic_endpoint_requiring},
     h3 as h3_support, tls as tls_support,
@@ -29,6 +30,7 @@ use crate::support::{
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
+mod peer_outcome;
 mod per_origin;
 mod rejection_cause;
 
@@ -161,6 +163,10 @@ async fn certificate_is_not_sent_unless_the_server_requests_it() -> TestResult<(
 
 #[tokio::test]
 async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResult<()> {
+    https_proxy_exchange(CallerFault::None).await
+}
+
+async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
     let origin = TestIdentity::generate()?;
     let proxy = TestIdentity::generate()?;
     let identity = ClientIdentity::p256()?;
@@ -171,11 +177,29 @@ async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResu
     // The proxy sends a CertificateRequest and accepts whatever comes back.
     let mut proxy_acceptor = proxy.acceptor_builder(H1_ALPN)?;
     proxy_acceptor.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
-    let proxy_task = ConnectionPeer::spawn(https1_connect_recording_client_certificate(
-        proxy_listener,
-        proxy_acceptor.build(),
-        origin_address,
-    ));
+    let proxy_acceptor = proxy_acceptor.build();
+    let (release, received) = fault.completion_gate();
+    let proxy_task = ConnectionPeer::spawn(async move {
+        let observed = https1_connect_recording_client_certificate(
+            proxy_listener,
+            proxy_acceptor,
+            origin_address,
+        )
+        .await?;
+
+        if let Some(received) = received {
+            received.received.await?;
+            assert_eq!(observed.cancel().await?, None);
+
+            received
+                .failed
+                .send(PeerFailure)
+                .map_err(|_| "proxy failure witness closed")?;
+            return TestResult::Err(PeerFailure.into());
+        }
+
+        TestResult::Ok(observed)
+    });
     let origin_acceptor = acceptor(&origin, Some(&identity.authority_der))?;
     let client = Client::builder(ClientProfile::new(tls(TlsVersion::Tls13)))
         .add_root_certificate_der(origin.root_der.clone())
@@ -196,6 +220,24 @@ async fn https_proxy_that_requests_a_certificate_never_receives_it() -> TestResu
 
     assert_eq!(status?, StatusCode::NO_CONTENT);
     assert_eq!(presented_to_origin?, Some(identity.leaf_der));
+
+    if let Some(release) = release {
+        release
+            .release
+            .send(())
+            .map_err(|_| "proxy completion gate closed")?;
+        timeout(TEST_TIMEOUT, release.failure).await??;
+
+        timeout(TEST_TIMEOUT, async {
+            while !proxy_task.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+
+        return Err(PrimaryFailure.into());
+    }
+
     assert_eq!(
         timeout(TEST_TIMEOUT, proxy_task).await???.cancel().await?,
         None
