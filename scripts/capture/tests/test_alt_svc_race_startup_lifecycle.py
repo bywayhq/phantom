@@ -326,14 +326,18 @@ class CaptureResources:
     async def backup(self):
         self.release.set()
         errors = []
-        if self.capture is not None and not self.capture.done():
-            self.capture.cancel()
+        if self.capture is not None:
+            requested_abort = not self.capture.done()
+            if requested_abort:
+                self.capture.cancel()
             try:
                 await asyncio.wait_for(self.capture, DEADLINE)
-            except asyncio.CancelledError:
-                pass
+            except asyncio.CancelledError as error:
+                if not requested_abort and self.cancelled is None:
+                    errors.append(error)
             except BaseException as error:
-                errors.append(error)
+                if error is not self.primary and error is not self.cleanup:
+                    errors.append(error)
         for udp in self.udp:
             try:
                 ORIGINAL_UDP.close(udp)
