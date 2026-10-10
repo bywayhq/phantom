@@ -45,7 +45,7 @@ impl Drop for PendingWorker {
     fn drop(&mut self) {
         if let Some(destroyed) = self.destroyed.take() {
             // A failed controller may have already dropped its witness receiver.
-            drop(destroyed.send(()));
+            let _ = destroyed.send(());
         }
     }
 }
@@ -80,7 +80,7 @@ pub(super) async fn observe_handshake(
         if result.is_pending() {
             if let Some(pending) = observation.pending.take() {
                 // Backup may already have removed the controlling test.
-                drop(pending.send(()));
+                let _ = pending.send(());
             }
 
             if let WorkerFault::Panic { release, marker } = &mut observation.fault {
