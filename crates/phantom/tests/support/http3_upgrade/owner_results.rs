@@ -15,6 +15,7 @@ use phantom::{
     Client, HttpProtocol, ResponseInfo,
     profile::{ClientProfile, browser::chrome},
 };
+use quinn::Endpoint;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::{oneshot, watch},
@@ -81,21 +82,59 @@ fn find_source<'a, T: Error + 'static>(mut error: &'a (dyn Error + 'static)) -> 
     }
 }
 
-fn controlled_fixture(
+struct ControlledEndpoints {
+    alternative: Endpoint,
+    address: SocketAddr,
+    origin_http3: Vec<Endpoint>,
+}
+
+fn prepare_controlled_endpoints(has_origin_http3: bool) -> TestResult<ControlledEndpoints> {
+    let identity = TestIdentity::generate()?;
+    let alternative = h3_endpoint(&identity, SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))?;
+    let address = alternative.local_addr()?;
+    let origin_http3 = if has_origin_http3 {
+        vec![h3_endpoint(
+            &identity,
+            SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
+        )?]
+    } else {
+        Vec::new()
+    };
+
+    Ok(ControlledEndpoints {
+        alternative,
+        address,
+        origin_http3,
+    })
+}
+
+async fn controlled_fixture(
     shutdown: watch::Sender<bool>,
     origin_task: JoinHandle<TestResult<()>>,
     alternative_task: JoinHandle<TestResult<()>>,
     origin_http3_tasks: Option<Vec<JoinHandle<TestResult<()>>>>,
 ) -> TestResult<Http3UpgradeFixture> {
-    let identity = TestIdentity::generate()?;
-    let alternative_endpoint = h3_endpoint(&identity, SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))?;
-    let address = alternative_endpoint.local_addr()?;
+    controlled_fixture_with_preparation(
+        shutdown,
+        origin_task,
+        alternative_task,
+        origin_http3_tasks,
+        prepare_controlled_endpoints,
+    )
+    .await
+}
+
+async fn controlled_fixture_with_preparation(
+    shutdown: watch::Sender<bool>,
+    origin_task: JoinHandle<TestResult<()>>,
+    alternative_task: JoinHandle<TestResult<()>>,
+    origin_http3_tasks: Option<Vec<JoinHandle<TestResult<()>>>>,
+    prepare: impl FnOnce(bool) -> TestResult<ControlledEndpoints>,
+) -> TestResult<Http3UpgradeFixture> {
+    let endpoints = prepare(origin_http3_tasks.is_some())?;
     let origin_http3 = match origin_http3_tasks {
         Some(tasks) => Some(OriginHttp3Service {
-            endpoints: vec![h3_endpoint(
-                &identity,
-                SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
-            )?],
+            endpoints: endpoints.origin_http3,
             observations: Arc::new(SharedObservations::default()),
             tasks,
         }),
@@ -105,9 +144,9 @@ fn controlled_fixture(
     Ok(Http3UpgradeFixture {
         origin_name: "owner-results.test".to_owned(),
         // These addresses are metadata only in task-result controls.
-        origin_address: address,
-        alternative_address: address,
-        alternative_endpoint,
+        origin_address: endpoints.address,
+        alternative_address: endpoints.address,
+        alternative_endpoint: endpoints.alternative,
         observations: Arc::new(SharedObservations::default()),
         shutdown,
         origin_task,
@@ -138,7 +177,7 @@ async fn finish_retains_two_distinct_completed_owner_failures() -> TestResult<()
         wait_origin.await?;
         wait_alternative.await?;
         let (shutdown, _receiver) = watch::channel(false);
-        let fixture = controlled_fixture(shutdown, origin_task, alternative_task, None)?;
+        let fixture = controlled_fixture(shutdown, origin_task, alternative_task, None).await?;
         let retained_endpoint = fixture.alternative_endpoint.clone();
 
         let error = fixture
@@ -191,7 +230,8 @@ async fn finish_retains_two_distinct_completed_origin_http3_failures() -> TestRe
             tokio::spawn(async { Ok(()) }),
             tokio::spawn(async { Ok(()) }),
             Some(vec![first, second]),
-        )?;
+        )
+        .await?;
 
         let error = fixture
             .finish()
@@ -280,19 +320,25 @@ async fn assert_sibling_stopped_before_return(failed: FailedOwner) -> TestResult
     wait_failed.await?;
 
     let fixture = match failed {
-        FailedOwner::Origin => controlled_fixture(shutdown, failed_task, worker, None)?,
-        FailedOwner::Alternative => controlled_fixture(
-            shutdown,
-            tokio::spawn(async { Ok(()) }),
-            failed_task,
-            Some(vec![worker]),
-        )?,
-        FailedOwner::OriginHttp3 => controlled_fixture(
-            shutdown,
-            tokio::spawn(async { Ok(()) }),
-            tokio::spawn(async { Ok(()) }),
-            Some(vec![failed_task, worker]),
-        )?,
+        FailedOwner::Origin => controlled_fixture(shutdown, failed_task, worker, None).await?,
+        FailedOwner::Alternative => {
+            controlled_fixture(
+                shutdown,
+                tokio::spawn(async { Ok(()) }),
+                failed_task,
+                Some(vec![worker]),
+            )
+            .await?
+        }
+        FailedOwner::OriginHttp3 => {
+            controlled_fixture(
+                shutdown,
+                tokio::spawn(async { Ok(()) }),
+                tokio::spawn(async { Ok(()) }),
+                Some(vec![failed_task, worker]),
+            )
+            .await?
+        }
     };
     let retained_endpoint = fixture.alternative_endpoint.clone();
     let finish = async {
@@ -361,7 +407,8 @@ async fn a_single_owner_failure_remains_downcastable() -> TestResult<()> {
             tokio::spawn(async move { Err(Box::new(error) as Box<dyn Error + Send + Sync>) }),
             tokio::spawn(async { Ok(()) }),
             None,
-        )?;
+        )
+        .await?;
 
         let error = fixture
             .finish()
@@ -436,3 +483,7 @@ async fn a_successful_fixture_finish_preserves_the_actual_origin_request_count()
     })
     .await?
 }
+
+#[cfg(test)]
+#[path = "owner_results/acquisition_contract.rs"]
+mod acquisition_contract;
