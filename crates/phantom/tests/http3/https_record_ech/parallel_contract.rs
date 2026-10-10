@@ -33,7 +33,7 @@ use super::{
 use crate::support::{
     ech::{origin_identity, record_server},
     h3::client_settings,
-    tunnel_proxy::{FixtureFailures, finish_with_cleanup},
+    tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup},
 };
 
 const OBSERVATION_TIMEOUT: Duration = Duration::from_secs(2);
