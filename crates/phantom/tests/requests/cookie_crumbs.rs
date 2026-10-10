@@ -44,6 +44,7 @@ use tls_support::{H2_ALPN, TestIdentity, TestResult, tls_settings};
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 mod capture_input;
+mod fixture_contract;
 
 const CHROME: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -160,29 +161,9 @@ async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult
         .map(|index| format!("k{index}=v{index}"))
         .collect::<Vec<_>>();
     let (client_done, done_received) = oneshot::channel();
-    let mut server = tokio::spawn(async move {
-        let (request, mut stream, _connection) = h3_support::accept_request(&endpoint).await?;
-        let observed = request
-            .headers()
-            .get_all("cookie")
-            .iter()
-            .map(|value| value.as_bytes().to_vec())
-            .collect::<Vec<_>>();
-        stream
-            .send_response(
-                Response::builder()
-                    .status(StatusCode::NO_CONTENT)
-                    .body(())?,
-            )
-            .await?;
-        stream.finish().await?;
-        done_received
-            .await
-            .map_err(|_| "client stopped before collecting its response")?;
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
-    });
+    let server = tokio::spawn(record_h3_cookies(endpoint, done_received));
 
-    let response = timeout(TEST_TIMEOUT, async {
+    let response = cookie_h3_request(async {
         let mut tls = tls_support::tls_settings();
         tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
         let profile = ClientProfile::new(tls).with_http3(h3_support::client_settings());
@@ -213,27 +194,7 @@ async fn http3_splits_more_than_100_caller_cookie_pairs_in_order() -> TestResult
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })
     .await;
-    let response = match response {
-        Ok(result) => result,
-        Err(_) => Err("HTTP/3 cookie request exceeded its deadline".into()),
-    };
-    if response.is_err() {
-        server.abort();
-    }
-    let observed = match timeout(TEST_TIMEOUT, &mut server).await {
-        Ok(result) => result,
-        Err(_) => {
-            server.abort();
-            match server.await {
-                Ok(_) => {}
-                Err(error) if error.is_cancelled() => {}
-                Err(error) => return Err(error.into()),
-            }
-            return Err("HTTP/3 cookie server exceeded its deadline".into());
-        }
-    };
-    response?;
-    let observed = observed??;
+    let observed = finish_h3_recording(response, server).await?;
     assert_eq!(observed.len(), pairs.len());
     for (observed, expected) in observed.iter().zip(&pairs) {
         assert_eq!(observed, expected.as_bytes());
@@ -302,41 +263,8 @@ async fn replay(
             inner: tls,
             read: Arc::clone(&wire),
         };
-        let mut connection = ::http2::server::handshake(io).await?;
-        let mut names = Vec::new();
-        for index in 0..expected {
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("client closed before every request")??;
-            let fields = request
-                .extensions()
-                .get::<::http2::ext::OrderedHeaders>()
-                .ok_or("server request omitted its field order")?
-                .as_slice()
-                .iter()
-                .map(|(name, value)| {
-                    Ok((
-                        name.as_str().to_owned(),
-                        String::from_utf8(value.as_bytes().to_vec())?,
-                    ))
-                })
-                .collect::<TestResult<Vec<_>>>()?;
-            names.push(fields);
-            let mut response = Response::builder().status(StatusCode::OK);
-            if index == 0 {
-                for cookie in &set_cookies {
-                    response = response.header(SET_COOKIE, cookie.as_str());
-                }
-            }
-            let mut send = respond.send_response(response.body(())?, false)?;
-            send.send_data(Bytes::from_static(b"ok"), true)?;
-        }
-        // Keep driving the connection so the last response is flushed; the
-        // client closes it after reading that response.
-        let _closed = std::future::poll_fn(|context| connection.poll_closed(context)).await;
-        let wire = wire.lock().map_err(|_| "wire lock was poisoned")?.clone();
-        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((wire, names))
+        let connection = ::http2::server::handshake(io).await?;
+        record_h2_connection(connection, wire, set_cookies, expected).await
     });
 
     let profile = ClientProfile::new(tls_settings())
@@ -368,13 +296,73 @@ async fn replay(
             Ok(response) => response,
             // A server failure explains the client's; report both.
             Err(error) => {
-                let server = timeout(TEST_TIMEOUT, server).await;
-                return Err(format!("client: {error}; server: {server:?}").into());
+                return finish_h2_request_failure(error, server).await;
             }
         };
         response.into_body().collect().await?;
     }
     drop(client);
+    collect_h2_recording(server).await
+}
+
+type RecordedHeaders = (Vec<u8>, Vec<Vec<(String, String)>>);
+
+async fn record_h2_connection<T>(
+    mut connection: ::http2::server::Connection<T, Bytes>,
+    wire: Arc<Mutex<Vec<u8>>>,
+    set_cookies: Vec<String>,
+    expected: usize,
+) -> TestResult<RecordedHeaders>
+where
+    T: AsyncRead + AsyncWrite + Unpin,
+{
+    let mut names = Vec::new();
+    for index in 0..expected {
+        let (request, mut respond) = connection
+            .accept()
+            .await
+            .ok_or("client closed before every request")??;
+        let fields = request
+            .extensions()
+            .get::<::http2::ext::OrderedHeaders>()
+            .ok_or("server request omitted its field order")?
+            .as_slice()
+            .iter()
+            .map(|(name, value)| {
+                Ok((
+                    name.as_str().to_owned(),
+                    String::from_utf8(value.as_bytes().to_vec())?,
+                ))
+            })
+            .collect::<TestResult<Vec<_>>>()?;
+        names.push(fields);
+        let mut response = Response::builder().status(StatusCode::OK);
+        if index == 0 {
+            for cookie in &set_cookies {
+                response = response.header(SET_COOKIE, cookie.as_str());
+            }
+        }
+        let mut send = respond.send_response(response.body(())?, false)?;
+        send.send_data(Bytes::from_static(b"ok"), true)?;
+    }
+    // Keep driving the connection so the last response is flushed; the
+    // client closes it after reading that response.
+    let _closed = std::future::poll_fn(|context| connection.poll_closed(context)).await;
+    let wire = wire.lock().map_err(|_| "wire lock was poisoned")?.clone();
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>((wire, names))
+}
+
+async fn finish_h2_request_failure(
+    error: phantom::RequestError,
+    server: tokio::task::JoinHandle<TestResult<RecordedHeaders>>,
+) -> TestResult<Vec<Vec<Field>>> {
+    let server = timeout(TEST_TIMEOUT, server).await;
+    Err(format!("client: {error}; server: {server:?}").into())
+}
+
+async fn collect_h2_recording(
+    server: tokio::task::JoinHandle<TestResult<RecordedHeaders>>,
+) -> TestResult<Vec<Vec<Field>>> {
     let (wire, decoded) = timeout(TEST_TIMEOUT, server).await???;
     let blocks = header_blocks(&wire)?;
     if blocks.len() != decoded.len() {
@@ -385,6 +373,72 @@ async fn replay(
         .zip(decoded)
         .map(|(block, fields)| label(block, &fields))
         .collect()
+}
+
+async fn record_h3_cookies(
+    endpoint: quinn::Endpoint,
+    done_received: tokio::sync::oneshot::Receiver<()>,
+) -> TestResult<Vec<Vec<u8>>> {
+    use crate::support::h3 as h3_support;
+
+    let (request, mut stream, _connection) = h3_support::accept_request(&endpoint).await?;
+    let observed = request
+        .headers()
+        .get_all("cookie")
+        .iter()
+        .map(|value| value.as_bytes().to_vec())
+        .collect::<Vec<_>>();
+    stream
+        .send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(())?,
+        )
+        .await?;
+    stream.finish().await?;
+    wait_for_cookie_collection(done_received).await?;
+    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
+}
+
+async fn wait_for_cookie_collection(
+    done_received: tokio::sync::oneshot::Receiver<()>,
+) -> TestResult<()> {
+    done_received
+        .await
+        .map_err(|_| "client stopped before collecting its response")?;
+    Ok(())
+}
+
+async fn cookie_h3_request<T>(
+    request: impl std::future::Future<Output = TestResult<T>>,
+) -> TestResult<T> {
+    match timeout(TEST_TIMEOUT, request).await {
+        Ok(result) => result,
+        Err(_) => Err("HTTP/3 cookie request exceeded its deadline".into()),
+    }
+}
+
+async fn finish_h3_recording(
+    response: TestResult<()>,
+    mut server: tokio::task::JoinHandle<TestResult<Vec<Vec<u8>>>>,
+) -> TestResult<Vec<Vec<u8>>> {
+    if response.is_err() {
+        server.abort();
+    }
+    let observed = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(result) => result,
+        Err(_) => {
+            server.abort();
+            match server.await {
+                Ok(_) => {}
+                Err(error) if error.is_cancelled() => {}
+                Err(error) => return Err(error.into()),
+            }
+            return Err("HTTP/3 cookie server exceeded its deadline".into());
+        }
+    };
+    response?;
+    observed?
 }
 
 /// One field of a HEADERS block with its HPACK representation.
