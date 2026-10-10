@@ -1541,13 +1541,14 @@ fn header_blocks(wire: &[u8]) -> TestResult<Vec<&[u8]>> {
 /// Checks the HPACK form of `proxy-authorization` in a challenged request,
 /// its replay, and a request with remembered credentials on one connection:
 /// absent, then a literal with incremental indexing on static name 49, then
-/// no field naming static entry 49, so the remembered credential comes from
-/// the dynamic table. No block carries a never-indexed field. The HPACK
-/// replay of the proxy captures pins the exact representation.
+/// a dynamic indexed field at the decoded credential's exact position.
+/// The actual peer decodes ordinary fields in wire order. Valid blocks put
+/// pseudo-fields first, so ordinary representations form the same suffix.
+/// No block carries a never-indexed field.
 fn assert_proxy_authorization_indexed(
     blocks: &[&[u8]],
     label: &str,
-    _remembered_fields: &[(String, Vec<u8>)],
+    remembered_fields: &[(String, Vec<u8>)],
 ) -> TestResult<()> {
     let [challenged, replay, remembered] = blocks else {
         return Err(format!("{label}: expected three HEADERS blocks").into());
@@ -1575,6 +1576,30 @@ fn assert_proxy_authorization_indexed(
         hpack_representations(replay)?.contains(&(Representation::IncrementalIndexing, 49)),
         "{label} replay"
     );
+    let representations = hpack_representations(remembered)?;
+    let ordinary_offset = representations
+        .len()
+        .checked_sub(remembered_fields.len())
+        .ok_or_else(|| format!("{label}: decoded fields exceed HPACK representations"))?;
+    let mut credentials = remembered_fields
+        .iter()
+        .enumerate()
+        .filter(|(_, field)| field.0 == "proxy-authorization");
+    let (position, _) = credentials
+        .next()
+        .ok_or_else(|| format!("{label}: remembered credential is absent"))?;
+    if credentials.next().is_some() {
+        return Err(format!("{label}: remembered credential is duplicated").into());
+    }
+    let position = ordinary_offset
+        .checked_add(position)
+        .ok_or("remembered credential position overflow")?;
+    if !matches!(
+        representations.get(position),
+        Some(&(Representation::Indexed, index)) if index > 61
+    ) {
+        return Err(format!("{label}: remembered credential is not dynamically indexed").into());
+    }
     Ok(())
 }
 
