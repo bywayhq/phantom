@@ -1,4 +1,6 @@
 use std::{
+    error::Error,
+    fmt,
     future::{Future, poll_fn},
     time::Duration,
 };
@@ -134,6 +136,29 @@ fn spawn_early_peer(
 struct EarlyResponsePeer {
     task: tokio::task::JoinHandle<TestResult<PeerOutcome>>,
     joined: bool,
+}
+
+#[derive(Debug)]
+struct EarlyResponsePeerFailure {
+    context: &'static str,
+    primary: Box<dyn Error + Send + Sync>,
+    cleanup: Option<Box<dyn Error + Send + Sync>>,
+}
+
+impl fmt::Display for EarlyResponsePeerFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.context, self.primary)?;
+        if let Some(cleanup) = &self.cleanup {
+            write!(formatter, "; peer cleanup failed: {cleanup}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for EarlyResponsePeerFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&*self.primary)
+    }
 }
 
 impl EarlyResponsePeer {

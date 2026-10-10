@@ -2,7 +2,9 @@ use std::{error::Error, fmt, future::pending};
 
 use tokio::{io::AsyncReadExt, io::AsyncWriteExt, sync::oneshot, time::timeout};
 
-use super::{PEER_TEST_TIMEOUT, PeerOutcome, TestResult, spawn_early_peer};
+use super::{
+    EarlyResponsePeerFailure, PEER_TEST_TIMEOUT, PeerOutcome, TestResult, spawn_early_peer,
+};
 
 #[tokio::test]
 async fn cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live() -> TestResult<()> {
@@ -106,6 +108,63 @@ async fn an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause() -
 
 #[derive(Debug)]
 struct TestFailure;
+
+#[tokio::test(flavor = "current_thread")]
+async fn simultaneous_test_and_peer_failures_keep_both_typed_causes() -> TestResult<()> {
+    timeout(PEER_TEST_TIMEOUT * 4, async {
+        let (mut client, mut server) = tokio::io::duplex(16);
+        let (ready, peer_ready) = oneshot::channel();
+        let peer = spawn_early_peer(async move {
+            let mut byte = [0_u8; 1];
+            server.read_exact(&mut byte).await?;
+            assert_eq!(byte, [b'C']);
+            ready.send(()).map_err(|()| "peer readiness was abandoned")?;
+            Err(PeerFailure.into())
+        });
+        client.write_all(b"C").await?;
+        timeout(PEER_TEST_TIMEOUT, peer_ready).await??;
+        // No await follows readiness in the peer. On this single-thread
+        // runtime its ready poll must finish before this task can resume.
+        assert!(peer.task.is_finished());
+
+        let error = peer
+            .complete(Err(TestFailure.into()), PeerOutcome::FinalResponse)
+            .await
+            .err()
+            .ok_or("the simultaneous failures were accepted")?;
+
+        assert!(error.source().is_some_and(|source| source.is::<TestFailure>()));
+        let combined = error
+            .downcast_ref::<EarlyResponsePeerFailure>()
+            .ok_or("the combined peer error was not retained")?;
+        assert!(
+            combined
+                .cleanup
+                .as_ref()
+                .is_some_and(|cleanup| cleanup.is::<PeerFailure>())
+        );
+        assert_eq!(
+            error.to_string(),
+            "early-response test failed: typed early test failure; peer cleanup failed: typed peer failure"
+        );
+        let mut byte = [0_u8; 1];
+        assert_eq!(timeout(PEER_TEST_TIMEOUT, client.read(&mut byte)).await??, 0);
+        Ok(())
+    })
+    .await
+    .map_err(|_| "combined peer failure control exceeded its absolute deadline")?
+}
+
+#[derive(Debug)]
+struct PeerFailure;
+
+impl fmt::Display for PeerFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("typed peer failure")
+    }
+}
+
+impl Error for PeerFailure {}
 
 impl fmt::Display for TestFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
