@@ -43,6 +43,8 @@ use tls_support::{H2_ALPN, TestIdentity, TestResult, tls_settings};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
+mod capture_input;
+
 const CHROME: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../fixtures/cookies/chrome/154.0.8037.58/windows-11-26200/crumbs-h2.txt"
