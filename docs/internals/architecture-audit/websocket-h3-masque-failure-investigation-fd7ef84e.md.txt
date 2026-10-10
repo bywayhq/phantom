@@ -1,0 +1,11 @@
+# HTTP/3 WebSocket MASQUE failure investigation
+
+Read-only source basis43fe668c, unchanged-byte comparison against actual runtime fd7ef84e. The two full test/origin owners are963 and469 lines. Paired JSON gives exact Git OIDs, raw SHA256, inclusive read ranges and supporting partial scope. Initial oversized output truncated; the full owners were subsequently read in bounded chunks. Selected Windows/Linux failure blocks were inspected; this is not a full896-case log read.
+
+Both actual failures are engine I/O after accepted WebSocket opening, in the text/binary send/receive sequence. The retained Debug output hides the real source chain and exact operation. Direct H3, SOCKS5 and H1/H2 outer CONNECT-UDP cases pass. This does not establish a connection to the H2 late-reset guard.
+
+Prioritize a concrete relay-size candidate: the raw origin uses default Quinn MTU discovery with upper bound1452; the proxy fixes its outer initial/minimum MTU at1400. The relay sends an origin UDP packet plus a DATAGRAM prefix and propagates typed TooLarge. Outer capacity excludes overhead and changes with MTU. An undeliverable inner probe can therefore end this fixture relay and trigger its code-zero close guard. This is source-supported possibility, not recorded cause.
+
+The narrow diagnostic should preserve all existing assertions, report the actual engine source chain and text/binary operation, then capture actual proxy.take_failures before Drop together with origin/proxy observations. If TooLarge is present, record the offending UDP length and current maximum DATAGRAM size at that exact send. If not, retain the original errors at raw origin connection/stream ignored-result seams. Use completion publication or bounded observation, not scheduling sleeps. Do not alter MTU or suppress relay failures before the cause is observed.
+
+The raw origin also has detached accepted/stream/DATA tasks and discarded causes. These are supported standards defects, but also occur in passing comparisons and are not independently the cause of the two failures. No source edits or execution occurred. The A117 baseline remains frozen at e331c242.

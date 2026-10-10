@@ -1,0 +1,265 @@
+{
+  "review": "Independent narrow package identity migration review",
+  "candidate": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+  "baseline": "73de43e41fd25a35fe98815432da05172b033764",
+  "verdict": "source approved; native/package checks pending",
+  "records": [
+    {
+      "path": "CHANGELOG.md",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "9a5b6b648492f9bf90bde5b7fb614f3a205f68c2",
+      "sha256": "1f0a85628ca4a66f76163d535b7e43f2d82acfd2998a2c3b76cadbfaa7f13860",
+      "baseline_git_blob_oid": "1d4cbb772ab69c2e38eac673bbdb5b848ab2bd33",
+      "line_count": 2789,
+      "read_ranges": [
+        [
+          2483,
+          2491
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": false
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "3fda9d01d73400fa747ca491469bd4d0c7b8023d",
+      "sha256": "4c50b54e8a8aaa4f5516e22f764f0ca4c2f533b3c56488374f9899e77242a258",
+      "baseline_git_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "line_count": 2772,
+      "read_ranges": [
+        [
+          1412,
+          1418
+        ],
+        [
+          1564,
+          1570
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "fdde756fc4aeddbee72aba9397ba03b4b3626fa9",
+      "sha256": "667de67be5962b425501739da82d77c799d7d6929275c1fe1ea577396ac95b26",
+      "baseline_git_blob_oid": "18b6018575d951db66b0a1f61420de1a3eead2b1",
+      "line_count": 80,
+      "read_ranges": [
+        [
+          39,
+          45
+        ],
+        [
+          47,
+          53
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "fuzz/Cargo.lock",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "71c00b930d15ca7ab21ee4bbb150b2538c410c58",
+      "sha256": "7fc382efc356362dff5a1204e8dc2900ad6a1473c6feb7737da154e840fa287f",
+      "baseline_git_blob_oid": "5de4c1b47d1edbd7d5902edc0f0bef561f7ee45b",
+      "line_count": 2276,
+      "read_ranges": [
+        [
+          1123,
+          1129
+        ],
+        [
+          1244,
+          1250
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/http2/Cargo.lock",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "005fdda3ccaa2429cbf3e73cdf137ab8a246d961",
+      "sha256": "569d36e4704a1bda105c14ee7bfad160b47ad603629fe457edf8edd8d8c04c59",
+      "baseline_git_blob_oid": "28793ac86342517feea3940afc7d632e9f7c19fa",
+      "line_count": 815,
+      "read_ranges": [
+        [
+          280,
+          286
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/http2/Cargo.toml",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "43b6314652371a49d416a8691c7da10889c82e79",
+      "sha256": "bdd97dfbaeb53d60da0c14b0f049639132439296bfd5cedb49161339fe3d2531",
+      "baseline_git_blob_oid": "67de7af2faed07aa364875334195220325066b35",
+      "line_count": 187,
+      "read_ranges": [
+        [
+          13,
+          19
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "434a25d1cc19e8a9e0cf11f703132323321110a9",
+      "sha256": "7f759ee893471e3c4009998d98bf094ef912e74a4c5195bceb9613dc86ada65d",
+      "baseline_git_blob_oid": "6bb4f2ce27b79243c52b37f9daa271252934fa3a",
+      "line_count": 957,
+      "read_ranges": [
+        [
+          17,
+          23
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/http2/patches/publish-identity.patch",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "88b2a61d60ec77ea3e2922a4086ede23b0ea6b58",
+      "sha256": "124c279e6ded00692db5de6b20f8588ff25888463e23efbaa4cbac2c02db44dc",
+      "baseline_git_blob_oid": "a59b7572b1876effd1ef55875728db75be2b470a",
+      "line_count": 48,
+      "read_ranges": [
+        [
+          9,
+          15
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/wreq-proto/Cargo.lock",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "68199093b4b4ad1876be4eb69eb4bb764a722678",
+      "sha256": "a55f614a4117c94149dbe558dd343b41fba40f07b73d588d82160b51e07ff9f0",
+      "baseline_git_blob_oid": "0301ce35a7bd461b4148e43090b528213f894ea0",
+      "line_count": 624,
+      "read_ranges": [
+        [
+          277,
+          283
+        ],
+        [
+          295,
+          301
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/wreq-proto/Cargo.toml",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "7b948a69f1a555f1c4430afa93477c9d9db80142",
+      "sha256": "62c7cda9a829ef0316230fe01d2144eeb7d9d560b1d5ee65820c6e6afe0b531b",
+      "baseline_git_blob_oid": "01e6d02966b501e9f9777a5e3bf3a6061b00918d",
+      "line_count": 178,
+      "read_ranges": [
+        [
+          13,
+          19
+        ],
+        [
+          86,
+          92
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/wreq-proto/PHANTOM.md",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "cfbfab4802371bb4c1736e88d96cf5a33ae6aed6",
+      "sha256": "d3bb676b4661a7328c9eee980c72e71907ad6775639875f6559d3d6814e2c9a9",
+      "baseline_git_blob_oid": "ba47532012be1b9f4607c69c9d6461f4eb0f281d",
+      "line_count": 141,
+      "read_ranges": [
+        [
+          21,
+          27
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/wreq-proto/patches/publish-identity.patch",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "47ccf70b9c91f18f79f37526a0c4e23948f9184a",
+      "sha256": "6e58bb108f73710da47e87cdda7bd33176e6a6cd766389bf3a9ced43f0d8146d",
+      "baseline_git_blob_oid": "ece899bfad86db80cd0397886a3bac6d7ea5f9aa",
+      "line_count": 61,
+      "read_ranges": [
+        [
+          9,
+          15
+        ],
+        [
+          53,
+          59
+        ]
+      ],
+      "classification": "partial: complete changed hunks",
+      "exact_version_substitution_only": true
+    },
+    {
+      "path": "vendor/http2/patches/series",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "9d6c62dec0c4351596b4267f7acf7d5ad7ebd814",
+      "sha256": "120508ade37994f4ff8d89ee404eb40af08f3ad702c50d6c8e75960c0395c0c1",
+      "line_count": 26,
+      "read_ranges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "classification": "full supporting series"
+    },
+    {
+      "path": "vendor/wreq-proto/patches/series",
+      "revision": "fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65",
+      "git_blob_oid": "a3556c1130113967ee28b9e0fe59e01b3a1b5e4d",
+      "sha256": "cac1af50246a5a5b01279ed503a90d620fbadb4898b914469923eff3970e886a",
+      "line_count": 3,
+      "read_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "classification": "full supporting series"
+    }
+  ],
+  "findings": [],
+  "checks": {
+    "changed_scope_twelve_files": true,
+    "all_non_changelog_bytes_exact_version_substitution": true,
+    "TOML_parse": true,
+    "series_identity_last": true,
+    "human_signature_G": true
+  },
+  "limits": [
+    "Full changed diff reviewed; lock/manifests records are changed-hunk scope, not full fresh semantic review.",
+    "No Cargo/vendor replay or native execution performed.",
+    "No package publication or full-gate approval."
+  ]
+}

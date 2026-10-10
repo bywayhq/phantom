@@ -1,0 +1,49 @@
+# Local SOCKS and forward proxy source review
+
+Exact frozen source: `3fa93b02c2da3200ba4a57ed5b3b784125ff037b`. Both assigned owners were manually read in full:
+local SOCKS 398 lines and forward proxy 1962 lines, 2360 lines total. The paired
+JSON binds complete Git blobs, raw hashes, inclusive read ranges and committed
+byte comparison at aggregate `fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65`. No tracked edits or execution.
+
+The review found task ownership and completed-result gaps in both files. Local
+SOCKS holds six raw origin/proxy pairs across errors and cancellation, then exits
+on an origin failure before observing the proxy. Forward proxy holds raw peers,
+queued request tasks and a transferred leftover reader across similar boundaries.
+The challenge supervisors also detach child answer tasks and snapshot heads
+without observing their results or cleanup. These are source findings; no host
+resource leak was measured. Existing concrete peer owners and typed result
+combination fit the actual responsibilities.
+
+Both outer timeout wrappers erase the original Elapsed. Forward absence observers
+ignore read failures before concluding no replay bytes arrived. Observer mutex
+failures silently discard writes in the answer and challenge helpers. The paired
+findings propose actual-readiness cancellation controls, two distinct completed
+typed causes, contextual Elapsed positives, and typed observer failure controls.
+Normal wire observations and timeout periods must remain intact.
+
+The local SOCKS assertion proves a decoded loopback host and matching port. It
+does not prove literal IP address representation: shared CONNECT decoding erases
+ATYP, allowing a numeric domain-form host to satisfy the same assertion. A wire
+or structured target observation should require ATYP1/4 and reject domain-form
+numeric loopback, with actual IPv4/IPv6 and authentication positives. No client
+DNS implementation defect is inferred.
+
+The tests otherwise contain strong literal wire contracts: absolute targets,
+IDNA and encoded query/path, ordered headers and terminal trailers, credential
+replay, connection reuse and negative fallback observations. Explicit listeners
+use loopback and port0. Refused TCP uses the concrete reservation fixture. Shared
+head reading is bounded. Synthetic credentials and generated certificates do not
+establish a real-secret disclosure.
+
+Manual layout review found local imports before the standard/external groups and
+a few guard/output paragraph boundaries. Fix these narrowly with any assigned
+remedy. File length prompts responsibility review, without a required quota split.
+The chunk reader is limited to the fixed payload used by these tests. The queued
+sibling's yield is not an independent admission signal, but this review does not
+establish a scheduler or production failure. No speculative abstraction is needed.
+
+This pass supplies fresh whole-owner source evidence only for the two assigned
+files. Supporting and pinned dependency ranges remain separate. No Cargo,
+compiler, runtime, browser parity, live capture or whole-audit completion is
+claimed. The signed A118 baseline remains frozen for independent review and root
+execution.

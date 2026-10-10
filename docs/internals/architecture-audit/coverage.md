@@ -63,9 +63,42 @@ records one plain-drop pass and one post-driver CANCEL cleanup panic on each
 host. The failure reaches final sender destruction after the actual exchange
 and driver joins. This is distinct from test-fixture error retention.
 The [fixture remedy review](h2-peer-completion-remedy-independent-review-f30e0617.md.txt)
-approves owned peers and typed completion causes. Its native verification and
-the separate backend repair remain pending. These focused checks do not close
-whole-workspace gates or the final architecture review.
+approves owned peers and typed completion causes. The
+[backend source review](h2-late-reset-production-independent-review-d0b56287.md.txt)
+approves the narrow reset bookkeeping repair. The
+[identity review](h2-late-reset-identity-independent-review-fd7ef84e.md.txt)
+binds both dependent HTTP fork versions and their locks and patches.
+
+At `fd7ef84e`, the [native addendum](h2-remedy-native-independent-addendum-fd7ef84e.md.txt)
+records all 195 selected H2 tests passing on each host. Both HTTP vendor
+scripts, focused formatting, strict Clippy and Rust 1.88 checks pass.
+The package suite retains one inherited ignored test. The wider facade run
+passes 894 of 896 tests per host. Two unexpected H3 WebSocket CONNECT-UDP
+failures keep the candidate nonzero. Their saved outer errors do not establish
+the cause. The [investigation](websocket-h3-masque-failure-investigation-fd7ef84e.md.txt)
+records the source path and a diagnostic plan, with its candidate qualified.
+
+The [SOCKS baseline review](socks-peer-regression-independent-review-3fa93b02.md.txt)
+and [origin baseline review](connect-udp-origin-failure-baseline-independent-review-e331c242.md.txt)
+approve controls before repair. At `7cd14620`, each host reaches all six
+SOCKS negatives and passes 23 positives. Windows reaches four origin
+negatives and passes 35 positives. Linux reaches the same four negatives,
+passes 34 positives and also fails the existing route-reuse method.
+Formatting, focused Clippy and Rust 1.88 checks pass. The unexpected reuse
+failure remains under investigation rather than an accepted baseline result.
+
+The [local and forward proxy review](local-and-forward-proxy-standards-review-3fa93b02.md.txt)
+records complete manual reads of both owners. Their current committed bytes
+match those records. A123-A129 retain the ownership, observation, deadline
+and layout repairs still required. The
+[H1 child review](h1-ownership-children-root-source-fd7ef84e.md.txt) and
+[H2 child review](h2-ownership-children-root-source-7cd14620.md.txt)
+add four complete child reads. A130 records three remaining timer-cause
+losses. Supporting reads keep their separate partial scopes.
+
+These focused checks and source reads do not close whole-workspace gates
+or the final architecture review. New raw evidence objects remain pending
+scope reconciliation in the inventory.
 
 The [proxy verification](proxy-storage-native-independent-addendum-440dc2ad.md.txt)
 records twenty configuration controls and forty-five route unit tests passing

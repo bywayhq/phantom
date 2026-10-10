@@ -1,0 +1,9 @@
+# HTTP fork identity independent review
+
+Signed `fd7ef84eddddcdbcaf94b278cf2223d35ca0cc65` against `73de43e41fd25a35fe98815432da05172b033764` is approved for this narrow source migration. No actionable finding.
+
+The entire twelve-file diff was read. Every changed non-changelog file is byte-exact to its parent after only replacing -phantom.12 with -phantom.13. The workspace exact HTTP2 and wreq pins, both applied package manifests, wreq's exact HTTP2 dependency, root/fuzz and two package lockfiles, both identity patches and both provenance notes agree. Parsed TOML remains valid. No external dependency, source topology, feature or runtime code is changed by this commit. Both recorded series still end in publish-identity; the H2 late-reset patch precedes it.
+
+The three-line Fixed changelog correctly describes late upload-reset cleanup after connection closure. Advancing the dependent HTTP1 fork reflects its exact HTTP2 dependency pin, rather than claiming an independent HTTP1 runtime defect. The G signature and matching human author/committer satisfy the identity policy, with no attribution trailers. Aggregate status was clean when inspected.
+
+This is a complete diff review with selected supporting series/manifest ranges, not a full reread of all locks or owner source. Git object identities and ranges are in the paired JSON. Runtime validation remains pending. Root must run scripts/ci/check-vendor.sh http2 and wreq-proto with the documented Windows settings, relevant package tests and the applicable integration checks. No Cargo, network, source edits, publication or whole-audit approval occurred here.
