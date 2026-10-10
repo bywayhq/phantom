@@ -26,10 +26,12 @@ impl<T> Drop for ConnectionPeer<T> {
 }
 
 impl<T: Send + 'static> ConnectionPeer<T> {
+    pub(crate) fn from_task(task: JoinHandle<T>) -> Self {
+        Self { task }
+    }
+
     pub(crate) fn spawn(future: impl Future<Output = T> + Send + 'static) -> Self {
-        Self {
-            task: tokio::spawn(future),
-        }
+        Self::from_task(tokio::spawn(future))
     }
 
     pub(crate) fn abort(&self) {

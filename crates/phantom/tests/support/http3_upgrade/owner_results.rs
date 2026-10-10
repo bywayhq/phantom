@@ -1,6 +1,7 @@
 use std::{
     error::Error,
     fmt,
+    future::Future,
     net::{Ipv4Addr, SocketAddr},
     sync::{
         Arc, Weak,
@@ -25,11 +26,12 @@ use tokio::{
 
 use super::{
     AlternativeBehavior, Http3UpgradeFixture, OriginHttp3Service, PlannedResponse,
-    SharedObservations, UpgradeScript, h3_endpoint,
+    SharedObservations, UpgradeScript, UpgradeTaskFailure, h3_endpoint,
 };
 use crate::support::{
     h3::client_settings,
     tls::{TestIdentity, TestResult, tls_settings},
+    tunnel_proxy::ConnectionPeer,
 };
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
@@ -88,6 +90,92 @@ struct ControlledEndpoints {
     origin_http3: Vec<Endpoint>,
 }
 
+struct ControlledOwnerTasks {
+    shutdown: watch::Sender<bool>,
+    origin: JoinHandle<TestResult<()>>,
+    alternative: JoinHandle<TestResult<()>>,
+    origin_http3: Option<Vec<JoinHandle<TestResult<()>>>>,
+}
+
+struct ControlledAcquisition {
+    tasks: Option<ControlledOwnerTasks>,
+}
+
+impl ControlledAcquisition {
+    fn new(
+        shutdown: watch::Sender<bool>,
+        origin: JoinHandle<TestResult<()>>,
+        alternative: JoinHandle<TestResult<()>>,
+        origin_http3: Option<Vec<JoinHandle<TestResult<()>>>>,
+    ) -> Self {
+        Self {
+            tasks: Some(ControlledOwnerTasks {
+                shutdown,
+                origin,
+                alternative,
+                origin_http3,
+            }),
+        }
+    }
+
+    async fn fail(
+        mut self,
+        primary: Box<dyn Error + Send + Sync>,
+    ) -> TestResult<Http3UpgradeFixture> {
+        let tasks = self
+            .tasks
+            .take()
+            .ok_or("controlled acquisition already transferred its tasks")?;
+
+        // Sender closure also stops workers whose observer has gone away.
+        let _ = tasks.shutdown.send(true);
+        let mut peers = vec![
+            ConnectionPeer::from_task(tasks.origin),
+            ConnectionPeer::from_task(tasks.alternative),
+        ];
+        if let Some(tasks) = tasks.origin_http3 {
+            peers.extend(tasks.into_iter().map(ConnectionPeer::from_task));
+        }
+
+        for peer in &peers {
+            peer.abort();
+        }
+
+        let mut secondary = Vec::new();
+        for peer in peers {
+            if let Err(error) = peer.stop().await {
+                secondary.push(error);
+            }
+        }
+
+        Err(UpgradeTaskFailure {
+            context: "controlled fixture preparation failed",
+            primary,
+            secondary,
+        }
+        .into())
+    }
+}
+
+impl Drop for ControlledAcquisition {
+    fn drop(&mut self) {
+        let Some(tasks) = &self.tasks else {
+            return;
+        };
+
+        // Cancellation owns these tasks before the returned future's first poll.
+        // A closed observer already sees shutdown through sender closure.
+        let _ = tasks.shutdown.send(true);
+        tasks.origin.abort();
+        tasks.alternative.abort();
+        if let Some(tasks) = &tasks.origin_http3 {
+            for task in tasks {
+                task.abort();
+            }
+        }
+    }
+}
+
 fn prepare_controlled_endpoints(has_origin_http3: bool) -> TestResult<ControlledEndpoints> {
     let identity = TestIdentity::generate()?;
     let alternative = h3_endpoint(&identity, SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))?;
@@ -108,12 +196,12 @@ fn prepare_controlled_endpoints(has_origin_http3: bool) -> TestResult<Controlled
     })
 }
 
-async fn controlled_fixture(
+fn controlled_fixture(
     shutdown: watch::Sender<bool>,
     origin_task: JoinHandle<TestResult<()>>,
     alternative_task: JoinHandle<TestResult<()>>,
     origin_http3_tasks: Option<Vec<JoinHandle<TestResult<()>>>>,
-) -> TestResult<Http3UpgradeFixture> {
+) -> impl Future<Output = TestResult<Http3UpgradeFixture>> {
     controlled_fixture_with_preparation(
         shutdown,
         origin_task,
@@ -121,38 +209,49 @@ async fn controlled_fixture(
         origin_http3_tasks,
         prepare_controlled_endpoints,
     )
-    .await
 }
 
-async fn controlled_fixture_with_preparation(
+fn controlled_fixture_with_preparation(
     shutdown: watch::Sender<bool>,
     origin_task: JoinHandle<TestResult<()>>,
     alternative_task: JoinHandle<TestResult<()>>,
     origin_http3_tasks: Option<Vec<JoinHandle<TestResult<()>>>>,
     prepare: impl FnOnce(bool) -> TestResult<ControlledEndpoints>,
-) -> TestResult<Http3UpgradeFixture> {
-    let endpoints = prepare(origin_http3_tasks.is_some())?;
-    let origin_http3 = match origin_http3_tasks {
-        Some(tasks) => Some(OriginHttp3Service {
+) -> impl Future<Output = TestResult<Http3UpgradeFixture>> {
+    let has_origin_http3 = origin_http3_tasks.is_some();
+    let acquisition =
+        ControlledAcquisition::new(shutdown, origin_task, alternative_task, origin_http3_tasks);
+
+    async move {
+        let mut acquisition = acquisition;
+        let endpoints = match prepare(has_origin_http3) {
+            Ok(endpoints) => endpoints,
+            Err(error) => return acquisition.fail(error).await,
+        };
+
+        let tasks = acquisition
+            .tasks
+            .take()
+            .ok_or("controlled acquisition already transferred its tasks")?;
+        let origin_http3 = tasks.origin_http3.map(|tasks| OriginHttp3Service {
             endpoints: endpoints.origin_http3,
             observations: Arc::new(SharedObservations::default()),
             tasks,
-        }),
-        None => None,
-    };
+        });
 
-    Ok(Http3UpgradeFixture {
-        origin_name: "owner-results.test".to_owned(),
-        // These addresses are metadata only in task-result controls.
-        origin_address: endpoints.address,
-        alternative_address: endpoints.address,
-        alternative_endpoint: endpoints.alternative,
-        observations: Arc::new(SharedObservations::default()),
-        shutdown,
-        origin_task,
-        alternative_task,
-        origin_http3,
-    })
+        Ok(Http3UpgradeFixture {
+            origin_name: "owner-results.test".to_owned(),
+            // These addresses are metadata only in task-result controls.
+            origin_address: endpoints.address,
+            alternative_address: endpoints.address,
+            alternative_endpoint: endpoints.alternative,
+            observations: Arc::new(SharedObservations::default()),
+            shutdown: tasks.shutdown,
+            origin_task: tasks.origin,
+            alternative_task: tasks.alternative,
+            origin_http3,
+        })
+    }
 }
 
 #[tokio::test]
