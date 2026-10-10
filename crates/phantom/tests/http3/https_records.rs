@@ -21,7 +21,10 @@ use phantom::{
     dns::HttpsRecordResolver,
     profile::{ClientProfile, browser::chrome},
 };
-use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
+use phantom_testkit::{
+    dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer},
+    tcp::ReservedPort,
+};
 use tokio::time::timeout;
 
 use h3_support::{appending_alt_used, client_settings};
@@ -323,20 +326,24 @@ async fn routes_without_direct_dns_send_no_https_query() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
         let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let proxy = ReservedPort::bind()?;
+        let origin = ReservedPort::bind()?;
+        let proxy_address = proxy.address();
+        let url = format!("https://localhost:{}/", origin.address().port());
         // Like Chromium, where proxied connections perform DNS on the proxy,
-        // a proxy route never queries HTTPS records. Nothing listens on the
-        // discard port, so each request fails at the proxy.
+        // a proxy route never queries HTTPS records. The reserved proxy port
+        // refuses each request before the origin is reached.
         for route in [
-            Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?),
-            Route::http_proxy(HttpProxy::new("https://127.0.0.1:9")?),
-            Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?),
+            Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?),
+            Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?),
+            Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?),
         ] {
             let client = client_builder(&identity)
                 .route(route)
                 .https_record_discovery(resolver(&dns)?)
                 .build()?;
             let error = client
-                .get_negotiated("https://localhost:8443/")?
+                .get_negotiated(&url)?
                 .send()
                 .await
                 .err()
