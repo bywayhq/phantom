@@ -4,6 +4,7 @@ use std::{
     collections::VecDeque,
     convert::Infallible,
     error::Error,
+    fmt,
     future::{Future, poll_fn},
     io,
     net::{Ipv4Addr, TcpListener as StdTcpListener},
@@ -759,14 +760,41 @@ async fn public_http2_body_source_error_has_request_body_category() -> TestResul
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let peer = async move {
-            let stream = accept_tls(listener, acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-            if let Some((request, _respond)) = accepted_failed_upload(connection.accept().await)? {
+            let stream =
+                accept_tls(listener, acceptor)
+                    .await
+                    .map_err(|cause| FailedUploadPeerError {
+                        operation: "TLS acceptance",
+                        cause,
+                    })?;
+            let mut connection = ::http2::server::handshake(stream).await.map_err(|cause| {
+                FailedUploadPeerError {
+                    operation: "HTTP/2 handshake",
+                    cause: Box::new(cause),
+                }
+            })?;
+            let incoming = accepted_failed_upload(connection.accept().await).map_err(|cause| {
+                FailedUploadPeerError {
+                    operation: "request acceptance",
+                    cause,
+                }
+            })?;
+            if let Some((request, _respond)) = incoming {
                 let mut incoming = request.into_body();
                 while let Some(chunk) =
-                    upload_data_or_end(next_h2_request_data(&mut connection, &mut incoming).await)?
+                    upload_data_or_end(next_h2_request_data(&mut connection, &mut incoming).await)
+                        .map_err(|cause| FailedUploadPeerError {
+                        operation: "request DATA",
+                        cause,
+                    })?
                 {
-                    incoming.flow_control().release_capacity(chunk.len())?;
+                    incoming
+                        .flow_control()
+                        .release_capacity(chunk.len())
+                        .map_err(|cause| FailedUploadPeerError {
+                            operation: "request DATA capacity release",
+                            cause: Box::new(cause),
+                        })?;
                 }
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
@@ -1382,6 +1410,28 @@ async fn exchange_peer<T, R>(
     request: impl Future<Output = TestResult<R>>,
 ) -> TestResult<(T, R)> {
     tokio::try_join!(peer, request)
+}
+
+#[derive(Debug)]
+struct FailedUploadPeerError {
+    operation: &'static str,
+    cause: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for FailedUploadPeerError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed-upload peer {}: {}",
+            self.operation, self.cause
+        )
+    }
+}
+
+impl Error for FailedUploadPeerError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.cause.as_ref())
+    }
 }
 
 fn accepted_failed_upload<T>(incoming: Option<Result<T, ::http2::Error>>) -> TestResult<Option<T>> {
