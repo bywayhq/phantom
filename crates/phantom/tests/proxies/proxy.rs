@@ -2,6 +2,7 @@
 
 #[path = "proxy/auth.rs"]
 mod auth;
+mod upload_contract;
 use crate::support::tls as tls_support;
 
 use std::{
@@ -56,45 +57,9 @@ async fn streams_http1_upload_through_ordered_connect_route() -> TestResult<()> 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(vec![
-                HttpConnectHeader::field(RequestHeader::new("User-Agent", "phantom-test")),
-                HttpConnectHeader::authority("host"),
-                HttpConnectHeader::field(RequestHeader::new("X-Proxy-Order", "last")),
-            ]),
-        );
-        let client = client_builder(&identity, false).route(route).build()?;
-
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("https://{origin_address}/proxied"),
-            )?
-            .header(RequestHeader::new("X-Origin", "only"))
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), 200);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
-
-        let connect = proxy.await??;
-        let expected_connect = format!(
-            "CONNECT {origin_address} HTTP/1.1\r\n\
-             User-Agent: phantom-test\r\n\
-             host: {origin_address}\r\n\
-             X-Proxy-Order: last\r\n\r\n"
-        );
-        assert_eq!(connect, expected_connect.as_bytes());
-
-        let (request, body) = origin.await??;
-        let expected_request = format!(
-            "POST /proxied HTTP/1.1\r\nHost: {origin_address}\r\nX-Origin: only\r\nContent-Length: 7\r\n\r\n"
-        );
-        assert_eq!(request, expected_request.as_bytes());
-        assert_eq!(&body, b"payload");
-        assert!(!request.windows(12).any(|window| window == b"X-Proxy-Ord"));
-        Ok(())
+        let prepared = prepare_connect_upload(origin, proxy, &identity, proxy_address)?;
+        let operation = send_connect_upload(&prepared.client, origin_address).await;
+        finish_connect_upload(operation, prepared, origin_address).await
     })
     .await
 }
@@ -676,9 +641,90 @@ fn polling_proxy_request_without_tokio_returns_runtime_error() -> TestResult<()>
     Ok(())
 }
 
+type OriginUpload = (Vec<u8>, [u8; 7]);
+
+struct ConnectUpload {
+    client: Client,
+    proxy: tokio::task::JoinHandle<TestResult<Vec<u8>>>,
+    origin: tokio::task::JoinHandle<TestResult<OriginUpload>>,
+}
+
+fn prepare_connect_upload(
+    origin: tokio::task::JoinHandle<TestResult<OriginUpload>>,
+    proxy: tokio::task::JoinHandle<TestResult<Vec<u8>>>,
+    identity: &TestIdentity,
+    proxy_address: std::net::SocketAddr,
+) -> TestResult<ConnectUpload> {
+    let route = Route::http_proxy(
+        HttpProxy::new(&format!("http://{proxy_address}"))?.connect_headers(vec![
+            HttpConnectHeader::field(RequestHeader::new("User-Agent", "phantom-test")),
+            HttpConnectHeader::authority("host"),
+            HttpConnectHeader::field(RequestHeader::new("X-Proxy-Order", "last")),
+        ]),
+    );
+    let client = client_builder(identity, false).route(route).build()?;
+    Ok(ConnectUpload {
+        client,
+        proxy,
+        origin,
+    })
+}
+
+async fn send_connect_upload(
+    client: &Client,
+    origin_address: std::net::SocketAddr,
+) -> TestResult<()> {
+    let response = client
+        .request(
+            HttpProtocol::Http1,
+            Method::POST,
+            &format!("https://{origin_address}/proxied"),
+        )?
+        .header(RequestHeader::new("X-Origin", "only"))
+        .body(Bytes::from_static(b"payload"))
+        .send()
+        .await?;
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.into_body().collect().await?.to_bytes(), "through");
+    Ok(())
+}
+
+async fn finish_connect_upload(
+    operation: TestResult<()>,
+    prepared: ConnectUpload,
+    origin_address: std::net::SocketAddr,
+) -> TestResult<()> {
+    operation?;
+    let connect = prepared.proxy.await??;
+    let expected_connect = format!(
+        "CONNECT {origin_address} HTTP/1.1\r\n\
+         User-Agent: phantom-test\r\n\
+         host: {origin_address}\r\n\
+         X-Proxy-Order: last\r\n\r\n"
+    );
+    assert_eq!(connect, expected_connect.as_bytes());
+
+    let (request, body) = prepared.origin.await??;
+    let expected_request = format!(
+        "POST /proxied HTTP/1.1\r\nHost: {origin_address}\r\nX-Origin: only\r\nContent-Length: 7\r\n\r\n"
+    );
+    assert_eq!(request, expected_request.as_bytes());
+    assert_eq!(&body, b"payload");
+    assert!(!request.windows(12).any(|window| window == b"X-Proxy-Ord"));
+    Ok(())
+}
+
 async fn forward_one_connect(
     listener: TcpListener,
     origin: std::net::SocketAddr,
+) -> TestResult<Vec<u8>> {
+    forward_one_connect_observed(listener, origin, None).await
+}
+
+async fn forward_one_connect_observed(
+    listener: TcpListener,
+    origin: std::net::SocketAddr,
+    ready: Option<tokio::sync::oneshot::Sender<Vec<u8>>>,
 ) -> TestResult<Vec<u8>> {
     let (mut downstream, _) = listener.accept().await?;
     let request = read_head(&mut downstream).await?;
@@ -687,6 +733,11 @@ async fn forward_one_connect(
         .write_all(b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     downstream.flush().await?;
+    if let Some(ready) = ready {
+        ready
+            .send(request.clone())
+            .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "CONNECT observer stopped"))?;
+    }
     relay_until_terminal_close(&mut downstream, &mut upstream).await?;
     Ok(request)
 }
