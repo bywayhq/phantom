@@ -53,6 +53,13 @@ observes 74 test processes, with no additional writer captured. It misses
 short-lived processes and changes timing. The historical cause remains open.
 The original failure policy and evidence are unchanged.
 
+The [independent output assessment](linux-output-holder-independent-assessment-113e5656.md.txt)
+checks the complete run logs and parses all 1,831 sampling records. It
+qualifies missing processes and descriptor observations. The installed
+nextest detector measures observed output EOF after child exit. Delayed
+runner observation is a source-supported hypothesis, not an established
+cause. A recurrence needs correlated process and runner evidence.
+
 The [capture baseline](alps-capture-baseline-native-roster-correction-659e5576.md.txt)
 runs twelve methods on Windows and Linux Python 3.10 at `659e5576`.
 Six positive methods pass. Six negative methods produce eleven failure

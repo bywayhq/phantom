@@ -1,0 +1,11 @@
+# Independent Linux output holder assessment
+
+Exact `113e5656c984298eb7ca848e4cc7a8ca256e8cf7` replay:107 pass/one known trust137 failure. All ten historical LEAK methods pass. Format, strict focused Clippy and Rust1.88 pass; nextest100/launcher1. Same200ms fail policy and zero retries. Complete logs, launcher, observer and root receipt read;15 bound artifact hashes verified.
+
+All1831 JSON snapshots parsed:74 observed test PIDs/148 pipe IDs,1062 writer records, zero writers outside previously observed test PID set; final zero known holders. Two exeNone records belong to previously identified test PID770. Gaps extend77ms;34 executed test PIDs not observed. No exhaustive process/descriptor absence or wait-status claim.
+
+Installed Linux nextest0.9.140/a9fef2964 version and hash bound. Its detector measures asynchronously observed output EOF after child exit, not kernel writer census. Delayed runner readiness/EOF observation under load is a meaningful unproven hypothesis. Partial exact pinned nextest/Tokio source recorded. No historical cause, root-cause fix or policy waiver established.
+
+Original failures remain unresolved; collect bounded correlated evidence on recurrence. No reviewer execution, fresh whole-parent promotion or final gate/integration approval.
+
+JSON SHA256: `7a70ed11521c3505c9a0dc7148b0b9fceb829b5efb4f8d252e3de3659af03754`.
