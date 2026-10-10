@@ -1,3 +1,5 @@
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
 use super::*;
 
 const SWITCHING_PROTOCOLS: &str = "HTTP/1.1 101 Switching Protocols\r\n\
@@ -69,10 +71,6 @@ async fn plaintext_http_proxy_tunnels_ws_and_sends_the_direct_opening_inside() -
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
-            let (mut stream, _) = proxy_listener.accept().await?;
-            tunnel_and_accept(&mut stream, b"tunneled").await
-        });
 
         let headers = vec![
             WebSocketHeader::authority("host"),
@@ -86,18 +84,28 @@ async fn plaintext_http_proxy_tunnels_ws_and_sends_the_direct_opening_inside() -
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = client_builder(&identity, false).route(route).build()?;
-        let mut socket = client
-            .websocket(&format!("ws://{origin_address}/events?transport=tunnel"))?
-            .headers(headers)
-            .connect()
-            .await?;
-        assert_eq!(
-            socket.receive().await?,
-            WebSocketMessage::Ping(Bytes::from_static(b"tunneled"))
-        );
-        drop(socket);
 
-        let (connect, opening, pong) = finish_opening_proxy(proxy).await?;
+        let proxy = ConnectionPeer::spawn(async move {
+            let (mut stream, _) = proxy_listener.accept().await?;
+            tunnel_and_accept(&mut stream, b"tunneled").await
+        });
+
+        let operation = async {
+            let mut socket = client
+                .websocket(&format!("ws://{origin_address}/events?transport=tunnel"))?
+                .headers(headers)
+                .connect()
+                .await?;
+            assert_eq!(
+                socket.receive().await?,
+                WebSocketMessage::Ping(Bytes::from_static(b"tunneled"))
+            );
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        let (connect, opening, pong) = finish_route_peer(operation, proxy).await?;
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -142,10 +150,6 @@ async fn verified_https_proxy_tunnels_ws_without_origin_tls() -> TestResult<()> 
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
-            let mut stream = accept_tls(proxy_listener, proxy_acceptor).await?;
-            tunnel_and_accept(&mut stream, b"secure-tunnel").await
-        });
 
         let unrelated_origin_identity = TestIdentity::generate()?;
         let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
@@ -153,17 +157,27 @@ async fn verified_https_proxy_tunnels_ws_without_origin_tls() -> TestResult<()> 
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
             .route(route)
             .build()?;
-        let mut socket = client
-            .websocket(&format!("ws://{origin_address}/secure?tunnel=yes"))?
-            .connect()
-            .await?;
-        assert_eq!(
-            socket.receive().await?,
-            WebSocketMessage::Ping(Bytes::from_static(b"secure-tunnel"))
-        );
-        drop(socket);
 
-        let (connect, opening, pong) = finish_opening_proxy(proxy).await?;
+        let proxy = ConnectionPeer::spawn(async move {
+            let mut stream = accept_tls(proxy_listener, proxy_acceptor).await?;
+            tunnel_and_accept(&mut stream, b"secure-tunnel").await
+        });
+
+        let operation = async {
+            let mut socket = client
+                .websocket(&format!("ws://{origin_address}/secure?tunnel=yes"))?
+                .connect()
+                .await?;
+            assert_eq!(
+                socket.receive().await?,
+                WebSocketMessage::Ping(Bytes::from_static(b"secure-tunnel"))
+            );
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        let (connect, opening, pong) = finish_route_peer(operation, proxy).await?;
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -203,7 +217,18 @@ async fn https_proxy_basic_challenge_replays_on_the_challenged_connection_before
         let acceptor = proxy_identity.acceptor(H1_ALPN)?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let unrelated_origin_identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("https://{proxy_address}"))?
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&unrelated_origin_identity, false)
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(route)
+            .build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let (anonymous_tcp, _) = proxy_listener.accept().await?;
             let mut anonymous = tls_support::accept_tls_stream(anonymous_tcp, acceptor).await?;
             let anonymous_connect = read_head(&mut anonymous).await?;
@@ -234,21 +259,18 @@ async fn https_proxy_basic_challenge_replays_on_the_challenged_connection_before
             ))
         });
 
-        let unrelated_origin_identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("https://{proxy_address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let socket = client_builder(&unrelated_origin_identity, false)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?
-            .websocket(&format!("ws://{origin_address}/https-auth"))?
-            .connect()
-            .await?;
-        drop(socket);
+        let operation = async {
+            let socket = client
+                .websocket(&format!("ws://{origin_address}/https-auth"))?
+                .connect()
+                .await?;
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
 
-        let (anonymous, authorized, opening, second_connection) = proxy.await??;
+        let (anonymous, authorized, opening, second_connection) =
+            finish_route_peer(operation, proxy).await?;
         assert!(!second_connection);
         let connect_line = format!("CONNECT {origin_address} HTTP/1.1\r\n");
         assert!(anonymous.starts_with(connect_line.as_bytes()));
@@ -274,7 +296,15 @@ async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> Te
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous_stream, _) = proxy_listener.accept().await?;
             let anonymous = read_head(&mut anonymous_stream).await?;
             challenge(
@@ -306,21 +336,19 @@ async fn later_websocket_tunnels_send_remembered_proxy_credentials_first() -> Te
             Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, tunnels, third.is_err()))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false).route(route).build()?;
-        for path in ["first", "second"] {
-            let socket = client
-                .websocket(&format!("ws://{origin_address}/{path}"))?
-                .connect()
-                .await?;
-            drop(socket);
+        let operation = async {
+            for path in ["first", "second"] {
+                let socket = client
+                    .websocket(&format!("ws://{origin_address}/{path}"))?
+                    .connect()
+                    .await?;
+                drop(socket);
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
+        .await;
 
-        let (anonymous, tunnels, no_third_connection) = proxy.await??;
+        let (anonymous, tunnels, no_third_connection) = finish_route_peer(operation, proxy).await?;
         assert!(header_value(&anonymous, "proxy-authorization").is_none());
         let authorized = format!(
             "CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\
@@ -347,7 +375,18 @@ async fn proxy_basic_authentication_is_fresh_per_logical_websocket_when_not_reme
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false)
+            .route(route)
+            .preemptive_proxy_authentication(false)
+            .build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let mut requests = Vec::new();
             for _ in 0..2 {
                 let (mut anonymous_stream, _) = proxy_listener.accept().await?;
@@ -370,24 +409,19 @@ async fn proxy_basic_authentication_is_fresh_per_logical_websocket_when_not_reme
             Ok::<_, Box<dyn Error + Send + Sync>>(requests)
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false)
-            .route(route)
-            .preemptive_proxy_authentication(false)
-            .build()?;
-        for path in ["first", "second"] {
-            let socket = client
-                .websocket(&format!("ws://{origin_address}/{path}"))?
-                .connect()
-                .await?;
-            drop(socket);
+        let operation = async {
+            for path in ["first", "second"] {
+                let socket = client
+                    .websocket(&format!("ws://{origin_address}/{path}"))?
+                    .connect()
+                    .await?;
+                drop(socket);
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
+        .await;
 
-        let requests = proxy.await??;
+        let requests = finish_route_peer(operation, proxy).await?;
         assert_eq!(requests.len(), 2);
         for (index, (anonymous, authorized, opening)) in requests.iter().enumerate() {
             let path = if index == 0 { "first" } else { "second" };
@@ -422,7 +456,15 @@ async fn configured_basic_is_not_preemptively_sent_or_retried_after_an_open_tunn
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = proxy_listener.accept().await?;
             let connect = read_head(&mut stream).await?;
             stream
@@ -437,20 +479,17 @@ async fn configured_basic_is_not_preemptively_sent_or_retried_after_an_open_tunn
             Ok::<_, Box<dyn Error + Send + Sync>>((connect, second.is_err()))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?
-                .with_basic_auth("alice", "secret")?,
-        );
-        let socket = client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .websocket(&format!("ws://{origin_address}/immediate"))?
-            .connect()
-            .await?;
-        drop(socket);
+        let operation = async {
+            let socket = client
+                .websocket(&format!("ws://{origin_address}/immediate"))?
+                .connect()
+                .await?;
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
 
-        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        let (connect, had_no_second_proxy_connection) = finish_route_peer(operation, proxy).await?;
         assert!(connect.starts_with(b"CONNECT "));
         assert!(header_value(&connect, "proxy-authorization").is_none());
         assert!(had_no_second_proxy_connection);
@@ -554,29 +593,34 @@ async fn malformed_proxy_basic_challenge_has_no_direct_fallback() -> TestResult<
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(challenge_once(
-            proxy_listener,
-            b"Proxy-Authenticate: Basic realm=\"unterminated\r\n",
-        ));
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
         );
-        let error = match client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .websocket(&format!("ws://{origin_address}/malformed"))?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("malformed proxy challenge upgraded WebSocket".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+        let client = client_builder(&identity, false).route(route).build()?;
 
-        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        let proxy = ConnectionPeer::spawn(challenge_once(
+            proxy_listener,
+            b"Proxy-Authenticate: Basic realm=\"unterminated\r\n",
+        ));
+
+        let operation = async {
+            let error = match client
+                .websocket(&format!("ws://{origin_address}/malformed"))?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("malformed proxy challenge upgraded WebSocket".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        let (connect, had_no_second_proxy_connection) = finish_route_peer(operation, proxy).await?;
         assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
         assert!(had_no_second_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
@@ -593,29 +637,34 @@ async fn supported_non_basic_proxy_challenge_is_rejected_without_retry() -> Test
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(challenge_once(
-            proxy_listener,
-            b"Proxy-Authenticate: Digest realm=websocket\r\n",
-        ));
 
         let identity = TestIdentity::generate()?;
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
         );
-        let error = match client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .websocket(&format!("ws://{origin_address}/digest"))?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("non-Basic proxy challenge upgraded WebSocket".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+        let client = client_builder(&identity, false).route(route).build()?;
 
-        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        let proxy = ConnectionPeer::spawn(challenge_once(
+            proxy_listener,
+            b"Proxy-Authenticate: Digest realm=websocket\r\n",
+        ));
+
+        let operation = async {
+            let error = match client
+                .websocket(&format!("ws://{origin_address}/digest"))?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("non-Basic proxy challenge upgraded WebSocket".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        let (connect, had_no_second_proxy_connection) = finish_route_peer(operation, proxy).await?;
         assert!(header_value(&connect, "proxy-authorization").is_none());
         assert!(had_no_second_proxy_connection);
         assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
@@ -632,7 +681,15 @@ async fn second_proxy_basic_challenge_is_terminal_without_fallback() -> TestResu
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .with_basic_auth("marker-user", "marker-password")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut anonymous_stream, _) = proxy_listener.accept().await?;
             let anonymous = read_head(&mut anonymous_stream).await?;
             challenge(
@@ -656,39 +713,37 @@ async fn second_proxy_basic_challenge_is_terminal_without_fallback() -> TestResu
             Ok::<_, Box<dyn Error + Send + Sync>>((anonymous, authorized, second.is_err()))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?
-                .with_basic_auth("marker-user", "marker-password")?,
-        );
-        let error = match client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .websocket(&format!("ws://{origin_address}/rejected-twice"))?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("second proxy challenge upgraded WebSocket".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
-        let mut diagnostic = format!("{error:?} {error}");
-        let mut source = error.source();
-        while let Some(current) = source {
-            diagnostic.push_str(&current.to_string());
-            source = current.source();
+        let operation = async {
+            let error = match client
+                .websocket(&format!("ws://{origin_address}/rejected-twice"))?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("second proxy challenge upgraded WebSocket".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+            let mut diagnostic = format!("{error:?} {error}");
+            let mut source = error.source();
+            while let Some(current) = source {
+                diagnostic.push_str(&current.to_string());
+                source = current.source();
+            }
+            for secret in [
+                "marker-user",
+                "marker-password",
+                "first-private-realm",
+                "second-private-realm",
+                "bWFya2VyLXVzZXI6bWFya2VyLXBhc3N3b3Jk",
+            ] {
+                assert!(!diagnostic.contains(secret));
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
-        for secret in [
-            "marker-user",
-            "marker-password",
-            "first-private-realm",
-            "second-private-realm",
-            "bWFya2VyLXVzZXI6bWFya2VyLXBhc3N3b3Jk",
-        ] {
-            assert!(!diagnostic.contains(secret));
-        }
+        .await;
 
-        let (anonymous, authorized, had_no_second_proxy_connection) = proxy.await??;
+        let (anonymous, authorized, had_no_second_proxy_connection) =
+            finish_route_peer(operation, proxy).await?;
         assert!(header_value(&anonymous, "proxy-authorization").is_none());
         assert_eq!(
             header_value(&authorized, "proxy-authorization"),
@@ -710,29 +765,34 @@ async fn unauthenticated_407_to_ws_connect_fails_without_retry_or_direct_fallbac
         let origin_address = origin.local_addr()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(challenge_once(
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let proxy = ConnectionPeer::spawn(challenge_once(
             proxy_listener,
             b"Proxy-Authenticate: Basic realm=available\r\n",
         ));
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
-        let error = match client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .websocket(&format!("ws://{origin_address}/rejected"))?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("rejected proxy tunnel upgraded WebSocket".into()),
-            Err(error) => error,
-        };
-        // A refused CONNECT is a proxy failure, as for `wss://`; no opening
-        // was sent, so there is no handshake response to return.
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
-        assert!(error.into_response().is_none());
+        let operation = async {
+            let error = match client
+                .websocket(&format!("ws://{origin_address}/rejected"))?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("rejected proxy tunnel upgraded WebSocket".into()),
+                Err(error) => error,
+            };
+            // A refused CONNECT is a proxy failure, as for `wss://`; no opening
+            // was sent, so there is no handshake response to return.
+            assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+            assert!(error.into_response().is_none());
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
 
-        let (connect, had_no_second_proxy_connection) = proxy.await??;
+        let (connect, had_no_second_proxy_connection) = finish_route_peer(operation, proxy).await?;
         assert_eq!(
             connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
@@ -750,7 +810,12 @@ async fn origin_rejection_inside_a_ws_tunnel_is_returned_with_its_body() -> Test
     bounded(async {
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let identity = TestIdentity::generate()?;
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = proxy_listener.accept().await?;
             let connect = read_head(&mut stream).await?;
             stream
@@ -764,31 +829,31 @@ async fn origin_rejection_inside_a_ws_tunnel_is_returned_with_its_body() -> Test
             Ok::<_, Box<dyn Error + Send + Sync>>((connect, opening))
         });
 
-        let identity = TestIdentity::generate()?;
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
-        let error = match client_builder(&identity, false)
-            .route(route)
-            .build()?
-            .websocket("ws://origin.test:8080/rejected")?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("rejected opening upgraded WebSocket".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), WebSocketErrorKind::HandshakeRejected);
-        let response = error
-            .into_response()
-            .ok_or("origin rejection omitted HTTP response")?;
-        assert_eq!(response.status(), 403);
-        assert_eq!(
-            http_body_util::BodyExt::collect(response.into_body())
-                .await?
-                .to_bytes(),
-            "denied"
-        );
+        let operation = async {
+            let error = match client
+                .websocket("ws://origin.test:8080/rejected")?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("rejected opening upgraded WebSocket".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::HandshakeRejected);
+            let response = error
+                .into_response()
+                .ok_or("origin rejection omitted HTTP response")?;
+            assert_eq!(response.status(), 403);
+            assert_eq!(
+                http_body_util::BodyExt::collect(response.into_body())
+                    .await?
+                    .to_bytes(),
+                "denied"
+            );
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
 
-        let (connect, opening) = proxy.await??;
+        let (connect, opening) = finish_route_peer(operation, proxy).await?;
         assert_eq!(
             connect,
             b"CONNECT origin.test:8080 HTTP/1.1\r\nHost: origin.test:8080\r\n\r\n".as_slice()
@@ -806,7 +871,14 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let origin = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(origin_listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -819,20 +891,21 @@ async fn connects_through_http_connect_without_origin_fallback() -> TestResult<(
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        let mut socket = client
-            .websocket(&format!("wss://{origin_address}/through-proxy"))?
-            .connect()
-            .await?;
-        socket.close(Some(WebSocketCloseFrame::new(1000, "done")?)).await?;
-        assert!(matches!(socket.receive().await?, WebSocketMessage::Close(_)));
-        drop(socket);
+        let proxy = ConnectionPeer::spawn(forward_one_connect(proxy_listener, origin_address));
 
-        finish_connect_route(proxy, origin, origin_address).await
+        let operation = async {
+            let mut socket = client
+                .websocket(&format!("wss://{origin_address}/through-proxy"))?
+                .connect()
+                .await?;
+            socket.close(Some(WebSocketCloseFrame::new(1000, "done")?)).await?;
+            assert!(matches!(socket.receive().await?, WebSocketMessage::Close(_)));
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        finish_owned_connect_route(operation, proxy, origin, origin_address).await
     })
     .await
 }
@@ -844,7 +917,21 @@ async fn basic_proxy_challenge_reconnects_before_websocket_upgrade() -> TestResu
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
+
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+
+        let route = Route::http_proxy(
+            HttpProxy::new(&format!("http://{proxy_address}"))?
+                .connect_headers(vec![
+                    phantom::HttpConnectHeader::authority("Host"),
+                    phantom::HttpConnectHeader::proxy_authorization("Proxy-Authorization"),
+                ])
+                .with_basic_auth("alice", "secret")?,
+        );
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let origin = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(origin_listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -857,41 +944,35 @@ async fn basic_proxy_challenge_reconnects_before_websocket_upgrade() -> TestResu
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
         });
 
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(challenge_then_forward_connect(
+        let proxy = ConnectionPeer::spawn(challenge_then_forward_connect(
             proxy_listener,
             origin_address,
         ));
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("http://{proxy_address}"))?
-                .connect_headers(vec![
-                    phantom::HttpConnectHeader::authority("Host"),
-                    phantom::HttpConnectHeader::proxy_authorization("Proxy-Authorization"),
-                ])
-                .with_basic_auth("alice", "secret")?,
-        );
-        let client = client_builder(&identity, false).route(route).build()?;
-        let mut socket = client
-            .websocket(&format!("wss://{origin_address}/authenticated-proxy"))?
-            .connect()
-            .await?;
-        socket
-            .close(Some(WebSocketCloseFrame::new(1000, "done")?))
-            .await?;
-        assert!(matches!(
-            socket.receive().await?,
-            WebSocketMessage::Close(_)
-        ));
-        drop(socket);
 
-        let (anonymous, authorized) = proxy.await??;
+        let operation = async {
+            let mut socket = client
+                .websocket(&format!("wss://{origin_address}/authenticated-proxy"))?
+                .connect()
+                .await?;
+            socket
+                .close(Some(WebSocketCloseFrame::new(1000, "done")?))
+                .await?;
+            assert!(matches!(
+                socket.receive().await?,
+                WebSocketMessage::Close(_)
+            ));
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        let ((anonymous, authorized), origin_request) =
+            finish_route_peers(operation, proxy, origin).await?;
         assert!(!header_value(&anonymous, "proxy-authorization").is_some());
         assert_eq!(
             header_value(&authorized, "proxy-authorization"),
             Some("Basic YWxpY2U6c2VjcmV0")
         );
-        let origin_request = origin.await??;
         assert!(origin_request.starts_with(b"GET /authenticated-proxy HTTP/1.1\r\n"));
         assert!(header_value(&origin_request, "proxy-authorization").is_none());
         Ok(())
@@ -906,7 +987,19 @@ async fn connects_through_verified_https_proxy() -> TestResult<()> {
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = origin_identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
+
+        let proxy_identity = TestIdentity::generate()?;
+        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let proxy_address = proxy_listener.local_addr()?;
+        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
+        let client = client_builder(&origin_identity, false)
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .route(route)
+            .build()?;
+
+        let origin = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -919,37 +1012,33 @@ async fn connects_through_verified_https_proxy() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
         });
 
-        let proxy_identity = TestIdentity::generate()?;
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(forward_one_https_connect(
+        let proxy = ConnectionPeer::spawn(forward_one_https_connect(
             proxy_listener,
             proxy_acceptor,
             origin_address,
         ));
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
-        let client = client_builder(&origin_identity, false)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?;
-        let mut socket = client
-            .websocket(&format!("wss://{origin_address}/through-secure-proxy"))?
-            .connect()
-            .await?;
-        socket.close(Some(WebSocketCloseFrame::new(1000, "done")?)).await?;
-        assert!(matches!(socket.receive().await?, WebSocketMessage::Close(_)));
-        drop(socket);
+
+        let operation = async {
+            let mut socket = client
+                .websocket(&format!("wss://{origin_address}/through-secure-proxy"))?
+                .connect()
+                .await?;
+            socket.close(Some(WebSocketCloseFrame::new(1000, "done")?)).await?;
+            assert!(matches!(socket.receive().await?, WebSocketMessage::Close(_)));
+            drop(socket);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
+        let (connect, origin_request) = finish_route_peers(operation, proxy, origin).await?;
 
         assert_eq!(
-            proxy.await??,
+            connect,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
                 .as_bytes()
         );
         assert!(
-            origin
-                .await??
-                .starts_with(b"GET /through-secure-proxy HTTP/1.1\r\n")
+            origin_request.starts_with(b"GET /through-secure-proxy HTTP/1.1\r\n")
         );
         Ok(())
     })
@@ -966,28 +1055,38 @@ async fn rejected_connect_never_opens_a_direct_websocket_connection() -> TestRes
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(async move {
+
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
+        let client = client_builder(&identity, false).route(route).build()?;
+
+        let proxy = ConnectionPeer::spawn(async move {
             let (mut stream, _) = proxy_listener.accept().await?;
             let request = read_head(&mut stream).await?;
             stream
                 .write_all(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
                 .await?;
-            Ok::<_, io::Error>(request)
+            Ok::<_, Box<dyn Error + Send + Sync>>(request)
         });
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
-        let client = client_builder(&identity, false).route(route).build()?;
-        let error = match client
-            .websocket(&format!("wss://{origin_address}/"))?
-            .connect()
-            .await
-        {
-            Ok(_) => return Err("rejected proxy WebSocket connection succeeded".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
-        assert!(matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
+
+        let operation = async {
+            let error = match client
+                .websocket(&format!("wss://{origin_address}/"))?
+                .connect()
+                .await
+            {
+                Ok(_) => return Err("rejected proxy WebSocket connection succeeded".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), WebSocketErrorKind::Proxy);
+            assert!(
+                matches!(origin.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock)
+            );
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
+
         assert_eq!(
-            proxy.await??,
+            finish_route_peer(operation, proxy).await?,
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
                 .as_bytes()
         );
@@ -1003,7 +1102,10 @@ async fn stream_sink_split_supports_concurrent_message_io() -> TestResult<()> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+
+        let client = test_client(&identity, false)?;
+
+        let server = ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -1019,25 +1121,28 @@ async fn stream_sink_split_supports_concurrent_message_io() -> TestResult<()> {
             Ok::<_, Box<dyn Error + Send + Sync>>([first, second])
         });
 
-        let client = test_client(&identity, false)?;
-        let socket = client
-            .websocket(&format!("wss://{address}/split"))?
-            .connect()
-            .await?;
-        let (mut sender, mut receiver) = socket.split();
-        let (sent, received) = tokio::join!(
-            sender.send(WebSocketMessage::Text("outbound".into())),
-            receiver.next(),
-        );
-        sent?;
-        assert_eq!(
-            received.ok_or("split stream ended before Ping")??,
-            WebSocketMessage::Ping(Bytes::from_static(b"split-ping"))
-        );
-        drop(sender);
-        drop(receiver);
+        let operation = async {
+            let socket = client
+                .websocket(&format!("wss://{address}/split"))?
+                .connect()
+                .await?;
+            let (mut sender, mut receiver) = socket.split();
+            let (sent, received) = tokio::join!(
+                sender.send(WebSocketMessage::Text("outbound".into())),
+                receiver.next(),
+            );
+            sent?;
+            assert_eq!(
+                received.ok_or("split stream ended before Ping")??,
+                WebSocketMessage::Ping(Bytes::from_static(b"split-ping"))
+            );
+            drop(sender);
+            drop(receiver);
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        }
+        .await;
 
-        let frames = server.await??;
+        let frames = finish_route_peer(operation, server).await?;
         assert!(frames.iter().any(|frame| frame.opcode == 0x1 && frame.payload == b"outbound"));
         assert!(frames.iter().any(|frame| frame.opcode == 0xA && frame.payload == b"split-ping"));
         Ok(())
@@ -1073,27 +1178,85 @@ async fn challenge_then_forward_connect(
 
 type ProxyOpening = (Vec<u8>, Vec<u8>, ClientFrame);
 
-async fn finish_opening_proxy(
+fn finish_opening_proxy(
     proxy: tokio::task::JoinHandle<TestResult<ProxyOpening>>,
-) -> TestResult<ProxyOpening> {
-    proxy.await?
+) -> impl std::future::Future<Output = TestResult<ProxyOpening>> {
+    let proxy = ConnectionPeer::from_task(proxy);
+    finish_route_peer(Ok(()), proxy)
 }
 
-async fn finish_connect_route(
+fn finish_connect_route(
     proxy: tokio::task::JoinHandle<TestResult<Vec<u8>>>,
     origin: tokio::task::JoinHandle<TestResult<Vec<u8>>>,
     origin_address: std::net::SocketAddr,
+) -> impl std::future::Future<Output = TestResult<()>> {
+    let proxy = ConnectionPeer::from_task(proxy);
+    let origin = ConnectionPeer::from_task(origin);
+    finish_owned_connect_route(Ok(()), proxy, origin, origin_address)
+}
+
+async fn finish_owned_connect_route(
+    operation: TestResult<()>,
+    proxy: ConnectionPeer<TestResult<Vec<u8>>>,
+    origin: ConnectionPeer<TestResult<Vec<u8>>>,
+    origin_address: std::net::SocketAddr,
 ) -> TestResult<()> {
+    let (connect, opening) = finish_route_peers(operation, proxy, origin).await?;
+
     assert_eq!(
-        proxy.await??,
+        connect,
         format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n").as_bytes()
     );
-    assert!(
-        origin
-            .await??
-            .starts_with(b"GET /through-proxy HTTP/1.1\r\n")
-    );
+    assert!(opening.starts_with(b"GET /through-proxy HTTP/1.1\r\n"));
     Ok(())
+}
+
+async fn finish_route_peer<T: Send + 'static>(
+    operation: TestResult<()>,
+    peer: ConnectionPeer<TestResult<T>>,
+) -> TestResult<T> {
+    match operation {
+        Ok(()) => peer.await?,
+        Err(primary) => finish_with_cleanup(Err(primary), peer.stop().await),
+    }
+}
+
+async fn finish_route_peers<P: Send + 'static, O: Send + 'static>(
+    operation: TestResult<()>,
+    mut proxy: ConnectionPeer<TestResult<P>>,
+    mut origin: ConnectionPeer<TestResult<O>>,
+) -> TestResult<(P, O)> {
+    if let Err(primary) = operation {
+        let (proxy_cleanup, origin_cleanup) = tokio::join!(proxy.stop(), origin.stop());
+        return finish_with_cleanup(
+            Err(primary),
+            finish_with_cleanup(proxy_cleanup, origin_cleanup),
+        );
+    }
+
+    tokio::select! {
+        biased;
+        result = &mut proxy => {
+            let result: TestResult<P> = match result {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            };
+            match result {
+                Ok(proxy) => Ok((proxy, origin.await??)),
+                Err(primary) => finish_with_cleanup(Err(primary), origin.stop().await),
+            }
+        }
+        result = &mut origin => {
+            let result: TestResult<O> = match result {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            };
+            match result {
+                Ok(origin) => Ok((proxy.await??, origin)),
+                Err(primary) => finish_with_cleanup(Err(primary), proxy.stop().await),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
