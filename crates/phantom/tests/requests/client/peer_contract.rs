@@ -219,7 +219,10 @@ async fn failed_upload_accept_keeps_unrelated_io_kind_and_context() -> TestResul
     assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
     // The HTTP/2 dependency stores an I/O error's inner cause as text.
     assert_eq!(
-        cause.get_ref().ok_or("I/O failure context lost")?.to_string(),
+        cause
+            .get_ref()
+            .ok_or("I/O failure context lost")?
+            .to_string(),
         "driven client peer failed"
     );
     Ok(())
