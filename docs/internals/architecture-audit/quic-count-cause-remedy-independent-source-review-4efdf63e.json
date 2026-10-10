@@ -1,0 +1,427 @@
+{
+  "revision": "4efdf63e133f5dedc8c77ffdaedcb672e948a3cf",
+  "parent_revision": "06eb52f5fda50be7e4e1f307ea58e1d13a508482",
+  "verdict": "approved narrow source remedy for root composition and unchanged57 native selection",
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "revision": "4efdf63e133f5dedc8c77ffdaedcb672e948a3cf",
+      "git_blob_oid": "a4a2ed9330278b293f4135008c98f38e87d724d7",
+      "raw_sha256": "22cda60ad7547f6b1850689de4fcb40d08222f5f7e2d4928543372c97f2855de",
+      "line_count": 660,
+      "read_classification": "fresh partial imports/private error/type/complete count finish; full signed semantic diff read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 122,
+          "raw_range_sha256": "7b012753fe63a96f9909e832456c7b359cd26e350a15ebb73d42648b7e8b13ae"
+        },
+        {
+          "start": 223,
+          "end": 273,
+          "raw_range_sha256": "26cca3fbb485041e6302b77944364c1a5d2f36431019b8085992e983d17f3580"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/count_deadline_contract.rs",
+      "revision": "4efdf63e133f5dedc8c77ffdaedcb672e948a3cf",
+      "git_blob_oid": "799f3e7d598804b7a293de195d210efbe4d9ba33",
+      "raw_sha256": "aa3e4c737ad098b6e2dabd6bdf5725b0e6262cda1ed5d06d05503cf36d21001d",
+      "line_count": 310,
+      "read_classification": "exact rebind to preceding fresh full310 native/source review; not another fresh whole read",
+      "manual_read_ranges": []
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "4efdf63e133f5dedc8c77ffdaedcb672e948a3cf",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "read_classification": "fresh supporting partial resolved Tokio1.53.1 identity",
+      "manual_read_ranges": [
+        {
+          "start": 2218,
+          "end": 2236,
+          "raw_range_sha256": "90b30a4a47f2b7f153dcddc5c84b899edf3b9a51ca075b3f4ed5e3fd2e21e8cd"
+        }
+      ]
+    }
+  ],
+  "supporting_external_reads": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+      "raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "line_count": 123,
+      "read_classification": "fresh whole dependency file, supporting owner scope only",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 123,
+          "raw_range_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/timeout.rs",
+      "raw_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "line_count": 249,
+      "read_classification": "fresh supporting partial timeout output/actual poll-delay cause",
+      "manual_read_ranges": [
+        {
+          "start": 186,
+          "end": 238,
+          "raw_range_sha256": "d09154ebbab19a4c6880f0c0eb7f23a8c5369248a9868d7ca4724dfc807c9a2a"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.rustup/toolchains/1.99.0-x86_64-pc-windows-msvc/lib/rustlib/src/rust/library/core/src/error.rs",
+      "raw_sha256": "ebb76aa552e3450d716580d39882147536828e7182d5c852a49575eb225b07cd",
+      "line_count": 1134,
+      "read_classification": "fresh supporting partial installed Rust1.99 trait reference; not MSRV compile evidence",
+      "manual_read_ranges": [
+        {
+          "start": 46,
+          "end": 126,
+          "raw_range_sha256": "ab87278c65f47b36d99f77317b80f8decc6582e06a9ace840f341cadb6aad556"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "whole_parent_inverse_exact": true,
+    "only_one_changed_path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+    "all_prior_caller_and_wire_bytes_exact_after_removing_owned_changes": true,
+    "count310_exact_to_author_parent_and_actual_baseline": true,
+    "HTTP3_source_identity_checks": [
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_frames.rs",
+        "git_blob_oid": "a2f7e8c94cbc1f9a2287e3e951eaf449daa30782",
+        "raw_sha256": "92f7e201176018b028d0b53b1b805fbea2f9e13c852305bf8d06e1f58ac4ad53",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs",
+        "git_blob_oid": "1b6e2ec0abaacf331caae7d9e780af49b81f1fa6",
+        "raw_sha256": "62c168b880e4de91c11d755a382f728f484682d7040bcfd54a401e4857377d75",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+        "git_blob_oid": "37ffd158a94aff4333462a7790f5466bef087dbe",
+        "raw_sha256": "d59ac9baecc4fa5da0c0016f3167e942f0bf2297e372a3e186a2cba3e6615db9",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs",
+        "git_blob_oid": "94dd694998d2576521d25e25bffbc5abf96a3288",
+        "raw_sha256": "54beb164be98d162720f4c36f29bb5d2dafc4dc6ad5bcb02ec633b6a948ddca9",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs",
+        "git_blob_oid": "8700bc717f51da7256db4e62cdc9338854975615",
+        "raw_sha256": "b25e9065b86c0cd194daa7183509c5a787b9e322fae1279e083280a834b2cd9c",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+        "git_blob_oid": "002b291000ddfeb0aba9c2b1367cda955a29fca8",
+        "raw_sha256": "a30440e146cbcee46d51fe424208684905a555d27a761d7dfb4bbb938583a165",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned.rs",
+        "git_blob_oid": "e1fb5b795db1752c23e85a328dd4e5ed66ec2ccd",
+        "raw_sha256": "2f63fedf524c10401d5881c1b0948a298b49b5037c70e870f7aa0b271696fd3c",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs",
+        "git_blob_oid": "7d2033d4afd187c9f32c76367f8be3e157e8e74c",
+        "raw_sha256": "e7f1b223f04d69ac2d34dce12caf2d94da716a64e458d28eea37abe66b55cda5",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs",
+        "git_blob_oid": "41adcc95f7a57b73533105a11c5c667d4663b7cc",
+        "raw_sha256": "cfa86c88ddb9f7137bf6bab36d8669b5179c58a8208cbd3cfc9ac3cf14bd72b9",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs",
+        "git_blob_oid": "8e815795c2dafc4c1408c46e17f1723b52444fd4",
+        "raw_sha256": "a4da9cf738fb72b8fcfe898dbc68222c5c3f97a823e1ae85f7afc84ebd4ffb72",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_race.rs",
+        "git_blob_oid": "37a38a9622ed07f453184aeaba2d4f797fa2bf70",
+        "raw_sha256": "74545bd7bba9c4ada1b30689eb9cac8c1c5d5c0e2734136c41288567e4e0917b",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs",
+        "git_blob_oid": "36abe671dff041a1a48975fcfce1bb0a93ad9f3f",
+        "raw_sha256": "3b09ca7f2dbfba5c0093e8deb7eb6aa71d84a1e23da66b9eb591704d941308ad",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/connect_udp.rs",
+        "git_blob_oid": "4356aab5d5ce34d5e5a3a8f81f6e3496066d762d",
+        "raw_sha256": "8c5835b0b869bb11b098e7741e5553f6bd371ab7916fb5f298c55c956e434dbb",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/connect_udp/observation_contract.rs",
+        "git_blob_oid": "cdbd1fb943d4c684a876797663b8f6cc20d11546",
+        "raw_sha256": "bbb0d7c806176eb9fd4c2487bbed0c30c856a6135fe0b2e76c780f4d8adfe7a6",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/connect_udp/origin_failures.rs",
+        "git_blob_oid": "77749d8001eb2c17c7a2be6b582592aeeb615945",
+        "raw_sha256": "7344a7bdb69d52bcaf1902a29bbe4e91f332fb8e3bcda2ec75ccb04a4d738226",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/connect_udp/origin_ownership.rs",
+        "git_blob_oid": "4ef765e088a85de7d3caa56aa7598b7721ca5067",
+        "raw_sha256": "2a5b9d9ac4d5d703e9cb8e18d9a0bf8fa06052d064aa6003f70f5bb5130ab477",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/connect_udp/origin_tasks.rs",
+        "git_blob_oid": "29d701434a9dc27faca201426005875f6c6c8efe",
+        "raw_sha256": "f5871c7c0036ceeb97709a0fd95ce9f2954419f5b5acfd6a525737d0b7da49df",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http2_fallback.rs",
+        "git_blob_oid": "af44973fc3349b52402a05accd39c90bc5b2543c",
+        "raw_sha256": "212bffa1f7d4fccc42b9ea008b2fdab1379c831b4b9632b3211f7490733a0dbb",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+        "git_blob_oid": "e253723ec43623dfcf5f7e1725b2f1ceb10c44e1",
+        "raw_sha256": "5662a837cd5f07343b8266369f78fdd4e02af9b95d15efbdfdc9134020e543b5",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3.rs",
+        "git_blob_oid": "1a686f8c588af031699ed0dfaa315333af1b8783",
+        "raw_sha256": "dda485f388b3655df474ab9ac9e6d69bc629496b4d70cb04d155e90fdf3e6383",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_early_data.rs",
+        "git_blob_oid": "da0adff003a04b13289ff6d4a93cf726b2dc35d0",
+        "raw_sha256": "7b0dc40d85535d6ab4babba06a2afe3c81405319355f435f216e4170b15b275d",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_early_data/absence_controls.rs",
+        "git_blob_oid": "e33f8197d3c37da45a2b5c3f6b9a38709e607ec3",
+        "raw_sha256": "1ef0d554bafa4f1aa698d57a4a283a2faeb5ab3b8a683a6321097e71388cfc2a",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+        "git_blob_oid": "415e421088e0222e7965d7317d7e72a299ff925e",
+        "raw_sha256": "0e8650b63551785f26f54d6fe05fd0567ee94bf86a3e4bc09f508e1d56115ed7",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_retries.rs",
+        "git_blob_oid": "8984232299b06a5937d0c5ddb5744cb15012b616",
+        "raw_sha256": "c5f335aef1f0d6be3e769b8ca47afbc99e552dc990c44271ca955e16064d9ea2",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+        "git_blob_oid": "2932168fe53f9bb3989030024d5f1777e103aacf",
+        "raw_sha256": "bd5d015a19f74ff18b7e5f43f46f05aba5aaa9479134212faeb4c0ea2ec934b4",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+        "git_blob_oid": "cb18bc2e06f1694868a646ee867303b2a1dc2baa",
+        "raw_sha256": "eec7b26e07d39b11b49a8f270ed3d414d314b5c11b499b91b7d5da32b1df235c",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_upgrade.rs",
+        "git_blob_oid": "e4b40db6c2786f09aa6fce100363c8243576de85",
+        "raw_sha256": "a7b31ef98bc1c7399ef57d698d61c1f29de298f2ccd9b70d9e03fa7522732261",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/http3_upgrade_socks5.rs",
+        "git_blob_oid": "c5547883b33b1ac951c5cc7b6ec841887120a66c",
+        "raw_sha256": "4552f4add7007cadbd96d14bfefaaad34cfc321919f2147ba8e817612a7e9391",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech.rs",
+        "git_blob_oid": "c5149d1f299f9841e0ed50edfaad0894a70a1881",
+        "raw_sha256": "2546d3e3bfa2c648d46d789528d4030f4990037e66f04ad79dc705d82244d2c3",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech/deadline_contract.rs",
+        "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+        "git_blob_oid": "f94eeb5923daedda3b31f49a8fa519f4a6ece3ea",
+        "raw_sha256": "db31a722fa776e8549e9901d9143b4fd90355a9d3d2c70be00b9dc6b3a7a93ee",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+        "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+        "git_blob_oid": "c4bf91cff0401a2ab09bd0ea7ec34d3bc2320bdc",
+        "raw_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+        "git_blob_oid": "3e47c46a3041497bbf999c497a5e5938855fca26",
+        "raw_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/count_deadline_contract.rs",
+        "git_blob_oid": "799f3e7d598804b7a293de195d210efbe4d9ba33",
+        "raw_sha256": "aa3e4c737ad098b6e2dabd6bdf5725b0e6262cda1ed5d06d05503cf36d21001d",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs",
+        "git_blob_oid": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records.rs",
+        "git_blob_oid": "d4a255dd9aa940589e7fe6341b94439dbfc5368c",
+        "raw_sha256": "306c69677344cb78282a9bb45b8040906d6b8b0f547c642d5d8d6e76588af635",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_records/deadline_contract.rs",
+        "git_blob_oid": "ff03758ae1500884d5fdfd4d1e369a66a1429699",
+        "raw_sha256": "f5883104e74540a28d01b477fa1c9cc2e3e3ad1feff8893ceb61c2b8f819b9d3",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      },
+      {
+        "path": "crates/phantom/tests/http3/main.rs",
+        "git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+        "raw_sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+        "unchanged_from_parent": true,
+        "credit": "identity preservation only, no new read claim"
+      }
+    ]
+  },
+  "author_handoff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-cause-remedy-handoff-4efdf63e.json",
+    "raw_sha256": "2d71ef150b2ca57ed7e4e3490df9a7c9e38cdeb6bee44c37f93903c3353d598c",
+    "committed_source_records_valid": true,
+    "invalid_external_record_preserved": {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+      "origin": "resolved Tokio1.53.1 registry source, external supporting partial only",
+      "raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "line_count": 123,
+      "read_ranges": [
+        [
+          40,
+          55
+        ],
+        [
+          103,
+          125
+        ]
+      ],
+      "range_sha256": [
+        {
+          "range": [
+            40,
+            55
+          ],
+          "sha256": "bedd2eeca2afa69d7cdd9743c131700ec1368aaa8a60d2096587e8747647eb9d"
+        },
+        {
+          "range": [
+            103,
+            125
+          ],
+          "sha256": "9e5d4a32b7593bb6bd602bdecae2b56dc8e40d7ec3fb2a14a21ec67db6ad1271"
+        }
+      ]
+    },
+    "error": "declared103-125 inclusive exceeds123-line file; recorded digest matches actual103-123 because slicing trimmed it",
+    "independent_exact_correction": "Full fresh1-123 external record above supplies an explicit replacement scope. Original record is not normalized or promoted."
+  },
+  "semantic_assessment": [
+    "Both timeout functions still use TEST_TIMEOUT and unchanged watch predicates; actual outer Elapsed is moved into the concrete operation variant.",
+    "Display retains original QUIC/TCP count context; Error::source borrows the original stored Elapsed, without recreating or stringifying it.",
+    "Second ? preserves inner watch errors; parent outcome, stop/abort ordering, ready-count behavior and all ordinary tests remain untouched.",
+    "Private enum models the two actual operation contexts; no helper framework, fallback, public API or compatibility path was introduced.",
+    "Changed type/import/Display/source/functions are grouped coherently. Existing broader import/layout and lifecycle limitations are not silently closed."
+  ],
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "limitations": [
+    "No Cargo, native execution or source edits by reviewer; fixed57 root runs remain required.",
+    "Composition must retain root EchDeadline and A184 changes that are outside this lane parent.",
+    "A180/A181 lifecycle/drain findings remain open; this fix does not claim task ownership or joined cancellation.",
+    "The full310 synthetic counter controls retain constructor/handshake/wire limitations; prior ordinary wire tests remain distinct.",
+    "Installed Rust1.99 Error trait source is supporting reference, not Rust1.88 verification."
+  ]
+}

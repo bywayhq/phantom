@@ -1,0 +1,9 @@
+# Focused CI repair native review
+
+Exact `3a68a39f033c78e5b53954a5c1591454ca777552`: Windows and Linux each pass HTTPS57/57, hints44/44 and upload4/4. Both complete native logs for all three selections and their exit/revision files were manually read. The actual56-line launcher was read completely. HTTPS excludes259, hints456; upload excludes1017 on Windows and1001 on Linux.
+
+The HTTPS roster is exactly baseline248's57, which previously had55 passes and two missing-Elapsed failures. Frozen310 count controls now reach and pass the typed Elapsed assertions with unchanged Pending/count/context prerequisites. These are private counter/task controls, not new wire or handshake evidence. Actual count-parent diff contains only the separately approved typed cause change, preserving root EchDeadline and A184 acquisition changes; all other HTTP3 source blobs remain exact.
+
+Hint44 roster matches the prior focused44; all hint children remain byte-exact and the current parent is exactly the approved A167 cleanup blob. Upload control source is exact signed CI fix c079; all four pass with the distinct JoinError conversion retained.
+
+The paired JSON binds raw logs, exit/revision files, source blobs and preservation comparisons. Ancillary stages were still live when this bounded review was saved. This report approves only completed focused tests; no whole runner, full gate, whole source audit or remaining lifecycle closure is claimed. No reruns or tracked edits were performed.

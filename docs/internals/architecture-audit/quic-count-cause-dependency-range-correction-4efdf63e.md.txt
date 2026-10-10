@@ -1,0 +1,12 @@
+# Count-cause dependency range correction
+
+Original4ef handoff and source remain unchanged. Its Tokio1.53.1
+`time/error.rs` supporting range103-125 exceeds actual EOF123. The writer
+silently trimmed its slice; that hash is exactly the valid103-123 slice.
+The recorded actual123 line count and raw source hash were already correct.
+
+The actual103-123 tail was freshly read. Correct supporting credit is
+103-123, together with the original valid40-55 partial; no124-125 or new
+whole-file read is credited. Original source approval, controls and private
+deadline behavior are unaffected. JSON binds the original report and actual
+dependency bytes. Future writers must validate external range endpoints.

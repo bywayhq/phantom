@@ -40,6 +40,21 @@ do not establish that need.
 
 ## Recent verification
 
+At `3a68a39f`, the [local checkpoint](ci-repair-root-native-receipt-3a68a39f.md.txt)
+passes the same 105 focused methods on Windows and Linux: 57 HTTPS-record,
+44 client-hint and four HTTP/2 upload methods. The two count deadline
+regressions now retain the original `Elapsed` cause and context.
+The [independent focused review](checkpoint-focused-tests-independent-native-addendum-3a68a39f.md.txt)
+binds unchanged controls and method sets to the earlier baselines.
+
+Both hosts pass formatting, workspace strict Clippy with all targets and
+features, Rust 1.88 workspace checks, and JSON-only all-target Clippy and
+Rust 1.88 checks. The [CI source review](ci-test-dependencies-conversions-independent-source-review-c0794ff4.md.txt)
+approves the explicit test dependency and two removed identity conversions.
+The [terminal review](checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.md.txt)
+confirms all eight steps and clean revision guards. The full gate and final
+review remain.
+
 The [hint remedy review](hint-ownership-remedy-native-independent-addendum-d9418c3a.md.txt)
 confirms all 44 unchanged methods pass on Windows and Linux at `d9418c3a`.
 The seven baseline failures now pass their original destruction and concrete

@@ -189,7 +189,7 @@ No finding is resolved by an assignment or a proposed fix.
 
 | A180 | P2 | HTTPS-record ECH fixture tasks remain owned on every exit | Negotiated raw tasks, exact active handshakes and QUIC TCP descendants escape exceptional ownership | Exact parent ownership and completed-serving collector independently approved; all unchanged 52 methods pass both hosts at `e8a0c593`. Pending serving cancellation and negotiated/QUIC/TCP descendants remain open. Final gates pending. |
 | A181 | P2 | ECH fixture finish retains completed serving failures | Sequential early returns and abort-without-join discard completed concrete child outcomes | Exact collector remedy at `e8a0c593` passes all unchanged 52 methods on both hosts after causal 51/1 baseline. Aggregate and both original typed payload identities now pass; independent source/native approval. QUIC/negotiated collectors, drain outcomes and simultaneous loop-primary control remain open. |
-| A182 | P2 | HTTPS-record fixture deadlines retain their typed causes | Four outer bounds and QUIC count waits replace Elapsed with text | Four outer bounds are independently repaired. Synthetic count baseline at `24857484` runs identical 57 methods on both hosts: 55 pass and two fail after original context checks because actual Elapsed is missing. Original 20-second waits and all earlier 52 methods are preserved; count remedy pending. |
+| A182 | P2 | HTTPS-record fixture deadlines retain their typed causes | Four outer bounds and QUIC count waits replace Elapsed with text | Independently reviewed count repair at `3a68a39f` passes the unchanged 57 methods on both hosts, including both previously failing typed Elapsed assertions. Original 20-second waits, messages and earlier 52 methods remain. Controls use private counter/task state; final gates pending. |
 | A183 | P3 | No-direct-DNS route controls own the refusal address | Fixed loopback port9 is assumed to have no listener | Independent source-approved existing ReservedPort correction integratedd862 and passes within50 HTTPS methods both hosts at aed. Windows/Linux retain bound ports; existing macOS helper releases them. Original Proxy category/zeroDNS assertions preserved; final platform CI pending. |
 | A184 | P3 | QUIC ECH fixture acquisition retains local-address failure | Endpoint local_addr error becomes port0 after TCP task acquisition | Pre-spawn local-address acquisition independently source-approved at `f0939302`; all seven ordinary QUIC methods compile and pass within the unchanged 52-method selection at `e8a0c593` on both hosts. No measured OS lookup fault or production defect; final platform gates pending. |
 
@@ -202,6 +202,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A191 | P2 | Race capture distinguishes clean closure from unrelated failures | Broad TLS, transport and H2 exception handling produces ordinary termination | CR6 complete source review; exact expected protocol categories and causal controls pending |
 | A192 | P2 | UDP race observations retain listener identity | One source address merges origin and earlier-alternative observations | CR7 deterministic source defect; regression and repair pending, browser occurrence unmeasured |
 | A193 | P2 | Remote credentials omit values in default diagnostics | Default dataclass representation includes username and password | CR8 complete source review; canary regression pending, no observed disclosure |
+| A194 | P2 | Test controls compile across optional feature sets | Ordinary tests rely on optional futures-util; two boxed error conversions fail strict Clippy | Signed `c0794ff4` adds the already pinned test dependency and removes two identity conversions. Independent source review and both-host workspace Clippy, Rust 1.88 and JSON-only all-target checks pass at `3a68a39f`; all four upload controls pass. PR CI and final gates pending. |
 
 ## Current proxy evidence
 
@@ -1212,11 +1213,14 @@ in the complete current origin selection, but its historical cause was not
 captured. The proxy diagnostic establishes `TooLarge` for the two WebSocket
 failures without proving the oversized packets were MTU probes.
 
-Local verification applies to the audit lane. The reviewed checkpoint
-`f78f63ca` is pushed on `lane/architecture-audit` in
-[draft PR 197](https://github.com/bywayhq/phantom/pull/197). Its CI was
-queued or running when opened. Main remains at the starting revision;
-no audit change has been merged. Later local causal baselines are separate.
+Local verification applies to the audit lane in
+[draft PR 197](https://github.com/bywayhq/phantom/pull/197).
+The first pushed checkpoint `f78f63ca` failed Quality, Features, MSRV and
+both platform jobs on test dependency/conversion errors. The reviewed
+repair at `3a68a39f` passes 105 focused methods per host and the affected
+local build checks. Its [receipt](ci-repair-root-native-receipt-3a68a39f.md.txt)
+records exact commands and limits. Main remains at the starting revision;
+no audit change has been merged. Full gates and updated PR CI remain.
 
 Local logs are retained under `target/architecture-audit` in the integration
 checkout. These are focused test results, not a full gate or integration

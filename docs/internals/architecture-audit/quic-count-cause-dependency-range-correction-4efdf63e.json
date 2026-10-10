@@ -1,0 +1,19 @@
+{
+  "kind": "additive dependency range correction, original reports unchanged",
+  "source_revision": "4efdf63e133f5dedc8c77ffdaedcb672e948a3cf",
+  "original_report": "C:\\code\\phantom\\target\\architecture-audit\\quic-count-cause-remedy-handoff-4efdf63e.json",
+  "original_report_sha256": "2d71ef150b2ca57ed7e4e3490df9a7c9e38cdeb6bee44c37f93903c3353d598c",
+  "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+  "raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+  "actual_line_count": 123,
+  "incorrect_original_range": [
+    103,
+    125
+  ],
+  "correct_current_read_range": [
+    103,
+    123
+  ],
+  "correct_range_sha256": "9e5d4a32b7593bb6bd602bdecae2b56dc8e40d7ec3fb2a14a21ec67db6ad1271",
+  "disposition": "Original writer silently trimmed slicing at EOF; original source record actual line_count123 was correct but read-range endpoint125 was invalid. Fresh manual103-123 read performed; no124-125 or whole123 credit here. Source/control/remedy behavior unchanged."
+}

@@ -1,0 +1,13 @@
+# CI test dependency and conversion review
+
+Source approved at `c0794ff4abd688bdba9a92ecef7d0defd5a9e5c0`, parent `d58abe4c1fce9f08bb72a7793038f844b7db2f81`. The commit changes only the two assigned files.
+
+The test dependency pins the already locked futures-util 0.3.34. Its `poll!` export and private async implementation are gated by `async-await`; this macro does not require `async-await-macro`. The dev dependency makes it directly available to ordinary integration tests when the optional production dependency is disabled. Default features remain off, and production feature declarations and Cargo.lock are unchanged.
+
+The two removed conversions already received boxed test errors. The nested upload result still converts its distinct JoinError. Exact inverse reconstruction restores both parent files, so every assertion, wire literal, timeout, fault and remaining conversion is preserved. No lint suppression was introduced.
+
+Quality/macOS diagnostics identify these two useless conversions. Features/MSRV diagnostics identify unresolved futures_util at ordinary poll! test callers. Only the recorded diagnostic ranges were manually read; this is not a full CI-job assessment.
+
+Fresh full owner reads cover manifest 139 lines and control 424 lines. Signed source identities, raw dependency/log hashes and inclusive full/partial read ranges are in the paired JSON. Initial working-source reads were rebound to the committed bytes; no CRLF working hash is represented as a Git blob hash.
+
+No compiler, native test or gate was run by this reviewer. Integration verification remains pending. This approval does not close other ownership findings or the overall audit.

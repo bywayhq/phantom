@@ -1,0 +1,9 @@
+# Completed CI repair checkpoint
+
+Approved exact `3a68a39f033c78e5b53954a5c1591454ca777552` on Windows and Linux. All eight stages per host and both terminal runners exit0. The remaining ten complete format/compiler/lint logs, their exit metadata and both terminal revision/runner files were manually read. Earlier six full focused logs are rebound by exact hashes, without overwriting their separate report.
+
+Each host passes HTTPS57, hints44 and upload4. Formatting, workspace strict Clippy with all features and all targets, workspace Rust1.88 with default features and all targets, and no-default json strict Clippy/Rust1.88 all-target checks pass. Complete logs record successful compiler completion and no warning/error/FAILED/LEAK diagnostics. This supports the CI dependency/conversion fix and typed count-cause remedy in the tested configurations.
+
+The actual launcher enforces exact revision and clean status before execution and again before writing its terminal result. Both recorded revisions match and runner results are0. Raw hashes, stage configurations, retained focus roster and source-binding references are in the paired JSON.
+
+This is a completed eight-step checkpoint, not the full gate or the complete CI platform/optional-feature matrix. No new macOS, doctest, docs, fuzz, Python, vendor-refresh or main push-CI claim is made. Historical f78 failures and the earlier focused report remain unchanged. No native reruns or tracked edits were performed.

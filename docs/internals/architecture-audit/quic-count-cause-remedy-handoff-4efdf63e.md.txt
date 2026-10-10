@@ -1,0 +1,36 @@
+# QUIC and TCP count deadline cause remedy
+
+Signed source: `4efdf63e133f5dedc8c77ffdaedcb672e948a3cf`, parent
+`06eb52f5fda50be7e4e1f307ea58e1d13a508482`; assigned lane clean.
+
+Only `https_record_ech_http3.rs` changes (37 added,4 removed).
+Private `CountDeadline::Quic` and `::Tcp` retain the actual `Elapsed` and
+expected count. Their Display keeps both original literal contexts; source
+returns the original timer object. The two existing count-wait maps use those
+variants. Period, watches, inner errors, stop/join flow and wire behavior stay
+unchanged. Parent ownership is deliberately outside this fix.
+
+The whole-parent inverse reconstructs06eb exactly after removing only the
+type/implementations and reversing two imports/two maps. Every existing
+parent caller/test/wire body and every contract child remains byte-identical,
+including the310-line count child. No new controls or assertion changes.
+
+Both complete retained248 test logs were freshly read:57 selected,55 pass,
+two expected failures,259 skipped per host. Both negatives fail at child203
+because the actual timeout cause is absent, after the literal context check.
+Three count positives and all earlier52 pass. These are synthetic private
+watch/owner-state controls of actual finish, not a handshake or wire probe.
+No remedy execution occurred here.
+
+Targeted rustfmt check, whitespace check, staged diff check and inverse
+preservation pass. The initial formatter requested Display wrapping, fixed
+before final checks. Complete signed diff and current imports/type/finish
+ranges1-127/228-256 were manually reviewed; no fresh whole660 promotion.
+Resolved Tokio1.53.1 Elapsed declaration/Error implementation was read as a
+supporting partial. JSON binds exact Git/working hashes, ranges, signatures,
+static logs and both baseline test logs.
+
+Root owns independent source review and fixed57 execution. Its separate
+outer EchDeadline and A184 constructor changes must survive composition.
+Remaining A180/A181 lifecycle/drain contracts stay open. No Cargo, public API,
+production, dependency, gate or integration approval is claimed.

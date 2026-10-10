@@ -3338,3 +3338,17 @@ docs/internals/architecture-audit/quic-count-deadline-baseline-native-independen
 docs/internals/architecture-audit/quic-count-deadline-baseline-native-independent-addendum-24857484.md.txt	documentation	evidence-indexed	Exact report hash bound; source-plan and synthetic native scopes retained separately.
 docs/internals/architecture-audit/https-record-remaining-lifecycle-plan-06eb52f5.json	documentation	evidence-indexed	Exact report hash bound; source-plan and synthetic native scopes retained separately.
 docs/internals/architecture-audit/https-record-remaining-lifecycle-plan-06eb52f5.md.txt	documentation	evidence-indexed	Exact report hash bound; source-plan and synthetic native scopes retained separately.
+docs/internals/architecture-audit/checkpoint-focused-tests-independent-native-addendum-3a68a39f.json	documentation	evidence-indexed	checkpoint-focused-tests-independent-native-addendum-3a68a39f.json
+docs/internals/architecture-audit/checkpoint-focused-tests-independent-native-addendum-3a68a39f.md.txt	documentation	evidence-indexed	checkpoint-focused-tests-independent-native-addendum-3a68a39f.json
+docs/internals/architecture-audit/ci-repair-root-native-receipt-3a68a39f.json	documentation	evidence-indexed	ci-repair-root-native-receipt-3a68a39f.json
+docs/internals/architecture-audit/ci-repair-root-native-receipt-3a68a39f.md.txt	documentation	evidence-indexed	ci-repair-root-native-receipt-3a68a39f.json
+docs/internals/architecture-audit/ci-test-dependencies-conversions-independent-source-review-c0794ff4.json	documentation	evidence-indexed	ci-test-dependencies-conversions-independent-source-review-c0794ff4.json
+docs/internals/architecture-audit/ci-test-dependencies-conversions-independent-source-review-c0794ff4.md.txt	documentation	evidence-indexed	ci-test-dependencies-conversions-independent-source-review-c0794ff4.json
+docs/internals/architecture-audit/quic-count-cause-dependency-range-correction-4efdf63e.json	documentation	evidence-indexed	quic-count-cause-dependency-range-correction-4efdf63e.json
+docs/internals/architecture-audit/quic-count-cause-dependency-range-correction-4efdf63e.md.txt	documentation	evidence-indexed	quic-count-cause-dependency-range-correction-4efdf63e.json
+docs/internals/architecture-audit/quic-count-cause-remedy-handoff-4efdf63e.json	documentation	evidence-indexed	quic-count-cause-remedy-handoff-4efdf63e.json
+docs/internals/architecture-audit/quic-count-cause-remedy-handoff-4efdf63e.md.txt	documentation	evidence-indexed	quic-count-cause-remedy-handoff-4efdf63e.json
+docs/internals/architecture-audit/quic-count-cause-remedy-independent-source-review-4efdf63e.json	documentation	evidence-indexed	quic-count-cause-remedy-independent-source-review-4efdf63e.json
+docs/internals/architecture-audit/quic-count-cause-remedy-independent-source-review-4efdf63e.md.txt	documentation	evidence-indexed	quic-count-cause-remedy-independent-source-review-4efdf63e.json
+docs/internals/architecture-audit/checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.json	documentation	evidence-indexed	checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.json
+docs/internals/architecture-audit/checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.md.txt	documentation	evidence-indexed	checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.json
