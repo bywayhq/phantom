@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+use http_body_util::BodyExt;
 use phantom::{RequestError, RequestErrorKind};
 use tokio::{
     io::{AsyncWriteExt, BufReader},
