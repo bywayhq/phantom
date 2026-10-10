@@ -1,5 +1,6 @@
 use std::{
     error::Error,
+    fmt,
     future::{Future, poll_fn},
     pin::Pin,
     sync::{
@@ -16,7 +17,8 @@ use phantom_profile::browser::chrome::v154_http2;
 use tokio::{
     io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf, duplex},
     runtime::Builder,
-    sync::Notify,
+    sync::{Notify, oneshot},
+    task::{AbortHandle, JoinError, JoinHandle},
     time::timeout,
 };
 use tracing::instrument::WithSubscriber;
@@ -81,7 +83,7 @@ fn body_shutdown_completes_without_a_tokio_time_driver() -> TestResult<()> {
     runtime.block_on(before_deadline(
         async {
             let (client, server) = duplex(64 * 1024);
-            let server_task = tokio::spawn(terminal_response_server(server));
+            let server_task = ShutdownPeer::spawn(terminal_response_server(server));
             let response = send_once(client, {
                 let settings = v154_http2();
                 let method = http::Method::GET;
@@ -112,7 +114,7 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
         async {
             let control = WriteControl::default();
             let (client, server) = duplex(64 * 1024);
-            let server_task = tokio::spawn(reset_observing_server(server));
+            let server_task = ShutdownPeer::spawn(reset_observing_server(server));
             let response = send_once(
                 BlockingWrites {
                     inner: client,
@@ -143,8 +145,7 @@ fn stalled_driver_times_out_without_a_tokio_time_driver() -> TestResult<()> {
             assert!(control.dropped.load(Ordering::SeqCst));
             wait_for_driver_observation(&subscriber, "timeout").await?;
 
-            server_task.abort();
-            let _ = server_task.await;
+            server_task.stop().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         }
         .with_subscriber(subscriber.clone()),
@@ -158,7 +159,7 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
         let control = WriteControl::default();
         let subscriber = OutcomeSubscriber::default();
         let (client, server) = duplex(64 * 1024);
-        let server_task = tokio::spawn(reset_observing_server(server));
+        let server_task = ShutdownPeer::spawn(reset_observing_server(server));
 
         async {
             let response = send_once(
@@ -202,15 +203,17 @@ async fn stalled_connection_driver_is_aborted_after_shutdown_grace() -> TestResu
         .with_subscriber(subscriber.clone())
         .await?;
 
-        server_task.abort();
-        let _ = server_task.await;
+        server_task.stop().await?;
         assert!(control.dropped.load(Ordering::SeqCst));
         Ok(())
     })
     .await
 }
 
-async fn terminal_headers_server(stream: DuplexStream, control: WriteControl) -> TestResult<()> {
+pub(super) async fn terminal_headers_server<S>(stream: S, control: WriteControl) -> TestResult<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let mut connection = ::http2::server::handshake(stream).await?;
     let (request, mut respond) = connection
         .accept()
@@ -259,13 +262,23 @@ async fn wait_for_driver_observation(
     Ok(())
 }
 
-async fn before_deadline<F>(future: F, duration: Duration) -> TestResult<F::Output>
+pub(super) async fn before_deadline<F>(future: F, duration: Duration) -> TestResult<F::Output>
+where
+    F: Future,
+{
+    let deadline = shutdown_timer::after(duration)
+        .map_err(|_| "HTTP/2 shutdown timer service was unavailable")?;
+    poll_before_deadline(future, deadline).await
+}
+
+pub(super) async fn poll_before_deadline<F>(
+    future: F,
+    mut deadline: oneshot::Receiver<()>,
+) -> TestResult<F::Output>
 where
     F: Future,
 {
     let mut future = Box::pin(future);
-    let mut deadline = shutdown_timer::after(duration)
-        .map_err(|_| "HTTP/2 shutdown timer service was unavailable")?;
     poll_fn(|context| {
         if let Poll::Ready(output) = future.as_mut().poll(context) {
             return Poll::Ready(Ok(output));
@@ -279,8 +292,59 @@ where
     .await
 }
 
+#[derive(Debug)]
+pub(super) struct ScheduleFailure {
+    pub(super) cause: shutdown_timer::ScheduleError,
+}
+
+impl fmt::Display for ScheduleFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "HTTP/2 shutdown timer service was unavailable: {:?}",
+            self.cause
+        )
+    }
+}
+
+impl Error for ScheduleFailure {}
+
+pub(super) struct ShutdownPeer<T> {
+    task: JoinHandle<TestResult<T>>,
+}
+
+impl<T: Send + 'static> ShutdownPeer<T> {
+    pub(super) fn spawn(future: impl Future<Output = TestResult<T>> + Send + 'static) -> Self {
+        Self {
+            task: tokio::spawn(future),
+        }
+    }
+
+    pub(super) fn abort_handle(&self) -> AbortHandle {
+        self.task.abort_handle()
+    }
+
+    pub(super) fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
+    pub(super) async fn stop(mut self) -> TestResult<()> {
+        self.task.abort();
+        let _ = (&mut self).await;
+        Ok(())
+    }
+}
+
+impl<T> Future for ShutdownPeer<T> {
+    type Output = Result<TestResult<T>, JoinError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.get_mut().task).poll(context)
+    }
+}
+
 #[derive(Clone, Default)]
-struct WriteControl {
+pub(super) struct WriteControl {
     blocked: Arc<AtomicBool>,
     dropped: Arc<AtomicBool>,
     dropped_notify: Arc<Notify>,

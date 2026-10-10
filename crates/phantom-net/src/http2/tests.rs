@@ -8,10 +8,7 @@ use bytes::Bytes;
 use http::Response;
 use http_body_util::BodyExt;
 use phantom_profile::browser::chrome::v154_http2;
-use tokio::{
-    io::{DuplexStream, duplex},
-    time::timeout,
-};
+use tokio::{io::duplex, time::timeout};
 
 use super::{OriginForm, RequestHeader};
 use crate::http2::Http2Body;
@@ -91,7 +88,10 @@ async fn next_nonempty_data(body: &mut Http2Body) -> TestResult<Bytes> {
     }
 }
 
-async fn reset_observing_server(stream: DuplexStream) -> TestResult<(::http2::Reason, bool)> {
+async fn reset_observing_server<S>(stream: S) -> TestResult<(::http2::Reason, bool)>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let mut connection = ::http2::server::handshake(stream).await?;
     let (_request, mut respond) = connection
         .accept()
@@ -143,6 +143,7 @@ mod request_validation;
 mod request_wire;
 mod reset_churn;
 mod response_body;
+mod shutdown_controls;
 mod stream_limit;
 
 // Prepare before raw setup so invalid requests cannot touch the stream or body.
