@@ -1,6 +1,12 @@
 //! Loopback WebSocket origins that echo one message and answer Close.
 
-use std::{error::Error, io, time::Duration};
+use std::{
+    error::Error,
+    future::{Future, poll_fn},
+    io,
+    task::Poll,
+    time::Duration,
+};
 
 use btls::ssl::SslAcceptor;
 use bytes::Bytes;
@@ -12,7 +18,10 @@ use tokio::{
     time::timeout,
 };
 
-use super::tls::{TestResult, accept_tls, is_peer_gone, read_head};
+use super::{
+    tls::{TestResult, accept_tls, is_peer_gone, read_head},
+    tunnel_proxy::finish_with_cleanup,
+};
 
 /// One masked client frame after unmasking.
 #[derive(Debug, Eq, PartialEq)]
@@ -62,7 +71,7 @@ where
         .map(|protocol| protocol.as_str().to_owned());
     let mut send = respond.send_response(Response::new(()), false)?;
 
-    let handler = tokio::spawn(async move {
+    let handler = async move {
         let mut body = request.into_body();
         let mut wire = Vec::new();
         let message = next_h2_frame(&mut body, &mut wire).await?;
@@ -77,22 +86,61 @@ where
         let mut reply = Vec::new();
         append_server_frame(&mut reply, 0x8, &close.payload);
         send.send_data(Bytes::from(reply), false)?;
-        // The client either ends the stream after reading Close or resets it
-        // when dropped; both prove the Close reply was delivered.
-        while let Some(Ok(chunk)) = body.data().await {
-            let _ = body.flow_control().release_capacity(chunk.len());
+
+        // Only the expected teardown after Close may end this drain normally.
+        while let Some(chunk) = body.data().await {
+            match chunk {
+                Ok(chunk) => body.flow_control().release_capacity(chunk.len())?,
+                Err(error) if is_h2_echo_teardown(&error) => return Ok(message),
+                Err(error) => return Err(error.into()),
+            }
         }
-        let _ = send.send_data(Bytes::new(), true);
+
+        match send.send_data(Bytes::new(), true) {
+            Err(error) if !is_h2_echo_teardown(&error) => return Err(error.into()),
+            _ => {}
+        }
         Ok::<_, Box<dyn Error + Send + Sync>>(message)
-    });
+    };
     tokio::pin!(handler);
+
     let message = tokio::select! {
-        result = &mut handler => result??,
-        accepted = connection.accept() => match accepted {
-            Some(Ok(_)) => return Err("origin received an unexpected second stream".into()),
-            Some(Err(error)) if error.is_io() => handler.await??,
-            Some(Err(error)) => return Err(error.into()),
-            None => handler.await??,
+        result = &mut handler => result?,
+        accepted = connection.accept() => {
+            let connection_error = match accepted {
+                Some(Ok(_)) => {
+                    // Keep an already-ready failure before synchronously
+                    // cancelling a pending handler by dropping its future.
+                    let cleanup = poll_fn(|context| {
+                        Poll::Ready(match handler.as_mut().poll(context) {
+                            Poll::Ready(result) => result.map(|_| ()),
+                            Poll::Pending => Ok(()),
+                        })
+                    }).await;
+                    return finish_with_cleanup(
+                        Err("origin received an unexpected second stream".into()),
+                        cleanup,
+                    );
+                }
+                Some(Err(error)) => Some(error),
+                None => None,
+            };
+
+            // H2's connection Drop wakes pending stream reads. Observe the
+            // lexical handler's result before returning the connection cause.
+            drop(connection);
+            let cleanup = match timeout(Duration::from_secs(5), &mut handler).await {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            };
+            match connection_error {
+                Some(error) if is_h2_echo_disconnect(&error) && cleanup.is_ok() => cleanup?,
+                Some(error) => return finish_with_cleanup(
+                    Err(error.into()),
+                    cleanup.map(|_| ()),
+                ),
+                None => cleanup?,
+            }
         },
     };
     Ok(ExtendedConnectRecord {
@@ -102,6 +150,22 @@ where
         protocol,
         message,
     })
+}
+
+fn is_h2_echo_disconnect(error: &::http2::Error) -> bool {
+    error.get_io().is_some_and(|error| {
+        matches!(
+            error.kind(),
+            io::ErrorKind::BrokenPipe
+                | io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+        )
+    })
+}
+
+fn is_h2_echo_teardown(error: &::http2::Error) -> bool {
+    (error.is_remote() && error.is_reset() && error.reason() == Some(::http2::Reason::CANCEL))
+        || is_h2_echo_disconnect(error)
 }
 
 /// Accepts one HTTP/2 connection that never enables extended CONNECT and
