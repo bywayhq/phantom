@@ -28,6 +28,10 @@ use tls_support::{
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 const TUNNELS: usize = 4;
 
+mod deadline_contract;
+mod observer_contract;
+mod peer_contract;
+
 /// Opens `TUNNELS` sequential CONNECT tunnels and counts what the proxy saw.
 ///
 /// The origin closes every connection after one response, so each request
@@ -120,7 +124,7 @@ async fn remembered_credentials_never_reach_another_proxy_or_the_origin() -> Tes
         // The first proxy challenged alice once and bob once; alice's second
         // tunnel went through without a challenge.
         let first_heads = first.heads()?;
-        assert_eq!(first.counts().challenges, 2);
+        assert_eq!(first.counts()?.challenges, 2);
         assert_eq!(
             first_heads
                 .iter()
@@ -134,7 +138,7 @@ async fn remembered_credentials_never_reach_another_proxy_or_the_origin() -> Tes
                 Some("Basic Ym9iOm90aGVy".to_owned()),
             ]
         );
-        assert_eq!(second.counts().challenges, 1);
+        assert_eq!(second.counts()?.challenges, 1);
         assert_eq!(authorization(&second.heads()?[0]), None);
         let origin_heads = origin.heads()?;
         assert_eq!(origin_heads.len(), 4);
@@ -143,7 +147,9 @@ async fn remembered_credentials_never_reach_another_proxy_or_the_origin() -> Tes
                 .iter()
                 .all(|head| authorization(head).is_none())
         );
-        Ok(())
+        first.finish().await?;
+        second.finish().await?;
+        origin.finish().await
     })
     .await
 }
@@ -165,27 +171,28 @@ async fn each_client_starts_with_an_empty_credential_record() -> TestResult<()> 
         // The client learns the credentials once.
         send_one(&client, &url).await?;
         send_one(&client, &url).await?;
-        assert_eq!(proxy.counts().challenges, 1);
+        assert_eq!(proxy.counts()?.challenges, 1);
 
         // A separately built client does not inherit the record, and learns
         // its own.
         let separate = build()?;
         send_one(&separate, &url).await?;
         send_one(&separate, &url).await?;
-        assert_eq!(proxy.counts().challenges, 2);
+        assert_eq!(proxy.counts()?.challenges, 2);
 
         // The other client did not change what the first remembers, and a
         // clone shares the first client's record.
         send_one(&client.clone(), &url).await?;
         assert_eq!(
-            proxy.counts(),
+            proxy.counts()?,
             ProxyCounts {
                 connections: 7,
                 challenges: 2,
                 with_credentials: 5,
             }
         );
-        Ok(())
+        proxy.finish().await?;
+        origin.finish().await
     })
     .await
 }
@@ -205,7 +212,10 @@ async fn tunnel_counts(preemptive: bool, challenge: Challenge) -> TestResult<Pro
         .preemptive_proxy_authentication(preemptive)
         .build()?;
     send_sequentially(&client, origin.address).await?;
-    Ok(proxy.counts())
+    let counts = proxy.counts()?;
+    proxy.finish().await?;
+    origin.finish().await?;
+    Ok(counts)
 }
 
 async fn send_sequentially(client: &Client, origin: SocketAddr) -> TestResult<()> {
@@ -294,17 +304,21 @@ impl CountingProxy {
             .clone())
     }
 
-    fn counts(&self) -> ProxyCounts {
+    fn counts(&self) -> TestResult<ProxyCounts> {
         let heads = self.heads().unwrap_or_default();
         let with_credentials = heads
             .iter()
             .filter(|head| authorization(head).is_some())
             .count();
-        ProxyCounts {
+        Ok(ProxyCounts {
             connections: self.connections.load(Ordering::SeqCst),
             challenges: heads.len() - with_credentials,
             with_credentials,
-        }
+        })
+    }
+
+    async fn finish(mut self) -> TestResult<()> {
+        stop_listener(&mut self.task).await
     }
 }
 
@@ -380,21 +394,7 @@ impl Origin {
                 while let Ok((tcp, _)) = listener.accept().await {
                     let acceptor = acceptor.clone();
                     let heads = Arc::clone(&heads);
-                    tokio::spawn(async move {
-                        let mut stream = accept_tls_stream(tcp, acceptor).await?;
-                        let head = read_head(&mut stream).await?;
-                        if let Ok(mut heads) = heads.lock() {
-                            heads.push(head);
-                        }
-                        stream
-                            .write_all(
-                                b"HTTP/1.1 200 OK\r\nConnection: close\r\n\
-                                  Content-Length: 2\r\n\r\nok",
-                            )
-                            .await?;
-                        stream.shutdown().await?;
-                        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-                    });
+                    tokio::spawn(serve_origin(tcp, acceptor, heads));
                 }
             }
         });
@@ -411,6 +411,39 @@ impl Origin {
             .lock()
             .map_err(|_| "origin head lock was poisoned")?
             .clone())
+    }
+
+    async fn finish(mut self) -> TestResult<()> {
+        stop_listener(&mut self.task).await
+    }
+}
+
+async fn serve_origin(
+    tcp: TcpStream,
+    acceptor: btls::ssl::SslAcceptor,
+    heads: Arc<Mutex<Vec<Vec<u8>>>>,
+) -> TestResult<()> {
+    let mut stream = accept_tls_stream(tcp, acceptor).await?;
+    let head = read_head(&mut stream).await?;
+    if let Ok(mut heads) = heads.lock() {
+        heads.push(head);
+    }
+    stream
+        .write_all(
+            b"HTTP/1.1 200 OK\r\nConnection: close\r\n\
+              Content-Length: 2\r\n\r\nok",
+        )
+        .await?;
+    stream.shutdown().await?;
+    Ok(())
+}
+
+async fn stop_listener(task: &mut JoinHandle<()>) -> TestResult<()> {
+    task.abort();
+    match timeout(Duration::from_secs(5), task).await? {
+        Ok(()) => Ok(()),
+        Err(error) if error.is_cancelled() => Ok(()),
+        Err(error) => Err(error.into()),
     }
 }
 
