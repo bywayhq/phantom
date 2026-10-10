@@ -68,12 +68,8 @@ async fn authenticated_http1_sends_a_locally_resolved_ip() -> TestResult<()> {
         assert_eq!(response.into_body().collect().await?.to_bytes(), "auth");
         drop(client);
 
-        assert!(
-            origin
-                .await??
-                .starts_with(b"GET /authenticated HTTP/1.1\r\n")
-        );
-        let observed = proxy.await??;
+        let (request, observed) = finish_local_route(Ok(()), origin, proxy).await?;
+        assert!(request.starts_with(b"GET /authenticated HTTP/1.1\r\n"));
         assert_eq!(
             observed.authentication,
             ObservedSocks5Authentication {
@@ -122,15 +118,16 @@ async fn http1_sends_a_locally_resolved_ip_to_the_proxy() -> TestResult<()> {
         assert_eq!(response.into_body().collect().await?.to_bytes(), "local");
         drop(client);
 
+        let (request, observed) = finish_local_route(Ok(()), origin, proxy).await?;
         assert_eq!(
-            origin.await??,
+            request,
             format!(
                 "GET /local HTTP/1.1\r\nHost: {ORIGIN_NAME}:{}\r\nX-Origin: local\r\n\r\n",
                 origin_address.port()
             )
             .as_bytes()
         );
-        assert_local_target(proxy.await??, origin_address.port())?;
+        assert_local_target(observed, origin_address.port())?;
         Ok(())
     })
     .await
@@ -181,11 +178,12 @@ async fn session_reuses_one_http2_connection_and_local_dns_tunnel() -> TestResul
         }
         drop(session);
 
+        let (requests, observed) = finish_local_route(Ok(()), origin, proxy).await?;
         assert_eq!(
-            origin.await??,
+            requests,
             [(1, "/first".to_owned()), (3, "/second".to_owned())]
         );
-        assert_local_target(proxy.await??, origin_address.port())?;
+        assert_local_target(observed, origin_address.port())?;
         Ok(())
     })
     .await
@@ -247,13 +245,12 @@ async fn authenticated_plaintext_websocket_uses_local_dns_route() -> TestResult<
         drop(socket);
         drop(client);
 
-        let request = origin.await??;
+        let (request, observed) = finish_local_route(Ok(()), origin, proxy).await?;
         assert!(request.starts_with(b"GET /plain HTTP/1.1\r\n"));
         assert_eq!(header_value(&request, "upgrade"), Some("websocket"));
         assert_eq!(header_value(&request, "connection"), Some("Upgrade"));
         let authority = format!("{ORIGIN_NAME}:{}", origin_address.port());
         assert_eq!(header_value(&request, "host"), Some(authority.as_str()));
-        let observed = proxy.await??;
         assert_eq!(
             observed.authentication,
             ObservedSocks5Authentication {
@@ -315,8 +312,9 @@ async fn websocket_uses_the_same_local_dns_route() -> TestResult<()> {
         drop(socket);
         drop(client);
 
-        assert!(origin.await??.starts_with(b"GET /events HTTP/1.1\r\n"));
-        assert_local_target(proxy.await??, origin_address.port())?;
+        let (request, observed) = finish_local_route(Ok(()), origin, proxy).await?;
+        assert!(request.starts_with(b"GET /events HTTP/1.1\r\n"));
+        assert_local_target(observed, origin_address.port())?;
         Ok(())
     })
     .await
@@ -355,11 +353,23 @@ async fn plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy() -> TestResul
         assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
         drop(client);
 
-        assert!(origin.await??.starts_with(b"GET /plain HTTP/1.1\r\n"));
-        assert_local_target(proxy.await??, origin_address.port())?;
+        let (request, observed) = finish_local_route(Ok(()), origin, proxy).await?;
+        assert!(request.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        assert_local_target(observed, origin_address.port())?;
         Ok(())
     })
     .await
+}
+
+async fn finish_local_route<O, P>(
+    operation: TestResult<()>,
+    origin: tokio::task::JoinHandle<TestResult<O>>,
+    proxy: tokio::task::JoinHandle<TestResult<P>>,
+) -> TestResult<(O, P)> {
+    operation?;
+    let origin = origin.await??;
+    let proxy = proxy.await??;
+    Ok((origin, proxy))
 }
 
 fn assert_local_target(target: ObservedSocks5Connect, port: u16) -> TestResult<()> {
@@ -396,3 +406,12 @@ where
         .await
         .map_err(|_| "local-DNS SOCKS5 integration test exceeded its deadline")?
 }
+
+#[cfg(test)]
+mod peer_contract;
+
+#[cfg(test)]
+mod target_contract;
+
+#[cfg(test)]
+mod deadline_contract;
