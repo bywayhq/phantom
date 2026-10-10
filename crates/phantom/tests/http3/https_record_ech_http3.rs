@@ -6,11 +6,6 @@
 //! opens a new one. The first request may start before the record's lookup
 //! finishes; later ones find it cached.
 
-use crate::support::ech as ech_support;
-use crate::support::shared_port;
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup};
-
 use std::{error::Error, fmt, net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use btls::{
@@ -37,6 +32,11 @@ use tokio::{
     task::JoinSet,
     time::{error::Elapsed, timeout},
 };
+
+use crate::support::ech as ech_support;
+use crate::support::shared_port;
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup};
 
 use ech_support::{
     EchDeadline, ORIGIN_NAME, PUBLIC_NAME, STAND_IN_NAME, TEST_TIMEOUT, ech_acceptor,
