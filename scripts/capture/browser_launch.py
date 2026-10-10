@@ -302,6 +302,60 @@ class LaunchPlan:
         )
 
 
+class BrowserLaunchFailures(Exception):
+    """Retain the initiating error and independent cleanup failures."""
+
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause: BaseException | None = None
+        self.interruption_context: BaseException | None = None
+        super().__init__("browser launch cleanup failed")
+
+
+def _raise_launch_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+
+    if primary is None and len(cleanup) == 1:
+        raise cleanup[0]
+
+    failure = BrowserLaunchFailures(primary, cleanup)
+    interruption = next(
+        (
+            error
+            for error in (primary, *cleanup)
+            if isinstance(
+                error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+            )
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+
+    raise failure from primary
+
+
+def _remove_launch_profile(profile: Path) -> None:
+    try:
+        shutil.rmtree(profile)
+    except FileNotFoundError as error:
+        # Only the absent root is already clean; a failed descendant is reported.
+        if error.filename != os.fspath(profile):
+            raise
+
+
 class LaunchedBrowser:
     """One browser process on a fresh profile, removed with its process tree.
 
@@ -360,13 +414,13 @@ class LaunchedBrowser:
                         wait_for_firefox_start(self.profile, self.process)
             else:
                 self.process = self._start(self.profile)
-        except BaseException:
-            if self.process is not None:
-                terminate_process_tree(self.process)
+        except BaseException as primary:
+            cleanup = self._cleanup()
+            if not cleanup:
                 self.process = None
-            shutil.rmtree(self.profile, ignore_errors=True)
-            self.profile = None
-            raise
+                self.profile = None
+
+            _raise_launch_failures(primary, cleanup)
         return self
 
     def _start(self, profile: Path) -> subprocess.Popen[bytes]:
@@ -396,19 +450,41 @@ class LaunchedBrowser:
             **options,
         )
 
-    def __exit__(self, *_: object) -> None:
+    def __exit__(self, *details: object) -> None:
+        primary = details[1] if len(details) > 1 else None
         if self.session is not None:
-            self.session.__exit__()
-            self.session = None
+            try:
+                self.session.__exit__()
+            except BaseException as error:
+                _raise_launch_failures(primary, (error,))
+            else:
+                self.session = None
             return
-        try:
-            if self.process is not None:
+
+        cleanup = self._cleanup()
+        if cleanup:
+            _raise_launch_failures(primary, cleanup)
+
+    def _cleanup(self) -> tuple[BaseException, ...]:
+        failures = []
+        if self.process is not None:
+            try:
                 terminate_process_tree(self.process)
-            if self.profile is not None:
+            except BaseException as error:
+                failures.append(error)
+
+        if self.profile is not None:
+            try:
                 terminate_profile_processes(self.profile)
-        finally:
-            if self.profile is not None:
-                shutil.rmtree(self.profile, ignore_errors=True)
+            except BaseException as error:
+                failures.append(error)
+
+            try:
+                _remove_launch_profile(self.profile)
+            except BaseException as error:
+                failures.append(error)
+
+        return tuple(failures)
 
 
 class BrowserDriver:
@@ -457,14 +533,14 @@ async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
     future = asyncio.get_running_loop().run_in_executor(None, enter)
     try:
         return await asyncio.shield(future)
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as primary:
         # The launch finishes in its thread; whichever side sees it last
         # removes the browser.
         with guard:
             state["abandoned"] = True
             entered = state["entered"]
         if entered:
-            browser.__exit__(None, None, None)
+            browser.__exit__(type(primary), primary, primary.__traceback__)
         raise
 
 
