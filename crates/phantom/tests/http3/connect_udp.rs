@@ -1360,6 +1360,15 @@ impl Origin {
         }
     }
 
+    async fn finish(mut self) -> TestResult<()> {
+        self.task.abort();
+        match timeout(TEST_TIMEOUT, &mut self.task).await? {
+            Ok(()) => Ok(()),
+            Err(error) if error.is_cancelled() => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
     fn uri(&self, path: &str) -> String {
         format!("https://{}{path}", self.address)
     }
@@ -1541,3 +1550,6 @@ mod observation_contract;
 
 #[cfg(test)]
 mod origin_ownership;
+
+#[cfg(test)]
+mod origin_failures;
