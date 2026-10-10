@@ -206,7 +206,7 @@ async fn failed_upload_accept_allows_only_known_peer_disconnects() -> TestResult
 }
 
 #[tokio::test]
-async fn failed_upload_accept_keeps_unrelated_io_and_its_original_cause() -> TestResult<()> {
+async fn failed_upload_accept_keeps_unrelated_io_kind_and_context() -> TestResult<()> {
     let observed = observed_accept_io_failure(io::ErrorKind::InvalidData).await?;
     let error = super::accepted_failed_upload::<()>(Some(Err(observed)))
         .err()
@@ -217,11 +217,10 @@ async fn failed_upload_accept_keeps_unrelated_io_and_its_original_cause() -> Tes
         .get_io()
         .ok_or("original I/O error lost")?;
     assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
-    assert!(
-        cause
-            .get_ref()
-            .and_then(|cause| cause.downcast_ref::<PeerFailure>())
-            .is_some()
+    // The HTTP/2 dependency stores an I/O error's inner cause as text.
+    assert_eq!(
+        cause.get_ref().ok_or("I/O failure context lost")?.to_string(),
+        "driven client peer failed"
     );
     Ok(())
 }
