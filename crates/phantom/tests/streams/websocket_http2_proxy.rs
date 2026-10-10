@@ -746,11 +746,30 @@ fn connect_error<'a>(error: &'a (dyn StdError + 'static)) -> Option<&'a HttpConn
     None
 }
 
+#[derive(Debug)]
+struct ProxyWebSocketDeadline {
+    elapsed: tokio::time::error::Elapsed,
+}
+
+impl std::fmt::Display for ProxyWebSocketDeadline {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("proxied WebSocket integration test exceeded its deadline")
+    }
+}
+
+impl StdError for ProxyWebSocketDeadline {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.elapsed)
+    }
+}
+
 async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future).await?
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(|elapsed| ProxyWebSocketDeadline { elapsed })?
 }
 
 #[cfg(test)]

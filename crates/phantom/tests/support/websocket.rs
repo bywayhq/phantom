@@ -149,11 +149,30 @@ fn accept_relay_result(result: io::Result<(u64, u64)>) -> io::Result<()> {
     }
 }
 
+#[derive(Debug)]
+struct WebSocketDeadline {
+    elapsed: tokio::time::error::Elapsed,
+}
+
+impl std::fmt::Display for WebSocketDeadline {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("WebSocket integration test exceeded its deadline")
+    }
+}
+
+impl std::error::Error for WebSocketDeadline {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.elapsed)
+    }
+}
+
 pub(crate) async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future).await?
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(|elapsed| WebSocketDeadline { elapsed })?
 }
 
 #[cfg(test)]
