@@ -121,6 +121,7 @@ impl ResponseHeadState {
         if !self.armed {
             return;
         }
+
         let mut remaining = bytes;
         loop {
             let mut slots = [httparse::EMPTY_HEADER; MAX_RESPONSE_HEADERS];
