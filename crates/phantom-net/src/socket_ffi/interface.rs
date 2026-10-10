@@ -209,3 +209,73 @@ fn nul_in_name() -> io::Error {
         "an interface name cannot hold a NUL byte",
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{error::Error, fmt, io};
+
+    #[derive(Debug)]
+    struct LookupFailure;
+
+    impl fmt::Display for LookupFailure {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("typed lookup failure")
+        }
+    }
+
+    impl Error for LookupFailure {}
+
+    fn find_source<T: Error + 'static>(error: &(dyn Error + 'static)) -> Option<&T> {
+        let mut current = Some(error);
+        while let Some(error) = current {
+            if let Some(source) = error.downcast_ref::<T>() {
+                return Some(source);
+            }
+            current = error.source();
+        }
+        None
+    }
+
+    #[test]
+    fn lookup_context_keeps_the_original_os_error() {
+        let original = io::Error::from_raw_os_error(123_456);
+        let kind = original.kind();
+        let message = original.to_string();
+
+        let error = super::lookup_failed(&original);
+
+        assert_eq!(error.kind(), kind);
+        assert_eq!(
+            error.to_string(),
+            format!("could not look up the network interface by name: {message}")
+        );
+        let cause = error.source().and_then(find_source::<io::Error>);
+        assert_eq!(cause.and_then(io::Error::raw_os_error), Some(123_456));
+    }
+
+    #[test]
+    fn lookup_context_keeps_a_typed_cause() {
+        let original = io::Error::new(io::ErrorKind::PermissionDenied, LookupFailure);
+
+        let error = super::lookup_failed(&original);
+
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(
+            error.to_string(),
+            "could not look up the network interface by name: typed lookup failure"
+        );
+        assert!(find_source::<LookupFailure>(&error).is_some());
+    }
+
+    #[test]
+    fn an_absent_interface_keeps_the_not_found_context() {
+        let error = super::no_such_interface();
+
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert_eq!(
+            error.to_string(),
+            "no network interface on this host has this name"
+        );
+        assert!(error.source().is_none());
+    }
+}
