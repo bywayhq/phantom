@@ -19,8 +19,8 @@ use crate::support::tunnel_proxy::{
 
 use super::{
     H1_ALPN, H2Proxy, Reply, TaskProbe, TaskRole, TestIdentity, TestResult, accept_tls,
-    client_builder, connection_tasks::stop_optional, read_head, relay_contract::Fault,
-    relay_upstream, serve_connects_recorded,
+    client_builder, connect_peer::ConnectPeer, read_head, relay_contract::Fault, relay_upstream,
+    serve_connects_recorded,
 };
 
 const DEADLINE: Duration = Duration::from_secs(5);
@@ -108,7 +108,7 @@ async fn ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure() -> 
     });
     let probe = TaskProbe::default();
     let relay_probe = probe.clone();
-    let peer = probe.spawn(TaskRole::ProxyConnection, async move {
+    let peer = ConnectPeer::spawn(Some(probe.clone()), move |children| async move {
         let (tcp, _) = proxy_listener.accept().await?;
         serve_connects_recorded(
             tcp,
@@ -116,6 +116,7 @@ async fn ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure() -> 
             vec![Reply::Tunnel(origin_address), Reply::Status(502)],
             Some(relay_probe),
             Some(observation),
+            children,
         )
         .await
     });
@@ -184,7 +185,7 @@ async fn ordinary_caller_cleanup_keeps_its_completed_connect_relay_failure() -> 
         )
         .into())
     });
-    let observed = finish_with_cleanup(primary, stop_optional(Some(peer)).await);
+    let observed = finish_with_cleanup(primary, peer.stop().await);
     let cleanup = finish_with_cleanup(probe.backup().await, origin.stop().await);
     drop(client);
     if !reached_cleanup {

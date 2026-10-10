@@ -82,14 +82,6 @@ pub(crate) async fn stop_optional<T: Send + 'static>(
     }
 }
 
-pub(crate) async fn complete_peers(peers: Vec<ConnectionPeer<TestResult<()>>>) -> TestResult<()> {
-    let mut outcome = Ok(());
-    for peer in peers {
-        outcome = finish_with_cleanup(outcome, finish_peer(Ok(()), peer).await);
-    }
-    outcome
-}
-
 pub(crate) type ConnectionRegistry = Arc<Mutex<Vec<ConnectionPeer<TestResult<()>>>>>;
 
 pub(crate) struct AcceptedConnections {

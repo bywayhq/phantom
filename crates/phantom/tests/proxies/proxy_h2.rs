@@ -39,9 +39,11 @@ use crate::support::{
 };
 
 use super::proxy_h2_multiplex::peer_contract::{TaskProbe, TaskRole};
-use connection_tasks::{complete_peers, finish_peer, stop_optional, stop_peer, stop_peers};
+use connect_peer::{ConnectPeer, stop_connect_peer};
+use connection_tasks::{ConnectionRegistry, finish_peer, stop_optional, stop_peer, stop_peers};
 
 mod connect_child_outcome;
+mod connect_peer;
 mod connection_contract;
 pub(super) mod connection_tasks;
 mod deadline_contract;
@@ -87,9 +89,9 @@ async fn h1_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 
             let proxy = H2Proxy::bind().await?;
             let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            proxy_task = Some(ConnectionPeer::spawn(async move {
+            proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                 let (tcp, _) = listener.accept().await?;
-                serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address)).await
+                serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address), children).await
             }));
 
             let route = Route::http_proxy(
@@ -115,7 +117,7 @@ async fn h1_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
             assert_eq!(response.into_body().collect().await?.to_bytes(), "secure");
 
             drop(client);
-            let record = finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            let record = proxy_task.take().ok_or("missing proxy_task owner")?.finish().await?;
             assert_eq!(record.authority.as_deref(), Some(origin_address.to_string().as_str()));
             assert_eq!(
                 record.fields,
@@ -136,7 +138,7 @@ async fn h1_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 
         let mut cleanup = Ok(());
         cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
-        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
         finish_with_cleanup(operation, cleanup)
     })
     .await
@@ -160,9 +162,9 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 
             let proxy = H2Proxy::bind().await?;
             let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            proxy_task = Some(ConnectionPeer::spawn(async move {
+            proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                 let (tcp, _) = listener.accept().await?;
-                serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address)).await
+                serve_connect(tcp, &acceptor, Reply::Tunnel(origin_address), children).await
             }));
 
             let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
@@ -182,8 +184,11 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 
             drop(client);
 
-            let record =
-                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            let record = proxy_task
+                .take()
+                .ok_or("missing proxy_task owner")?
+                .finish()
+                .await?;
             assert_eq!(
                 record.authority.as_deref(),
                 Some(origin_address.to_string().as_str())
@@ -199,7 +204,7 @@ async fn h2_origin_over_h2_proxy_tunnel_completes_request() -> TestResult<()> {
 
         let mut cleanup = Ok(());
         cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
-        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
         finish_with_cleanup(operation, cleanup)
     })
     .await
@@ -230,12 +235,13 @@ async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() ->
 
             let proxy = H2Proxy::bind().await?;
             let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            proxy_task = Some(ConnectionPeer::spawn(async move {
+            proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                 let (tcp, _) = listener.accept().await?;
                 let records = serve_connects(
                     tcp,
                     &acceptor,
                     vec![Reply::Challenge, Reply::Tunnel(origin_address)],
+                    children,
                 )
                 .await?;
                 let second = timeout(Duration::from_millis(100), listener.accept()).await;
@@ -264,8 +270,11 @@ async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() ->
             assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
             drop(client);
-            let (records, one_connection) =
-                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            let (records, one_connection) = proxy_task
+                .take()
+                .ok_or("missing proxy_task owner")?
+                .finish()
+                .await?;
             assert!(one_connection, "the replay opened a new proxy connection");
             let [challenged, authorized] = records.as_slice() else {
                 return Err(format!("expected two CONNECT streams, got {records:?}").into());
@@ -286,7 +295,7 @@ async fn h2_proxy_basic_challenge_replays_once_on_the_challenged_connection() ->
 
         let mut cleanup = Ok(());
         cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
-        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
         finish_with_cleanup(operation, cleanup)
     })
     .await
@@ -304,9 +313,9 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
 
             let proxy = H2Proxy::bind().await?;
             let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            proxy_task = Some(ConnectionPeer::spawn(async move {
+            proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                 let (tcp, _) = listener.accept().await?;
-                serve_connect(tcp, &acceptor, Reply::Status(403)).await
+                serve_connect(tcp, &acceptor, Reply::Status(403), children).await
             }));
 
             let route = Route::http_proxy(HttpProxy::new(&proxy_uri)?.with_http2_transport()?);
@@ -330,7 +339,11 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
             ));
             // The pooled proxy connection closes with the client.
             drop(client);
-            finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            proxy_task
+                .take()
+                .ok_or("missing proxy_task owner")?
+                .finish()
+                .await?;
             assert!(matches!(
                 origin.accept(),
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock
@@ -340,7 +353,7 @@ async fn h2_proxy_rejection_is_typed() -> TestResult<()> {
         .await;
 
         let mut cleanup = Ok(());
-        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
         finish_with_cleanup(operation, cleanup)
     })
     .await
@@ -676,7 +689,7 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
 
             let proxy = H2Proxy::bind().await?;
             let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-            proxy_task = Some(ConnectionPeer::spawn(async move {
+            proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                 // The first tunnel's replay and the second tunnel share the
                 // challenged connection.
                 let (tcp, _) = listener.accept().await?;
@@ -688,6 +701,7 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
                         Reply::Tunnel(origin_address),
                         Reply::Tunnel(origin_address),
                     ],
+                    children,
                 )
                 .await?;
                 let second = timeout(Duration::from_millis(100), listener.accept()).await;
@@ -718,8 +732,11 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
             }
 
             drop(client);
-            let (records, no_second_connection) =
-                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?;
+            let (records, no_second_connection) = proxy_task
+                .take()
+                .ok_or("missing proxy_task owner")?
+                .finish()
+                .await?;
             assert!(no_second_connection);
             let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
             assert_eq!(streams, [1, 3, 5]);
@@ -737,7 +754,7 @@ async fn h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect() -> 
 
         let mut cleanup = Ok(());
         cleanup = finish_with_cleanup(cleanup, stop_optional(origin).await);
-        cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+        cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
         finish_with_cleanup(operation, cleanup)
     })
     .await
@@ -1129,14 +1146,14 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                     let origin_identity = TestIdentity::generate()?;
                     let proxy = H2Proxy::bind().await?;
                     let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-                    proxy_task = Some(ConnectionPeer::spawn(async move {
+                    proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                         let replies = if credentials {
                             vec![Reply::Challenge, Reply::Status(502)]
                         } else {
                             vec![Reply::Status(502)]
                         };
                         let (tcp, _) = listener.accept().await?;
-                        serve_connects(tcp, &acceptor, replies).await
+                        serve_connects(tcp, &acceptor, replies, children).await
                     }));
                     let mut proxy = HttpProxy::new(&proxy_uri)?;
                     if credentials {
@@ -1164,9 +1181,11 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                     )?;
                     // The pooled proxy connection closes with the client.
                     drop(client);
-                    let records =
-                        finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
-                            .await?;
+                    let records = proxy_task
+                        .take()
+                        .ok_or("missing proxy_task owner")?
+                        .finish()
+                        .await?;
                     let names = |index: usize| -> Vec<String> {
                         records[index]
                             .fields
@@ -1186,7 +1205,7 @@ async fn h2_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 .await;
 
                 let mut cleanup = Ok(());
-                cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+                cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
                 finish_with_cleanup(operation, cleanup)
             })
             .await?;
@@ -1222,9 +1241,15 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
             let operation = async {
                 let proxy = H2Proxy::bind().await?;
                 let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-                proxy_task = Some(ConnectionPeer::spawn(async move {
+                proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                     let (tcp, _) = listener.accept().await?;
-                    serve_connects(tcp, &acceptor, vec![Reply::Challenge, Reply::Status(502)]).await
+                    serve_connects(
+                        tcp,
+                        &acceptor,
+                        vec![Reply::Challenge, Reply::Status(502)],
+                        children,
+                    )
+                    .await
                 }));
                 let client = Client::builder(
                     ClientProfile::new(tls_settings())
@@ -1246,9 +1271,11 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
                 )?;
                 // The pooled proxy connection closes with the client.
                 drop(client);
-                let records =
-                    finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
-                        .await?;
+                let records = proxy_task
+                    .take()
+                    .ok_or("missing proxy_task owner")?
+                    .finish()
+                    .await?;
                 let streams: Vec<u32> = records.iter().map(|record| record.stream_id).collect();
                 assert_eq!(streams, expected, "{label}");
                 assert_eq!(records[0].ended_before_next, Some(ends), "{label}");
@@ -1257,7 +1284,7 @@ async fn h2_connect_closes_the_challenged_stream_as_the_profile_does() -> TestRe
             .await;
 
             let mut cleanup = Ok(());
-            cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+            cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
             finish_with_cleanup(operation, cleanup)
         })
         .await?;
@@ -1300,9 +1327,9 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             let operation = async {
                 let proxy = H2Proxy::bind().await?;
                 let (proxy_uri, proxy_root, acceptor, listener) = proxy.into_parts()?;
-                proxy_task = Some(ConnectionPeer::spawn(async move {
+                proxy_task = Some(ConnectPeer::spawn(None, move |children| async move {
                     let (tcp, _) = listener.accept().await?;
-                    serve_connect(tcp, &acceptor, Reply::Status(502)).await
+                    serve_connect(tcp, &acceptor, Reply::Status(502), children).await
                 }));
                 let client = Client::builder(
                     ClientProfile::new(tls_settings())
@@ -1323,9 +1350,11 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
                 )?;
                 // The pooled proxy connection closes with the client.
                 drop(client);
-                let record =
-                    finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?)
-                        .await?;
+                let record = proxy_task
+                    .take()
+                    .ok_or("missing proxy_task owner")?
+                    .finish()
+                    .await?;
                 let names: Vec<String> =
                     record.fields.iter().map(|(name, _)| name.clone()).collect();
                 assert_eq!(names, expected);
@@ -1335,7 +1364,7 @@ async fn h2_wss_connect_sends_the_captured_profile_fields() -> TestResult<()> {
             .await;
 
             let mut cleanup = Ok(());
-            cleanup = finish_with_cleanup(cleanup, stop_optional(proxy_task).await);
+            cleanup = finish_with_cleanup(cleanup, stop_connect_peer(proxy_task).await);
             finish_with_cleanup(operation, cleanup)
         })
         .await?;
@@ -2138,8 +2167,9 @@ async fn serve_connect(
     tcp: TcpStream,
     acceptor: &SslAcceptor,
     reply: Reply,
+    children: ConnectionRegistry,
 ) -> TestResult<ConnectRecord> {
-    serve_connects(tcp, acceptor, vec![reply])
+    serve_connects(tcp, acceptor, vec![reply], children)
         .await?
         .pop()
         .ok_or_else(|| "no CONNECT was served".into())
@@ -2156,8 +2186,9 @@ async fn serve_connects(
     tcp: TcpStream,
     acceptor: &SslAcceptor,
     replies: Vec<Reply>,
+    children: ConnectionRegistry,
 ) -> TestResult<Vec<ConnectRecord>> {
-    serve_connects_recorded(tcp, acceptor, replies, None, None).await
+    serve_connects_recorded(tcp, acceptor, replies, None, None, children).await
 }
 
 async fn serve_connects_recorded(
@@ -2166,17 +2197,33 @@ async fn serve_connects_recorded(
     replies: Vec<Reply>,
     probe: Option<TaskProbe>,
     relay_observation: Option<connect_child_outcome::RelayReadObservation>,
+    children: ConnectionRegistry,
 ) -> TestResult<Vec<ConnectRecord>> {
-    let fixture =
-        serve_connects_instrumented(tcp, acceptor, replies, probe, None, relay_observation).await?;
-    let ConnectFixture { records, children } = fixture;
-    complete_peers(children).await?;
-    Ok(records)
+    let fixture = serve_connects_instrumented(
+        tcp,
+        acceptor,
+        replies,
+        probe,
+        None,
+        relay_observation,
+        Some(children),
+    )
+    .await?;
+
+    if let Some(mut completion) = fixture.completion {
+        let finished = *completion.borrow_and_update();
+        if !finished {
+            completion.changed().await?;
+        }
+    }
+
+    Ok(fixture.records)
 }
 
 struct ConnectFixture {
     records: Vec<ConnectRecord>,
     children: Vec<ConnectionPeer<TestResult<()>>>,
+    completion: Option<tokio::sync::watch::Receiver<bool>>,
 }
 
 impl ConnectFixture {
@@ -2201,7 +2248,7 @@ async fn serve_connects_with_fault(
     probe: Option<TaskProbe>,
     read_fault: Option<relay_contract::Fault>,
 ) -> TestResult<ConnectFixture> {
-    serve_connects_instrumented(tcp, acceptor, replies, probe, read_fault, None).await
+    serve_connects_instrumented(tcp, acceptor, replies, probe, read_fault, None, None).await
 }
 
 async fn serve_connects_instrumented(
@@ -2211,6 +2258,7 @@ async fn serve_connects_instrumented(
     probe: Option<TaskProbe>,
     read_fault: Option<relay_contract::Fault>,
     mut relay_observation: Option<connect_child_outcome::RelayReadObservation>,
+    registry: Option<ConnectionRegistry>,
 ) -> TestResult<ConnectFixture> {
     let stream = accept_tls_stream(tcp, acceptor.clone()).await?;
     let stream = super::proxy_h2_multiplex::outcome_contract::ReadFailure {
@@ -2221,6 +2269,7 @@ async fn serve_connects_instrumented(
     let mut records: Vec<ConnectRecord> = Vec::with_capacity(replies.len());
     let mut tunneled = false;
     let mut children = Vec::new();
+    let mut completion = None;
     // Challenged request bodies stay open, so a client that leaves its side
     // open is not reset by the proxy.
     let mut challenged: Vec<::http2::RecvStream> = Vec::new();
@@ -2231,13 +2280,16 @@ async fn serve_connects_instrumented(
                 .accept()
                 .await
                 .ok_or("proxy connection closed before CONNECT")??;
+
             if let Some((index, mut body)) = pending_challenge.take() {
                 records[index].ended_before_next = Some(has_ended(&mut body)?);
                 challenged.push(body);
             }
+
             if request.method() != Method::CONNECT {
                 return Err("proxy received a non-CONNECT request".into());
             }
+
             records.push(ConnectRecord {
                 stream_id: respond.stream_id().as_u32(),
                 authority: request.uri().authority().map(ToString::to_string),
@@ -2252,11 +2304,13 @@ async fn serve_connects_instrumented(
                 later_requests: 0,
                 ended_before_next: None,
             });
+
             tunneled = matches!(reply, Reply::Tunnel(_));
             match reply {
                 Reply::Tunnel(origin) => {
                     let send = respond.send_response(Response::new(()), false)?;
                     let upstream = TcpStream::connect(origin).await?;
+
                     if let Some(observation) = &mut relay_observation {
                         observation.accepted(
                             request.method().clone(),
@@ -2268,13 +2322,16 @@ async fn serve_connects_instrumented(
                             200,
                         )?;
                     }
-                    children.extend(spawn_relay(
-                        request.into_body(),
-                        send,
-                        upstream,
-                        probe.clone(),
-                        relay_observation.take(),
-                    ));
+
+                    register_connect_children(&mut children, registry.as_ref(), || {
+                        spawn_relay(
+                            request.into_body(),
+                            send,
+                            upstream,
+                            probe.clone(),
+                            relay_observation.take(),
+                        )
+                    })?;
                 }
                 Reply::Challenge | Reply::Status(_) => {
                     let mut response = Response::builder().status(match reply {
@@ -2285,12 +2342,14 @@ async fn serve_connects_instrumented(
                         response = response.header("proxy-authenticate", "Basic realm=\"proxy\"");
                     }
                     respond.send_response(response.body(())?, true)?;
+
                     if matches!(reply, Reply::Challenge) {
                         pending_challenge = Some((records.len() - 1, request.into_body()));
                     }
                 }
             }
         }
+
         if tunneled {
             let task = async move {
                 let _challenged = (challenged, pending_challenge);
@@ -2302,15 +2361,36 @@ async fn serve_connects_instrumented(
                         return Err(error.into());
                     }
                 }
+
                 Ok::<_, Box<dyn StdError + Send + Sync>>(())
             };
-            let driver = match probe {
-                Some(probe) => probe.spawn(TaskRole::ConnectDriver, task),
-                None => ConnectionPeer::spawn(task),
+            let completed = if registry.is_some() {
+                let (completed, observed) = tokio::sync::watch::channel(false);
+                completion = Some(observed);
+                Some(completed)
+            } else {
+                None
             };
-            children.push(driver);
+            let task = async move {
+                let outcome = task.await;
+
+                if let Some(completed) = completed {
+                    // Wake the serving task without consuming the registry's result.
+                    completed.send_replace(true);
+                }
+
+                outcome
+            };
+            register_connect_children(&mut children, registry.as_ref(), || {
+                vec![match probe {
+                    Some(probe) => probe.spawn(TaskRole::ConnectDriver, task),
+                    None => ConnectionPeer::spawn(task),
+                }]
+            })?;
+
             return Ok(records);
         }
+
         while let Some(result) = connection.accept().await {
             if let Err(error) = result {
                 if normal_h2_teardown(&error) {
@@ -2318,18 +2398,42 @@ async fn serve_connects_instrumented(
                 }
                 return Err(error.into());
             }
+
             if let Some(record) = records.last_mut() {
                 record.later_requests += 1;
             }
         }
+
         Ok(records)
     }
     .await;
 
     match operation {
-        Ok(records) => Ok(ConnectFixture { records, children }),
+        Ok(records) => Ok(ConnectFixture {
+            records,
+            children,
+            completion,
+        }),
         Err(error) => finish_with_cleanup(Err(error), stop_peers(children).await),
     }
+}
+
+fn register_connect_children(
+    children: &mut Vec<ConnectionPeer<TestResult<()>>>,
+    registry: Option<&ConnectionRegistry>,
+    spawn: impl FnOnce() -> Vec<ConnectionPeer<TestResult<()>>>,
+) -> TestResult<()> {
+    match registry {
+        Some(registry) => {
+            let mut registry = registry
+                .lock()
+                .map_err(|_| io::Error::other("CONNECT child registry poisoned"))?;
+            registry.extend(spawn());
+        }
+        None => children.extend(spawn()),
+    }
+
+    Ok(())
 }
 
 /// Reports whether the client has ended a request body, from the frames
