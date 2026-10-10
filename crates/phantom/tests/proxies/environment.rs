@@ -31,6 +31,20 @@ use crate::support::tls::{
     read_head, tls_settings,
 };
 
+type EnvironmentPeer<T> = JoinHandle<T>;
+
+fn spawn_peer<T: Send + 'static>(
+    future: impl Future<Output = T> + Send + 'static,
+) -> EnvironmentPeer<T> {
+    tokio::spawn(future)
+}
+
+fn spawn_relay(
+    future: impl Future<Output = io::Result<(u64, u64)>> + Send + 'static,
+) -> EnvironmentPeer<io::Result<(u64, u64)>> {
+    spawn_peer(future)
+}
+
 const OK: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
 
 fn listen() -> TestResult<StdListener> {
@@ -43,9 +57,12 @@ fn untouched(listener: &StdListener) {
     assert!(matches!(listener.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
 }
 
-fn serve_one(listener: StdListener, reply: Vec<u8>) -> TestResult<JoinHandle<TestResult<Vec<u8>>>> {
+fn serve_one(
+    listener: StdListener,
+    reply: Vec<u8>,
+) -> TestResult<EnvironmentPeer<TestResult<Vec<u8>>>> {
     let listener = TcpListener::from_std(listener)?;
-    Ok(tokio::spawn(async move {
+    Ok(spawn_peer(async move {
         let (mut stream, _) = listener.accept().await?;
         let head = read_head(&mut stream).await?;
         stream.write_all(&reply).await?;
@@ -326,7 +343,7 @@ async fn environment_credentials_challenge_once_and_remain_partitioned_from_over
         let expected = [None, Some(first.clone()), Some(first.clone()), None, Some(second), Some(first), None];
         let snapshot = EnvironmentProxies::from_values([("http_proxy", format!("http://alice:{first_password}@{address}"))])?;
         let alternate = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("bob", &second_password)?);
-        let server = tokio::spawn(async move {
+        let server = spawn_peer(async move {
             let mut heads = Vec::new();
             for challenge in [true, false, true, false] {
                 let (mut stream, _) = proxy.accept().await?;
@@ -389,6 +406,22 @@ async fn h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requiremen
     Ok(())
 }
 
+async fn observe_h2_completion<S>(
+    connection: &mut ::http2::server::Connection<S, Bytes>,
+    done_rx: oneshot::Receiver<()>,
+) -> TestResult<()>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    tokio::select! {
+        result = done_rx => { result.map_err(|_| "client did not finish H2 response")?; }
+        result = connection.accept() => {
+            return Err(format!("H2 connection ended before its response was consumed: {}", result.is_some()).into());
+        }
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> TestResult<()> {
     bounded(async {
@@ -398,40 +431,47 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = origin_identity.acceptor(H2_ALPN)?;
         let (done, done_rx) = oneshot::channel();
-        let origin = tokio::spawn(async move {
+        let origin = spawn_peer(async move {
             let stream = accept_tls(origin_listener, origin_acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
-            let (request, mut respond) = connection.accept().await.ok_or("missing tunneled H2 request")??;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("missing tunneled H2 request")??;
             let path = request.uri().path().to_owned();
             let mut body = respond.send_response(Response::new(()), false)?;
             body.send_data(Bytes::from_static(b"verified"), true)?;
-            tokio::select! {
-                result = done_rx => { result.map_err(|_| "client did not finish H2 response")?; }
-                result = connection.accept() => {
-                    return Err(format!("H2 connection ended before its response was consumed: {}", result.is_some()).into());
-                }
-            }
+            observe_h2_completion(&mut connection, done_rx).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(path)
         });
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(async move {
+        let proxy = spawn_peer(async move {
             let mut stream = accept_tls(proxy_listener, proxy_acceptor).await?;
             let connect = read_head(&mut stream).await?;
             let mut target = TcpStream::connect(origin_address).await?;
-            stream.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n").await?;
-            let driver = tokio::spawn(async move { copy_bidirectional(&mut stream, &mut target).await });
+            stream
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await?;
+            let driver =
+                spawn_relay(async move { copy_bidirectional(&mut stream, &mut target).await });
             Ok::<_, Box<dyn Error + Send + Sync>>((connect, driver))
         });
-        let snapshot = EnvironmentProxies::from_values([("https_proxy", format!("https://{proxy_address}"))])?;
+        let snapshot =
+            EnvironmentProxies::from_values([("https_proxy", format!("https://{proxy_address}"))])?;
         let client = client_builder(&origin_identity, true)
             .add_proxy_root_certificate_der(proxy_identity.root_der)
-            .environment_proxies(snapshot).build()?;
-        let response = client.get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?.send().await?;
+            .environment_proxies(snapshot)
+            .build()?;
+        let response = client
+            .get(HttpProtocol::Http2, &format!("https://{origin_address}/h2"))?
+            .send()
+            .await?;
         assert_eq!(response.version(), http::Version::HTTP_2);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "verified");
-        done.send(()).map_err(|_| "origin stopped before response finished")?;
+        done.send(())
+            .map_err(|_| "origin stopped before response finished")?;
         assert_eq!(origin.await??, "/h2");
         let (connect, driver) = proxy.await??;
         assert!(connect.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
@@ -439,12 +479,19 @@ async fn trusted_https_environment_proxy_carries_verified_h2_origin_tls() -> Tes
         match driver.await {
             Err(error) if error.is_cancelled() => {}
             Ok(Ok(_)) => {}
-            Ok(Err(error)) if matches!(error.kind(), io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionAborted | io::ErrorKind::BrokenPipe) => {}
+            Ok(Err(error))
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                        | io::ErrorKind::BrokenPipe
+                ) => {}
             Ok(Err(error)) => return Err(error.into()),
             Err(error) => return Err(error.into()),
         }
         Ok(())
-    }).await
+    })
+    .await
 }
 
 #[tokio::test]
@@ -455,7 +502,7 @@ async fn an_untrusted_https_environment_proxy_is_rejected_without_disabling_veri
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(async move {
+        let proxy = spawn_peer(async move {
             let (tcp, _) = listener.accept().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(accept_tls_stream(tcp, acceptor).await.is_err())
         });
@@ -482,7 +529,16 @@ async fn an_untrusted_https_environment_proxy_is_rejected_without_disabling_veri
 }
 
 async fn bounded<F: Future<Output = TestResult<()>>>(future: F) -> TestResult<()> {
-    timeout(Duration::from_secs(20), future)
+    bounded_for(Duration::from_secs(20), future).await
+}
+
+async fn bounded_for<F: Future<Output = TestResult<()>>>(
+    duration: Duration,
+    future: F,
+) -> TestResult<()> {
+    timeout(duration, future)
         .await
         .map_err(|_| "environment proxy wire test exceeded its deadline")?
 }
+
+mod ownership_controls;
