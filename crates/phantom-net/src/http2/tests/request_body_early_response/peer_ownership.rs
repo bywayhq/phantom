@@ -1,8 +1,8 @@
-use std::future::pending;
+use std::{error::Error, fmt, future::pending};
 
 use tokio::{io::AsyncReadExt, io::AsyncWriteExt, sync::oneshot, time::timeout};
 
-use super::{PEER_TEST_TIMEOUT, TestResult, spawn_early_peer};
+use super::{PEER_TEST_TIMEOUT, PeerOutcome, TestResult, spawn_early_peer};
 
 #[tokio::test]
 async fn cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live() -> TestResult<()> {
@@ -63,6 +63,57 @@ async fn cancelling_an_owner_stops_its_driven_peer_while_the_client_stays_live()
     .await
     .map_err(|_| "peer ownership control exceeded its absolute deadline")?
 }
+
+#[tokio::test]
+async fn an_early_test_error_joins_the_driven_peer_and_keeps_its_typed_cause() -> TestResult<()> {
+    timeout(PEER_TEST_TIMEOUT * 4, async {
+        let (mut client, mut server) = tokio::io::duplex(16);
+        let (ready, peer_ready) = oneshot::channel();
+        let (finished, peer_finished) = oneshot::channel();
+        let peer = spawn_early_peer(async move {
+            let _finished = PeerFinished(Some(finished));
+            let mut byte = [0_u8; 1];
+            server.read_exact(&mut byte).await?;
+            assert_eq!(byte, [b'E']);
+            ready
+                .send(())
+                .map_err(|()| "peer readiness was abandoned")?;
+
+            server.read_exact(&mut byte).await?;
+            Err("the peer unexpectedly received a second byte".into())
+        });
+        client.write_all(b"E").await?;
+        timeout(PEER_TEST_TIMEOUT, peer_ready).await??;
+
+        let error = peer
+            .complete(Err(TestFailure.into()), PeerOutcome::FinalResponse)
+            .await
+            .err()
+            .ok_or("the early test failure was accepted")?;
+
+        assert!(error.downcast_ref::<TestFailure>().is_some());
+        timeout(PEER_TEST_TIMEOUT, peer_finished).await??;
+        let mut byte = [0_u8; 1];
+        assert_eq!(
+            timeout(PEER_TEST_TIMEOUT, client.read(&mut byte)).await??,
+            0
+        );
+        Ok(())
+    })
+    .await
+    .map_err(|_| "peer error cleanup control exceeded its absolute deadline")?
+}
+
+#[derive(Debug)]
+struct TestFailure;
+
+impl fmt::Display for TestFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("typed early test failure")
+    }
+}
+
+impl Error for TestFailure {}
 
 struct PeerFinished(Option<oneshot::Sender<()>>);
 
