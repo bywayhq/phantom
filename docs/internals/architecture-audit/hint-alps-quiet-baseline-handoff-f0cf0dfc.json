@@ -1,0 +1,218 @@
+{
+  "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+  "parent_revision": "8ce18af3508c0c16a815e373cb39db6d4d2b8c2f",
+  "commit": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com> test(hints): expose failed ALPS quiet observations",
+  "review": "causal regression-only A163 source checkpoint; no quiet/ownership/readiness remedy",
+  "owned_source_reads": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "ff5c6caa78c154dc449ddb0cd51015fcf49ef829",
+      "raw_sha256": "74bfd7ee880fa453ea1758eae6a7a974302893925c134882e53ddb68f5e4118a",
+      "line_count": 1389,
+      "read_classification": "current changed functions and diff manually read; not fresh whole 1389-line parent",
+      "manual_read_ranges": [
+        {
+          "start": 538,
+          "end": 624,
+          "raw_range_sha256": "2da842a2f24471ed678f396ea859d09199017dfa9d0bf7646955b2eaf3479e44"
+        },
+        {
+          "start": 1273,
+          "end": 1294,
+          "raw_range_sha256": "c52f4c12ae8eb72b6c549756614aeb6205c2c6df232e583bc4beca6187d3cb77"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes, not working CRLF"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "line_count": 253,
+      "read_classification": "fresh whole manual control source read",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 253,
+          "raw_range_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes, not working CRLF"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "fresh partial actual generic handshake API read",
+      "manual_read_ranges": [
+        {
+          "start": 355,
+          "end": 384,
+          "raw_range_sha256": "45d36b565bcd4ed3e452b993e7c1b56330a06de657d6849c9fdf6d4c034f7b9e"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes, not working CRLF"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "prior248 partial accept/drive source read; current raw blob unchanged rebind",
+      "manual_read_ranges": [
+        {
+          "start": 405,
+          "end": 535,
+          "raw_range_sha256": "ff1814ecf6b070e41b933cb65b302dd2a9dd4c398f26751f1af053d1f169082c"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes, not working CRLF",
+      "historical_read_revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "unchanged_raw_blob_from_historical_read": true
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "prior248 partial get_io/source contract read; current raw blob unchanged rebind",
+      "manual_read_ranges": [
+        {
+          "start": 35,
+          "end": 95,
+          "raw_range_sha256": "d4a63dbafff919a053f5c2a5c99dabf64080d0c29b7b7b1c640944c915b3c921"
+        },
+        {
+          "start": 245,
+          "end": 263,
+          "raw_range_sha256": "bbdbb77e0dca644d8baa5c62e53224fbb3eface756c46a7308df7f147941955c"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes, not working CRLF",
+      "historical_read_revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "unchanged_raw_blob_from_historical_read": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "read_classification": "prior248 concrete owner/finish contract read; current raw blob unchanged rebind",
+      "manual_read_ranges": [
+        {
+          "start": 1,
+          "end": 104,
+          "raw_range_sha256": "03e2992f62d0bac64f683563d8248813f072910312a310e4771a7adef06a1657"
+        }
+      ],
+      "byte_basis": "immutable raw Git LF bytes, not working CRLF",
+      "historical_read_revision": "2489815a1d495ea64a24e77348db78d789d71a98",
+      "unchanged_raw_blob_from_historical_read": true
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "line_count": 1609,
+      "read_classification": "fresh partial actual locked Tokio 1.53.1 receiver polling/completion/wake implementation",
+      "manual_read_ranges": [
+        {
+          "start": 1231,
+          "end": 1395,
+          "raw_range_sha256": "da4bbcfad7882eb962b276c668fa7c3ff21ee040dcb8d8c98750597f1b47dc4e"
+        }
+      ],
+      "byte_basis": "installed registry raw bytes; no invented Git OID"
+    }
+  ],
+  "unchanged_control_children": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "current_git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "base_raw_equal": true,
+      "classification": "identity preservation only, no fresh whole read in baseline construction"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/hint_values.rs",
+      "current_git_blob_oid": "6e0ff599797e56db03ec51f53f315f05859f40df",
+      "raw_sha256": "73c8cd7a1d86df9360e98d24fb38e51f0dc15325ed95273d2de466f6f887ad91",
+      "base_raw_equal": true,
+      "classification": "identity preservation only, no fresh whole read in baseline construction"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/received_order.rs",
+      "current_git_blob_oid": "438911dcd6ba380a2b4e38234dd3bc3e175de56d",
+      "raw_sha256": "6aec7a058dd6ff2f991906c2e61a5a32177f30bc4f8b6ec6d06d455594c49c79",
+      "base_raw_equal": true,
+      "classification": "identity preservation only, no fresh whole read in baseline construction"
+    }
+  ],
+  "extraction": {
+    "artifact": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-baseline-extraction-8ce18af3.json",
+    "raw_sha256": "9da58fec2e0292eaf1934e01bd420eea812df1fd937da523a1e1bdaf1ecd2896",
+    "passed_checks": 23,
+    "ordinary_parent_test_bodies": 17,
+    "scope": "all 17 old parent bodies byte equal, original accept_http2 operation body byte equal, canonical answer/setup tokens reconstruct original after removing instrumentation/identityIO delegation, three frozen children raw equal"
+  },
+  "full_semantic_diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-f0cf0dfc.diff",
+    "raw_sha256": "8afe791bfbb7a2da5bf4437aa30ccaced611ba2a37634aa876cad7484b2614a8"
+  },
+  "new_control_methods": [
+    {
+      "name": "client_hints::quiet_contract::the_actual_alps_origin_accepts_a_finite_quiet_connection",
+      "forecast": "positive",
+      "oracle": "actual GET/H2/authority/path/default and ALPS values/ordered fields plus 204 and empty body precede finite quiet completion; names nonempty and no injected read"
+    },
+    {
+      "name": "client_hints::quiet_contract::the_actual_alps_origin_rejects_a_second_request",
+      "forecast": "positive",
+      "oracle": "same first prerequisite, then actual second GET; canonical helper exact second-request error required and concrete second RequestError retained; its category is not asserted"
+    },
+    {
+      "name": "client_hints::quiet_contract::the_actual_alps_quiet_check_keeps_a_post_response_read_failure",
+      "forecast": "intended negative",
+      "first_predicted_failure": "line 79 missing actual read error, after injected real reader invocation assertion at line 70; later H2/get_io kind/context assertions unreached until remedy",
+      "oracle": "actual reader fault after first response completion must return original H2/get_io PermissionDenied/context via allowed source-chain wrapper"
+    }
+  ],
+  "forecast_counts": {
+    "positive": 2,
+    "intended_negative": 1,
+    "measured": 0
+  },
+  "preserved_behavior": "Raw helper JoinHandle return/spawn remains. Ordinary callers still pass identity IO and observation None; original ALPS TLS setup, handshake, request/header observation,204 write/drop and 200 ms wildcard match retain operation order. No extra flush/read/response, route/profile/header/template/status/test-body edit.",
+  "disclosed_seams": [
+    "new IO-generic alps_origin_answering_with_io has two actual consumers: ordinary identity IO and controlled post-TLS FaultRead",
+    "answer_alps_request mechanically owns existing protocol operation; optional observation clones only control metadata and fails if its instrumented receiver vanishes",
+    "accept_http2 signature generalized to same resolved AsyncRead/AsyncWrite/Unpin bounds; operation body unchanged"
+  ],
+  "causes_and_cleanup": "Control adopts returned raw task synchronously before fallible client build. Outer 5 s operation and peer join are finite; timed-out pending peer is explicitly stopped/joined through existing guard. Already completed peer is removed before cleanup, so not repolled. Client stays retained until cleanup result. finish_with_cleanup preserves actual simultaneous primary/cleanup errors. Panic/unpolled whole control Drop only aborts, cannot synchronously join.",
+  "fault_contract": "Receiver is polled with actual reader context and remains owned through first 204 collection. Tokio oneshot completion wakes installed receiver waker. Receiver removed after Ready so never repolled; repeated invoked reads return same typed-kind/message failure. Gate closure returns actual RecvError nested in io::Error rather than readiness. Fault is injection outside established TLS into actual H2 reader, not native OS failure.",
+  "limits": [
+    "finite 200 ms quiet is not permanent absence",
+    "Quiet timer remains original and begins when response is queued; if response collection/setup delays outlast it, fault-enable failure is prerequisite masking and cannot count as intended causal red",
+    "Second-request positive relies on helper exact actual decoded-second error; client RequestError object retained but its category/cause unconstrained because no response is intentionally sent",
+    "No clean-close or malformed-protocol extension forecast beyond these three controls",
+    "No fresh whole parent or dependency/vendor audit",
+    "A164 sleep, A160 ordinary raw ownership and A167 cleanup remain unchanged/open"
+  ],
+  "verification": {
+    "targeted_rustfmt_check": "exit0",
+    "git_diff_check": "exit0; expected autocrlf warning, no whitespace issue",
+    "signed_identity": "G, both agreed human identities",
+    "working_tree": "clean at signed revision",
+    "cargo_compilation_clippy_msrv_native": "not run; root owns execution",
+    "independent_source_review": "pending"
+  }
+}

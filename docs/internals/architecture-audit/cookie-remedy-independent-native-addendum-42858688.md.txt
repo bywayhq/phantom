@@ -1,0 +1,24 @@
+# Cookie cleanup independent native review
+
+Approve the focused verification at `42858688871f7658cdb92b79d840004be7a267e2`. Windows and Linux each
+pass all 50 selected request tests and all 100 H2 proxy tests. Formatting,
+strict combined Clippy, Rust 1.88 checks and both runners exit zero.
+
+I read the current raw logs, exits, revisions, receipts and launcher in full.
+An initially truncated combined display was followed by full individual log
+reads. All 24 receipt artifact hashes match; the launcher is separately bound.
+Exact source bytes match reviewed be680 cookie source and unchanged a0 H2
+source. These identity comparisons add no whole-source review credit.
+
+The selected rosters match the earlier runs. All five old cookie failures now
+pass: two operation-error task destruction observations, first and second
+completed redirect causes, and primary plus ordered First/Second cleanup
+causes. Formerly unreached typed assertions at redirect lines 242 and 252-255
+now pass. Real successful exchanges and retained Client lifetimes precede
+the controlled faults and finite cleanup observations.
+
+Drop remains abort-only. The faults are controlled fixture failures. No
+production leak, arbitrary teardown guarantee or full gate is inferred.
+No Cargo or tests were run by this reviewer.
+
+JSON SHA256: `f9b1bb8cdb4b6cfb9807f3a7ea65f60f14457432bd3b70851a0d68b800daee68`.

@@ -1,0 +1,463 @@
+{
+  "revision": "71176f0835e4041c4a72d4505593c80e550a5dff",
+  "decision": "approve actual causal baseline evidence; remedy and final gates pending",
+  "root_report_sha256": "319e4041171e75cdb9d25d33695f865029281e009e37b1bf67420fcd9659913b",
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-windows.revision",
+      "raw_sha256": "d6faa44e61df117aef31dfc9848aaf8850377072e8efef70823cc8dac7b10944",
+      "byte_count": 41,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "manual_read_ranges": [],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-request-session-windows.log",
+      "raw_sha256": "f8ef1d751ec1ae2c0e555948ac8d08eb53d80379283c5d655f2ba3f5f3dac10e",
+      "byte_count": 8839,
+      "line_count": 92,
+      "manual_read_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-request-session-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-clippy-windows.log",
+      "raw_sha256": "249a6370d5a095bdbe4f890e6d2d91285f275d5b3121dcb6194dbd9bdf7e8ca9",
+      "byte_count": 168,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-msrv-windows.log",
+      "raw_sha256": "3b57a99c0a11d56830961988fdd19ebb86164a227a4809e426b9ecf9423f6716",
+      "byte_count": 168,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-linux.revision",
+      "raw_sha256": "d6faa44e61df117aef31dfc9848aaf8850377072e8efef70823cc8dac7b10944",
+      "byte_count": 41,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_count": 0,
+      "line_count": 0,
+      "manual_read_ranges": [],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-request-session-linux.log",
+      "raw_sha256": "0c5b69528ee93e0a6ca34e12e5b2a527e510c38aae9a8b9ff2bb9276797dcc86",
+      "byte_count": 8849,
+      "line_count": 92,
+      "manual_read_ranges": [
+        [
+          1,
+          92
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-request-session-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_count": 4,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-clippy-linux.log",
+      "raw_sha256": "1c3735e769b830861eb07fc9318dd362ed0c5b2053d1daa168645b06d69f2d9f",
+      "byte_count": 177,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-msrv-linux.log",
+      "raw_sha256": "5d461c9c493cec67c0e27f135f66f55f1b9d7a8b3bbd4bb4d28efa5da191b301",
+      "byte_count": 177,
+      "line_count": 2,
+      "manual_read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\request-hint-observers-baseline-71176f08-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_count": 2,
+      "line_count": 1,
+      "manual_read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "read_scope": "full raw native artifact manually read; empty formatting output explicitly observed"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-request-hint-observers-baseline.sh",
+      "raw_sha256": "837729231512640d1ee81be5288ea4d7df82019cc779a1c38e1866b31f53d8d2",
+      "byte_count": 2214,
+      "line_count": 48,
+      "manual_read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "read_scope": "full launcher or paired report manually read, no execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-baseline-native-71176f08.md",
+      "raw_sha256": "8d569e9b2fa2bbb8dbb2d3caff64d254debb1d99760a25f055845cf1310f486d",
+      "byte_count": 995,
+      "line_count": 9,
+      "manual_read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "read_scope": "full launcher or paired report manually read, no execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-baseline-native-71176f08.json",
+      "raw_sha256": "319e4041171e75cdb9d25d33695f865029281e009e37b1bf67420fcd9659913b",
+      "byte_count": 15375,
+      "line_count": 234,
+      "manual_read_ranges": [
+        [
+          1,
+          234
+        ]
+      ],
+      "read_scope": "full launcher or paired report manually read, no execution"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "71176f0835e4041c4a72d4505593c80e550a5dff",
+      "git_blob_oid": "ff5c6caa78c154dc449ddb0cd51015fcf49ef829",
+      "raw_sha256": "74bfd7ee880fa453ea1758eae6a7a974302893925c134882e53ddb68f5e4118a",
+      "line_count": 1389,
+      "equals_signed_reviewed_lane": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "classification": "exact byte equality; no additional whole-source credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+      "revision": "71176f0835e4041c4a72d4505593c80e550a5dff",
+      "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+      "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+      "line_count": 253,
+      "equals_signed_reviewed_lane": "f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb",
+      "classification": "exact byte equality; no additional whole-source credit"
+    }
+  ],
+  "fresh_supporting_source_read": {
+    "path": "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+    "revision": "71176f0835e4041c4a72d4505593c80e550a5dff",
+    "git_blob_oid": "d3b75f33a284bc6533942997a46f7dced8398143",
+    "raw_sha256": "3a1c4aafe0bcf640da8c57bfbdd7d3563de216e754f9ffcd18f9bd0dbd4fe88c",
+    "line_count": 253,
+    "classification": "fresh supporting partial control rereread, full f0cf source review retained separately",
+    "manual_read_ranges": [
+      {
+        "start": 42,
+        "end": 193,
+        "raw_range_sha256": "69afcc8abca2c94ecd58c552297efcdd1215c4e13f1767085ff71527d62f51fe"
+      }
+    ]
+  },
+  "actual_rosters": {
+    "windows": {
+      "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::quiet_contract::the_actual_alps_quiet_check_keeps_a_post_response_read_failure": "FAIL",
+      "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "PASS",
+      "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+      "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+      "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+      "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+      "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+      "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+      "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+      "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "PASS",
+      "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "PASS",
+      "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+      "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+      "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+      "client_hints::client_retains_accept_ch_across_requests": "PASS",
+      "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "PASS",
+      "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+      "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+      "client_hints::quiet_contract::the_actual_alps_origin_rejects_a_second_request": "PASS",
+      "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+      "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+      "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+      "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+      "cookies::redirect_drivers::actual_cookie_redirect_completes_before_healthy_driver_cleanup": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_second_driver_failure": "PASS",
+      "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_connect_proxy_task": "PASS",
+      "cookies::redirect_drivers::independently_joined_redirect_drivers_retain_both_injected_typed_causes": "PASS",
+      "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_first_driver_failure": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_origin_task": "PASS",
+      "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+      "cookies::task_ownership::explicit_cookie_peer_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "cookies::task_ownership::explicit_cookie_proxy_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "client_hints::quiet_contract::the_actual_alps_origin_accepts_a_finite_quiet_connection": "PASS",
+      "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS"
+    },
+    "linux": {
+      "client_hints::received_order::real_http2_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "client_hints::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::received_order::the_actual_http2_observer_distinguishes_interleaved_duplicate_order": "PASS",
+      "client_hints::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "client_hints::caller_header_type_remains_public_for_overrides": "PASS",
+      "client_hints::quiet_contract::the_actual_alps_origin_rejects_a_second_request": "PASS",
+      "client_hints::http2_alps_accept_ch_restart_sends_a_streaming_body_once": "PASS",
+      "client_hints::negotiated_http2_applies_alps_and_retains_response_accept_ch": "PASS",
+      "client_hints::http2_fetch_template_on_an_alps_accept_ch_connection_is_sent_as_built": "PASS",
+      "client_hints::http2_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "cookies::deadline_contract::the_actual_bound_keeps_a_ready_inner_error": "PASS",
+      "cookies::deadline_contract::the_actual_five_second_bound_keeps_elapsed_and_context": "PASS",
+      "client_hints::quiet_contract::the_actual_alps_quiet_check_keeps_a_post_response_read_failure": "FAIL",
+      "client_hints::critical_ch_retry_rejects_a_consumed_streaming_body": "PASS",
+      "client_hints::http2_alps_accept_ch_applies_to_the_first_request_without_a_probe": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_platform_version": "PASS",
+      "client_hints::http2_replacement_restart_keeps_the_hint_the_first_connection_asked_for": "PASS",
+      "client_hints::critical_ch_retries_once_with_only_supported_requested_hints": "PASS",
+      "cookies::deadline_contract::the_actual_bound_returns_a_ready_success": "PASS",
+      "cookies::profile_cookie_placement_positions_the_jar_field": "PASS",
+      "client_hints::hint_values::actual_http1_without_unsolicited_high_entropy_fields_passes": "PASS",
+      "client_hints::hint_values::the_actual_http1_assertion_rejects_unsolicited_wrong_valued_architecture": "PASS",
+      "client_hints::hint_values::actual_configured_hint_values_pass_after_accept_ch": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_platform_version": "PASS",
+      "client_hints::hint_values::the_actual_hint_assertion_rejects_a_wrong_configured_architecture": "PASS",
+      "cookies::caller_cookie_suppresses_injection_but_response_learning_continues": "PASS",
+      "cookies::http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::rejected_response_cookies_do_not_block_independent_siblings": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_connect_proxy_task": "PASS",
+      "client_hints::http2_client_hints_share_one_session_connection": "PASS",
+      "client_hints::client_retains_accept_ch_across_requests": "PASS",
+      "cookies::dropping_body_after_headers_preserves_learned_cookie": "PASS",
+      "cookies::task_ownership::explicit_cookie_proxy_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "cookies::http1_cookies_share_the_canonical_host_key": "PASS",
+      "client_hints::http3_client_hints_share_one_session_connection": "PASS",
+      "cookies::task_ownership::explicit_cookie_peer_cancel_releases_the_actual_listener_after_traffic": "PASS",
+      "client_hints::http1_client_hints_share_the_canonical_origin_key": "PASS",
+      "cookies::task_ownership::a_cookie_operation_error_releases_its_actual_origin_task": "PASS",
+      "cookies::redirect_drivers::independently_joined_redirect_drivers_retain_both_injected_typed_causes": "PASS",
+      "cookies::redirect_drivers::actual_cookie_redirect_completes_before_healthy_driver_cleanup": "PASS",
+      "client_hints::http3_alps_accept_ch_restarts_the_request_with_the_missing_hint": "PASS",
+      "client_hints::http3_navigation_template_restart_places_the_hint_after_accept": "PASS",
+      "cookies::http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_the_primary_and_both_completed_driver_identities": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_first_driver_failure": "PASS",
+      "client_hints::quiet_contract::the_actual_alps_origin_accepts_a_finite_quiet_connection": "PASS",
+      "cookies::redirect_learns_cookie_and_strips_caller_credentials_across_ports": "PASS",
+      "client_hints::http2_hint_learned_while_a_request_waits_reaches_only_the_next_request": "PASS",
+      "client_hints::cloned_clients_share_client_hints_while_new_clients_are_isolated": "PASS",
+      "cookies::redirect_drivers::actual_redirect_cleanup_retains_a_completed_second_driver_failure": "PASS",
+      "client_hints::received_order::real_http3_decoding_distinguishes_equal_maps_with_different_order": "PASS",
+      "client_hints::received_order::the_actual_http3_observer_distinguishes_interleaved_duplicate_order": "PASS"
+    }
+  },
+  "each_host": {
+    "selected": 53,
+    "pass": 52,
+    "fail": 1,
+    "skip": 420,
+    "request_exit": 100,
+    "fmt_exit": 0,
+    "strict_clippy_exit": 0,
+    "rust1_88_exit": 0,
+    "runner_exit": 1
+  },
+  "causal_boundary": "Only negative reaches child79 missing returned error after actual successful GET /quiet, exact authority, H2, header/order and empty request/204 body prerequisites, enabled real reader fault and invoked assertion70-73. Quiet positive and actual second-request rejection positive pass, all prior50 retained/pass. Child80-85 typed H2/get_io kind/context remain unreached and uncredited. No prerequisite timeout or gate failure was the observed red.",
+  "manual_scope": "Both complete current test logs and every ancillary log, exit/revision/runner receipt, launcher and root paired report read. Exact pre-Summary mechanical rosters avoid nextest repeated FAIL summary entries. Prior50 compared against retained428 full-log evidence mechanically; no repeated old-log manual credit.",
+  "limits": [
+    "No Cargo or native tests run by reviewer.",
+    "Controlled postresponse real-reader IO injection is not a native OS fault or production client defect.",
+    "Finite200ms quiet, finite5s cleanup and abort-only Drop limitations retained.",
+    "No fresh whole parent/vendor/dependency audit from byte equality.",
+    "No remedy, full workspace/feature/platform/PR gates, main integration or architecture completion approval."
+  ]
+}

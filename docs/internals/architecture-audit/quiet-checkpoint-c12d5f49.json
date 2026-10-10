@@ -1,0 +1,150 @@
+{
+  "revision": "c12d5f49b37cee327bd7fe317d54144cd390b4c1",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-remedy-independent-native-addendum-42858688.md",
+      "path": "docs/internals/architecture-audit/cookie-remedy-independent-native-addendum-42858688.md.txt",
+      "sha256": "d0f2e107ca69d2cbfb3f2aee4317e0fb0d0ffb0dad3cd5259b72e810af6ad434",
+      "bytes": 1398
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\cookie-remedy-independent-native-addendum-42858688.json",
+      "path": "docs/internals/architecture-audit/cookie-remedy-independent-native-addendum-42858688.json",
+      "sha256": "f9b1bb8cdb4b6cfb9807f3a7ea65f60f14457432bd3b70851a0d68b800daee68",
+      "bytes": 60197
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-handoff-f0cf0dfc.md",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-baseline-handoff-f0cf0dfc.md.txt",
+      "sha256": "6716c49ef602ad7afdad789b907f75f4198a6011a0371cffbc920ebbf2966344",
+      "bytes": 3106
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-handoff-f0cf0dfc.json",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-baseline-handoff-f0cf0dfc.json",
+      "sha256": "f57fddabe612a0f7273bc52a6473cba213ea1654171e0d82dec825e261c9a077",
+      "bytes": 12207
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-independent-source-review-f0cf0dfc.md",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-baseline-independent-source-review-f0cf0dfc.md.txt",
+      "sha256": "b6b2be7fa5d84ecb89e4ad93ff8cbe012e89fdec8417e1ef610f5ad0b3bbe55f",
+      "bytes": 1527
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-baseline-independent-source-review-f0cf0dfc.json",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-baseline-independent-source-review-f0cf0dfc.json",
+      "sha256": "2a409afa36769514b8ac7d9f010d1a47150e05913910e6cfb35e47dfdae350ba",
+      "bytes": 10518
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-baseline-native-71176f08.md",
+      "path": "docs/internals/architecture-audit/hint-quiet-baseline-native-71176f08.md.txt",
+      "sha256": "8d569e9b2fa2bbb8dbb2d3caff64d254debb1d99760a25f055845cf1310f486d",
+      "bytes": 995
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-baseline-native-71176f08.json",
+      "path": "docs/internals/architecture-audit/hint-quiet-baseline-native-71176f08.json",
+      "sha256": "319e4041171e75cdb9d25d33695f865029281e009e37b1bf67420fcd9659913b",
+      "bytes": 15375
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-baseline-independent-native-addendum-71176f08.md",
+      "path": "docs/internals/architecture-audit/hint-quiet-baseline-independent-native-addendum-71176f08.md.txt",
+      "sha256": "2e31992325ab1de870700b132c1e0d5470ba739f703f9c2998b12ce9d505461a",
+      "bytes": 1227
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-baseline-independent-native-addendum-71176f08.json",
+      "path": "docs/internals/architecture-audit/hint-quiet-baseline-independent-native-addendum-71176f08.json",
+      "sha256": "b0af4dc7d47fa1fdc3de4ecb803553e622780d873e74a2dca73372163a61f2a2",
+      "bytes": 24726
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-handoff-95a2baa3.md",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-remedy-handoff-95a2baa3.md.txt",
+      "sha256": "a204f1ae00e49bb0d8e8b6bcd3a27b6d3f2551c7523118dc5fd89e906bcfef5a",
+      "bytes": 1483
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-handoff-95a2baa3.json",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-remedy-handoff-95a2baa3.json",
+      "sha256": "e7db1f7afeca5be6dfe20e5ff3b6e3959127c2230ffedc2105bd26e6d61d09d8",
+      "bytes": 6281
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-independent-source-review-95a2baa3.md",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-remedy-independent-source-review-95a2baa3.md.txt",
+      "sha256": "984513b3dd9e51d84cfa34d5ac6f0c079a189fb94366bf6e75736f6467d474ac",
+      "bytes": 1142
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-alps-quiet-remedy-independent-source-review-95a2baa3.json",
+      "path": "docs/internals/architecture-audit/hint-alps-quiet-remedy-independent-source-review-95a2baa3.json",
+      "sha256": "ba51892ff01215c7f763ca97693e5f775fae75f8eb7c6e8156590dc954f575e0",
+      "bytes": 7033
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-remedy-native-c12d5f49.md",
+      "path": "docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.md.txt",
+      "sha256": "10d582b913abef6ae40856470d0d3f36b8e703ae9f53f7d2370a5a76697c4ae5",
+      "bytes": 995
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-remedy-native-c12d5f49.json",
+      "path": "docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.json",
+      "sha256": "168bd9ebd623f803b9afcc2f3c114caeb9b6cd98c8543b3212070b3f8c40b723",
+      "bytes": 14977
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-remedy-independent-native-addendum-c12d5f49.md",
+      "path": "docs/internals/architecture-audit/hint-quiet-remedy-independent-native-addendum-c12d5f49.md.txt",
+      "sha256": "c1bec06163f51006bf133193ee89918223f8340a3eb9bce794e97dca98131994",
+      "bytes": 1251
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\hint-quiet-remedy-independent-native-addendum-c12d5f49.json",
+      "path": "docs/internals/architecture-audit/hint-quiet-remedy-independent-native-addendum-c12d5f49.json",
+      "sha256": "220a7d67b819a54c658aa1cfe45b3e54b61a8677d8cabfdc77093d8c3e3a461c",
+      "bytes": 26373
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\capture-session-source-standards-review-42858688.md",
+      "path": "docs/internals/architecture-audit/capture-session-source-standards-review-42858688.md.txt",
+      "sha256": "4cdf4d70fa0f71d5dd76c1b6201fa83a2d9c0efa4b3d80a7049fa535f87ecc1c",
+      "bytes": 3130
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\capture-session-source-standards-review-42858688.json",
+      "path": "docs/internals/architecture-audit/capture-session-source-standards-review-42858688.json",
+      "sha256": "3d695d7aedf35cc5742cc732e62ea6817096d4e170bf0428c936c85019eb5ede",
+      "bytes": 40704
+    }
+  ],
+  "new_inventory_paths": [
+    "crates/phantom/tests/requests/client_hints/quiet_contract.rs",
+    "docs/internals/architecture-audit/capture-session-source-standards-review-42858688.json",
+    "docs/internals/architecture-audit/capture-session-source-standards-review-42858688.md.txt",
+    "docs/internals/architecture-audit/cookie-remedy-independent-native-addendum-42858688.json",
+    "docs/internals/architecture-audit/cookie-remedy-independent-native-addendum-42858688.md.txt",
+    "docs/internals/architecture-audit/hint-alps-quiet-baseline-handoff-f0cf0dfc.json",
+    "docs/internals/architecture-audit/hint-alps-quiet-baseline-handoff-f0cf0dfc.md.txt",
+    "docs/internals/architecture-audit/hint-alps-quiet-baseline-independent-source-review-f0cf0dfc.json",
+    "docs/internals/architecture-audit/hint-alps-quiet-baseline-independent-source-review-f0cf0dfc.md.txt",
+    "docs/internals/architecture-audit/hint-alps-quiet-remedy-handoff-95a2baa3.json",
+    "docs/internals/architecture-audit/hint-alps-quiet-remedy-handoff-95a2baa3.md.txt",
+    "docs/internals/architecture-audit/hint-alps-quiet-remedy-independent-source-review-95a2baa3.json",
+    "docs/internals/architecture-audit/hint-alps-quiet-remedy-independent-source-review-95a2baa3.md.txt",
+    "docs/internals/architecture-audit/hint-quiet-baseline-independent-native-addendum-71176f08.json",
+    "docs/internals/architecture-audit/hint-quiet-baseline-independent-native-addendum-71176f08.md.txt",
+    "docs/internals/architecture-audit/hint-quiet-baseline-native-71176f08.json",
+    "docs/internals/architecture-audit/hint-quiet-baseline-native-71176f08.md.txt",
+    "docs/internals/architecture-audit/hint-quiet-remedy-independent-native-addendum-c12d5f49.json",
+    "docs/internals/architecture-audit/hint-quiet-remedy-independent-native-addendum-c12d5f49.md.txt",
+    "docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.json",
+    "docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.md.txt",
+    "docs/internals/architecture-audit/quiet-checkpoint-c12d5f49.json"
+  ],
+  "scope": "Exact retention of bounded author, independent and native reviews; current53 request methods pass on both hosts. Capture candidates remain source-only. No whole-source credit from identity checks or importing evidence; final gates remain pending."
+}

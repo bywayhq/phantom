@@ -1,0 +1,25 @@
+# ALPS quiet error remedy
+
+Signed `95a2baa3f6767b9d030df12d4e968145c602d26e` on the hint lane, parent `f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb`.
+Only two quiet-match arms change. The canonical helper returns the actual H2
+error instead of treating it as finite quiet success. Original H2 `get_io`
+retains its concrete IO kind and message. Second-request rejection, clean end
+and the original 200 ms timeout remain unchanged.
+
+The entire changed function was reread (588-624), with bounded resolved
+accept/error API and TestResult alias reads. Every byte outside the exact two
+arm replacement is preserved, including all 17 ordinary parent test bodies.
+The 253-line causal child and three earlier control children are raw Git
+byte-identical. JSON provides revision, blob and raw whole/range hashes.
+
+Root reports the baseline reproduced on both hosts after literal request,
+204 response and actual fault invocation: 53 selected, 52 pass, one intended
+failure. This handoff does not independently validate those runtime logs.
+Targeted formatting and whitespace checks pass; signature G and lane clean.
+No Cargo or native execution here. Independent source approval and root fixed
+Windows/Linux execution remain required.
+
+Raw ordinary owner/readiness/layout issues remain separate. The finite quiet
+window is not permanent absence. No production API or route behavior changes.
+
+JSON SHA256: `e7db1f7afeca5be6dfe20e5ff3b6e3959127c2230ffedc2105bd26e6d61d09d8`.

@@ -1,0 +1,25 @@
+# ALPS quiet baseline independent source review
+
+Approve exact `f0cf0dfcd51fec06dca950ee3d7a0b379a6781eb` for causal native execution. The existing 200 ms
+wildcard remains unchanged. No runtime or integration approval is granted.
+
+I read the complete 253-line control, the full signed two-file diff and the
+parent/supporting ranges recorded in JSON. The 1389-line parent remains partial.
+I independently replayed all 23 preservation comparisons against immutable Git
+bytes: all 17 original test bodies, accept helper body, actual setup/answer
+reconstruction and three frozen children pass. Author source identities and
+range hashes also match.
+
+The controls use the actual TLS/ALPS and H2 server path. Literal GET, authority,
+path, version, fields/order and 204/empty-body prerequisites precede the gated
+reader fault. The gate registers and wakes the real reader. The missing-error
+assertion at line 79 is the predicted negative; later typed cause assertions
+remain uncredited until reached. Quiet and actual second-request rejection are
+positive forecasts. Client and task ownership remain live through finite
+completion and cleanup. Drop requests abort without a joined-outcome claim.
+
+An inherited parent import-grouping issue may be corrected with the remedy.
+It does not alter these controls. Ordinary raw task ownership, existing sleep
+and cleanup findings are unchanged. No Cargo or native checks were run here.
+
+JSON SHA256: `2a409afa36769514b8ac7d9f010d1a47150e05913910e6cfb35e47dfdae350ba`.

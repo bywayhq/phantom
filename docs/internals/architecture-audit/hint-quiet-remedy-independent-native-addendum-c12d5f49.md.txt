@@ -1,0 +1,22 @@
+# ALPS quiet remedy independent native review
+
+Approve focused verification at `c12d5f49b37cee327bd7fe317d54144cd390b4c1`. Windows and Linux each
+pass all53 identical selected methods. Formatting, strict focused Clippy,
+Rust1.88 and both runners exit zero.
+
+I manually read both complete current test logs, all ancillary artifacts,
+the launcher and root paired report. All20 raw receipt identities match;
+launcher/report identities are separate. Exact parent/control Git bytes match
+reviewed95 source. This does not promote current parent to a whole read.
+
+The prior52 passes remain green. The former missing-error control now passes
+its unchanged H2 downcast/get_io/PermissionDenied/exact context assertions at
+lines80-85. Its real request/response and invoked-reader prerequisites remain
+unchanged. Quiet and actual second-request rejection positives pass.
+
+This is controlled private fixture evidence. None handling remains source
+preserved, without a separate all-clean-close claim. Ordinary task ownership,
+readiness/layout and final gates remain open. Prior H2 proxy verification stays
+separate. No Cargo or tests were run by this reviewer.
+
+JSON SHA256: `220a7d67b819a54c658aa1cfe45b3e54b61a8677d8cabfdc77093d8c3e3a461c`.

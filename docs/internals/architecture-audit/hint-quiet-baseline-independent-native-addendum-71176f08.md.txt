@@ -1,0 +1,22 @@
+# ALPS quiet independent causal execution review
+
+Approve the actual baseline evidence at `71176f0835e4041c4a72d4505593c80e550a5dff`. Windows and Linux
+each run the same 53 tests: 52 pass and one reaches the expected missing-error
+assertion. Formatting, strict focused Clippy and Rust 1.88 checks pass; test
+steps exit 100 and runners exit 1.
+
+Both complete test logs and all ancillary logs, receipts and the launcher were
+manually read. All20 raw receipt identities match, with launcher/report bound
+separately. The two source blobs equal reviewed f0cf bytes. Quiet and actual
+second-request positives plus the prior50 tests pass.
+
+The failed control reaches line79 only after actual trusted GET, authority,
+path, H2, header/order, empty-request and 204/empty-body prerequisites and the
+real-reader invocation assertion. Typed H2/get_io assertions at80-85 remain
+unreached. The controlled injected failure is a private fixture defect
+reproduction; no native OS fault or production defect is inferred.
+
+No Cargo or tests were run here. Source whole-file credit, remedy approval and
+final integration gates are not implied.
+
+JSON SHA256: `b0af4dc7d47fa1fdc3de4ecb803553e622780d873e74a2dca73372163a61f2a2`.

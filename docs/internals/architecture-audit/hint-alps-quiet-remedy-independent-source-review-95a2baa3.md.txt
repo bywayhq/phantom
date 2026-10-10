@@ -1,0 +1,22 @@
+# ALPS quiet error remedy independent source review
+
+Approve exact `95a2baa3f6767b9d030df12d4e968145c602d26e` for fixed native verification. The full signed
+diff and entire changed function588-624 were read. Current parent coverage
+remains partial.
+
+Some(Err(actual H2 error)) is returned as the original typed object through
+the existing boxed result. H2 get_io retains the original IO kind and message.
+Unexpected second-request rejection stays exact. None and the original200ms
+timeout retain finite quiet success. No owner, profile, readiness or wire
+operation changes.
+
+The exact inverse replacement restores every other parent byte, including
+all17 original bodies. All four children remain byte-identical. Author Git
+identities and valid range hashes match. The separately reviewed baseline
+reaches the intended missing-error assertion on both hosts; later typed
+assertions still require fixed native verification.
+
+No Cargo or tests were run here. Other owner/readiness/layout findings and
+full integration gates remain separate.
+
+JSON SHA256: `ba51892ff01215c7f763ca97693e5f775fae75f8eb7c6e8156590dc954f575e0`.

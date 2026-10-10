@@ -40,13 +40,31 @@ do not establish that need.
 
 ## Recent verification
 
+The [ALPS quiet repair](hint-quiet-remedy-native-c12d5f49.md.txt) passes
+all 53 selected request methods on Windows and Linux at `c12d5f49`. Its
+actual failed-read control failed at `71176f08` after a real exchange and
+invoked reader. The unchanged control now observes its original typed H2
+and IO cause. Formatting, strict focused Clippy and Rust 1.88 checks pass.
+Independent [source](hint-alps-quiet-remedy-independent-source-review-95a2baa3.md.txt)
+and [native](hint-quiet-remedy-independent-native-addendum-c12d5f49.md.txt)
+reviews approve this bounded result. Hint readiness, ownership and final
+gates remain open.
+
+The [capture source review](capture-session-source-standards-review-42858688.md.txt)
+records five whole owners and seven whole test modules, with supporting
+reads separately qualified. Startup, accepted-task ownership, error
+classification, parsing and input-validation candidates need causal
+controls and assigned repairs. This report has no runtime evidence or
+independent whole-source sign-off.
+
 The [cookie cleanup result](cookie-remedy-native-42858688.md.txt) records
 all 50 selected request methods and all 100 HTTP/2 proxy methods passing
 on Windows and Linux at `42858688`. Formatting, strict combined Clippy and
 Rust 1.88 checks pass. All five formerly failing cookie controls now observe
 task release or the completed redirect causes. Independent source review
-approves the ownership remedy and its import-only follow-up. Current cookie
-native review and final workspace gates remain pending.
+approves the ownership remedy and its import-only follow-up. The
+[independent native review](cookie-remedy-independent-native-addendum-42858688.md.txt)
+approves the focused cookie results. Final workspace gates remain pending.
 
 The [HTTP/2 native review](h2-connect-registry-independent-native-addendum-a0d2c622.md.txt)
 approves the earlier focused result. Historical failed cookie and HTTP/2
