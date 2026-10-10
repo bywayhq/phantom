@@ -525,7 +525,7 @@ fn spawn_http2_relay(
             loop {
                 let count = read.read(&mut buffer).await?;
                 if count == 0 {
-                    send.send_data(Bytes::new(), true)?;
+                    send_http2_data(&mut send, Bytes::new(), true)?;
                     return TestResult::Ok(());
                 }
                 let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
@@ -535,13 +535,21 @@ fn spawn_http2_relay(
                         .await
                         .ok_or("proxy CONNECT response stream closed during relay")??;
                     let part = chunk.split_to(capacity.min(chunk.len()));
-                    send.send_data(part, false)?;
+                    send_http2_data(&mut send, part, false)?;
                 }
             }
         }
         .await;
         relay_result(result)
     }));
+}
+
+fn send_http2_data(
+    send: &mut ::http2::SendStream<Bytes>,
+    data: Bytes,
+    end_stream: bool,
+) -> TestResult<()> {
+    send.send_data(data, end_stream).map_err(Into::into)
 }
 
 /// A deliberate peer teardown can reset the stream or close its transport.
