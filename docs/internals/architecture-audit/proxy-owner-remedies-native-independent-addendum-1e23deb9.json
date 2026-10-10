@@ -1,0 +1,1535 @@
+{
+  "schema": "bounded-native-proxy-owner-independent-addendum-v1",
+  "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+  "compile_failure_revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+  "verdict": "Approve the retained focused both-host native result at1e23:89 selected passing methods per host and seven successful stages. No full gate or fresh whole-source coverage follows.",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-windows.revision",
+      "raw_sha256": "15084db8cb4295dd1cc9d60463022198acba96c3266efaed7151551beb35ec1e",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "15084db8cb4295dd1cc9d60463022198acba96c3266efaed7151551beb35ec1e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-socks-windows.log",
+      "raw_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91",
+      "byte_length": 1035,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-socks-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-credential-windows.log",
+      "raw_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91",
+      "byte_length": 1035,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-credential-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-proxies-windows.log",
+      "raw_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91",
+      "byte_length": 1035,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-proxies-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-streams-windows.log",
+      "raw_sha256": "897e6bfff499f9093211f5cfafbbc9cf3c08564ade8725a2214a99aeaf1a818c",
+      "byte_length": 1516,
+      "line_count": 14,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 14,
+          "raw_range_sha256": "897e6bfff499f9093211f5cfafbbc9cf3c08564ade8725a2214a99aeaf1a818c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-streams-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-clippy-windows.log",
+      "raw_sha256": "771d3804455444bdb61731dc87bd7f19ec9343429aa09a1df9ddea951da6f0ea",
+      "byte_length": 914,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "771d3804455444bdb61731dc87bd7f19ec9343429aa09a1df9ddea951da6f0ea"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-clippy-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-msrv-windows.log",
+      "raw_sha256": "a10f8eff831b87085eec64a52dd556a0bda9fbfb54f0540f66865a24a637f6bd",
+      "byte_length": 1922,
+      "line_count": 36,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 36,
+          "raw_range_sha256": "a10f8eff831b87085eec64a52dd556a0bda9fbfb54f0540f66865a24a637f6bd"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-msrv-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-linux.revision",
+      "raw_sha256": "15084db8cb4295dd1cc9d60463022198acba96c3266efaed7151551beb35ec1e",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "15084db8cb4295dd1cc9d60463022198acba96c3266efaed7151551beb35ec1e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-socks-linux.log",
+      "raw_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c",
+      "byte_length": 1033,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-socks-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-credential-linux.log",
+      "raw_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c",
+      "byte_length": 1033,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-credential-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-proxies-linux.log",
+      "raw_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c",
+      "byte_length": 1033,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-proxies-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-streams-linux.log",
+      "raw_sha256": "06ef22caa7146ed520a34edfaa53c56b4e75cbf9945e32a543b63e4994d9ee49",
+      "byte_length": 1526,
+      "line_count": 14,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 14,
+          "raw_range_sha256": "06ef22caa7146ed520a34edfaa53c56b4e75cbf9945e32a543b63e4994d9ee49"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-environment-streams-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-clippy-linux.log",
+      "raw_sha256": "f9bac77ba982b101928c016b66c7fc58928e6bc241bb45f2a09992328ce836cf",
+      "byte_length": 924,
+      "line_count": 17,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 17,
+          "raw_range_sha256": "f9bac77ba982b101928c016b66c7fc58928e6bc241bb45f2a09992328ce836cf"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-clippy-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-msrv-linux.log",
+      "raw_sha256": "636db65769d767f7b826812f4abf254b77ae3c4b55d83b6e878ccd9e15139932",
+      "byte_length": 1932,
+      "line_count": 36,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 36,
+          "raw_range_sha256": "636db65769d767f7b826812f4abf254b77ae3c4b55d83b6e878ccd9e15139932"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-de449064-msrv-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-windows.revision",
+      "raw_sha256": "e1458cda0be51979a02954f0e8ea549245965f6851feae2ed96cbcf0e914190d",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "e1458cda0be51979a02954f0e8ea549245965f6851feae2ed96cbcf0e914190d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-socks-windows.log",
+      "raw_sha256": "7b609512e03871c75532992de6b0ce2d6aa487728a807fb5b658ce61dacd73bd",
+      "byte_length": 7066,
+      "line_count": 58,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 58,
+          "raw_range_sha256": "7b609512e03871c75532992de6b0ce2d6aa487728a807fb5b658ce61dacd73bd"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-socks-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-credential-windows.log",
+      "raw_sha256": "4d870cd90801f609dadcd21d06b6e44313b51ce2f5843ae2840e1d3b23ae6ac1",
+      "byte_length": 2885,
+      "line_count": 23,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 23,
+          "raw_range_sha256": "4d870cd90801f609dadcd21d06b6e44313b51ce2f5843ae2840e1d3b23ae6ac1"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-credential-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-proxies-windows.log",
+      "raw_sha256": "1fc0821404e55f97c4ed88755db1b492708c20327be358a040940337c46d0e16",
+      "byte_length": 2338,
+      "line_count": 20,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 20,
+          "raw_range_sha256": "1fc0821404e55f97c4ed88755db1b492708c20327be358a040940337c46d0e16"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-proxies-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-streams-windows.log",
+      "raw_sha256": "beb5919a67cb96377819cb92be538bc28424c4ca289797ac49a7247e97d0b170",
+      "byte_length": 1420,
+      "line_count": 13,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 13,
+          "raw_range_sha256": "beb5919a67cb96377819cb92be538bc28424c4ca289797ac49a7247e97d0b170"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-streams-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-clippy-windows.log",
+      "raw_sha256": "153c3817ccbfa2fa1e312032c2c430d506014417d2632f166c7b6bc28399b1ab",
+      "byte_length": 167,
+      "line_count": 2,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "153c3817ccbfa2fa1e312032c2c430d506014417d2632f166c7b6bc28399b1ab"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-msrv-windows.log",
+      "raw_sha256": "f87d212f4255f6321ca95806b6da6e0e22f46f839c852550c4e73de4bc7fb264",
+      "byte_length": 168,
+      "line_count": 2,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "f87d212f4255f6321ca95806b6da6e0e22f46f839c852550c4e73de4bc7fb264"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-linux.revision",
+      "raw_sha256": "e1458cda0be51979a02954f0e8ea549245965f6851feae2ed96cbcf0e914190d",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "e1458cda0be51979a02954f0e8ea549245965f6851feae2ed96cbcf0e914190d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-socks-linux.log",
+      "raw_sha256": "879bbef6d8c9e6852d7114c295667e7a43b051f8e4209ffb7afe5b86dbde3423",
+      "byte_length": 7076,
+      "line_count": 58,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 58,
+          "raw_range_sha256": "879bbef6d8c9e6852d7114c295667e7a43b051f8e4209ffb7afe5b86dbde3423"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-socks-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-credential-linux.log",
+      "raw_sha256": "388539e826c7ffaa6fe13e183334a5806d4f0214ad5ba6b799ce554f8c3feb96",
+      "byte_length": 2885,
+      "line_count": 23,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 23,
+          "raw_range_sha256": "388539e826c7ffaa6fe13e183334a5806d4f0214ad5ba6b799ce554f8c3feb96"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-credential-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-proxies-linux.log",
+      "raw_sha256": "95a9a2a4c57851d735cb2a255d34646c2ae9e12331d7faaef01d8ea2af95fe2a",
+      "byte_length": 2338,
+      "line_count": 20,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 20,
+          "raw_range_sha256": "95a9a2a4c57851d735cb2a255d34646c2ae9e12331d7faaef01d8ea2af95fe2a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-proxies-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-streams-linux.log",
+      "raw_sha256": "14a03b603f7ed89380ac1b14e9a2057606549aa737ac2a7a777d8b35c64c8e09",
+      "byte_length": 1420,
+      "line_count": 13,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 13,
+          "raw_range_sha256": "14a03b603f7ed89380ac1b14e9a2057606549aa737ac2a7a777d8b35c64c8e09"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-environment-streams-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-clippy-linux.log",
+      "raw_sha256": "2ba995578a47e356605f4b9840c5943f313ca4be1fe91e1a391d7353f7e525ee",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "2ba995578a47e356605f4b9840c5943f313ca4be1fe91e1a391d7353f7e525ee"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-msrv-linux.log",
+      "raw_sha256": "46a227cd7d93a725c74dea5ae0d0178d478ce6f5cc00a04f7ac633bd032723b3",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 2,
+          "raw_range_sha256": "46a227cd7d93a725c74dea5ae0d0178d478ce6f5cc00a04f7ac633bd032723b3"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-owner-remedies-1e23deb9-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 1,
+          "raw_range_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-owner-remedies-de449064.sh",
+      "raw_sha256": "f126e04aaa6a0d4af89dbf8b9a3395832af7edf9524d92f8823b4eb349e932ee",
+      "byte_length": 2744,
+      "line_count": 51,
+      "read_scope": "retained root artifact read fully",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 51,
+          "raw_range_sha256": "f126e04aaa6a0d4af89dbf8b9a3395832af7edf9524d92f8823b4eb349e932ee"
+        }
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "label": "de449064",
+      "host": "windows",
+      "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+      "runner_exit": 1,
+      "steps": {
+        "fmt": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        },
+        "socks": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "credential": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "environment-proxies": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "environment-streams": {
+          "exit": 0,
+          "selected_methods": [
+            "environment_routes::ownership_controls::sse::a_joined_reconnect_peer_keeps_both_heads_and_last_event_id",
+            "environment_routes::ownership_controls::sse::cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+            "environment_routes::ownership_controls::stream_deadline_retains_its_elapsed_cause",
+            "environment_routes::ownership_controls::websocket::a_joined_peer_keeps_literal_connect_opening_and_pong",
+            "environment_routes::ownership_controls::websocket::an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+            "environment_routes::sse::event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection",
+            "environment_routes::websocket::ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them"
+          ],
+          "run_id": "e7913a0b-0ca8-47cb-9865-871d2b64bfe5",
+          "counts": {
+            "run": 7,
+            "passed": 7,
+            "skipped": 256
+          }
+        },
+        "clippy": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "msrv": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": true
+        }
+      },
+      "total_selected_passed": 7
+    },
+    {
+      "label": "de449064",
+      "host": "linux",
+      "revision": "de449064b3f5d81ecb4b2d66b2a62485bb924b37",
+      "runner_exit": 1,
+      "steps": {
+        "fmt": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        },
+        "socks": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "credential": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "environment-proxies": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "environment-streams": {
+          "exit": 0,
+          "selected_methods": [
+            "environment_routes::ownership_controls::sse::a_joined_reconnect_peer_keeps_both_heads_and_last_event_id",
+            "environment_routes::ownership_controls::sse::cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+            "environment_routes::ownership_controls::stream_deadline_retains_its_elapsed_cause",
+            "environment_routes::ownership_controls::websocket::a_joined_peer_keeps_literal_connect_opening_and_pong",
+            "environment_routes::ownership_controls::websocket::an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+            "environment_routes::sse::event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection",
+            "environment_routes::websocket::ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them"
+          ],
+          "run_id": "95385d71-982e-4d96-87bc-f2e2ddf38e4d",
+          "counts": {
+            "run": 7,
+            "passed": 7,
+            "skipped": 256
+          }
+        },
+        "clippy": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": false
+        },
+        "msrv": {
+          "exit": 101,
+          "selected_methods": [],
+          "run_id": null,
+          "classification": "compile failure; no proxy runtime selection executed",
+          "additional_msrv_e0283": true
+        }
+      },
+      "total_selected_passed": 7
+    },
+    {
+      "label": "1e23deb9",
+      "host": "windows",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "runner_exit": 0,
+      "steps": {
+        "fmt": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        },
+        "socks": {
+          "exit": 0,
+          "selected_methods": [
+            "socks5::auth::http1_authenticates_before_remote_dns_connect",
+            "socks5::auth::http2_authenticates_before_remote_dns_connect",
+            "socks5::auth::http2_pool_separates_credentials_and_reuses_matches",
+            "socks5::auth::plaintext_http1_authenticates_before_remote_dns_connect",
+            "socks5::auth::rejected_authentication_sends_no_connect_or_direct_origin_attempt",
+            "socks5::auth::websocket_authenticates_on_the_remote_dns_route",
+            "socks5::deadline_contract::the_actual_socks_bound_retains_elapsed",
+            "socks5::deadline_contract::the_socks_bound_keeps_a_successful_operation",
+            "socks5::deadline_contract::the_socks_bound_keeps_an_inner_typed_failure",
+            "socks5::http1_canonicalizes_unicode_before_proxy_owned_dns",
+            "socks5::invalid_origin_field_fails_before_socks5_io",
+            "socks5::invalid_plaintext_websocket_field_fails_before_socks5_io",
+            "socks5::io_disabled_runtime_returns_typed_error",
+            "socks5::negotiated_plaintext_http1_uses_the_remote_dns_tunnel",
+            "socks5::peer_contract::a_completed_pool_failure_observes_driven_siblings_before_return",
+            "socks5::peer_contract::a_completed_socks_route_preserves_literal_handshake_and_http_observations",
+            "socks5::peer_contract::a_handler_failure_retains_the_other_completed_authenticated_outcome",
+            "socks5::peer_contract::a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers",
+            "socks5::peer_contract::an_authenticated_origin_failure_retains_its_completed_proxy_failure",
+            "socks5::peer_contract::an_authenticated_route_retains_literal_credentials_connect_and_http_observations",
+            "socks5::peer_contract::an_origin_failure_retains_a_completed_socks_proxy_failure",
+            "socks5::peer_contract::cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retained",
+            "socks5::peer_contract::cancelling_a_driven_socks_route_stops_both_peers_with_client_retained",
+            "socks5::peer_contract::cancelling_an_authenticated_route_stops_driven_peers_with_client_retained",
+            "socks5::peer_contract::successful_authenticated_handlers_preserve_both_completed_results",
+            "socks5::plaintext_http1_uses_the_remote_dns_tunnel",
+            "socks5::plaintext_websocket_canonicalizes_host_through_remote_dns",
+            "socks5::rejected_plaintext_websocket_never_falls_back_direct",
+            "socks5::rejection_never_opens_a_direct_origin_connection",
+            "socks5::session_reuses_one_http2_connection_and_socks5_tunnel",
+            "socks5::websocket_canonicalizes_host_on_the_same_remote_dns_route",
+            "socks5_local::authenticated_http1_sends_a_locally_resolved_ip",
+            "socks5_local::authenticated_plaintext_websocket_uses_local_dns_route",
+            "socks5_local::deadline_contract::the_actual_local_socks_bound_keeps_elapsed_and_context",
+            "socks5_local::deadline_contract::the_local_socks_bound_keeps_a_successful_operation",
+            "socks5_local::deadline_contract::the_local_socks_bound_keeps_an_inner_typed_failure",
+            "socks5_local::http1_sends_a_locally_resolved_ip_to_the_proxy",
+            "socks5_local::peer_contract::a_failed_local_operation_finishes_its_driven_peers",
+            "socks5_local::peer_contract::cancelling_driven_local_setup_destroys_both_peers_before_transfer",
+            "socks5_local::peer_contract::completed_local_peers_keep_both_distinct_typed_failures",
+            "socks5_local::peer_contract::completed_local_peers_preserve_a_successful_wire_exchange",
+            "socks5_local::peer_contract::dropping_a_driven_local_route_destroys_both_peers",
+            "socks5_local::peer_contract::dropping_an_unpolled_local_route_destroys_both_transferred_peers",
+            "socks5_local::plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy",
+            "socks5_local::session_reuses_one_http2_connection_and_local_dns_tunnel",
+            "socks5_local::target_contract::a_numeric_ipv4_domain_is_not_a_local_ip_literal",
+            "socks5_local::target_contract::a_numeric_ipv6_domain_is_not_a_local_ip_literal",
+            "socks5_local::target_contract::an_ipv4_wire_literal_is_a_local_target",
+            "socks5_local::target_contract::an_ipv6_wire_literal_is_a_local_target",
+            "socks5_local::target_contract::an_ordinary_domain_is_not_a_local_ip_literal",
+            "socks5_local::websocket_uses_the_same_local_dns_route"
+          ],
+          "run_id": "936f1162-c05d-4538-a623-b88b8574e8b7",
+          "counts": {
+            "run": 51,
+            "passed": 51,
+            "skipped": 226
+          },
+          "route_owner_counts": {
+            "remote_socks": 31,
+            "local_socks": 20
+          }
+        },
+        "credential": {
+          "exit": 0,
+          "selected_methods": [
+            "proxy_credential_cache::deadline_contract::a_ready_operation_completes",
+            "proxy_credential_cache::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+            "proxy_credential_cache::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+            "proxy_credential_cache::each_client_starts_with_an_empty_credential_record",
+            "proxy_credential_cache::keep_alive_challenges_cost_no_extra_proxy_connection",
+            "proxy_credential_cache::observer_contract::a_healthy_proxy_writer_records_both_literal_challenges",
+            "proxy_credential_cache::observer_contract::a_poisoned_origin_writer_refuses_its_next_authenticated_request",
+            "proxy_credential_cache::observer_contract::a_poisoned_proxy_writer_fails_before_an_unrecorded_challenge",
+            "proxy_credential_cache::observer_contract::poisoned_counts_report_failure_after_a_real_authenticated_exchange",
+            "proxy_credential_cache::peer_contract::a_caller_failure_keeps_the_completed_truncated_connect_failure",
+            "proxy_credential_cache::peer_contract::an_ordinary_authenticated_exchange_completes_with_literal_observations",
+            "proxy_credential_cache::peer_contract::dropping_the_counting_proxy_closes_its_authenticated_live_relay",
+            "proxy_credential_cache::peer_contract::dropping_the_origin_closes_an_accepted_incomplete_tls_connection",
+            "proxy_credential_cache::peer_contract::origin_completion_retains_a_completed_invalid_tls_failure",
+            "proxy_credential_cache::peer_contract::proxy_completion_retains_a_completed_truncated_connect_failure",
+            "proxy_credential_cache::remembered_credentials_never_reach_another_proxy_or_the_origin",
+            "proxy_credential_cache::sequential_tunnels_pay_for_one_challenge_instead_of_one_per_tunnel"
+          ],
+          "run_id": "afa572fd-70f2-4615-83dc-8117486bf5b7",
+          "counts": {
+            "run": 17,
+            "passed": 17,
+            "skipped": 260
+          }
+        },
+        "environment-proxies": {
+          "exit": 0,
+          "selected_methods": [
+            "environment::an_untrusted_https_environment_proxy_is_rejected_without_disabling_verification",
+            "environment::bypass_uses_the_logical_domain_boundary_case_and_effective_port",
+            "environment::environment_credentials_challenge_once_and_remain_partitioned_from_overrides_and_origin",
+            "environment::explicit_request_and_client_routes_win_independently_of_snapshot_setter_order",
+            "environment::h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requirement_at_build",
+            "environment::injected_snapshot_is_owned_and_ambient_settings_are_not_needed",
+            "environment::ownership_controls::an_observed_h2_completion_signal_succeeds_after_literal_data",
+            "environment::ownership_controls::consumed_h2_response_keeps_the_completion_receiver_cause",
+            "environment::ownership_controls::consumed_h2_response_keeps_the_unexpected_transport_cause",
+            "environment::ownership_controls::proxy_deadline_retains_its_elapsed_cause",
+            "environment::ownership_controls::relay::dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live",
+            "environment::redirects_reselect_the_environment_route_in_both_directions",
+            "environment::rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly",
+            "environment::trusted_https_environment_proxy_carries_verified_h2_origin_tls"
+          ],
+          "run_id": "4052b5fb-ba28-44ae-871a-9d621e7958b5",
+          "counts": {
+            "run": 14,
+            "passed": 14,
+            "skipped": 263
+          }
+        },
+        "environment-streams": {
+          "exit": 0,
+          "selected_methods": [
+            "environment_routes::ownership_controls::sse::a_joined_reconnect_peer_keeps_both_heads_and_last_event_id",
+            "environment_routes::ownership_controls::sse::cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+            "environment_routes::ownership_controls::stream_deadline_retains_its_elapsed_cause",
+            "environment_routes::ownership_controls::websocket::a_joined_peer_keeps_literal_connect_opening_and_pong",
+            "environment_routes::ownership_controls::websocket::an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+            "environment_routes::sse::event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection",
+            "environment_routes::websocket::ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them"
+          ],
+          "run_id": "a3dbbda9-b8e8-442f-82ab-f693e67fc714",
+          "counts": {
+            "run": 7,
+            "passed": 7,
+            "skipped": 256
+          }
+        },
+        "clippy": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        },
+        "msrv": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        }
+      },
+      "total_selected_passed": 89
+    },
+    {
+      "label": "1e23deb9",
+      "host": "linux",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "runner_exit": 0,
+      "steps": {
+        "fmt": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        },
+        "socks": {
+          "exit": 0,
+          "selected_methods": [
+            "socks5::auth::http1_authenticates_before_remote_dns_connect",
+            "socks5::auth::http2_authenticates_before_remote_dns_connect",
+            "socks5::auth::http2_pool_separates_credentials_and_reuses_matches",
+            "socks5::auth::plaintext_http1_authenticates_before_remote_dns_connect",
+            "socks5::auth::rejected_authentication_sends_no_connect_or_direct_origin_attempt",
+            "socks5::auth::websocket_authenticates_on_the_remote_dns_route",
+            "socks5::deadline_contract::the_actual_socks_bound_retains_elapsed",
+            "socks5::deadline_contract::the_socks_bound_keeps_a_successful_operation",
+            "socks5::deadline_contract::the_socks_bound_keeps_an_inner_typed_failure",
+            "socks5::http1_canonicalizes_unicode_before_proxy_owned_dns",
+            "socks5::invalid_origin_field_fails_before_socks5_io",
+            "socks5::invalid_plaintext_websocket_field_fails_before_socks5_io",
+            "socks5::io_disabled_runtime_returns_typed_error",
+            "socks5::negotiated_plaintext_http1_uses_the_remote_dns_tunnel",
+            "socks5::peer_contract::a_completed_pool_failure_observes_driven_siblings_before_return",
+            "socks5::peer_contract::a_completed_socks_route_preserves_literal_handshake_and_http_observations",
+            "socks5::peer_contract::a_handler_failure_retains_the_other_completed_authenticated_outcome",
+            "socks5::peer_contract::a_second_tls_failure_retains_completed_causes_and_observes_driven_handlers",
+            "socks5::peer_contract::an_authenticated_origin_failure_retains_its_completed_proxy_failure",
+            "socks5::peer_contract::an_authenticated_route_retains_literal_credentials_connect_and_http_observations",
+            "socks5::peer_contract::an_origin_failure_retains_a_completed_socks_proxy_failure",
+            "socks5::peer_contract::cancelling_a_driven_socks_proxy_owner_stops_its_peer_with_client_retained",
+            "socks5::peer_contract::cancelling_a_driven_socks_route_stops_both_peers_with_client_retained",
+            "socks5::peer_contract::cancelling_an_authenticated_route_stops_driven_peers_with_client_retained",
+            "socks5::peer_contract::successful_authenticated_handlers_preserve_both_completed_results",
+            "socks5::plaintext_http1_uses_the_remote_dns_tunnel",
+            "socks5::plaintext_websocket_canonicalizes_host_through_remote_dns",
+            "socks5::rejected_plaintext_websocket_never_falls_back_direct",
+            "socks5::rejection_never_opens_a_direct_origin_connection",
+            "socks5::session_reuses_one_http2_connection_and_socks5_tunnel",
+            "socks5::websocket_canonicalizes_host_on_the_same_remote_dns_route",
+            "socks5_local::authenticated_http1_sends_a_locally_resolved_ip",
+            "socks5_local::authenticated_plaintext_websocket_uses_local_dns_route",
+            "socks5_local::deadline_contract::the_actual_local_socks_bound_keeps_elapsed_and_context",
+            "socks5_local::deadline_contract::the_local_socks_bound_keeps_a_successful_operation",
+            "socks5_local::deadline_contract::the_local_socks_bound_keeps_an_inner_typed_failure",
+            "socks5_local::http1_sends_a_locally_resolved_ip_to_the_proxy",
+            "socks5_local::peer_contract::a_failed_local_operation_finishes_its_driven_peers",
+            "socks5_local::peer_contract::cancelling_driven_local_setup_destroys_both_peers_before_transfer",
+            "socks5_local::peer_contract::completed_local_peers_keep_both_distinct_typed_failures",
+            "socks5_local::peer_contract::completed_local_peers_preserve_a_successful_wire_exchange",
+            "socks5_local::peer_contract::dropping_a_driven_local_route_destroys_both_peers",
+            "socks5_local::peer_contract::dropping_an_unpolled_local_route_destroys_both_transferred_peers",
+            "socks5_local::plaintext_http1_sends_a_locally_resolved_ip_to_the_proxy",
+            "socks5_local::session_reuses_one_http2_connection_and_local_dns_tunnel",
+            "socks5_local::target_contract::a_numeric_ipv4_domain_is_not_a_local_ip_literal",
+            "socks5_local::target_contract::a_numeric_ipv6_domain_is_not_a_local_ip_literal",
+            "socks5_local::target_contract::an_ipv4_wire_literal_is_a_local_target",
+            "socks5_local::target_contract::an_ipv6_wire_literal_is_a_local_target",
+            "socks5_local::target_contract::an_ordinary_domain_is_not_a_local_ip_literal",
+            "socks5_local::websocket_uses_the_same_local_dns_route"
+          ],
+          "run_id": "f66a3339-341c-4567-9bdd-9e18c646482c",
+          "counts": {
+            "run": 51,
+            "passed": 51,
+            "skipped": 226
+          },
+          "route_owner_counts": {
+            "remote_socks": 31,
+            "local_socks": 20
+          }
+        },
+        "credential": {
+          "exit": 0,
+          "selected_methods": [
+            "proxy_credential_cache::deadline_contract::a_ready_operation_completes",
+            "proxy_credential_cache::deadline_contract::an_inner_failure_keeps_its_concrete_type",
+            "proxy_credential_cache::deadline_contract::expiry_retains_the_actual_elapsed_cause",
+            "proxy_credential_cache::each_client_starts_with_an_empty_credential_record",
+            "proxy_credential_cache::keep_alive_challenges_cost_no_extra_proxy_connection",
+            "proxy_credential_cache::observer_contract::a_healthy_proxy_writer_records_both_literal_challenges",
+            "proxy_credential_cache::observer_contract::a_poisoned_origin_writer_refuses_its_next_authenticated_request",
+            "proxy_credential_cache::observer_contract::a_poisoned_proxy_writer_fails_before_an_unrecorded_challenge",
+            "proxy_credential_cache::observer_contract::poisoned_counts_report_failure_after_a_real_authenticated_exchange",
+            "proxy_credential_cache::peer_contract::a_caller_failure_keeps_the_completed_truncated_connect_failure",
+            "proxy_credential_cache::peer_contract::an_ordinary_authenticated_exchange_completes_with_literal_observations",
+            "proxy_credential_cache::peer_contract::dropping_the_counting_proxy_closes_its_authenticated_live_relay",
+            "proxy_credential_cache::peer_contract::dropping_the_origin_closes_an_accepted_incomplete_tls_connection",
+            "proxy_credential_cache::peer_contract::origin_completion_retains_a_completed_invalid_tls_failure",
+            "proxy_credential_cache::peer_contract::proxy_completion_retains_a_completed_truncated_connect_failure",
+            "proxy_credential_cache::remembered_credentials_never_reach_another_proxy_or_the_origin",
+            "proxy_credential_cache::sequential_tunnels_pay_for_one_challenge_instead_of_one_per_tunnel"
+          ],
+          "run_id": "80b3b294-a992-4c0b-a919-de9e9cdce9a1",
+          "counts": {
+            "run": 17,
+            "passed": 17,
+            "skipped": 260
+          }
+        },
+        "environment-proxies": {
+          "exit": 0,
+          "selected_methods": [
+            "environment::an_untrusted_https_environment_proxy_is_rejected_without_disabling_verification",
+            "environment::bypass_uses_the_logical_domain_boundary_case_and_effective_port",
+            "environment::environment_credentials_challenge_once_and_remain_partitioned_from_overrides_and_origin",
+            "environment::explicit_request_and_client_routes_win_independently_of_snapshot_setter_order",
+            "environment::h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requirement_at_build",
+            "environment::injected_snapshot_is_owned_and_ambient_settings_are_not_needed",
+            "environment::ownership_controls::an_observed_h2_completion_signal_succeeds_after_literal_data",
+            "environment::ownership_controls::consumed_h2_response_keeps_the_completion_receiver_cause",
+            "environment::ownership_controls::consumed_h2_response_keeps_the_unexpected_transport_cause",
+            "environment::ownership_controls::proxy_deadline_retains_its_elapsed_cause",
+            "environment::ownership_controls::relay::dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live",
+            "environment::redirects_reselect_the_environment_route_in_both_directions",
+            "environment::rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly",
+            "environment::trusted_https_environment_proxy_carries_verified_h2_origin_tls"
+          ],
+          "run_id": "7f00fa1d-4841-41ff-99ba-25cfcc9703f9",
+          "counts": {
+            "run": 14,
+            "passed": 14,
+            "skipped": 263
+          }
+        },
+        "environment-streams": {
+          "exit": 0,
+          "selected_methods": [
+            "environment_routes::ownership_controls::sse::a_joined_reconnect_peer_keeps_both_heads_and_last_event_id",
+            "environment_routes::ownership_controls::sse::cancelling_the_owner_after_an_event_cancels_its_reconnect_peer",
+            "environment_routes::ownership_controls::stream_deadline_retains_its_elapsed_cause",
+            "environment_routes::ownership_controls::websocket::a_joined_peer_keeps_literal_connect_opening_and_pong",
+            "environment_routes::ownership_controls::websocket::an_early_owner_error_cancels_the_peer_after_connect_and_ping",
+            "environment_routes::sse::event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection",
+            "environment_routes::websocket::ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them"
+          ],
+          "run_id": "5d0606c5-9d65-4be4-916f-2d66603cc589",
+          "counts": {
+            "run": 7,
+            "passed": 7,
+            "skipped": 256
+          }
+        },
+        "clippy": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        },
+        "msrv": {
+          "exit": 0,
+          "selected_methods": [],
+          "run_id": null
+        }
+      },
+      "total_selected_passed": 89
+    }
+  ],
+  "supporting_source_reads": [
+    {
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "git_blob_oid": "09944e74e3a0e67755266590565f4e1d69578dbb",
+      "raw_sha256": "a92a190ac98ac6fdb2f17aa6d3e4ee21e3984eba8c13cff2f55333f32f25209e",
+      "line_count": 320,
+      "read_scope": "full source read for native correlation, not a new whole-module standards disposition",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 320,
+          "raw_range_sha256": "a92a190ac98ac6fdb2f17aa6d3e4ee21e3984eba8c13cff2f55333f32f25209e"
+        }
+      ]
+    },
+    {
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+      "git_blob_oid": "6a265f8bde5a226aa75de03858d10b7c17b33a9c",
+      "raw_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02",
+      "line_count": 63,
+      "read_scope": "full source read for native correlation; unchanged historical baseline object",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 63,
+          "raw_range_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02"
+        }
+      ]
+    },
+    {
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "git_blob_oid": "cdc337486da359827b5253857e720815b30fad69",
+      "raw_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4",
+      "line_count": 159,
+      "read_scope": "full source read for native correlation; unchanged historical baseline object",
+      "inclusive_read_ranges": [
+        {
+          "start": 1,
+          "end": 159,
+          "raw_range_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4"
+        }
+      ]
+    },
+    {
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "git_blob_oid": "370bbcae8671a2fbf57766e59d18ab040fb329c5",
+      "raw_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689",
+      "line_count": 469,
+      "read_scope": "supporting partial source read for actual cancellation assertion correlation",
+      "inclusive_read_ranges": [
+        {
+          "start": 245,
+          "end": 310,
+          "raw_range_sha256": "41455338d359b7a511452ed0a563f31ccd595c792c8048a6010c6ba7a4756ca7"
+        }
+      ]
+    },
+    {
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+      "git_blob_oid": "609662bba71cba98c23cfe4a01baf1e2d854d616",
+      "raw_sha256": "1e08e565c9fb30e120955eca7bd5458a2819e26826718a996dadbdd41481376b",
+      "line_count": 657,
+      "read_scope": "supporting partial source read for cause combination, drain, deadline and compile correction correlation",
+      "inclusive_read_ranges": [
+        {
+          "start": 263,
+          "end": 298,
+          "raw_range_sha256": "2e2d847d5ad9b241265c86273a76ad962c395441a8cfe6ed6199e0cf9428fc2a"
+        },
+        {
+          "start": 565,
+          "end": 657,
+          "raw_range_sha256": "ab9ab09bf5cc668b82f23299ff56c74560a9851e81f906699bf9a44ba0c409e1"
+        }
+      ]
+    }
+  ],
+  "compile_correction": {
+    "diff_raw_sha256": "6f0695eb9a0ffdf37fbe87c7e8f526da132668d645e194c05a83a2048005bf59",
+    "read_scope": "full actual one-line source diff",
+    "old": "joined.map_err(Into::into)?",
+    "new": "joined?",
+    "meaning": "Resolved return conversion retains typed JoinError through existing boxed Error conversion; no handler-result suppression."
+  },
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-proxy-owner-remedies-de449064.sh",
+    "assessment": "Clean exact HEAD checks before/after; Linux fetches and detaches explicit revision. Each real command exit saved independently, all seven stages continue after error, existing logs refused, final runner receipt preserved. Every Cargo operation uses the shared lock. Launcher reused with explicit final revision and label; filename itself is historical."
+  },
+  "actual_causal_dispositions": [
+    {
+      "contract": "Local setup cancellation",
+      "source": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "ranges": [
+        [
+          249,
+          294
+        ]
+      ],
+      "actual": "Whole method passes both hosts; both captured origin/proxy destruction assertions are reached with external Client retained during finite observation before backup. At199 only origin failure had been reached; proxy assertion was unreached.",
+      "limit": "Destructor witness, not an awaited task join or unconditional OS teardown."
+    },
+    {
+      "contract": "Credential Elapsed",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+      "ranges": [
+        [
+          21,
+          47
+        ]
+      ],
+      "actual": "Paused-clock actual timer expiry retains literal context and actual Elapsed source; ready and typed-inner positives pass."
+    },
+    {
+      "contract": "Credential poison",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "ranges": [
+        [
+          37,
+          65
+        ],
+        [
+          106,
+          118
+        ],
+        [
+          132,
+          159
+        ]
+      ],
+      "actual": "Real positive exchange and joined intentional poisoning precede refusal/count-error assertions. Formerly unreached completed-writer poison diagnostics now execute and pass."
+    },
+    {
+      "contract": "Completed credential child failures",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "ranges": [
+        [
+          171,
+          195
+        ],
+        [
+          197,
+          235
+        ]
+      ],
+      "actual": "Full controls pass, including concrete io::Error/UnexpectedEof and btls::ssl::Error assertions formerly unreached at199."
+    },
+    {
+      "contract": "Ready owner Drop",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "ranges": [
+        [
+          102,
+          170
+        ]
+      ],
+      "actual": "Actual authenticated live relay and accepted incomplete TLS controls now pass finite socket closure checks with retained Client/runtime before backup.",
+      "limit": "No stalled handshake completion or permanent leak/teardown guarantee."
+    },
+    {
+      "contract": "Combined caller and child failure",
+      "source": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "ranges": [
+        [
+          264,
+          320
+        ]
+      ],
+      "actual": "New17th credential method passes both hosts. Primary PermissionDenied is injected only after real authenticated exchange and actual malformed CONNECT completion; shared finish path returns inspectable FixtureFailures primary and cleanup typed io::Error/UnexpectedEof.",
+      "limit": "A controlled caller failure, not an independently measured production request failure."
+    }
+  ],
+  "limits": [
+    "Reviewer executed no Cargo or network; all execution belongs to retained root runners.",
+    "All65 raw artifacts and complete final/control supporting ranges read; artifacts copied or hashed create no new semantic whole-source audit credit.",
+    "de449 proxy compile failures are preserved, never counted as failing executed tests; only its streams seven methods ran per host.",
+    "89 methods per host are selected, not the full workspace gate. Unselected tests remain outside this result.",
+    "Cause assertions are native-tested under controlled wire/fault scenarios; no browser parity, live external interoperability, permanent OS cleanup or complete codebase acceptance follows."
+  ]
+}

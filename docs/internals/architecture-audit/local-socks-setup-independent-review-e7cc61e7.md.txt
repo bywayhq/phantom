@@ -1,0 +1,13 @@
+# Independent local SOCKS setup review
+
+Exact reviewed revision `e7cc61e7bd3ff344a40b8f7591eb9043fa7e998b`, parent `de2dfd911e074ab7064bf3d37a2df549f36560d6`. No actionable source blocker found in this bounded remedy. Native verification remains with integration.
+
+Read all four current local files in full: parent 456 lines, peer 469, deadline 60, target 99, plus the entire changed diff. Supporting ConnectionPeer lines 1–163, SOCKS pair finish lines 600–715 and SOCKS transport lines 1–240 are partial reads only. The paired JSON provides exact Git object, raw SHA256 and inclusive range hashes. Both author handoff artifacts were fully read and hashed.
+
+The only changed owner is peer_contract.rs. Both actual workers are immediately adopted before setup can await or return an error. Guarded fields remain guarded through transfer and unpolled completion. Backup handles do not substitute for ownership. The external Client clone holds the same connection during the destruction observations. Actual destruction is captured before backup cancellation or client Drop. Channel failure cannot count as observed destruction.
+
+Returned setup errors and a failed observer transfer call the existing pair finisher, which retains the primary plus independent typed completed/cleanup failures. Live peers stop with the existing five-second bounded join, accepting only intentional cancelled JoinError. No broad worker or transport error suppression was added. The literal exchange, both worker bodies and the new setup cancellation method are byte-equal. All ordered assertion calls remain equal; the parent, deadline and target source bytes are unchanged.
+
+All 20 local tests remain. Six ordinary route workflows retain their wire/status/body/authentication/stream observations. The original 199fa baseline first failed at the origin destruction assertion; its later proxy assertion was unreached. The new source review does not claim two measured failures.
+
+No source edits or Cargo were performed. Drop abort is asynchronous, not a synchronous join; actual cleanup/native outcomes require the integration run. The deliberately injected postexchange pretransfer suspension and finite destruction observations remain qualified. This review covers these owners and supporting ranges only.

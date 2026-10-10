@@ -40,6 +40,20 @@ do not establish that need.
 
 ## Recent verification
 
+At `1e23deb9`, Windows and Linux each pass 89 selected methods: 51 SOCKS,
+17 credential, 14 proxy environment and seven streaming environment tests.
+Formatting, strict selected Clippy and Rust 1.88 checks pass. The
+[root verification](proxy-owner-remedies-root-1e23deb9.md.txt) preserves
+the preceding compiler failure and its direct propagation repair.
+Independent source reviews cover the local setup, environment cleanup and
+credential remedy. Current source bindings replace changed baseline bytes;
+historical records remain intact. The
+[independent native review](proxy-owner-remedies-native-independent-addendum-1e23deb9.md.txt)
+confirms both hosts and preserves the earlier failed compilation. Final
+combined review and gates remain open.
+
+Earlier checkpoints follow and describe their own revisions.
+
 At `ff1d8452`, all 49 forward methods and selected formatting, strict
 Clippy and Rust 1.88 checks pass on Windows and Linux. At `199fa9ad`, the
 SOCKS selection passes 50 of 51 methods; pretransfer setup cancellation

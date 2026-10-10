@@ -1,0 +1,406 @@
+{
+  "schema": "bounded-independent-structural-source-review-v1",
+  "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+  "base": "08a64a01de83025042d3764c78480b05d3149800",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "verdict": "source approved for integration verification",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+      "blob_oid": "729888a500b03b77eae34c1da15dad79187fd3b1",
+      "sha256": "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b",
+      "line_count": 624,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          624
+        ]
+      ],
+      "range_sha256": [
+        "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b"
+      ],
+      "working_sha256": "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b",
+      "working_byte_domain": "Git-identical LF bytes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+      "blob_oid": "c6d88dea904c672e36d5dec116fb8136dfa7ba8f",
+      "sha256": "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4",
+      "line_count": 238,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          238
+        ]
+      ],
+      "range_sha256": [
+        "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4"
+      ],
+      "working_sha256": "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4",
+      "working_byte_domain": "Git-identical LF bytes"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+      "blob_oid": "2daea0b359230098a5ece78183e752c59a754dce",
+      "sha256": "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667",
+      "line_count": 156,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          156
+        ]
+      ],
+      "range_sha256": [
+        "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667"
+      ],
+      "working_sha256": "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667",
+      "working_byte_domain": "Git-identical LF bytes"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+      "blob_oid": "74cd3a6628029193b6936e205c465558d11705bd",
+      "sha256": "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c",
+      "line_count": 271,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          271
+        ]
+      ],
+      "range_sha256": [
+        "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c"
+      ],
+      "working_sha256": "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c",
+      "working_byte_domain": "Git-identical LF bytes"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+      "blob_oid": "eb03df6c77731a48e854a837d961aefa2fd3a0ce",
+      "sha256": "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35",
+      "line_count": 360,
+      "read_scope": "full",
+      "read_ranges": [
+        [
+          1,
+          360
+        ]
+      ],
+      "range_sha256": [
+        "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35"
+      ],
+      "working_sha256": "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35",
+      "working_byte_domain": "Git-identical LF bytes"
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "revision": "08a64a01de83025042d3764c78480b05d3149800",
+      "blob_oid": "f35e9de9958b205f48ae46f3c3a83f479a855b27",
+      "sha256": "dd7a19cd8fa838ec9c239a0f25b9dfe6d4b371689aaf3b926b3d88e4c356455a",
+      "line_count": 602,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "range_sha256": [
+        "5ae2c71ec84275c6b54ac83dfa4c1f707cb1a7907d6b78651b2cf03dc5747dd3"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "revision": "08a64a01de83025042d3764c78480b05d3149800",
+      "blob_oid": "e7e0f251a4dddab3519511a2952c08d248bb28ee",
+      "sha256": "5d23cf43ea4b97c1457f5ce9bc2d1118928a419b6ecde9d6a1cf16d457f5bf82",
+      "line_count": 264,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "range_sha256": [
+        "d9243960f0024cc1513540dd853129f3ff3b09221bcb5b0ceb020b12e0e35ed1"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "d92aeaf1cd62c679b80731a4065e231586de8164",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_scope": "partial",
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "range_sha256": [
+        "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+      ]
+    }
+  ],
+  "full_diff": {
+    "sha256": "a6cd6a8a3c681f100d9db5acb386804be831d2080bdfa6299899e246a56c995a",
+    "line_count": 655,
+    "read_scope": "full; initial truncated large output supplemented by complete parent and complete remaining four-file outputs"
+  },
+  "retained_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-peer-cleanup-handoff-d92aeaf1.md",
+      "sha256": "9940cc6bf6658ae1514f99996e144dc3bb54bc47abc1af761748e0d5a9f9240f",
+      "line_count": 13,
+      "read_ranges": [
+        [
+          1,
+          13
+        ]
+      ],
+      "classification": "full retained artifact manual read; author validator not executed because it rewrites original reports"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\environment-peer-cleanup-handoff-d92aeaf1.json",
+      "sha256": "a1dca855b39eedf11edc481ac3ab353782747d4e37d5bfa88ebca98972f79260",
+      "line_count": 254,
+      "read_ranges": [
+        [
+          1,
+          254
+        ]
+      ],
+      "classification": "full retained artifact manual read; author validator not executed because it rewrites original reports"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\validate-environment-peer-cleanup-d92aeaf1.py",
+      "sha256": "76426ccc9594c82fc2d1a5318b3fbc1f8f629bbea8816f82d6b269048a2862ce",
+      "line_count": 47,
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "classification": "full retained artifact manual read; author validator not executed because it rewrites original reports"
+    }
+  ],
+  "independent_equivalence": [
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "explicit_transformation_and_lexical_tokens_equal": true,
+      "raw_quoted_literals_equal": true,
+      "ordered_test_roster_equal": true,
+      "old_blob_oid": "f35e9de9958b205f48ae46f3c3a83f479a855b27",
+      "old_git_sha256": "dd7a19cd8fa838ec9c239a0f25b9dfe6d4b371689aaf3b926b3d88e4c356455a",
+      "old_source_credit": "bounded old wrapper contract and full diff only; no fresh full old owner review"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "explicit_transformation_and_lexical_tokens_equal": true,
+      "raw_quoted_literals_equal": true,
+      "ordered_test_roster_equal": true,
+      "old_blob_oid": "e0115c9e52661aa927cdae80f02d69788e096d3b",
+      "old_git_sha256": "8761bd9f0d0ab5783f80b6011934e7812633084d04342d99128b63ef22db8a17",
+      "old_source_credit": "bounded old wrapper contract and full diff only; no fresh full old owner review"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "explicit_transformation_and_lexical_tokens_equal": true,
+      "raw_quoted_literals_equal": true,
+      "ordered_test_roster_equal": true,
+      "old_blob_oid": "efb0d7bb945d16182bedc081720ad94074da3bb8",
+      "old_git_sha256": "8ea805f93d2415d329386d61755aa717125db480f148d13563cca7c039c5f3ce",
+      "old_source_credit": "bounded old wrapper contract and full diff only; no fresh full old owner review"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "explicit_transformation_and_lexical_tokens_equal": true,
+      "raw_quoted_literals_equal": true,
+      "ordered_test_roster_equal": true,
+      "old_blob_oid": "e7e0f251a4dddab3519511a2952c08d248bb28ee",
+      "old_git_sha256": "5d23cf43ea4b97c1457f5ce9bc2d1118928a419b6ecde9d6a1cf16d457f5bf82",
+      "old_source_credit": "bounded old wrapper contract and full diff only; no fresh full old owner review"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "explicit_transformation_and_lexical_tokens_equal": true,
+      "raw_quoted_literals_equal": true,
+      "ordered_test_roster_equal": true,
+      "old_blob_oid": "9c1b5d7caadc66e0b0cc71c7b8f0cc652a3f87dd",
+      "old_git_sha256": "4341255bd50bdc7558729fe89ca9f4b61b92b626818ca7198d27b9d54840ed97",
+      "old_source_credit": "bounded old wrapper contract and full diff only; no fresh full old owner review"
+    }
+  ],
+  "methods": [
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "injected_snapshot_is_owned_and_ambient_settings_are_not_needed"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "explicit_request_and_client_routes_win_independently_of_snapshot_setter_order"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "bypass_uses_the_logical_domain_boundary_case_and_effective_port"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "redirects_reselect_the_environment_route_in_both_directions"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "rejected_environment_proxy_tunnel_never_connects_to_the_origin_directly"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "environment_credentials_challenge_once_and_remain_partitioned_from_overrides_and_origin"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "h2_only_origin_profile_rejects_the_environment_proxy_h1_alpn_requirement_at_build"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "trusted_https_environment_proxy_carries_verified_h2_origin_tls"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "method": "an_untrusted_https_environment_proxy_is_rejected_without_disabling_verification"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "method": "proxy_deadline_retains_its_elapsed_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "method": "consumed_h2_response_keeps_the_completion_receiver_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "method": "consumed_h2_response_keeps_the_unexpected_transport_cause"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "method": "an_observed_h2_completion_signal_succeeds_after_literal_data"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "method": "dropping_the_verified_tunnel_relay_cancels_it_with_both_peers_live"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "method": "ws_uses_http_environment_tunnels_and_no_proxy_bypasses_them"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "method": "event_source_initial_and_reconnect_requests_keep_environment_or_bypass_selection"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "method": "stream_deadline_retains_its_elapsed_cause"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "method": "an_early_owner_error_cancels_the_peer_after_connect_and_ping"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "method": "a_joined_peer_keeps_literal_connect_opening_and_pong"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "method": "cancelling_the_owner_after_an_event_cancels_its_reconnect_peer"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "method": "a_joined_reconnect_peer_keeps_both_heads_and_last_event_id"
+    }
+  ],
+  "source_assessment": [
+    "The two aliases express no invariant beyond ConnectionPeer and the removed spawn_peer functions return its spawn directly. Direct calls retain the same eager acquisition and Future/Drop/stop behavior.",
+    "EnvironmentRelay and TunnelPeer encode actual relay/result responsibilities; spawn_relay performs an actual io::Result-to-TestResult conversion and remains.",
+    "All21 named tests retain ordered operations, literal request/response/frame/data/head assertions, finite bounds and classified causes after the explicit substitutions.",
+    "Returned errors still combine primary and concrete cleanup causes through the existing owner; inherited deliberate disconnect classifications remain narrow and unchanged.",
+    "Manual paragraphs separate snapshot acquisition from source mutation, selected route from real exchange, status/body from completion, H2 response preparation from completion witness, and observation from fallback/cleanup/assertions.",
+    "The relocated OK constant preserves the exact literal before responsibilities; no behavioral flag, dependency, shared API or generic task layer is introduced."
+  ],
+  "findings": [],
+  "evidence_qualifications": [
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "qualification": "Author working_basis saysCRLF; actual declared working hash and current bytes equal Git LF. Hashes remain valid; do not infer aCRLF domain from that label."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "qualification": "Author working_basis saysCRLF; actual declared working hash and current bytes equal Git LF. Hashes remain valid; do not infer aCRLF domain from that label."
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "qualification": "Author working_basis saysCRLF; actual declared working hash and current bytes equal Git LF. Hashes remain valid; do not infer aCRLF domain from that label."
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "qualification": "Author working_basis saysCRLF; actual declared working hash and current bytes equal Git LF. Hashes remain valid; do not infer aCRLF domain from that label."
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "qualification": "Author working_basis saysCRLF; actual declared working hash and current bytes equal Git LF. Hashes remain valid; do not infer aCRLF domain from that label."
+    }
+  ],
+  "rejected_candidates": [
+    "No helper layer is needed merely to rename an existing concrete owner.",
+    "No loss of relay error conversion from removing spawn_peer: spawn_relay remains and awaits its io::Result inside TestResult.",
+    "No synchronous cleanup claim from Drop: actual ConnectionPeer Drop aborts; explicit stop awaits under five-second bound.",
+    "Control result copying remains diagnostic only; original relay result is returned separately and has not been altered by whitespace cleanup."
+  ],
+  "checks": [
+    {
+      "command": [
+        "git",
+        "-C",
+        "C:\\code\\phantom-worktrees\\audit-environment-cleanup",
+        "diff",
+        "--check",
+        "08a64a01de83025042d3764c78480b05d3149800",
+        "d92aeaf1cd62c679b80731a4065e231586de8164"
+      ],
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "C:\\code\\phantom-worktrees\\audit-environment-cleanup\\crates\\phantom\\tests\\proxies\\environment.rs",
+        "C:\\code\\phantom-worktrees\\audit-environment-cleanup\\crates\\phantom\\tests\\proxies\\environment\\ownership_controls.rs",
+        "C:\\code\\phantom-worktrees\\audit-environment-cleanup\\crates\\phantom\\tests\\proxies\\environment\\ownership_controls\\relay.rs",
+        "C:\\code\\phantom-worktrees\\audit-environment-cleanup\\crates\\phantom\\tests\\streams\\environment_routes.rs",
+        "C:\\code\\phantom-worktrees\\audit-environment-cleanup\\crates\\phantom\\tests\\streams\\environment_routes\\ownership_controls.rs"
+      ],
+      "exit": 0,
+      "output": ""
+    }
+  ],
+  "limits": [
+    "No Cargo, native runtime, Clippy/MSRV or integration gate execution by this reviewer. Root owns both-host21-method and broader selected verification.",
+    "Five current owners were freshly read in full; shared owner and old wrapper contracts remain explicit supporting partial ranges.",
+    "Finite cancellation witnesses and existing abort-on-Drop do not prove permanent OS teardown.",
+    "This approves the scoped structural change, not whole audit closure or all production environment route behavior."
+  ]
+}

@@ -1,0 +1,13 @@
+# Environment peer structural cleanup
+
+Signed source checkpoint `d92aeaf1cd62c679b80731a4065e231586de8164`, parent `08a64a01de83025042d3764c78480b05d3149800`. Both identities are Arya Alikhani <AryaAlikhani@icloud.com>; Git signature status G. The lane is clean.
+
+The two private EnvironmentPeer aliases and passthrough spawn_peer functions are removed. Their callers now name the existing ConnectionPeer directly. EnvironmentRelay and TunnelPeer remain, as does spawn_relay's real io::Result conversion. The unchanged HTTP 200 constant is placed before helpers. Paragraphs separate setup, exchange, outcome, cleanup and assertions. No operation order, deadline, error classification, cancellation observation or wire literal changed.
+
+All five owned files were manually read in full before editing and again from the signed final Git objects. The paired JSON records exact revisions, blob OIDs, raw LF source hashes and inclusive full read range hashes, plus independently declared CRLF working-byte hashes. ConnectionPeer lines 1–98 were read as supporting scope only.
+
+The committed-source validator reconstructs precisely the allowed alias/helper removal, direct substitutions, child import and constant relocation. After those explicit changes, every lexical token matches except external whitespace. All raw quoted literals and ordered test declarations remain equal: 21 tests across the five files. Child proxy controls and relay control have whitespace changes only.
+
+Targeted rustfmt --edition 2024 --check over all five files and git diff --check passed before signing. No files changed after those checks. No Cargo or native execution occurred in this lane. Integration owns independent review, the existing 21 environment tests and stream callers on both hosts, and the gate.
+
+The source validator is `validate-environment-peer-cleanup-d92aeaf1.py`; the paired JSON is the exact source map. This is bounded structural cleanup and does not close the whole audit.

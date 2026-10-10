@@ -1,0 +1,546 @@
+{
+  "schema": "bounded-proxy-remedy-root-verification-v1",
+  "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+  "current_parent_read": {
+    "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+    "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+    "blob_oid": "609662bba71cba98c23cfe4a01baf1e2d854d616",
+    "raw_sha256": "1e08e565c9fb30e120955eca7bd5458a2819e26826718a996dadbdd41481376b",
+    "line_count": 657,
+    "read_scope": "full",
+    "inclusive_ranges": [
+      {
+        "start": 1,
+        "end": 350,
+        "raw_range_sha256": "75dfff5caa02b8585d5819c2a4152c21bf5433544c0eab59108ac64ba098c362"
+      },
+      {
+        "start": 351,
+        "end": 657,
+        "raw_range_sha256": "bbd81d9102add6a7e2bdd7c2d8425d4b11c5168485ea85181d52da430c26be6b"
+      }
+    ],
+    "scope": "Fresh manual complete current owner read after the one-line propagation fix; supporting helpers remain partial."
+  },
+  "exact_current_full_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "2efbfd6d50aa98d48e58c695e17fa071c96abf76",
+      "raw_sha256": "4c6306cf245d7c3745f5f1e2fa7e908375a1531188feeae2512416503447440b",
+      "line_count": 456,
+      "full_read_record": "local-socks-setup-independent-review-e7cc61e7.json#/source_reads/0"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/peer_contract.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "370bbcae8671a2fbf57766e59d18ab040fb329c5",
+      "raw_sha256": "0666c53bc9b9018c1ff3f1ea9e5db6090076d581e282233543933189ae7ae689",
+      "line_count": 469,
+      "full_read_record": "local-socks-setup-independent-review-e7cc61e7.json#/source_reads/1"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/deadline_contract.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "6605726939fa5c74154ed0c374e3fb322519f704",
+      "raw_sha256": "e980c36563dded7c6da81e8cba1b88d9a933af64f719c3110ee4d1fda0caf1ca",
+      "line_count": 60,
+      "full_read_record": "local-socks-setup-independent-review-e7cc61e7.json#/source_reads/2"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5_local/target_contract.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "27ec23771f825309826b716087efb1e51c424762",
+      "raw_sha256": "49e4d06f79d6ea2fa9e4d7d974f002cfede4a7bad8cfcb1302b280a1a7590003",
+      "line_count": 99,
+      "full_read_record": "local-socks-setup-independent-review-e7cc61e7.json#/source_reads/3"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "729888a500b03b77eae34c1da15dad79187fd3b1",
+      "raw_sha256": "fccb4f4669d3cd44c881165e9760075bb2965d0c3f4fbf99ef8ed6c9b8f2ce5b",
+      "line_count": 624,
+      "full_read_record": "environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/0"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "c6d88dea904c672e36d5dec116fb8136dfa7ba8f",
+      "raw_sha256": "0a08dbe968a96a43fbd156aa4ea1e11063f78d1d4d42c8a9704da8d1c6c841f4",
+      "line_count": 238,
+      "full_read_record": "environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/1"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/environment/ownership_controls/relay.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "2daea0b359230098a5ece78183e752c59a754dce",
+      "raw_sha256": "7e95174c62b48071b12dfa07b033d27b43a8a805f026e9eef54bf66298ebf667",
+      "line_count": 156,
+      "full_read_record": "environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/2"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "74cd3a6628029193b6936e205c465558d11705bd",
+      "raw_sha256": "fb421a9ec2939b1ac49079c0c5b1aa33f709b36dfe31a7f6be317e535b25d88c",
+      "line_count": 271,
+      "full_read_record": "environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/3"
+    },
+    {
+      "path": "crates/phantom/tests/streams/environment_routes/ownership_controls.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "eb03df6c77731a48e854a837d961aefa2fd3a0ce",
+      "raw_sha256": "d6b47887c7297e0ed6b2abb73feca77eddcbb36fcf906a0b2d14158506882e35",
+      "line_count": 360,
+      "full_read_record": "environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/4"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/peer_contract.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "09944e74e3a0e67755266590565f4e1d69578dbb",
+      "raw_sha256": "a92a190ac98ac6fdb2f17aa6d3e4ee21e3984eba8c13cff2f55333f32f25209e",
+      "line_count": 320,
+      "full_read_record": "credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/1"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/deadline_contract.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "6a265f8bde5a226aa75de03858d10b7c17b33a9c",
+      "raw_sha256": "0ee21a17ba3177fc2c81c7086b5f79e8aca7e2266b8515805bc1cdc74614ca02",
+      "line_count": 63,
+      "full_read_record": "credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/2"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache/observer_contract.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "cdc337486da359827b5253857e720815b30fad69",
+      "raw_sha256": "e74991ce08ebd915c37bcb49d3375048daf29898f8d700a4449ffe589ef8cab4",
+      "line_count": 159,
+      "full_read_record": "credential-fixture-owner-independent-review-6e9b0ee6.json#/source_reads/3"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_credential_cache.rs",
+      "revision": "1e23deb98cc9102a9d8185e0d914c04466914130",
+      "blob_oid": "609662bba71cba98c23cfe4a01baf1e2d854d616",
+      "raw_sha256": "1e08e565c9fb30e120955eca7bd5458a2819e26826718a996dadbdd41481376b",
+      "line_count": 657,
+      "read_scope": "full",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 350,
+          "raw_range_sha256": "75dfff5caa02b8585d5819c2a4152c21bf5433544c0eab59108ac64ba098c362"
+        },
+        {
+          "start": 351,
+          "end": 657,
+          "raw_range_sha256": "bbd81d9102add6a7e2bdd7c2d8425d4b11c5168485ea85181d52da430c26be6b"
+        }
+      ],
+      "scope": "Fresh manual complete current owner read after the one-line propagation fix; supporting helpers remain partial.",
+      "full_read_record": "proxy-owner-remedies-root-1e23deb9.json#/current_parent_read"
+    }
+  ],
+  "raw_artifacts_read": [
+    {
+      "path": "proxy-owner-remedies-de449064-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-socks-windows.log",
+      "raw_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-socks-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-credential-windows.log",
+      "raw_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-credential-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-proxies-windows.log",
+      "raw_sha256": "6f083c41fe2fe172fd665618f4138c8a945e5e857c9c615b47d6b14172046e91",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-proxies-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-streams-windows.log",
+      "raw_sha256": "897e6bfff499f9093211f5cfafbbc9cf3c08564ade8725a2214a99aeaf1a818c",
+      "line_count": 14,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-streams-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-clippy-windows.log",
+      "raw_sha256": "771d3804455444bdb61731dc87bd7f19ec9343429aa09a1df9ddea951da6f0ea",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-clippy-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-msrv-windows.log",
+      "raw_sha256": "a10f8eff831b87085eec64a52dd556a0bda9fbfb54f0540f66865a24a637f6bd",
+      "line_count": 36,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-msrv-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-windows.revision",
+      "raw_sha256": "15084db8cb4295dd1cc9d60463022198acba96c3266efaed7151551beb35ec1e",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-socks-linux.log",
+      "raw_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-socks-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-credential-linux.log",
+      "raw_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-credential-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-proxies-linux.log",
+      "raw_sha256": "40cd56cd619e1fabbaf21d81165bb515e1f2c9c26960d53420b5089c3176387c",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-proxies-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-streams-linux.log",
+      "raw_sha256": "06ef22caa7146ed520a34edfaa53c56b4e75cbf9945e32a543b63e4994d9ee49",
+      "line_count": 14,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-environment-streams-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-clippy-linux.log",
+      "raw_sha256": "f9bac77ba982b101928c016b66c7fc58928e6bc241bb45f2a09992328ce836cf",
+      "line_count": 17,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-clippy-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-msrv-linux.log",
+      "raw_sha256": "636db65769d767f7b826812f4abf254b77ae3c4b55d83b6e878ccd9e15139932",
+      "line_count": 36,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-msrv-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-linux.revision",
+      "raw_sha256": "15084db8cb4295dd1cc9d60463022198acba96c3266efaed7151551beb35ec1e",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-de449064-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-socks-windows.log",
+      "raw_sha256": "7b609512e03871c75532992de6b0ce2d6aa487728a807fb5b658ce61dacd73bd",
+      "line_count": 58,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-socks-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-credential-windows.log",
+      "raw_sha256": "4d870cd90801f609dadcd21d06b6e44313b51ce2f5843ae2840e1d3b23ae6ac1",
+      "line_count": 23,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-credential-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-proxies-windows.log",
+      "raw_sha256": "1fc0821404e55f97c4ed88755db1b492708c20327be358a040940337c46d0e16",
+      "line_count": 20,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-proxies-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-streams-windows.log",
+      "raw_sha256": "beb5919a67cb96377819cb92be538bc28424c4ca289797ac49a7247e97d0b170",
+      "line_count": 13,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-streams-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-clippy-windows.log",
+      "raw_sha256": "153c3817ccbfa2fa1e312032c2c430d506014417d2632f166c7b6bc28399b1ab",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-msrv-windows.log",
+      "raw_sha256": "f87d212f4255f6321ca95806b6da6e0e22f46f839c852550c4e73de4bc7fb264",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-windows.revision",
+      "raw_sha256": "e1458cda0be51979a02954f0e8ea549245965f6851feae2ed96cbcf0e914190d",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-socks-linux.log",
+      "raw_sha256": "879bbef6d8c9e6852d7114c295667e7a43b051f8e4209ffb7afe5b86dbde3423",
+      "line_count": 58,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-socks-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-credential-linux.log",
+      "raw_sha256": "388539e826c7ffaa6fe13e183334a5806d4f0214ad5ba6b799ce554f8c3feb96",
+      "line_count": 23,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-credential-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-proxies-linux.log",
+      "raw_sha256": "95a9a2a4c57851d735cb2a255d34646c2ae9e12331d7faaef01d8ea2af95fe2a",
+      "line_count": 20,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-proxies-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-streams-linux.log",
+      "raw_sha256": "14a03b603f7ed89380ac1b14e9a2057606549aa737ac2a7a777d8b35c64c8e09",
+      "line_count": 13,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-environment-streams-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-clippy-linux.log",
+      "raw_sha256": "2ba995578a47e356605f4b9840c5943f313ca4be1fe91e1a391d7353f7e525ee",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-msrv-linux.log",
+      "raw_sha256": "46a227cd7d93a725c74dea5ae0d0178d478ce6f5cc00a04f7ac633bd032723b3",
+      "line_count": 2,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-linux.revision",
+      "raw_sha256": "e1458cda0be51979a02954f0e8ea549245965f6851feae2ed96cbcf0e914190d",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "proxy-owner-remedies-1e23deb9-linux.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "full actual root read"
+    },
+    {
+      "path": "run-proxy-owner-remedies-de449064.sh",
+      "raw_sha256": "f126e04aaa6a0d4af89dbf8b9a3395832af7edf9524d92f8823b4eb349e932ee",
+      "line_count": 51,
+      "read_scope": "full actual root read"
+    }
+  ],
+  "result": "Both hosts pass 51 SOCKS, 17 credential, 14 proxy environment and 7 streaming environment tests; format, strict two-binary Clippy and Rust 1.88 checks pass.",
+  "limits": [
+    "Focused 89 methods per host, not full workspace gates or CI.",
+    "de449064 proxy selections did not execute: compile E0282, with E0283 also in MSRV. Streaming seven methods passed each host.",
+    "New combined credential control deliberately injects its primary failure after an actual authenticated exchange and completed truncated CONNECT.",
+    "Accept-error propagation is source-supported, without an injected listener failure.",
+    "Drop cancellation witnesses are finite runtime observations, not permanent OS teardown.",
+    "Supporting dependency/helper reads and author working-byte CRLF label qualifications remain in preserved reports."
+  ]
+}
