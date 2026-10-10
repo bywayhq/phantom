@@ -105,9 +105,13 @@ async fn dropping_lifecycle_observation_stops_a_peer_after_actual_partial_data()
         .await
         .is_ok();
 
-    // The original peer may still need the retained body; release resources first.
-    cleanup.stop().await?;
+    // Snapshot ownership while the body is live, then let its reset reach the peer.
     drop(body);
+    let drained = timeout(CONTROL_TIMEOUT, until_finished(&cleanup.0)).await;
+    let cleanup_result = cleanup.stop().await;
+    drained?;
+    cleanup_result?;
+
     assert!(
         stopped,
         "partial-response peer outlived its observation boundary"

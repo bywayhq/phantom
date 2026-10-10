@@ -39,8 +39,19 @@ async fn accepted_channel_failure_keeps_recv_error_and_completed_peer_failure() 
         assert_eq!(status, StatusCode::NO_CONTENT);
         timeout(CONTROL_TIMEOUT, post_rx).await??;
         timeout(CONTROL_TIMEOUT, until_finished(&cleanup.peer)).await?;
+        timeout(
+            CONTROL_TIMEOUT,
+            until_finished(
+                cleanup
+                    .upload
+                    .as_ref()
+                    .ok_or("upload abort handle missing")?,
+            ),
+        )
+        .await?;
 
-        let result = finish_cancelled_upload(connection, peer, upload, accepted_rx).await;
+        let result = finish_cancelled_upload(connection.clone(), peer, upload, accepted_rx).await;
+        drop(connection);
         result
             .err()
             .ok_or_else(|| "failed peer was accepted as a completed exchange".into())
@@ -60,7 +71,7 @@ async fn a_reset_upload_keeps_the_original_http2_error() -> TestResult<()> {
     let peer = ShutdownPeer::spawn(reset_upload(server, post_tx));
     let connection = Http2Connection::connect(client, &v154_http2()).await?;
     let (status, upload) = start_stalled_upload(&connection).await?;
-    let upload_abort = upload.abort_handle();
+    let upload_abort = UploadAbort(upload.abort_handle());
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let observed: TestResult<Box<dyn Error + Send + Sync>> = async {
@@ -71,8 +82,8 @@ async fn a_reset_upload_keeps_the_original_http2_error() -> TestResult<()> {
         }
     }
     .await;
-    upload_abort.abort();
-    timeout(CONTROL_TIMEOUT, until_finished(&upload_abort)).await?;
+    upload_abort.0.abort();
+    timeout(CONTROL_TIMEOUT, until_finished(&upload_abort.0)).await?;
     drop(connection);
     let error = complete_control(observed, peer.stop().await)?;
 
@@ -185,12 +196,24 @@ async fn fail_before_accepted(
     assert_eq!(root.uri().path(), "/");
     respond.send_response(Response::builder().status(204).body(())?, true)?;
 
-    let (post, _respond) = connection.accept().await.ok_or("upload request absent")??;
+    let (post, upload_response) = connection.accept().await.ok_or("upload request absent")??;
     assert_eq!(post.method(), Method::POST);
     assert_eq!(post.uri().path(), "/cancel-upload");
     observed_post
         .send(())
         .map_err(|_| "POST observer stopped")?;
+
+    drop(root);
+    drop(respond);
+    drop(post);
+    drop(upload_response);
+    connection.abrupt_shutdown(::http2::Reason::NO_ERROR);
+    timeout(
+        CONTROL_TIMEOUT,
+        poll_fn(|context| connection.poll_closed(context)),
+    )
+    .await??;
+
     drop(accepted);
     Err(CompletedPeerFault {
         cause: ::http2::Error::from(::http2::Reason::INTERNAL_ERROR),
@@ -218,6 +241,14 @@ async fn reset_upload(stream: DuplexStream, observed_post: oneshot::Sender<()>) 
     drop(respond);
     poll_fn(|context| connection.poll_closed(context)).await?;
     Ok(())
+}
+
+struct UploadAbort(AbortHandle);
+
+impl Drop for UploadAbort {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
 }
 
 struct UploadCleanup {
