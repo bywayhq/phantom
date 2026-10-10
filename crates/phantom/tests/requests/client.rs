@@ -1,9 +1,5 @@
 //! Public-facade integration tests.
 
-use crate::support::h2 as h2_support;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     collections::VecDeque,
     convert::Infallible,
@@ -34,6 +30,7 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::{h2 as h2_support, tls as tls_support, tracing as tracing_support};
 use h2_support::{read_frame as read_h2_frame, write_frame as write_h2_frame};
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls, client_builder, read_head, test_client,
@@ -41,10 +38,10 @@ use tls_support::{
 };
 use tracing_support::OutcomeSubscriber;
 
+mod peer_contract;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
-
-mod peer_contract;
 
 #[test]
 fn request_debug_reports_shape_without_body_contents() -> TestResult<()> {
@@ -735,7 +732,9 @@ async fn upload_failure_after_early_http2_response_has_request_body_category() -
                 .await?;
             assert_eq!(response.status(), StatusCode::OK);
             // Fail the upload only after the client has returned the response head.
-            let _ = fail_upload.send(());
+            fail_upload
+                .send(())
+                .map_err(|_| "upload producer stopped before its failure trigger")?;
             let error = match response.into_body().collect().await {
                 Ok(_) => return Err("late request body failure was not reported".into()),
                 Err(error) => error,
@@ -866,7 +865,9 @@ async fn public_http2_response_retains_interleaved_field_order() -> TestResult<(
             );
             assert!(response.into_body().collect().await?.to_bytes().is_empty());
 
-            let _ = client_done.send(());
+            client_done
+                .send(())
+                .map_err(|_| "ordered response peer stopped before completion")?;
             Ok(())
         })
         .await?;
@@ -1373,24 +1374,32 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "client test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await?
 }
 
-async fn exchange_peer<T: Send + 'static, R>(
-    peer: impl Future<Output = TestResult<T>> + Send + 'static,
+async fn exchange_peer<T, R>(
+    peer: impl Future<Output = TestResult<T>>,
     request: impl Future<Output = TestResult<R>>,
 ) -> TestResult<(T, R)> {
-    let peer = tokio::spawn(peer);
-    let result = request.await?;
-    Ok((peer.await??, result))
+    tokio::try_join!(peer, request)
 }
 
 fn accepted_failed_upload<T>(incoming: Option<Result<T, ::http2::Error>>) -> TestResult<Option<T>> {
-    Ok(incoming.and_then(Result::ok))
+    // A body failure may close the connection before its request is accepted.
+    incoming.transpose().map_err(Into::into)
 }
 
 fn upload_data_or_end(frame: TestResult<Option<Bytes>>) -> TestResult<Option<Bytes>> {
-    Ok(frame.ok().flatten())
+    match frame {
+        Ok(frame) => Ok(frame),
+        Err(error)
+            if error.downcast_ref::<::http2::Error>().is_some_and(|cause| {
+                cause.is_reset() && cause.reason() == Some(::http2::Reason::CANCEL)
+            }) =>
+        {
+            // The client cancels this stream when its body producer fails.
+            Ok(None)
+        }
+        Err(error) => Err(error),
+    }
 }

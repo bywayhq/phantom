@@ -372,11 +372,9 @@ async fn invalid_json_keeps_metadata_and_its_typed_source() -> TestResult<()> {
     Ok(())
 }
 
-async fn exchange_peer<T: Send + 'static, R>(
-    peer: impl Future<Output = TestResult<T>> + Send + 'static,
+async fn exchange_peer<T, R>(
+    peer: impl Future<Output = TestResult<T>>,
     request: impl Future<Output = TestResult<R>>,
 ) -> TestResult<(T, R)> {
-    let peer = tokio::spawn(peer);
-    let result = request.await?;
-    Ok((peer.await??, result))
+    tokio::try_join!(peer, request)
 }

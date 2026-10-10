@@ -127,9 +127,8 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
             stream.write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         };
-        let peer = async move {
-            tokio::try_join!(first, second)
-        };
+        let peer = async move { tokio::try_join!(first, second) };
+
         let ((first, second), calls) = exchange_peer(peer, async {
             let calls = Arc::new(AtomicUsize::new(0));
             let hook_calls = calls.clone();
@@ -141,6 +140,7 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
                     context.append(RequestHeader::new("Authorization", hook_authorization.clone()).sensitive())?;
                     context.append(RequestHeader::new("Cookie", hook_cookie.clone()).sensitive())
                 }).build()?;
+
             client.get(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
             Ok(calls)
         })
@@ -240,6 +240,7 @@ async fn status_retries_reuse_the_hook_result() -> TestResult<()> {
                     context.set(RequestHeader::new("X-Sequence", count.to_string()))
                 })
                 .build()?;
+
             client
                 .get(HttpProtocol::Http1, &format!("http://{address}/retry"))?
                 .send()
@@ -296,19 +297,24 @@ async fn event_source_hooks_cannot_change_the_managed_event_id() -> TestResult<(
     .await?
 }
 
-async fn exchange_peer<T: Send + 'static, R>(
-    peer: impl Future<Output = TestResult<T>> + Send + 'static,
+async fn exchange_peer<T, R>(
+    peer: impl Future<Output = TestResult<T>>,
     request: impl Future<Output = TestResult<R>>,
 ) -> TestResult<(T, R)> {
-    let peer = tokio::spawn(peer);
-    let result = request.await?;
-    Ok((peer.await??, result))
+    tokio::try_join!(peer, request)
 }
 
 fn retry_heads_reuse_hook_result(heads: &[Vec<u8>]) -> bool {
-    heads.len() == 2 && heads[0] == heads[1]
+    const HOOK_FIELD: &[u8] = b"\r\nX-Sequence: 0\r\n";
+    heads.len() == 2
+        && heads[0] == heads[1]
+        && heads.iter().all(|head| {
+            head.windows(HOOK_FIELD.len())
+                .any(|field| field == HOOK_FIELD)
+        })
 }
 
-fn cookie_transition(_first: &str, second: &str, _cookie: &str) -> bool {
-    !second.to_ascii_lowercase().contains("cookie:")
+fn cookie_transition(first: &str, second: &str, cookie: &str) -> bool {
+    first.contains(&format!("\r\nCookie: {cookie}\r\n"))
+        && !second.to_ascii_lowercase().contains("cookie:")
 }
