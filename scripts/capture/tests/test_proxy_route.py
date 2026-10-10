@@ -411,7 +411,10 @@ class ProxyClientWriterTests(unittest.IsolatedAsyncioTestCase):
                     self.assertIs(caught.exception, primary)
 
                 self.assertTrue(responses)
-                self.assertTrue(responses[0].startswith(b"HTTP/1.1 200 OK"))
+                self.assertEqual(
+                    responses[0],
+                    b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n\r\n",
+                )
                 self.assertEqual(len(writers), 2 if failure_phase is None else 1)
                 for writer in writers:
                     self.assertTrue(writer.is_closing())
