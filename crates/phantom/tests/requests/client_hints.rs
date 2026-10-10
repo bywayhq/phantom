@@ -1,9 +1,5 @@
 //! Public client-hint session integration tests.
 
-use crate::support::h2 as h2_support;
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     fmt,
@@ -34,6 +30,9 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::h2 as h2_support;
+use crate::support::h3 as h3_support;
+use crate::support::tls as tls_support;
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use h2_support::{accept_client_preface, read_request_headers, write_frame};
 use h3_support::{accept_request, client_settings, quic_server, server_endpoint};
@@ -1281,8 +1280,8 @@ async fn client_retains_accept_ch_across_requests() -> TestResult<()> {
         let client = client(&identity)?;
         retained_client = Some(client.clone());
         let url = format!("https://{address}/");
-        send_client_and_drain(&client, HttpProtocol::Http1, &url).await?;
-        send_client_and_drain(&client, HttpProtocol::Http1, &url).await?;
+        send_and_drain(&client, HttpProtocol::Http1, &url).await?;
+        send_and_drain(&client, HttpProtocol::Http1, &url).await?;
         let requests = join_hint_peer(&mut server).await?;
         assert_http1_hints(&requests[0], false)?;
         assert_http1_hints(&requests[1], true)?;
@@ -1434,17 +1433,6 @@ async fn stop_hint_peer<T: Send + 'static>(
 }
 
 async fn send_and_drain(client: &Client, protocol: HttpProtocol, url: &str) -> TestResult<()> {
-    let response = client.get(protocol, url)?.send().await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    Ok(())
-}
-
-async fn send_client_and_drain(
-    client: &Client,
-    protocol: HttpProtocol,
-    url: &str,
-) -> TestResult<()> {
     let response = client.get(protocol, url)?.send().await?;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
