@@ -407,50 +407,50 @@ async fn h2_proxy_transport_rejects_http1_selection_without_fallback() -> TestRe
     bounded(async {
         let mut proxy_task = None;
         let operation = async {
-        let origin_identity = TestIdentity::generate()?;
-        let proxy_identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = listener.local_addr()?;
-        let acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        proxy_task = Some(ConnectionPeer::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let mut stream = accept_tls_stream(tcp, acceptor).await?;
-            let mut byte = [0_u8; 1];
-            let read = timeout(Duration::from_millis(250), stream.read(&mut byte)).await;
-            match read {
-                Ok(Ok(count)) => Ok::<_, Box<dyn StdError + Send + Sync>>(count == 0),
-                Ok(Err(error)) if is_peer_gone(&error) => Ok(true),
-                Ok(Err(error)) => Err(error.into()),
-                Err(_) => Ok(false),
-            }
-        }));
-        let route = Route::http_proxy(
-            HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
-        );
-        let client = client_builder(&origin_identity, true)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?;
+            let origin_identity = TestIdentity::generate()?;
+            let proxy_identity = TestIdentity::generate()?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let proxy_address = listener.local_addr()?;
+            let acceptor = proxy_identity.acceptor(H1_ALPN)?;
+            proxy_task = Some(ConnectionPeer::spawn(async move {
+                let (tcp, _) = listener.accept().await?;
+                let mut stream = accept_tls_stream(tcp, acceptor).await?;
+                let mut byte = [0_u8; 1];
+                let read = timeout(Duration::from_millis(250), stream.read(&mut byte)).await;
+                match read {
+                    Ok(Ok(count)) => Ok::<_, Box<dyn StdError + Send + Sync>>(count == 0),
+                    Ok(Err(error)) if is_peer_gone(&error) => Ok(true),
+                    Ok(Err(error)) => Err(error.into()),
+                    Err(_) => Ok(false),
+                }
+            }));
+            let route = Route::http_proxy(
+                HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
+            );
+            let client = client_builder(&origin_identity, true)
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(route)
+                .build()?;
 
-        let error = match client
-            .get(HttpProtocol::Http2, "https://127.0.0.1:9/")?
-            .send()
-            .await
-        {
-            Ok(_) => return Err("HTTP/2 proxy transport fell back to HTTP/1.1".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert!(matches!(
-            connect_error(&error),
-            Some(HttpConnectError::UnsupportedAlpn { selected }) if selected.as_ref() == b"http/1.1"
-        ));
-        drop(client);
-        assert!(
-            finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?,
-            "HTTP/1.1 CONNECT bytes reached the proxy"
-        );
-        Ok(())
+            let error = match client
+                .get(HttpProtocol::Http2, "https://127.0.0.1:9/")?
+                .send()
+                .await
+            {
+                Ok(_) => return Err("HTTP/2 proxy transport fell back to HTTP/1.1".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert!(matches!(
+                connect_error(&error),
+                Some(HttpConnectError::UnsupportedAlpn { selected }) if selected.as_ref() == b"http/1.1"
+            ));
+            drop(client);
+            assert!(
+                finish_peer(Ok(()), proxy_task.take().ok_or("missing proxy_task owner")?).await?,
+                "HTTP/1.1 CONNECT bytes reached the proxy"
+            );
+            Ok(())
         }
         .await;
 
