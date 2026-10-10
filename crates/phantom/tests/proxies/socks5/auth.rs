@@ -10,7 +10,7 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinSet};
 use tokio_btls::SslStream;
 
 use super::{
-    ORIGIN_NAME, bounded,
+    ORIGIN_NAME, bounded, finish_socks_proxy, finish_socks_route,
     socks5_support::{
         ObservedAuthenticatedSocks5Connect, ObservedSocks5Authentication,
         forward_next_authenticated_socks5, forward_one_authenticated_socks5,
@@ -62,12 +62,10 @@ async fn http1_authenticates_before_remote_dns_connect() -> TestResult<()> {
         assert_eq!(response.into_body().collect().await?.to_bytes(), "auth");
         drop(client);
 
-        assert!(
-            origin
-                .await??
-                .starts_with(b"GET /authenticated HTTP/1.1\r\n")
-        );
-        assert_remote_observation(proxy.await??, USERNAME, PASSWORD, origin_address.port());
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        assert!(origin_observation.starts_with(b"GET /authenticated HTTP/1.1\r\n"));
+        assert_remote_observation(proxy_observation, USERNAME, PASSWORD, origin_address.port());
         Ok(())
     })
     .await
@@ -116,8 +114,10 @@ async fn http2_authenticates_before_remote_dns_connect() -> TestResult<()> {
         response.into_body().collect().await?;
         drop(client);
 
-        assert_eq!(origin.await??, "/authenticated");
-        assert_remote_observation(proxy.await??, USERNAME, PASSWORD, origin_address.port());
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        assert_eq!(origin_observation, "/authenticated");
+        assert_remote_observation(proxy_observation, USERNAME, PASSWORD, origin_address.port());
         Ok(())
     })
     .await
@@ -154,7 +154,7 @@ async fn rejected_authentication_sends_no_connect_or_direct_origin_attempt() -> 
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock
         ));
         assert_eq!(
-            proxy.await??,
+            finish_socks_proxy(proxy).await?,
             ObservedSocks5Authentication {
                 username: USERNAME.to_owned(),
                 password: PASSWORD.to_owned(),
@@ -207,10 +207,7 @@ async fn http2_pool_separates_credentials_and_reuses_matches() -> TestResult<()>
         }
         drop(session);
 
-        let mut observed = Vec::new();
-        while let Some(result) = proxy_tasks.join_next().await {
-            observed.push(result??);
-        }
+        let mut observed = finish_socks_handlers(proxy_tasks).await?;
         observed.sort_by(|left, right| {
             left.authentication
                 .username
@@ -292,8 +289,10 @@ async fn websocket_authenticates_on_the_remote_dns_route() -> TestResult<()> {
         drop(socket);
         drop(client);
 
-        assert!(origin.await??.starts_with(b"GET /events HTTP/1.1\r\n"));
-        assert_remote_observation(proxy.await??, USERNAME, PASSWORD, origin_address.port());
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        assert!(origin_observation.starts_with(b"GET /events HTTP/1.1\r\n"));
+        assert_remote_observation(proxy_observation, USERNAME, PASSWORD, origin_address.port());
         Ok(())
     })
     .await
@@ -321,10 +320,7 @@ async fn serve_two_http2_connections(
         });
     }
 
-    let mut connections = Vec::new();
-    while let Some(result) = handlers.join_next().await {
-        connections.push(result??);
-    }
+    let mut connections = finish_socks_handlers(handlers).await?;
     connections.sort_by(|left, right| left.first().cmp(&right.first()));
     connections
         .try_into()
@@ -371,15 +367,23 @@ async fn plaintext_http1_authenticates_before_remote_dns_connect() -> TestResult
         assert_eq!(response.into_body().collect().await?.to_bytes(), "auth");
         drop(client);
 
-        assert!(
-            origin
-                .await??
-                .starts_with(b"GET /authenticated HTTP/1.1\r\n")
-        );
-        assert_remote_observation(proxy.await??, USERNAME, PASSWORD, origin_address.port());
+        let (origin_observation, proxy_observation) = finish_socks_route(origin, proxy).await?;
+
+        assert!(origin_observation.starts_with(b"GET /authenticated HTTP/1.1\r\n"));
+        assert_remote_observation(proxy_observation, USERNAME, PASSWORD, origin_address.port());
         Ok(())
     })
     .await
+}
+
+pub(super) async fn finish_socks_handlers<T: 'static>(
+    mut handlers: JoinSet<TestResult<T>>,
+) -> TestResult<Vec<T>> {
+    let mut observed = Vec::new();
+    while let Some(result) = handlers.join_next().await {
+        observed.push(result??);
+    }
+    Ok(observed)
 }
 
 fn authenticated_route(scheme: &str, proxy: std::net::SocketAddr) -> TestResult<Route> {
