@@ -387,7 +387,13 @@ async fn serve_connected(
             received = udp.recv(&mut buffer) => match received {
                 Ok(count) => {
                     lock(&log).origin_datagrams += 1;
-                    quinn.send_datagram(datagram(&prefix, &buffer[..count]))?;
+                    match quinn.send_datagram(datagram(&prefix, &buffer[..count])) {
+                        Ok(()) => {}
+                        // RFC 9298 section 6.1: a payload that cannot fit the
+                        // outer QUIC datagram is dropped without ending the tunnel.
+                        Err(quinn::SendDatagramError::TooLarge) => {}
+                        Err(error) => return Err(error.into()),
+                    }
                 }
                 // Windows reports an earlier ICMP port-unreachable here.
                 Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
