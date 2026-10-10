@@ -109,10 +109,12 @@ fn assert_observer(requests: &[Request<()>]) -> TestResult<()> {
     Ok(())
 }
 
-fn outgoing(
-    uri: &str,
-    fields: &[(&str, &str)],
-) -> TestResult<(Request<()>, Vec<(HeaderName, HeaderValue)>)> {
+struct OutgoingRequest {
+    request: Request<()>,
+    ordered: Vec<(HeaderName, HeaderValue)>,
+}
+
+fn outgoing(uri: &str, fields: &[(&str, &str)]) -> TestResult<OutgoingRequest> {
     let mut request = Request::builder().method(Method::GET).uri(uri).body(())?;
     let mut ordered = Vec::new();
     for &(name, value) in fields {
@@ -121,7 +123,7 @@ fn outgoing(
         request.headers_mut().append(name.clone(), value.clone());
         ordered.push((name, value));
     }
-    Ok((request, ordered))
+    Ok(OutgoingRequest { request, ordered })
 }
 
 async fn exchange_http2() -> TestResult<Vec<Request<()>>> {
@@ -177,7 +179,10 @@ async fn exchange_http2() -> TestResult<Vec<Request<()>>> {
             .as_mut()
             .ok_or("actual HTTP/2 sender was not retained")?;
         for fields in [INTERLEAVED, ADJACENT] {
-            let (mut request, ordered) = outgoing("http://origin.test/received-order", &fields)?;
+            let OutgoingRequest {
+                mut request,
+                ordered,
+            } = outgoing("http://origin.test/received-order", &fields)?;
             request
                 .extensions_mut()
                 .insert(::http2::ext::OrderedHeaders::new(ordered));
@@ -253,7 +258,10 @@ async fn exchange_http3() -> TestResult<Vec<Request<()>>> {
             h3::client::new(h3_quinn::Connection::new(connection)).await?;
         let requests = async {
             for fields in [INTERLEAVED, ADJACENT] {
-                let (mut request, ordered) = outgoing(&uri, &fields)?;
+                let OutgoingRequest {
+                    mut request,
+                    ordered,
+                } = outgoing(&uri, &fields)?;
                 request
                     .extensions_mut()
                     .insert(h3::ext::OrderedHeaders::new(ordered));
