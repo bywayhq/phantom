@@ -61,7 +61,7 @@ async fn admission_observation_returns_an_unrelated_failure_without_retry() -> T
     let error = outcome
         .err()
         .ok_or("the observation swallowed invalid input")?;
-    assert_eq!(error.kind(), RequestErrorKind::InvalidUri);
+    assert_eq!(error.kind(), RequestErrorKind::InvalidAuthority);
     Ok(())
 }
 
