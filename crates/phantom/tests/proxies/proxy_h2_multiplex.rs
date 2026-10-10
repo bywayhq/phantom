@@ -38,8 +38,9 @@ use crate::support::websocket_origin;
 use crate::proxy_h2::connection_tasks::{finish_peer, stop_optional};
 use crate::proxy_h2::{
     connection_tasks::{AcceptedConnections, ConnectionRegistry},
-    normal_h2_teardown, relay_downstream, relay_upstream,
+    normal_h2_teardown,
 };
+pub(super) use crate::proxy_h2::{relay_downstream, relay_upstream};
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use peer_contract::{TaskProbe, TaskRole};
 
