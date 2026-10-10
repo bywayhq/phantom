@@ -49,7 +49,8 @@ Completed serving failures and QUIC/TCP descendant ownership remain open.
 The QUIC analyzer correction passes nineteen unchanged controls at
 `8c519464`, following two causal baseline failures. The complete capture
 suite passes 465 methods on Windows; Linux passes 454 and skips eleven.
-The correction is verified in its lane and awaits aggregate integration.
+The correction is integrated at `c8f7e98e`; the complete capture tree matches
+its verified lane.
 These are synthetic packet and fixture checks, not browser acceptance.
 
 The [hint admission review](hint-admission-native-independent-addendum-8fb745de.md.txt)

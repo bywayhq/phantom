@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject STREAM frames in Initial and Handshake QUIC packets during capture
+  analysis, before writing a summary that the comparison tool cannot read.
+
 - Bound ALPS capture startup and reader waits. Retain reader and cleanup
   failures, and require reader completion before publishing a fixture or
   closing its pipe. Match NetLog events to the actual HTTPS host and port.
