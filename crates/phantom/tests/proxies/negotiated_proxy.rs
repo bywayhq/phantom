@@ -43,6 +43,9 @@ const SECOND_CONNECTION_WINDOW: Duration = Duration::from_millis(100);
 /// `alice:secret` in Base64, as the exact-protocol proxy tests send it.
 const BASIC_ALICE: &str = "Proxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n";
 
+mod deadline_contract;
+mod peer_contract;
+
 #[tokio::test]
 async fn plaintext_proxy_tunnel_selects_h2_when_the_origin_offers_it() -> TestResult<()> {
     through_one_tunnel(ProxyLeg::Plaintext, OriginAlpn::Http2).await
@@ -99,18 +102,29 @@ async fn h2_proxy_transport_tunnel_selects_the_origin_protocol() -> TestResult<(
             .build()?;
 
         let response = negotiated_get(&client, origin_address, "/h2-proxy").await?;
-        assert_eq!(protocol(&response)?, HttpProtocol::Http1);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-
-        let record = proxy.await??.cancel().await?;
-        assert_eq!(
-            record.authority.as_deref(),
-            Some(origin_address.to_string().as_str())
-        );
-        assert_eq!(origin.await??.as_deref(), Some(&b"http/1.1"[..]));
-        Ok(())
+        observe_h2_proxy_response(response, origin_address, proxy, origin).await
     })
     .await
+}
+
+async fn observe_h2_proxy_response(
+    response: Response<ResponseBody>,
+    origin_address: SocketAddr,
+    proxy: tunnel_proxy::ConnectionPeer<
+        TestResult<tunnel_proxy::EstablishedTunnel<tunnel_proxy::Http2ConnectRecord>>,
+    >,
+    origin: tunnel_proxy::ConnectionPeer<TestResult<Option<Vec<u8>>>>,
+) -> TestResult<()> {
+    assert_eq!(protocol(&response)?, HttpProtocol::Http1);
+    assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+
+    let record = proxy.await??.cancel().await?;
+    assert_eq!(
+        record.authority.as_deref(),
+        Some(origin_address.to_string().as_str())
+    );
+    assert_eq!(origin.await??.as_deref(), Some(&b"http/1.1"[..]));
+    Ok(())
 }
 
 /// A negotiated tunnel answers a Basic challenge exactly as an exact HTTP/2
