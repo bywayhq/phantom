@@ -1,0 +1,395 @@
+{
+  "revision": "56e65606101b567037c5be1ff9bd63f940018bce",
+  "decision": "approve focused native evidence accuracy; overall baseline remains red",
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-windows.revision",
+      "raw_sha256": "639801cc843a6c4f49579a06661442b67080ef129dff9082ad58a75a9fde8ccc",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-proxies-windows.log",
+      "raw_sha256": "1dae9bf8ad5700aacfe4b545e119a0b1ed5327f9e6f35802cc7ac8ea08ca29d2",
+      "byte_length": 7247,
+      "line_count": 116,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          116
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-proxies-windows.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-clippy-windows.log",
+      "raw_sha256": "bf655e92d4cf60e04b74701a7d96d03b16e7fa21e6f7c2446e2ae07f44d6a68d",
+      "byte_length": 168,
+      "line_count": 2,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-clippy-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-msrv-windows.log",
+      "raw_sha256": "a52c892c053479afc39ee01d41e41496e3198fef2dd946889e18514e5b2218d6",
+      "byte_length": 168,
+      "line_count": 2,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-msrv-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-linux.revision",
+      "raw_sha256": "639801cc843a6c4f49579a06661442b67080ef129dff9082ad58a75a9fde8ccc",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_length": 0,
+      "line_count": 0,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-proxies-linux.log",
+      "raw_sha256": "91422f35355050c3025b726030781f84ddd4a0792c628d1bcb14e3450291e3e3",
+      "byte_length": 5683,
+      "line_count": 73,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          73
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-proxies-linux.exit",
+      "raw_sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "byte_length": 4,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-clippy-linux.log",
+      "raw_sha256": "c9f2ff2074506e9238cd7a76bf5265514e9b28e08a38af71e851549dafea5748",
+      "byte_length": 177,
+      "line_count": 2,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-clippy-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-msrv-linux.log",
+      "raw_sha256": "7771f085cd176c531587487fa28e6ce184bb039aa11d6eaacdbd9f397a982b49",
+      "byte_length": 178,
+      "line_count": 2,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-focused-56e65606-msrv-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-trust-rejection-focused.sh",
+      "raw_sha256": "644d4fd4cf48cca96bba816b805d10a0c67cabf7059052e95c417ecee7177656",
+      "byte_length": 2173,
+      "line_count": 48,
+      "read_scope": "complete manual read",
+      "actual_manual_ranges": [
+        [
+          1,
+          48
+        ]
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-native-56e65606.md",
+      "raw_sha256": "ce99e50063073d56b261e9b5944927cf5ca9e526339d8b499ca12b8407d28091",
+      "byte_length": 1021,
+      "read_scope": "complete root receipt manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-native-56e65606.json",
+      "raw_sha256": "826a589771e0949c67051e6540e2617895378a89a9f44b2a91154fa87643021d",
+      "byte_length": 10367,
+      "read_scope": "complete root receipt manual read"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy.rs",
+      "revision": "56e65606101b567037c5be1ff9bd63f940018bce",
+      "git_blob_oid": "08882ee753ecd4d3918483e2f632f714cb4b680d",
+      "raw_sha256": "01375ec07cd6f4078140a28686f9dd8a9adac8fd838dd0976519e35d388f4e4c",
+      "line_count": 911,
+      "read_scope": "partial fresh read; exact rebind to prior reviewed2c, no fresh whole credit",
+      "actual_manual_ranges": [
+        {
+          "start": 337,
+          "end": 386,
+          "raw_range_sha256": "1771858d8992de80751ff985e679eb155b1abca7031b828d38aa8f26b1c40c79"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy/trust_rejection.rs",
+      "revision": "56e65606101b567037c5be1ff9bd63f940018bce",
+      "git_blob_oid": "3a5870454e1e795b570fc712aa9809a83e98e6d7",
+      "raw_sha256": "437a8a9b38ad3369bef894dc90703538ae12988e38d17860fca77d5527f7a664",
+      "line_count": 314,
+      "read_scope": "partial fresh read; exact rebind to prior reviewed2c, no fresh whole credit",
+      "actual_manual_ranges": [
+        {
+          "start": 83,
+          "end": 141,
+          "raw_range_sha256": "c4e83a41851deaff371e91bb4863eae6db5d6d938f4b24beff2bc4b2b59ee4d0"
+        },
+        {
+          "start": 230,
+          "end": 260,
+          "raw_range_sha256": "6cdf8813be4b8facd7f19f216fd619fa9ce808be8c574ded6429d9e6554f8f29"
+        }
+      ]
+    }
+  ],
+  "actual_rosters": {
+    "windows": {
+      "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials": "PASS",
+      "proxy::untrusted_https_proxy_fails_without_direct_fallback": "FAIL",
+      "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin": "PASS",
+      "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause": "PASS",
+      "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection": "PASS",
+      "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection": "FAIL",
+      "proxy::auth::second_basic_challenge_is_bounded_and_redacted": "PASS",
+      "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes": "PASS",
+      "proxy::https_proxy_and_origin_trust_are_independent": "PASS",
+      "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io": "PASS",
+      "proxy::upload_contract::bounded_connect_ready_operation_succeeds": "PASS",
+      "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority": "PASS",
+      "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin": "PASS",
+      "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure": "PASS",
+      "proxy::streams_http1_upload_through_ordered_connect_route": "PASS",
+      "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error": "PASS",
+      "proxy::polling_proxy_request_without_tokio_returns_runtime_error": "PASS",
+      "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::disabled_proxy_authentication_still_verifies_the_origin": "PASS",
+      "proxy::proxy_rejection_never_connects_direct": "PASS",
+      "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup": "PASS",
+      "proxy::streams_http1_through_verified_https_proxy": "PASS",
+      "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers": "PASS",
+      "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers": "PASS",
+      "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers": "PASS"
+    },
+    "linux": {
+      "proxy::upload_contract::bounded_connect_ready_operation_succeeds": "PASS",
+      "proxy::upload_contract::bounded_connect_deadline_keeps_context_and_elapsed_cause": "PASS",
+      "proxy::upload_contract::bounded_connect_operation_keeps_the_original_inner_error": "PASS",
+      "proxy::polling_proxy_request_without_tokio_returns_runtime_error": "PASS",
+      "proxy::disabled_proxy_authentication_still_verifies_the_origin": "PASS",
+      "proxy::disabled_proxy_authentication_does_not_authenticate_the_origin": "PASS",
+      "proxy::trust_rejection::a_distinct_received_fatal_alert_is_not_an_unknown_ca_rejection": "FAIL",
+      "proxy::untrusted_https_proxy_fails_without_direct_fallback": "PASS",
+      "proxy::auth::basic_challenge_retries_plaintext_proxy_with_ordered_credentials": "PASS",
+      "proxy::trust_rejection::a_completed_trusted_handshake_is_not_a_trust_rejection": "PASS",
+      "proxy::upload_contract::cancelling_a_polled_upload_finish_destroys_both_ready_peers": "PASS",
+      "proxy::streams_http1_upload_through_ordered_connect_route": "PASS",
+      "proxy::https_proxy_and_origin_trust_are_independent": "PASS",
+      "proxy::proxy_rejection_never_connects_direct": "PASS",
+      "proxy::upload_contract::healthy_upload_finish_keeps_literal_connect_and_origin_bytes": "PASS",
+      "proxy::upload_contract::completed_proxy_failure_keeps_the_completed_origin_failure": "PASS",
+      "proxy::unicode_origin_uses_one_canonical_connect_and_host_authority": "PASS",
+      "proxy::upload_contract::dropping_an_unpolled_upload_finish_destroys_both_ready_peers": "PASS",
+      "proxy::streams_http1_through_verified_https_proxy": "PASS",
+      "proxy::upload_contract::truncated_body_keeps_the_completed_proxy_failure_at_caller_cleanup": "PASS",
+      "proxy::upload_contract::invalid_trust_preparation_destroys_already_acquired_connect_peers": "PASS",
+      "proxy::plaintext_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::auth::basic_challenge_reconnects_https_proxy_before_http2_origin": "PASS",
+      "proxy::https_proxy_route_override_canonicalizes_http2_authority_and_streams_trailers": "PASS",
+      "proxy::invalid_origin_and_connect_fields_fail_before_proxy_io": "PASS",
+      "proxy::auth::second_basic_challenge_is_bounded_and_redacted": "PASS"
+    }
+  },
+  "results": {
+    "windows": "26 executed:24 PASS2 FAIL361 skipped",
+    "linux": "26 executed:25 PASS1 FAIL361 skipped",
+    "checks": "fmt strict focused Clippy Rust1.88 all0; nextest100 and runner1 both"
+  },
+  "causal_boundaries": [
+    "Expired controls reach final137 after real client/server SSL and fatal CERTIFICATE_EXPIRED prerequisites.",
+    "Windows outer proxy records SYSCALL5 and None then fails prerequisite249; later received alert and no-direct-origin assertions remain unreached.",
+    "Linux ordinary outer proxy and other two unknown-CA positives pass.",
+    "Healthy actual trusted TLS passes both."
+  ],
+  "limits": [
+    "No reviewer execution or current whole-source promotion.",
+    "Missing callback is recorded outcome, not universal wire absence or accepted trust signal.",
+    "Controlled expiry is custom verification, not natural certificate expiry.",
+    "Earlier113 ten Linux forward LEAK-FAIL remain unresolved; anchored26 excludes those methods.",
+    "Temporary diagnostics and strict observer remedy pending; no final gate/CI/main/integration approval."
+  ],
+  "validation_note": "First in-memory roster parser omitted nextest progress counter and failed before writing any report; corrected parser includes counter and independently matches all26 root roster rows."
+}

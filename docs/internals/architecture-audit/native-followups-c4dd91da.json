@@ -1,0 +1,56 @@
+{
+  "revision": "c4dd91dadea670a041b601132e61ad528e1c2be3",
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-independent-native-addendum-56e65606.md",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-independent-native-addendum-56e65606.md.txt",
+      "sha256": "dba1e03714ee813aa5ea9a56624fbcb185db24027624958b71a5c1ec114a8ece"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-rejection-diagnostic-independent-native-addendum-56e65606.json",
+      "path": "docs/internals/architecture-audit/trust-rejection-diagnostic-independent-native-addendum-56e65606.json",
+      "sha256": "2da6ff77ea902f6e4d029148152a5f929f8c09d0b85b84061ac72c5be4c0d1df"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-roster-correction-659e5576.md",
+      "path": "docs/internals/architecture-audit/alps-capture-baseline-native-roster-correction-659e5576.md.txt",
+      "sha256": "1f11d10158bf995235972529ed4b44c9e2e3536ea6a590686403be187da88773"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-roster-correction-659e5576.json",
+      "path": "docs/internals/architecture-audit/alps-capture-baseline-native-roster-correction-659e5576.json",
+      "sha256": "b00c1222f3be217463f57d02ce4b3ed2cbcf020e554676826bf79c137ceaf327"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-independent-native-addendum-659e5576.md",
+      "path": "docs/internals/architecture-audit/alps-capture-baseline-independent-native-addendum-659e5576.md.txt",
+      "sha256": "bbb84f8824ad1d63ffac36e47b869ae48fd78767e2cc7be72c6bf55b48abfcd3"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-independent-native-addendum-659e5576.json",
+      "path": "docs/internals/architecture-audit/alps-capture-baseline-independent-native-addendum-659e5576.json",
+      "sha256": "9dffb2afcaad6018ebd8075db04fbc93a9b1cc8dce0a89dcc896e902050dba30"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-outer-differential-independent-design-source.md",
+      "path": "docs/internals/architecture-audit/trust-outer-differential-independent-design-source.md.txt",
+      "sha256": "7b06f92d273c42d55df8c46b2774b6f362a946e96cf9071499b2506dfd3b1a50"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\trust-outer-differential-independent-design-source.json",
+      "path": "docs/internals/architecture-audit/trust-outer-differential-independent-design-source.json",
+      "sha256": "8e909bca5608c06eb7779da1a92ee61974aefa2b4ba3c0822137bd725a1165e5"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\linux-output-holder-observation-113e5656.md",
+      "path": "docs/internals/architecture-audit/linux-output-holder-observation-113e5656.md.txt",
+      "sha256": "6b99218b15541c2d85406144d5af2ca22efec4344d09fb89cffadd352b8d0018"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\linux-output-holder-observation-113e5656.json",
+      "path": "docs/internals/architecture-audit/linux-output-holder-observation-113e5656.json",
+      "sha256": "fe2380a11a6172f5812b9b33a1833c3f2c1f501e633a0d2fb8d31a2f591be33a"
+    }
+  ],
+  "scope": "Exact independent native assessments, corrected method-roster metadata and bounded non-reproduction. Prior receipts/failures retained. No remedy, final-gate or integration approval."
+}

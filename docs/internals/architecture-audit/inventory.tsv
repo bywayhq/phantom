@@ -1700,7 +1700,7 @@ pyproject.toml	configuration	source-complete	tooling-coverage.json: Whole file r
 rust-toolchain.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/capture/README.md	tool	pending	
 scripts/capture/__init__.py	tool	pending	
-scripts/capture/alps_accept_ch.py	tool	source-complete	Root whole current212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness.
+scripts/capture/alps_accept_ch.py	tool	source-complete	Root whole current212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness. Corrected actual method roster: alps-capture-baseline-native-roster-correction-659e5576.json; independent native assessment: alps-capture-baseline-independent-native-addendum-659e5576.json. Original receipt retained.
 scripts/capture/alt_svc_race.py	tool	pending	
 scripts/capture/android/.gitattributes	tool	pending	
 scripts/capture/android/README.md	tool	pending	
@@ -1744,7 +1744,7 @@ scripts/capture/sse_reconnect.py	tool	pending
 scripts/capture/startup_capture.py	tool	pending	
 scripts/capture/tests/fake_capture_tool.py	tool	pending	
 scripts/capture/tests/loopback_quic.py	tool	pending	
-scripts/capture/tests/test_alps_accept_ch.py	tool	source-complete	Root whole current212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness.
+scripts/capture/tests/test_alps_accept_ch.py	tool	source-complete	Root whole current212/453 owner reads and bounded independent baseline212/451 whole plus bc6 method correction: alps-capture-baseline-native-659e5576.json; alps-capture-causal-baseline-independent-source-review-7da13e46.json; alps-capture-reader-bound-independent-followup-bc6a8e82.json. Causal suite red, repairs pending; source coverage does not establish correctness. Corrected actual method roster: alps-capture-baseline-native-roster-correction-659e5576.json; independent native assessment: alps-capture-baseline-independent-native-addendum-659e5576.json. Original receipt retained.
 scripts/capture/tests/test_alt_svc_race.py	tool	pending	
 scripts/capture/tests/test_android_device.py	tool	pending	
 scripts/capture/tests/test_browser_launch.py	tool	pending	
@@ -3139,3 +3139,14 @@ docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.jso
 docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
 docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.json	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
 docs/internals/architecture-audit/trust-rejection-platform-oracle-design-2c69130b.md.txt	documentation	pending	Exact evidence import or discovery; membership grants no semantic review.
+docs/internals/architecture-audit/trust-rejection-diagnostic-independent-native-addendum-56e65606.md.txt	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/trust-rejection-diagnostic-independent-native-addendum-56e65606.json	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/alps-capture-baseline-native-roster-correction-659e5576.md.txt	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/alps-capture-baseline-native-roster-correction-659e5576.json	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/alps-capture-baseline-independent-native-addendum-659e5576.md.txt	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/alps-capture-baseline-independent-native-addendum-659e5576.json	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/trust-outer-differential-independent-design-source.md.txt	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/trust-outer-differential-independent-design-source.json	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/linux-output-holder-observation-113e5656.md.txt	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/linux-output-holder-observation-113e5656.json	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.
+docs/internals/architecture-audit/native-followups-c4dd91da.json	documentation	pending	Exact imported native/design follow-up; no semantic source credit from membership.

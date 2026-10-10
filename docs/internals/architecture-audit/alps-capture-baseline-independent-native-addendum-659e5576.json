@@ -1,0 +1,290 @@
+{
+  "revision": "659e557626a1790ab267c239a7d41f2a5f293452",
+  "decision": "approve causal baseline accuracy with additive corrected roster; remedy pending",
+  "artifact_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-windows.revision",
+      "raw_sha256": "bc264a17c85ad77f73cfe5c98db439f45f108b981084776228d770651daecdb4",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-runtime-windows.log",
+      "raw_sha256": "b937228d11c3f5b8bf656addad7dd0786c3de936b1e2ea0ce1ed97f6016aeb9f",
+      "byte_length": 67,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-runtime-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-tests-windows.log",
+      "raw_sha256": "fdd68633f4bea0a6c6970452ff5225003fc607135e4017233c4f864a216b2e94",
+      "byte_length": 10740,
+      "line_count": 158,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-tests-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-lint-windows.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "byte_length": 19,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-lint-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-format-windows.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "byte_length": 26,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-format-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-linux.revision",
+      "raw_sha256": "bc264a17c85ad77f73cfe5c98db439f45f108b981084776228d770651daecdb4",
+      "byte_length": 41,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-runtime-linux.log",
+      "raw_sha256": "5700684940f762f12bd09c1d80c1945661adecdaa95a8dbc41d17683e9430686",
+      "byte_length": 54,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-runtime-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-tests-linux.log",
+      "raw_sha256": "702a818d9c714240cde794b1d97d4465c29fded6e3571c616c334d83154dbdbf",
+      "byte_length": 10690,
+      "line_count": 158,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-tests-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-lint-linux.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "byte_length": 19,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-lint-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-format-linux.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "byte_length": 26,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-focused-659e5576-format-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "byte_length": 2,
+      "line_count": 1,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-alps-capture-focused.sh",
+      "raw_sha256": "39496c02f4c1d81390e1f0f5ebbfbf5192c9141780db0c44369da1f296a0ceea",
+      "byte_length": 1714,
+      "line_count": 43,
+      "read_scope": "complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-659e5576.md",
+      "raw_sha256": "ef38dd54b74ea117a57cb3a82ad265ab22b45cce71bd3b36e41a990e343aa4d9",
+      "byte_length": 1332,
+      "read_scope": "complete manual root receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-659e5576.json",
+      "raw_sha256": "db02737a891c5aa5b453b2b2f7045b4a0a91d9ee86e8666aa8ea5e5d423ea0c0",
+      "byte_length": 11441,
+      "read_scope": "complete manual root receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-roster-correction-659e5576.md",
+      "raw_sha256": "1f11d10158bf995235972529ed4b44c9e2e3536ea6a590686403be187da88773",
+      "byte_length": 1065,
+      "read_scope": "complete manual root receipt read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\alps-capture-baseline-native-roster-correction-659e5576.json",
+      "raw_sha256": "b00c1222f3be217463f57d02ce4b3ed2cbcf020e554676826bf79c137ceaf327",
+      "byte_length": 11653,
+      "read_scope": "complete manual root receipt read"
+    }
+  ],
+  "source_records": [
+    {
+      "path": "scripts/capture/alps_accept_ch.py",
+      "git_blob": "ce9cc4a999bbbea67c22f7f8ef0f425db4d27f8e",
+      "sha256": "26a6371bb7a3ece4527298dc6f30ab594f731be2d1f0f9f9d6c1e81ebefaac65",
+      "line_count": 212,
+      "matches_reviewed_revision": "bc6a8e82",
+      "read_scope": "unchanged historical whole-read rebind only",
+      "actual_manual_ranges": [],
+      "raw_range_sha256": []
+    },
+    {
+      "path": "scripts/capture/tests/test_alps_accept_ch.py",
+      "git_blob": "b132cf3020ee99f525f9d03598e20dd280f1590a",
+      "sha256": "1fd1a8ad839d777fbfe78446a72d367dcdc97428edb48c7f801427c15f294545",
+      "line_count": 453,
+      "matches_reviewed_revision": "bc6a8e82",
+      "read_scope": "partial fresh controls130-172/385-453",
+      "actual_manual_ranges": [
+        [
+          130,
+          172
+        ],
+        [
+          385,
+          453
+        ]
+      ],
+      "raw_range_sha256": [
+        "22eaff83151262545a9676d269bb61542c5617d6a983710655d7d84dce959b60",
+        "6c760db872c79b5eda7c0266a0c0c10a1f862b127f077443e8f64ef01d813cbc"
+      ]
+    }
+  ],
+  "actual_rosters": {
+    "windows": {
+      "positive_methods": [
+        "test_a_completed_child_with_complete_stdout_produces_a_fixture",
+        "test_a_cut_off_netlog_still_loads",
+        "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+        "test_field_names_keep_the_pseudo_header_colon",
+        "test_the_literal_https_target_keeps_its_frame_and_request",
+        "test_the_navigation_restarts_once_with_the_hints_after_accept"
+      ],
+      "negative_methods": [
+        "test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+        "test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+        "test_a_lookalike_hostname_is_not_the_capture_origin",
+        "test_http_is_not_the_https_capture_origin",
+        "test_silent_startup_finishes_before_the_control_releases_the_child"
+      ],
+      "failure_entries": [
+        "test_a_failed_stdout_reader_retains_its_actual_controlled_error (scripts.capture.tests.test_alps_accept_ch.CapturePipeTests)",
+        "test_a_live_stdout_reader_cannot_publish_a_partial_fixture (scripts.capture.tests.test_alps_accept_ch.CapturePipeTests)",
+        "test_silent_startup_finishes_before_the_control_releases_the_child (scripts.capture.tests.test_alps_accept_ch.CapturePipeTests)",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1, origin='https://other.test:5/server.phantom.test')",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2, origin='https://other.test:5/server.phantom.test')",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1, origin='https://other.test:5/?next=server.phantom.test')",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2, origin='https://other.test:5/?next=server.phantom.test')",
+        "test_a_lookalike_hostname_is_not_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1)",
+        "test_a_lookalike_hostname_is_not_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2)",
+        "test_http_is_not_the_https_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1)",
+        "test_http_is_not_the_https_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2)"
+      ]
+    },
+    "linux": {
+      "positive_methods": [
+        "test_a_completed_child_with_complete_stdout_produces_a_fixture",
+        "test_a_cut_off_netlog_still_loads",
+        "test_a_restarted_navigation_shows_an_aborted_request_then_a_sent_one",
+        "test_field_names_keep_the_pseudo_header_colon",
+        "test_the_literal_https_target_keeps_its_frame_and_request",
+        "test_the_navigation_restarts_once_with_the_hints_after_accept"
+      ],
+      "negative_methods": [
+        "test_a_failed_stdout_reader_retains_its_actual_controlled_error",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin",
+        "test_a_live_stdout_reader_cannot_publish_a_partial_fixture",
+        "test_a_lookalike_hostname_is_not_the_capture_origin",
+        "test_http_is_not_the_https_capture_origin",
+        "test_silent_startup_finishes_before_the_control_releases_the_child"
+      ],
+      "failure_entries": [
+        "test_a_failed_stdout_reader_retains_its_actual_controlled_error (scripts.capture.tests.test_alps_accept_ch.CapturePipeTests)",
+        "test_a_live_stdout_reader_cannot_publish_a_partial_fixture (scripts.capture.tests.test_alps_accept_ch.CapturePipeTests)",
+        "test_silent_startup_finishes_before_the_control_releases_the_child (scripts.capture.tests.test_alps_accept_ch.CapturePipeTests)",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1, origin='https://other.test:5/server.phantom.test')",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2, origin='https://other.test:5/server.phantom.test')",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1, origin='https://other.test:5/?next=server.phantom.test')",
+        "test_a_foreign_path_or_query_does_not_name_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2, origin='https://other.test:5/?next=server.phantom.test')",
+        "test_a_lookalike_hostname_is_not_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1)",
+        "test_a_lookalike_hostname_is_not_the_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2)",
+        "test_http_is_not_the_https_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=1)",
+        "test_http_is_not_the_https_capture_origin (scripts.capture.tests.test_alps_accept_ch.OriginAttributionTests) (event=2)"
+      ]
+    }
+  },
+  "results": "Both12 methods:6 positive6 negative methods11 failure entries; suites/runners1. Python3.10.20 Windows/3.10.21 Linux, pinned Ruff0.16.9 lint/format0.",
+  "causal_boundaries": [
+    "Startup399 finite completion fails after real armed child/entered stderr; later error402/no-browser403 unreached.",
+    "Held nonempty reader finishes425 then publishes partial fixture428; actual-error429 unreached.",
+    "Real nonempty read and injected PermissionError invocation precede errorNone437; later original cause identity449 unreached.",
+    "Eight event subtests156 falsely include foreign hostname/path/query/HTTP; literal HTTPS target positive and all four original methods pass."
+  ],
+  "metadata_correction": "Reviewer found line-parser positive misattribution due concatenated unittest subtest headings. Originaldb027 preserved, additiveb00c disjoint roster independently matched actual tokens. Initial independent regex likewise rejected concatenated line before writing report; exact class-parenthesis regex now validated.",
+  "limits": [
+    "No reviewer executions/subprocess/browser/network/Cargo.",
+    "Controlled real small processes/pipes, fake browser NetLog; no actual socket/TLS/browser/capture version or natural OS read fault.",
+    "Test backup releases/kills/waits/joins; no capture-owned held-reader joined before release claim.",
+    "Wrong-port control/coherent exact-port matcher pending.",
+    "No fresh current whole-source promotion, remedy/final-gate/CI/main/integration approval."
+  ]
+}

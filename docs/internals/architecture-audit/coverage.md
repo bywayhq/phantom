@@ -40,7 +40,20 @@ do not establish that need.
 
 ## Recent verification
 
-The [capture baseline](alps-capture-baseline-native-659e5576.md.txt)
+Independent native reviews approve the reported red
+[trust diagnostic](trust-rejection-diagnostic-independent-native-addendum-56e65606.md.txt)
+and [capture baseline](alps-capture-baseline-independent-native-addendum-659e5576.md.txt).
+The capture roster correction fixes a metadata parser that misattributed a
+concatenated unittest heading. Counts and actual runtime outcomes are unchanged.
+
+One [Linux output-holder observation](linux-output-holder-observation-113e5656.md.txt)
+replays the original 108 methods at `113e5656`: 107 pass and the known trust
+control fails. All ten previously retained-output methods pass. Sampling
+observes 74 test processes, with no additional writer captured. It misses
+short-lived processes and changes timing. The historical cause remains open.
+The original failure policy and evidence are unchanged.
+
+The [capture baseline](alps-capture-baseline-native-roster-correction-659e5576.md.txt)
 runs twelve methods on Windows and Linux Python 3.10 at `659e5576`.
 Six positive methods pass. Six negative methods produce eleven failure
 entries, including origin subtests. Real child pipes establish unbounded

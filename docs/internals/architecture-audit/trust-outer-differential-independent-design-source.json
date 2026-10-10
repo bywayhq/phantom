@@ -1,0 +1,89 @@
+{
+  "mode": "bounded source design investigation, no signed differential implementation approval",
+  "source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl\\ssl\\s3_pkt.cc",
+      "upstream_git_path": "ssl/s3_pkt.cc",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "git_blob_oid": "2724e327ec763ccf672d67cc283f703f1b72cde2",
+      "raw_sha256": "a460f6e1e0cde1755e05455c6eebc1a0a2ee24d7991ce4c0c663db78ef8faa1e",
+      "line_count": 396,
+      "read_scope": "partial actual manual read of resolved pinned native dependency",
+      "actual_manual_ranges": [
+        {
+          "start": 319,
+          "end": 396,
+          "raw_range_sha256": "17f483361542d9ba8052b64c13d54dec993ae9bea968f2bccd7c31bb81f1911a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl\\ssl\\handshake.cc",
+      "upstream_git_path": "ssl/handshake.cc",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "git_blob_oid": "5103fe9b14bb44bc39fd6879b519fd632f46ca00",
+      "raw_sha256": "9e5df16edd1a5017e36eba3ff513f59347bcda8d71b2cf5bc3e318bf3d411113",
+      "line_count": 710,
+      "read_scope": "partial actual manual read of resolved pinned native dependency",
+      "actual_manual_ranges": [
+        {
+          "start": 284,
+          "end": 341,
+          "raw_range_sha256": "64ec646359aed5893228ca4cc53e0fff61a59366ef3eb6c3b2845ceee4efe65f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl\\include\\openssl\\err.h",
+      "upstream_git_path": "include/openssl/err.h",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "git_blob_oid": "7b94af4c69de7de4482adf608edd4f08dfcddb5d",
+      "raw_sha256": "1d8cabcbbd0b43ca81dca6372f1a6d77f6cfb140a357c73f323070e4f75b0673",
+      "line_count": 416,
+      "read_scope": "partial actual manual read of resolved pinned native dependency",
+      "actual_manual_ranges": [
+        {
+          "start": 208,
+          "end": 230,
+          "raw_range_sha256": "5aea4c49e3f15da0bd3193afaa534b99b8376f51b00d477811495a4dcaa4880d"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\git\\checkouts\\btls-edf591f2772221a3\\f478ea1\\btls-sys\\deps\\boringssl\\include\\openssl\\ssl.h",
+      "upstream_git_path": "include/openssl/ssl.h",
+      "revision": "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433",
+      "git_blob_oid": "56682da6ab421ca11b5e6fcfb8afc14d1ec7bfd6",
+      "raw_sha256": "50cbc897a6ab5ef7fedc07b4dc1ad62af3fa5e878bdbfdd210235a66d9370983",
+      "line_count": 7138,
+      "read_scope": "partial actual manual read of resolved pinned native dependency",
+      "actual_manual_ranges": [
+        {
+          "start": 6888,
+          "end": 6898,
+          "raw_range_sha256": "36f97c202a8480a219a3ac18fc2323bbc71322b02da983c2ab4fd9092b27262f"
+        }
+      ]
+    }
+  ],
+  "source_contract": [
+    "handshake284-341: custom-invalid and ordinary chain-invalid both push SSL_R_CERTIFICATE_VERIFY_FAILED; reason alone does not discriminate expired/unknown CA.",
+    "s3_pkt319-396: ignores alert write errors/restores primary queue; explicit no EAGAIN retry; nonempty buffer defers dispatch; failed do_tls_write returns before info callback. No guarantee peer sees alert.",
+    "Named constants verified at actual header err208-230 and ssl6888-6898; no reason value guessed."
+  ],
+  "design_requirements": [
+    "First real public Proxy->ProxyTls->Handshake->btls SSL certificate verification failure with concrete named source-bound library/reason.",
+    "Observe original direct-origin absence before second request.",
+    "Second fresh client changes only added proxy CA roots; same endpoint, profile, route, certificate, target URL; actual TLS then literal CONNECT and intentional502 must yield typed ProxyRejected502 and no direct-origin contact.",
+    "Expired and plain closure negatives through same differential seam, not a forged outcome or alternate copied server.",
+    "Roots-only success qualifies persistent expiry/hostname/protocol failures; verification reason alone cannot replace it.",
+    "None/SYSCALL never independently accepted as trust. Preserve strict actual server-alert predicate and existing expired-alert negative for other methods."
+  ],
+  "status": "Design constraints sent to author and root. Concrete author seam proposal pending; implementation/native approval remains separate.",
+  "limitations": [
+    "No execution/network/source edit by reviewer.",
+    "Native dependency partial source only; no whole vendor/package approval.",
+    "Initial requested s3 range ended398 beyond actual396; terminal read printed319-396 then IndexError before handshake; valid range declared396 and handshake subsequently separately fully printed.",
+    "One header initial cp1252 decoding failed; UTF8 reread6888-6898 succeeded."
+  ]
+}
