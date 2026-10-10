@@ -1729,7 +1729,7 @@ scripts/capture/http3_wire.py	tool	pending
 scripts/capture/http_lifecycle.py	tool	pending	
 scripts/capture/ip_literal_client_hello.py	tool	pending	
 scripts/capture/process_container.py	tool	pending	
-scripts/capture/proxy_route.py	tool	pending	
+scripts/capture/proxy_route.py	tool	source-partial	proxy-browser-context-root-fixed-59634fd7.json: changed owner1239-1528, independent source/native reviews; remaining parent paths pending
 scripts/capture/quic_flight.py	tool	pending	
 scripts/capture/quic_packet_diff.py	tool	pending	
 scripts/capture/quic_resumption.py	tool	pending	
@@ -3391,9 +3391,14 @@ docs/internals/architecture-audit/remote-client-root-native-receipt-e4544b67.md.
 scripts/capture/tests/test_alt_svc_udp_listeners.py	tool	source-complete	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: complete54 control and exact two-host15 red/green selection
 docs/internals/architecture-audit/udp-listener-accounting-independent-source-review-c0dc392b-compact.json	documentation	source-complete	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: immutable report import, byte/range/artifact hashes verified
 docs/internals/architecture-audit/udp-listener-accounting-independent-source-review-c0dc392b-compact.md.txt	documentation	source-complete	udp-listener-accounting-independent-source-review-c0dc392b-compact.json: immutable report import, byte/range/artifact hashes verified
-scripts/capture/tests/test_proxy_browser_driver.py	tool	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: complete signed464 plus exact correction, independent review, causal both-host baseline; remedy pending
+scripts/capture/tests/test_proxy_browser_driver.py	tool	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: complete signed464 plus exact correction, independent review, causal both-host baseline; unchanged corrected controls pass both hosts, proxy-browser-context-root-fixed-59634fd7.json
 docs/internals/architecture-audit/proxy-browser-cancellation-baseline-independent-correction-0519fc93.json	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
 docs/internals/architecture-audit/proxy-browser-cancellation-baseline-independent-correction-0519fc93.md.txt	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
 docs/internals/architecture-audit/proxy-browser-context-corrected-native-independent-addendum-52bf59cb.json	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
 docs/internals/architecture-audit/proxy-browser-context-corrected-native-independent-addendum-52bf59cb.md.txt	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: immutable byte-exact source/native report import
 docs/internals/architecture-audit/proxy-browser-context-root-baseline-52bf59cb.json	documentation	source-complete	proxy-browser-context-root-baseline-52bf59cb.json: root source rebind and terminal baseline receipt
+docs/internals/architecture-audit/proxy-browser-context-remedy-independent-source-review-4e9423c0.json	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: immutable byte-exact bounded independent review
+docs/internals/architecture-audit/proxy-browser-context-remedy-independent-source-review-4e9423c0.md.txt	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: immutable byte-exact bounded independent review
+docs/internals/architecture-audit/proxy-browser-context-fixed-native-independent-addendum-59634fd7.json	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: immutable byte-exact bounded independent review
+docs/internals/architecture-audit/proxy-browser-context-fixed-native-independent-addendum-59634fd7.md.txt	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: immutable byte-exact bounded independent review
+docs/internals/architecture-audit/proxy-browser-context-root-fixed-59634fd7.json	documentation	source-complete	proxy-browser-context-root-fixed-59634fd7.json: root verified source and terminal both-host receipt

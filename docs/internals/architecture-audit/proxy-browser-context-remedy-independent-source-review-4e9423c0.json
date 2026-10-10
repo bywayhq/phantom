@@ -1,0 +1,143 @@
+{
+  "revision": "4e9423c090cfcc236eda1598a347349d68e07ea7",
+  "parent": "0519fc93465aac0f15f9a0138ad14927041a223c",
+  "verdict": "approved source for focused root verification only; no blocker",
+  "source": {
+    "path": "scripts/capture/proxy_route.py",
+    "revision": "4e9423c090cfcc236eda1598a347349d68e07ea7",
+    "git_blob_oid": "46d24a9c395089370d8f8817d49b2ff623c9ccca",
+    "git_raw_sha256": "72bf6bfe23aabd52e9519001d6192f9b189db198056605fa52d7701c148a32f4",
+    "working_raw_sha256": "a02f01c0db68ba01a9e18abf3ef00c7374a7585bd90599ecbe4cb775da8d7a4e",
+    "line_count": 1528,
+    "scope": "fresh partial1239\u20131528: complete changed concrete owner/error and actual callers; complete diff; no whole parent credit",
+    "range": {
+      "first": 1239,
+      "last": 1528,
+      "git_range_sha256": "18a1cf0618a1c22b61d23893259d201ada4f29c565f6ec1362a2b2659c298f94"
+    }
+  },
+  "support": {
+    "path": "scripts/capture/browser_remote.py",
+    "git_blob_oid": "3d98e6c2ddfedbc0d1bdd47177cb28c1ca54766f",
+    "git_raw_sha256": "e058d3bd4e7e9675db014691b83bf902f6d9352f80e7d546d7e9faa1c17a656b",
+    "scope": "fresh supporting partial589\u2013612; earlier frozen constructor/close manual records remain separate",
+    "range": {
+      "first": 589,
+      "last": 612,
+      "git_range_sha256": "71178382e44efb228b9776ae9f1d591e1f48fa4ed70fa3829417699687bedaf0"
+    }
+  },
+  "preservation": {
+    "prefix_exact": true,
+    "caller_to_EOF_suffix_exact": true,
+    "constructor_AST_exact": true,
+    "original_call_expressions_preserved": true,
+    "only_assigned_path_changed": true,
+    "unchanged_blobs": [
+      {
+        "path": "scripts/capture/tests/test_proxy_browser_driver.py",
+        "unchanged_git_blob_oid": "584d20839b37e73e22e653221f1c040ac6f662e9"
+      },
+      {
+        "path": "scripts/capture/browser_remote.py",
+        "unchanged_git_blob_oid": "3d98e6c2ddfedbc0d1bdd47177cb28c1ca54766f"
+      },
+      {
+        "path": "scripts/capture/browser_launch.py",
+        "unchanged_git_blob_oid": "c03765a2d1766c67f85cb59a941b1684fffd9d16"
+      },
+      {
+        "path": "scripts/capture/tests/test_browser_remote.py",
+        "unchanged_git_blob_oid": "ddd58e4356b335bba49cef0a21e85d62800bce34"
+      },
+      {
+        "path": "scripts/capture/tests/test_browser_remote_lifecycle.py",
+        "unchanged_git_blob_oid": "ebce3e7dcb6748dc8328168e7634b5583c82aa4a"
+      },
+      {
+        "path": "scripts/capture/tests/test_browser_remote_handler_failure.py",
+        "unchanged_git_blob_oid": "d5bea4033047bc90f5fafca038148b0a13aa38bb"
+      },
+      {
+        "path": "scripts/capture/tests/test_proxy_route.py",
+        "unchanged_git_blob_oid": "84a27518a972d909753f6f192260e1cd8763eaea"
+      },
+      {
+        "path": "scripts/capture/tests/test_browser_launch.py",
+        "unchanged_git_blob_oid": "6fb74b92f043224be2fabf38cc8e42e3942abd70"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-remedy-handoff-4e9423c0.md",
+      "sha256": "6f74ddbfbe61694312fe3aacf3b554072e7fed9f4a83933157a48a4eb3f603bf",
+      "bytes": 3750,
+      "line_count": 57,
+      "scope": "MD full; JSON source/static/limits sections read; preservation independently checked"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-remedy-handoff-4e9423c0.json",
+      "sha256": "c8547c5a380e74a718966cf5a7c5fae778e2ba8f8c0177fc21a07c856e94fbf3",
+      "bytes": 9510,
+      "line_count": 194,
+      "scope": "MD full; JSON source/static/limits sections read; preservation independently checked"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-owner-remedy-final-ruff-check.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3,
+      "line_count": 1,
+      "scope": "fresh full retained evidence read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-owner-remedy-final-ruff-check.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "line_count": 1,
+      "scope": "fresh full retained evidence read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-owner-remedy-final-ruff-format.exit",
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "bytes": 3,
+      "line_count": 1,
+      "scope": "fresh full retained evidence read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-owner-remedy-final-ruff-format.log",
+      "sha256": "7688ae71c60af2e4266827abb3678cc2145655f587daf33dfa649dbac2c619c3",
+      "bytes": 26,
+      "line_count": 1,
+      "scope": "fresh full retained evidence read; not reviewer execution"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-browser-context-corrected-native-independent-addendum-52bf59cb.json",
+      "sha256": "4b5ab34bc726943d3903f3377fbb1a74de162585991b20804aff782afa654c84",
+      "bytes": 6549,
+      "line_count": 135,
+      "scope": "prior independent native reference"
+    }
+  ],
+  "contracts": [
+    "Entry protection encloses acquisition, credentials/driver construction, profile assertion, startup and failure reporting; every escaping failure attempts cleanup of acquired owners. Unreturned acquisition keeps unchanged launcher guard.",
+    "Ordinary startup/navigation error preserves partial-capture note. Reporting failure retains operation plus observer cause. Actual capture_scenario async-with/finally is byte-exact.",
+    "Remote then browser cleanup are independently attempted even on BaseException, retaining exact ordered objects.",
+    "No cleanup failure preserves ordinary body propagation. Combined failure retains exact primary and cleanup; cancellation/KeyboardInterrupt/SystemExit rethrow original object with aggregate cause and explicit previous cause/context.",
+    "Concrete owner-local type/function, readable paragraph grouping; no speculative framework, wire change or weakened controls."
+  ],
+  "limits": [
+    "Corrected52 actual2PASS5FAIL verified separately; fixed native results pending.",
+    "Constructor/assertion/reporting/interruption paths source-reviewed but not individually driven by seven controls.",
+    "Synchronous inherited Windows cleanup is not bounded by outer async timer; no total bound claim.",
+    "Unchanged launcher handles threaded abandonment; hash rebind grants no fresh whole owner credit.",
+    "No reviewer source edit, runtime/test/Cargo/browser execution, production HTTP change, integration or final gate approval."
+  ],
+  "metadata_correction": {
+    "failed_records": [
+      "4fe449",
+      "7a6d16"
+    ],
+    "reason": "Initial marker omitted superclass; subsequent AST selector assumed every class statement had name. Both failed before paired output. Exact marker and typed/getattr selection now succeed; no source changes."
+  }
+}

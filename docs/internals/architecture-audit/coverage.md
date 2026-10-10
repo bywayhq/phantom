@@ -40,13 +40,14 @@ do not establish that need.
 
 ## Recent verification
 
-The [browser-driver baseline](proxy-browser-context-root-baseline-52bf59cb.json)
-records two passing and five failing controls on both hosts at `52bf59cb`.
-Four failures reach actual child survival before backup. One reaches loss
-of the original body error after resource destruction. An earlier
-cancellation test had an invalid identity check across a task boundary;
-its result remains separate. The correction captures the escaping error
-within the same coroutine. The owner remedy is still in progress.
+The [browser-driver fix](proxy-browser-context-root-fixed-59634fd7.json)
+passes the same seven controls on both hosts at `59634fd7`. The corrected
+baseline passed two and failed five. Cleanup now destroys the acquired
+resources and retains the original and ordered cleanup failures. The full
+capture suite passes 486 tests on Windows and 475 with eleven platform
+skips on Linux. Constructor and reporting failures have source review;
+these seven controls do not drive them or installed Firefox and Android.
+The earlier cross-task identity test flaw remains recorded separately.
 
 The [UDP listener review](udp-listener-accounting-independent-source-review-c0dc392b-compact.md.txt)
 approves separate listener/address records at `c0dc392b`. All 15 focused
