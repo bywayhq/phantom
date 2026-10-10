@@ -12,13 +12,11 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    task::{AbortHandle, JoinHandle},
+    task::AbortHandle,
     time::timeout,
 };
 
-use crate::support::tunnel_proxy::{
-    ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup,
-};
+use crate::support::tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures};
 
 use super::{
     ORIGIN_NAME, TestIdentity, TestResult, client_builder, finish_socks_route, forward_one_socks5,
@@ -77,8 +75,10 @@ impl Error for OperationFailure {}
 
 struct DrivenRoute {
     client: Client,
-    origin: JoinHandle<TestResult<()>>,
-    proxy: JoinHandle<TestResult<()>>,
+    origin: ConnectionPeer<TestResult<()>>,
+    proxy: ConnectionPeer<TestResult<()>>,
+    origin_abort: AbortHandle,
+    proxy_abort: AbortHandle,
     origin_destroyed: oneshot::Receiver<()>,
     proxy_destroyed: oneshot::Receiver<()>,
 }
@@ -144,6 +144,9 @@ async fn driven_route_with_setup_observer(
             None => Ok(()),
         }
     });
+    let origin_abort = origin.abort_handle();
+    let origin = ConnectionPeer::from_task(origin);
+
     let proxy = tokio::spawn(async move {
         let _destroyed = PeerDestroyed(Some(proxy_dropped));
         let observed = forward_one_socks5(proxy_listener, origin_address).await?;
@@ -154,6 +157,9 @@ async fn driven_route_with_setup_observer(
             None => Ok(()),
         }
     });
+    let proxy_abort = proxy.abort_handle();
+    let proxy = ConnectionPeer::from_task(proxy);
+
     let exchange = async {
         let response = client
             .get(
@@ -178,39 +184,29 @@ async fn driven_route_with_setup_observer(
         Err(error) => Err(error.into()),
     };
     if let Err(primary) = exchange {
-        origin.abort();
-        proxy.abort();
-        let (origin_result, proxy_result) = tokio::join!(
-            timeout(CONTROL_TIMEOUT, origin),
-            timeout(CONTROL_TIMEOUT, proxy)
-        );
-        let cleanup = |result: Result<
-            Result<TestResult<()>, tokio::task::JoinError>,
-            tokio::time::error::Elapsed,
-        >|
-         -> TestResult<()> {
-            match result? {
-                Ok(result) => result,
-                Err(error) if error.is_cancelled() => Ok(()),
-                Err(error) => Err(error.into()),
-            }
+        return match finish_socks_route(Err(primary), origin, proxy).await {
+            Err(error) => Err(error),
+            Ok(_) => Err("failed local setup unexpectedly succeeded".into()),
         };
-        return finish_with_cleanup(
-            finish_with_cleanup(Err(primary), cleanup(origin_result)),
-            cleanup(proxy_result),
-        );
     }
 
     if let Some(observer) = setup_observer {
-        observer
+        if observer
             .send(ReadySetup {
                 client: client.clone(),
-                origin_abort: origin.abort_handle(),
-                proxy_abort: proxy.abort_handle(),
+                origin_abort,
+                proxy_abort,
                 origin_destroyed,
                 proxy_destroyed,
             })
-            .map_err(|_| "local setup observer closed before handle transfer")?;
+            .is_err()
+        {
+            let primary = "local setup observer closed before handle transfer".into();
+            return match finish_socks_route(Err(primary), origin, proxy).await {
+                Err(error) => Err(error),
+                Ok(_) => Err("failed local setup unexpectedly succeeded".into()),
+            };
+        }
         // The actual exchange is complete, but setup still owns both tasks.
         // The observer cancels this boundary with an external Client alive.
         return std::future::pending().await;
@@ -220,6 +216,8 @@ async fn driven_route_with_setup_observer(
         client,
         origin,
         proxy,
+        origin_abort,
+        proxy_abort,
         origin_destroyed,
         proxy_destroyed,
     })
@@ -300,16 +298,12 @@ async fn cancelled_route_destroys_peers(poll_before_drop: bool) -> TestResult<()
         client,
         origin,
         proxy,
+        origin_abort,
+        proxy_abort,
         mut origin_destroyed,
         mut proxy_destroyed,
     } = driven_route(None, None).await?;
-    let origin_abort = origin.abort_handle();
-    let proxy_abort = proxy.abort_handle();
-    let mut completion = Box::pin(finish_socks_route(
-        Ok(()),
-        ConnectionPeer::from_task(origin),
-        ConnectionPeer::from_task(proxy),
-    ));
+    let mut completion = Box::pin(finish_socks_route(Ok(()), origin, proxy));
     if poll_before_drop {
         assert!(futures_util::poll!(&mut completion).is_pending());
     }
@@ -354,19 +348,15 @@ async fn a_failed_local_operation_finishes_its_driven_peers() -> TestResult<()> 
         client,
         origin,
         proxy,
+        origin_abort,
+        proxy_abort,
         mut origin_destroyed,
         mut proxy_destroyed,
     } = driven_route(None, None).await?;
-    let origin_abort = origin.abort_handle();
-    let proxy_abort = proxy.abort_handle();
-    let error = finish_socks_route(
-        Err(Box::new(OperationFailure)),
-        ConnectionPeer::from_task(origin),
-        ConnectionPeer::from_task(proxy),
-    )
-    .await
-    .err()
-    .ok_or("failed local operation succeeded")?;
+    let error = finish_socks_route(Err(Box::new(OperationFailure)), origin, proxy)
+        .await
+        .err()
+        .ok_or("failed local operation succeeded")?;
 
     let (origin_observed, proxy_observed) = tokio::try_join!(
         observe_destruction(&mut origin_destroyed),
@@ -417,6 +407,8 @@ async fn completed_local_peers_keep_both_distinct_typed_failures() -> TestResult
         client,
         origin,
         proxy,
+        origin_abort: _,
+        proxy_abort: _,
         origin_destroyed,
         proxy_destroyed,
     } = driven_route(
@@ -440,14 +432,10 @@ async fn completed_local_peers_keep_both_distinct_typed_failures() -> TestResult
         }
     )?;
 
-    let error = finish_socks_route(
-        Ok(()),
-        ConnectionPeer::from_task(origin),
-        ConnectionPeer::from_task(proxy),
-    )
-    .await
-    .err()
-    .ok_or("failed local peers succeeded")?;
+    let error = finish_socks_route(Ok(()), origin, proxy)
+        .await
+        .err()
+        .ok_or("failed local peers succeeded")?;
     assert!(
         retained(&origin_weak),
         "original typed origin object was discarded"
@@ -467,16 +455,13 @@ async fn completed_local_peers_preserve_a_successful_wire_exchange() -> TestResu
         client,
         origin,
         proxy,
+        origin_abort: _,
+        proxy_abort: _,
         origin_destroyed,
         proxy_destroyed,
     } = driven_route(None, None).await?;
     drop(client);
-    let result = finish_socks_route(
-        Ok(()),
-        ConnectionPeer::from_task(origin),
-        ConnectionPeer::from_task(proxy),
-    )
-    .await?;
+    let result = finish_socks_route(Ok(()), origin, proxy).await?;
     assert_eq!(result, ((), ()));
     timeout(CONTROL_TIMEOUT, origin_destroyed).await??;
     timeout(CONTROL_TIMEOUT, proxy_destroyed).await??;
