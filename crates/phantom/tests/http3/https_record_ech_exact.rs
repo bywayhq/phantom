@@ -198,6 +198,14 @@ struct Origin {
 
 impl Origin {
     async fn spawn(acceptor: SslAcceptor, plan: Vec<Opening>) -> TestResult<Self> {
+        Self::spawn_observed(acceptor, plan, None).await
+    }
+
+    async fn spawn_observed(
+        acceptor: SslAcceptor,
+        plan: Vec<Opening>,
+        mut observation: Option<owner_contract::OriginObservation>,
+    ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
         let (stop, mut stopped) = oneshot::channel();
@@ -210,7 +218,22 @@ impl Origin {
                     accepted = listener.accept() => accepted?.0,
                     _ = &mut stopped => break,
                 };
-                let (seen, tls) = try_handshake(tcp, &acceptor).await?;
+                let pending = if observed.len() == 1 {
+                    observation
+                        .as_mut()
+                        .and_then(|observation| observation.pending_handshake.take())
+                } else {
+                    None
+                };
+
+                let handshake = try_handshake(tcp, &acceptor);
+                let (seen, tls) = match pending {
+                    Some(pending) => {
+                        owner_contract::observe_pending_handshake(handshake, pending).await?
+                    }
+                    None => handshake.await?,
+                };
+
                 // A rejection completes under the public name, and the client
                 // then aborts it to retry, so it is not served.
                 let rejected =
@@ -557,3 +580,4 @@ async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()>
 }
 
 mod deadline_contract;
+mod owner_contract;
