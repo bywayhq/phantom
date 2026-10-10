@@ -1,0 +1,19 @@
+# H2 lifecycle baseline execution
+
+Both native runners finished at `c312cbf056da1d68b7f4df64a24373169a3a4c4a`. Each ran 99 tests: 54 passed,
+45 failed, 285 skipped. All 24 original methods passed. Formatting, strict
+selected Clippy and Rust 1.88 checks passed. The rosters match across hosts.
+
+These are baseline results, not 45 established fixture defects. Four relay
+reset cases stop at an illegal inactive-stream observation. The EOF positive
+expects None before draining empty DATA. Those controls need correction and
+another baseline execution before the corresponding helper repair is credited.
+The other failures include live task observations, discarded typed causes,
+poisoned logs and rejection observers accepting substituted outcomes.
+
+The raw artifacts remain intact. Complete machine parsing is distinct from
+root's partial manual test-log reads. The independent compiler-boundary review
+approved c312's narrow imports and visibility changes; no assertion or relay
+body changed. Independent native assessment and final gates remain open.
+
+JSON SHA256: `8ec4d458889b037c30e8ce4ac1c9c8e8e834f469ced867402efe816931c03c1d`.

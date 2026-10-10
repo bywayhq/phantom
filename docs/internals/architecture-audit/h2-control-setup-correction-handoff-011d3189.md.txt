@@ -1,0 +1,21 @@
+# H2 control setup correction
+
+Signed revision `011d3189683c132e93a449ef3b5f72f0dc1bfbc2`, parent `c312cbf056da1d68b7f4df64a24373169a3a4c4a`, branch `lane/audit-h2-control-corrections`. Human author and committer: Arya Alikhani <AryaAlikhani@icloud.com>. Signature verified; tree clean.
+
+The correction changes only `proxy_h2/stream_contract.rs` and `proxy_h2/relay_contract.rs`. It is ready for independent source review and root execution. No target fixture remedy or runtime pass is claimed.
+
+Both original Windows and Linux nextest logs were read completely (1–1658 each). Each ran 99 cases: 54 passed and 45 failed. The logs and failures remain unchanged. One positive failed at the EOF witness; four reset negatives failed before their intended causal assertions with `User(InactiveStreamId)`.
+
+The EOF control sends an empty DATA frame with END_STREAM. The receive API returns pending DATA before `None`, and its end-state predicate requires those pending items to be drained. The control now drains the first empty item, still requires actual `None`, drains the second body to actual `None`, and then checks its end state. Every returned item must be empty and successful. The original log did not print the item; its identity follows from the actual input and resolved source.
+
+The relay control formerly polled a response handle after sending headers, which the resolved API rejects. It now records bytes read from the actual server inbound duplex using existing `Recording`. It drives that same connection and parses complete received frame boundaries using the resolved `Head` and `Reset` parsers. The witness requires the actual original CONNECT stream ID and the existing INTERNAL_ERROR assertion. Partial frames wait for more bytes. Parser/observation errors return; a private concrete parser error retains the actual frame error enum. No additional stream or substitute relay is used.
+
+Literal GET/CONNECT and relayed response checks still precede faults. The unsent second-response reset witness in the separate stream control is legal and unchanged. All worker waits, cleanup steps, fault categories and target typed-error assertions remain in place. The existing `has_ended` and relay implementations remain defective until a corrected causal baseline is measured.
+
+Mechanical preservation at the signed revision passes: all 99 methods retain their bodies, the eight owned test suffixes are byte-exact, and all thirteen other H2 source blobs are byte-exact. The target reset-validator suffix and stream operations after the witness are exact. The earlier preliminary validator counted 89 async methods only; the retained signed-revision validator counts all 99 synchronous and asynchronous methods.
+
+Static checks: targeted formatting check, diff check, signature verification and clean status all exit 0. No Cargo, compile, Clippy, MSRV or runtime check was run here. Root must confirm that EOF passes and all four reset controls reach their original missing-cause assertions before applying fixture remedies.
+
+Manual current-source scope: all 218 stream-control lines and all 449 relay-control lines. Supporting partial reads and two small whole parser reads are listed individually in the paired JSON, with actual inclusive ranges, EOF checks, Git blobs and raw/range hashes. Other source identity comparisons are mechanical, not additional semantic coverage. The complete two prior native logs are hash-bound separately.
+
+Preservation artifact: `h2-control-setup-preservation-011d3189.json` (SHA256 `1810ef4e012f054399a6a62b50c31776c530645815b8ae09378685a3e5c77662`). Replay script: `h2-control-setup-preservation-validator.py` (SHA256 `5c9e50df6f548defff4f7620d4e2105145ea20db7e2f9baf3aa2659e7e156cac`). These checks cover private test fixtures, actual loopback/duplex traffic and finite five-second witnesses; they establish no production or permanent-lifetime claim.

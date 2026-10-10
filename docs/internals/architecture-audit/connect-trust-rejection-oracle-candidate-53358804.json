@@ -1,0 +1,80 @@
+{
+  "revision": "53358804e73b2c3d8dd1a4e0710d5612a149e985",
+  "path": "crates/phantom/tests/proxies/proxy.rs",
+  "git_blob": "7f16f028601342f2f3c3d2d85aea4200ae0b15ad",
+  "raw_sha256": "763e9d50fefc201c6041a7c920325a4d4357d0cfc4277e3273bf76fe2e5253b1",
+  "line_count": 907,
+  "byte_basis": "raw committed Git bytes",
+  "supporting_tls_reader": "support/tls.rs20-112 partial, bound identity in main handoff",
+  "candidates": [
+    {
+      "caller": "disabled_proxy_authentication_does_not_authenticate_the_origin",
+      "inclusive_ranges": [
+        {
+          "start": 216,
+          "end": 272,
+          "raw_range_sha256": "5b274b62622a448f0e04a3a4955fd3d1c2029c6e6c15ff422edcaf9fafaa065c"
+        },
+        {
+          "start": 234,
+          "end": 239,
+          "raw_range_sha256": "50fd99f21a369964603c20feab4bffdeecfd2dae957695615b106099b00c75bc"
+        },
+        {
+          "start": 256,
+          "end": 256,
+          "raw_range_sha256": "ed0ce8a1eafdc6378bb82410430520e55c6fbc0afa4f0459b427b06c361b70e2"
+        }
+      ],
+      "status": "retained source-supported oracle candidate, not a measured failure",
+      "independent_client_category": "Tls",
+      "limits": "Actual server failure category is unmeasured. No claim every SSL failure is unknown CA. Existing deliberate trust rejection assertions retained by explicit integration direction."
+    },
+    {
+      "caller": "https_proxy_and_origin_trust_are_independent",
+      "inclusive_ranges": [
+        {
+          "start": 275,
+          "end": 331,
+          "raw_range_sha256": "649d2a9052abf72d4b9547757c228bb82b53ad4a90c65f023cd5368f782a8279"
+        },
+        {
+          "start": 293,
+          "end": 298,
+          "raw_range_sha256": "50fd99f21a369964603c20feab4bffdeecfd2dae957695615b106099b00c75bc"
+        },
+        {
+          "start": 315,
+          "end": 315,
+          "raw_range_sha256": "ed0ce8a1eafdc6378bb82410430520e55c6fbc0afa4f0459b427b06c361b70e2"
+        }
+      ],
+      "status": "retained source-supported oracle candidate, not a measured failure",
+      "independent_client_category": "Tls",
+      "limits": "Actual server failure category is unmeasured. No claim every SSL failure is unknown CA. Existing deliberate trust rejection assertions retained by explicit integration direction."
+    },
+    {
+      "caller": "untrusted_https_proxy_fails_without_direct_fallback",
+      "inclusive_ranges": [
+        {
+          "start": 334,
+          "end": 382,
+          "raw_range_sha256": "0311b6e3ba367a70a26a96ca43276fe0eefefd28bb53c1375592eceb117524b7"
+        },
+        {
+          "start": 351,
+          "end": 356,
+          "raw_range_sha256": "c792f4cb9d6ec8121601cf4a971261b2a6b044a65b313d9cb7f6cb32b590700e"
+        },
+        {
+          "start": 367,
+          "end": 367,
+          "raw_range_sha256": "86101b83c920663418cbe44777bcfe6af377a83400d6dc322752e527dceafedf"
+        }
+      ],
+      "status": "retained source-supported oracle candidate, not a measured failure",
+      "independent_client_category": "Proxy",
+      "limits": "Actual server failure category is unmeasured. No claim every SSL failure is unknown CA. Existing deliberate trust rejection assertions retained by explicit integration direction."
+    }
+  ]
+}

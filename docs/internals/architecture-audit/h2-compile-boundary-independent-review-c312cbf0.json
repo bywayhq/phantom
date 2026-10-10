@@ -1,0 +1,272 @@
+{
+  "kind": "independent bounded source correction review",
+  "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+  "base": "78be020482ed6f24bf19edadb308e89b3310aefc",
+  "verdict": "source approved for compile/native retry; no behavioral change or runtime verification claim",
+  "changed_owner_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+      "raw_git_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "raw_working_sha256": "1f52c95fb399e849add9e83ac1a8ca6e40c162be0775e41de216b59f8d52d1e9",
+      "line_count": 651,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 651,
+          "raw_git_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6"
+        }
+      ],
+      "semantic_read_scope": "whole current changed owner manually read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "f5be747cc42c8f08782fd466f0b59be4895a4069",
+      "raw_git_sha256": "8f18e0c3e73ffa998f0777a9300670d22c75bf8e18765d047c5e6f46528bdf74",
+      "raw_working_sha256": "8f18e0c3e73ffa998f0777a9300670d22c75bf8e18765d047c5e6f46528bdf74",
+      "line_count": 222,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 222,
+          "raw_git_sha256": "8f18e0c3e73ffa998f0777a9300670d22c75bf8e18765d047c5e6f46528bdf74"
+        }
+      ],
+      "semantic_read_scope": "whole current changed owner manually read"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "56d8eeb72e968474596365ace57cec5088ecb57e",
+      "raw_git_sha256": "90d194e45f08f8cf2f91b44cb6f3252ccebe093ae57b1fcc46f35d2cf29befe3",
+      "raw_working_sha256": "812d1c9f93ddecf3d3bf5163d2a1894f529f987889e9c646dddfebed5ee7989a",
+      "line_count": 713,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 713,
+          "raw_git_sha256": "90d194e45f08f8cf2f91b44cb6f3252ccebe093ae57b1fcc46f35d2cf29befe3"
+        }
+      ],
+      "semantic_read_scope": "whole current changed owner manually read"
+    }
+  ],
+  "supporting_reads": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "a7213a7f01e8f815efdf2c4e0409d60dda221748",
+      "raw_git_sha256": "0deac5a29f1273e1bf0deb92b0f4478a4bd20b2812e3bf9923aed2513afca91b",
+      "raw_working_sha256": "8f42653d8327d2ad1cf23c278802313f25f37029e9f8e1c3c54213260a28ffd1",
+      "line_count": 399,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 220,
+          "raw_git_sha256": "b9385c63514f7e10ec4f964057fd33fa71c38e054cf561261dc567d3b4586997"
+        }
+      ],
+      "semantic_read_scope": "partial concrete sibling module call/readiness contract"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "raw_working_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "line_count": 629,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 36,
+          "raw_git_sha256": "857e5928c21669d7bd5dfb0d4c3c82d625ba6d2ebb34a677e4ab13b5d3e0c419"
+        }
+      ],
+      "semantic_read_scope": "partial existing module visibility and re-export contract"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "raw_working_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "read_ranges": [
+        {
+          "start": 60,
+          "end": 113,
+          "raw_git_sha256": "278eed4f3bc983cb9886372f32bd5fb649cfc1eb6fec0256b0be33c07dadb6ff"
+        }
+      ],
+      "semantic_read_scope": "partial existing FixtureFailures visibility/fields/identity"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+      "git_blob_oid": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "raw_git_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "raw_working_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+      "line_count": 21,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 21,
+          "raw_git_sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd"
+        }
+      ],
+      "semantic_read_scope": "whole binary registration; supporting scope"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-clippy-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-clippy-linux.log",
+      "raw_sha256": "a97f5fe9b1d13ae8fb4f460ecb7b4bb2b3e9e3218dc459e6af53896249a12a29",
+      "line_count": 65,
+      "read_scope": "complete actual file; empty logs explicitly empty",
+      "disposition": "compilation stopped at two unresolved imports and two private relay calls; no runtime cases"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-clippy-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-clippy-windows.log",
+      "raw_sha256": "ce7f9d0597046554c379246868fbcc6dd1cba896e259f411b98b645c603ecb7a",
+      "line_count": 65,
+      "read_scope": "complete actual file; empty logs explicitly empty",
+      "disposition": "compilation stopped at two unresolved imports and two private relay calls; no runtime cases"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-fmt-linux.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-fmt-linux.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-fmt-windows.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-fmt-windows.log",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-h2-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-h2-linux.log",
+      "raw_sha256": "470abc77395d45917a953a1d7fa7c692d2376149b0eb3e9fb34adecb5fbe23c7",
+      "line_count": 66,
+      "read_scope": "complete actual file; empty logs explicitly empty",
+      "disposition": "compilation stopped at two unresolved imports and two private relay calls; no runtime cases"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-h2-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-h2-windows.log",
+      "raw_sha256": "f4017c34a62fd2b424072e25f0ff12883eef34aaf77230706d93c8850f01ba44",
+      "line_count": 66,
+      "read_scope": "complete actual file; empty logs explicitly empty",
+      "disposition": "compilation stopped at two unresolved imports and two private relay calls; no runtime cases"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-linux.revision",
+      "raw_sha256": "7674f32e9632610fd4861354492f45390d6b66e190a7a39eee7e5a22a0848272",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-msrv-linux.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-msrv-linux.log",
+      "raw_sha256": "db55c46a8fbcaf5019b5ec211dc76245a8e782d26c8251a506837f56f207c3b0",
+      "line_count": 63,
+      "read_scope": "complete actual file; empty logs explicitly empty",
+      "disposition": "compilation stopped at two unresolved imports and two private relay calls; no runtime cases"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-msrv-windows.exit",
+      "raw_sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-msrv-windows.log",
+      "raw_sha256": "edfb8c5174071377bdaccc9c98749e24ea5bb6768a35617e87b8d43814bf1dcd",
+      "line_count": 63,
+      "read_scope": "complete actual file; empty logs explicitly empty",
+      "disposition": "compilation stopped at two unresolved imports and two private relay calls; no runtime cases"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-windows.revision",
+      "raw_sha256": "7674f32e9632610fd4861354492f45390d6b66e190a7a39eee7e5a22a0848272",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-lifecycle-baseline-78be0204-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_scope": "complete actual file; empty logs explicitly empty"
+    }
+  ],
+  "preservation_artifact": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h2-compile-boundary-preservation-c312cbf0.json",
+    "sha256": "61a47a5cfde913b568bd462b50fc2a9bae69552a861ca8292d684b1becc6ba5d",
+    "15_source_files_mechanically_compared": true,
+    "99_test_methods_unchanged": true,
+    "other12blobs_unchanged": true,
+    "mechanical_discovery_is_not_manual_coverage": true
+  },
+  "evidence": [
+    "Full three-file semantic diff contains only two import-path corrections and two pub(super) function modifiers.",
+    "Existing support::tunnel_proxy::connection_peer module is pub(crate); actual FixtureFailures and its fields are pub(crate). The tunnel_proxy re-export includes ConnectionPeer and finish_with_cleanup only. No new shared export is introduced.",
+    "Concrete relay_contract imports the sibling module at24 and calls relay_downstream174 and relay_upstream184. pub(super) opens the exact common test-binary parent while function bodies remain exact.",
+    "Exact three-file reconstruction by only these four replacements equals current Git bytes; twelve other H2 source blobs exact. Therefore all99 test bodies remain unchanged.",
+    "Both source revisions/statuses read:78be020482ed6f24bf19edadb308e89b3310aefc, runner1, format0, nextest/Clippy/MSRV101. Full actual six compiler logs contain the same four compile errors. Both nextest logs explicitly failed cargo test --no-run.",
+    "Signature verification succeeded; no Cargo, source edit, commit, push, merge or new native execution by reviewer."
+  ],
+  "limits": [
+    "Approval is independent for the root-authored compile correction only, not a new independent approval of the original broader baseline authored by this reviewer.",
+    "Baseline lifecycle defects intentionally remain for actual causal reproduction. No test failure or pass at runtime is inferred from these compile logs.",
+    "Three changed owners fully read1586lines; other mechanically matched files are not promoted as whole manual coverage.",
+    "Current compiler/native outcomes afterc312 remain root-owned and are outside this prior-log review."
+  ]
+}

@@ -1,0 +1,26 @@
+# Independent H3 and trust native evidence addendum
+
+Approve the focused evidence at exact e6f01439 and d0a45c1e. Every raw file
+bound by the root receipt was read completely and independently checked.
+
+H3 runs the same three controls on each host: all pass, 440 skipped.
+Formatting, selected strict Clippy, Rust 1.88 and runners return zero.
+Linux full canonical vendor replay and package checks pass. Windows passes
+exactly the same package Cargo body, with archive replay unavailable locally.
+Eleven overlapping package selections pass; their sum is not a unique count.
+The retained named-result source and frozen real controls match exact Git bytes.
+Previously blocked full ordinary order and pseudo exclusion assertions now pass.
+
+Trust runs four controls on each host: three pass and the equal-total missing-H2
+substitution fails at its intended rejection assertion64. Healthy actual named
+captures, nonempty recipe orders and no-H2/two-H1 prerequisites precede that
+failure. This establishes an observation-oracle defect. It does not establish
+a missing production connector. Trust format/strict Clippy/MSRV return zero;
+nextest returns100 and runners1, as expected for this causal baseline.
+
+Source identity checks remain separate from fresh supporting partial reads.
+No Cargo or tracked edits occurred here. Windows administrator/link limitations
+are root-reported; they were not independently reproduced. Main, final gates,
+macOS, outgoing wire and browser claims remain open.
+
+JSON SHA256: `c26d332e88c38c84ab03820b356a0c9f1da96c4b02d105a6613b18bf7f878f5b`.

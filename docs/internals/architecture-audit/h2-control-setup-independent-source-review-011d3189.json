@@ -1,0 +1,474 @@
+{
+  "validator_correction": "Original independent writer omitted hash-only author HPACK record from its Git fetch and failed before paired output. Additive v2 fetches that identity only; no manual HPACK source read is claimed.",
+  "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+  "parent": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+  "decision": "approve control-only source correction for corrected native causal baseline",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "14523f32c7938020516c1dd6b0bc85b77d4578b1",
+      "raw_sha256": "407e67e56f54603aadf23edecb946c26abeb127aa335cc8bf6318981a77e85eb",
+      "line_count": 218,
+      "scope": "fresh complete manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 218,
+          "raw_sha256": "407e67e56f54603aadf23edecb946c26abeb127aa335cc8bf6318981a77e85eb"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "94fe882a485d0b2b0fedcbdd50f803f796160be5",
+      "raw_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc",
+      "line_count": 449,
+      "scope": "fresh complete manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 449,
+          "raw_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "32010ab386ad11ddbf08eb08b221df41c8b0d1f0",
+      "raw_sha256": "e003c74d6b5f94cd44ecbd9237e55b2a8649c5b397af6386c09b2dcf1d3145b3",
+      "line_count": 2146,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1790,
+          "end": 1838,
+          "raw_sha256": "9de3f4d491d2c5d1bad954ed4009d04cac4b1045df2748c7908d6b91d354afd7"
+        },
+        {
+          "start": 2031,
+          "end": 2042,
+          "raw_sha256": "7826d407307c697e995276d8feb8a49ddf88884f791e5b6ecda4bf6d275a9945"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "line_count": 264,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 60,
+          "end": 113,
+          "raw_sha256": "278eed4f3bc983cb9886372f32bd5fb649cfc1eb6fec0256b0be33c07dadb6ff"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1242,
+          "end": 1268,
+          "raw_sha256": "85c3d0cffcac9985c06e5350ca07c442d09f2535d74b406dc82709b2b204fedc"
+        },
+        {
+          "start": 1298,
+          "end": 1326,
+          "raw_sha256": "e42fb4cd132e27a3ba2c8b4072ff3b05d97e4c57177000d1837a9c016454da73"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 355,
+          "end": 460,
+          "raw_sha256": "59f50dfcca3459e742fcdbdec19bef7e20ddb16b276addc8f6a45508e7f83046"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 715,
+          "end": 727,
+          "raw_sha256": "445a6236d8564fe71ca8c0905c58fac48ba4f8e1153b89ca406f73fa1a74a34b"
+        },
+        {
+          "start": 1289,
+          "end": 1349,
+          "raw_sha256": "d4bc013ad55d87c19896169af444043f547d9728642c71e9daea4b73098d6661"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/head.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "40428258c366daef32414c1c035f60ca98e98a64",
+      "raw_sha256": "f163fc1abcfb8a954a36942be7b912bdef4d90a7c3c15e390563db9ca3d64d57",
+      "line_count": 96,
+      "scope": "fresh complete manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 96,
+          "raw_sha256": "f163fc1abcfb8a954a36942be7b912bdef4d90a7c3c15e390563db9ca3d64d57"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/reset.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "0f8266231934396c8418657cf9091f7c5257278c",
+      "raw_sha256": "1ba29fb40e5cbcabefc40cbfd85155423c28683801c944c469e7d67d489b268d",
+      "line_count": 57,
+      "scope": "fresh complete manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 57,
+          "raw_sha256": "1ba29fb40e5cbcabefc40cbfd85155423c28683801c944c469e7d67d489b268d"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/stream_id.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "0f427dfb491b632bbcf18d49f46780f1252319fe",
+      "raw_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815",
+      "line_count": 94,
+      "scope": "fresh complete manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 94,
+          "raw_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/mod.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "9236f9ff0f61a5622efac11c29ba72e3bc5195a1",
+      "raw_sha256": "d07e090b463fc7d24781bd524e0b3f0b2c470f9067ee19a022811143e0415e9a",
+      "line_count": 187,
+      "scope": "fresh complete manual read",
+      "inclusive_ranges": [
+        {
+          "start": 1,
+          "end": 187,
+          "raw_sha256": "d07e090b463fc7d24781bd524e0b3f0b2c470f9067ee19a022811143e0415e9a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/lib.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "569a42382a9f5bedf4fac24db3c702a9e463fb27",
+      "raw_sha256": "760a1c37e68e9701d06a382c3e68fa31cb08067add1030cab1ce6f633d364368",
+      "line_count": 164,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 105,
+          "end": 147,
+          "raw_sha256": "0fbffb7b3c31c36bb2c5a220a5decc6e341d955f23565278d908db83119f850e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "scope": "fresh supporting partial manual read",
+      "inclusive_ranges": [
+        {
+          "start": 56,
+          "end": 65,
+          "raw_sha256": "df548896c778dc420dd99f110932a2400860374f4c5b27c542dded9b021e97f0"
+        }
+      ]
+    }
+  ],
+  "unchanged_method_bindings": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "git_blob_oid": "32010ab386ad11ddbf08eb08b221df41c8b0d1f0",
+      "raw_sha256": "e003c74d6b5f94cd44ecbd9237e55b2a8649c5b397af6386c09b2dcf1d3145b3",
+      "tests": 18,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs",
+      "git_blob_oid": "17e10196156ed73b6203bfbdfdbf1a931da24939",
+      "raw_sha256": "85af0231ca8b5fec74def818ce73efa1142a8f3366b4e931e7f1f5c909c4b1f6",
+      "tests": 20,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs",
+      "git_blob_oid": "e0930d86cd256c18c56d5950e44bd64bbcf52d5e",
+      "raw_sha256": "6851f4d1c9365b7a15f98fe775db264103c8d265b6c93a4a5a2e6c13ca3c6a62",
+      "tests": 3,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs",
+      "git_blob_oid": "c2b69096967c81c7ee0e0feb36526e5e30b47a22",
+      "raw_sha256": "c332cebf7b463944af6cc445778eb2ff70ea4f9ab63769ca5b714e5522c79abf",
+      "tests": 11,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs",
+      "git_blob_oid": "5848a591604d1d100f005330d85d77d0192ad7e7",
+      "raw_sha256": "741358d92d57acfa9523d7d4b43f21611d0416d73198e2f6b7e51068953070d7",
+      "tests": 3,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "git_blob_oid": "94fe882a485d0b2b0fedcbdd50f803f796160be5",
+      "raw_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc",
+      "tests": 5,
+      "scope": "test suffix byte equality only; helper correction manually read above"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "git_blob_oid": "14523f32c7938020516c1dd6b0bc85b77d4578b1",
+      "raw_sha256": "407e67e56f54603aadf23edecb946c26abeb127aa335cc8bf6318981a77e85eb",
+      "tests": 3,
+      "scope": "test suffix byte equality only; helper correction manually read above"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex.rs",
+      "git_blob_oid": "56d8eeb72e968474596365ace57cec5088ecb57e",
+      "raw_sha256": "90d194e45f08f8cf2f91b44cb6f3252ccebe093ae57b1fcc46f35d2cf29befe3",
+      "tests": 6,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs",
+      "git_blob_oid": "a7453dacfd0e9abea64afa8f6ae946d256b9422d",
+      "raw_sha256": "1ff3bc3d5a9ab98c21135cb536cc73657aeca7a58bc677ffa99469537eb7ff76",
+      "tests": 3,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs",
+      "git_blob_oid": "437c3c3bc35df59c998f665d136e475d74a92976",
+      "raw_sha256": "c10e051853194377a2c510096c112dad1e833860c66e7b79ed49ae1e8a5903eb",
+      "tests": 3,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs",
+      "git_blob_oid": "2ceb3f14b102da8b86c36ba784c9df99bff97c4b",
+      "raw_sha256": "a3e44fa1ae411e945b32509a7867039c18d9aa56285e4ee7375f2faf76eb7b2c",
+      "tests": 3,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs",
+      "git_blob_oid": "f5be747cc42c8f08782fd466f0b59be4895a4069",
+      "raw_sha256": "8f18e0c3e73ffa998f0777a9300670d22c75bf8e18765d047c5e6f46528bdf74",
+      "tests": 4,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs",
+      "git_blob_oid": "9794365a52acaa948ab587646f8da763f839ee7f",
+      "raw_sha256": "219a63f371735111fa7585b91ef31c2ace06a79cde97b543a58e832b92cde247",
+      "tests": 8,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs",
+      "git_blob_oid": "7c7064df79800dcea840a8d27e342dd39bd0e164",
+      "raw_sha256": "ad86077c832e841fb8ad574fba1906244ddc5607ab459b1d6a68f50ea7378fbf",
+      "tests": 5,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs",
+      "git_blob_oid": "455bc658c09e4444d82c59acc791759b108ecff0",
+      "raw_sha256": "2e6a7fb147c383b7a28705ea55073f60ee7a01f870db76cd7f94c3a9cbd50090",
+      "tests": 4,
+      "scope": "whole blob byte equality only, no new semantic read credit"
+    }
+  ],
+  "method_count": 99,
+  "method_roster": [
+    "crates/phantom/tests/proxies/proxy_h2.rs:plaintext_proxy_rejects_h2_transport_configuration",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h1_origin_over_h2_proxy_tunnel_completes_request",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_origin_over_h2_proxy_tunnel_completes_request",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_proxy_basic_challenge_replays_once_on_the_challenged_connection",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_proxy_rejection_is_typed",
+    "crates/phantom/tests/proxies/proxy_h2.rs:default_https_proxy_transport_remains_http1",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_proxy_transport_rejects_http1_selection_without_fallback",
+    "crates/phantom/tests/proxies/proxy_h2.rs:exact_http1_plaintext_request_over_h2_proxy_is_rejected_before_io",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_forwarding_answers_a_challenge_on_the_same_connection_then_sends_credentials_first",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_forwarding_fails_after_a_second_challenge",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_proxy_tunnels_send_remembered_credentials_on_the_first_connect",
+    "crates/phantom/tests/proxies/proxy_h2.rs:chromium_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+    "crates/phantom/tests/proxies/proxy_h2.rs:firefox_forwards_http_over_h2_proxy_with_the_captured_pseudo_order",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_forwarding_places_proxy_credentials_as_captured",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_connect_sends_the_captured_profile_fields",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_connect_closes_the_challenged_stream_as_the_profile_does",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_wss_connect_sends_the_captured_profile_fields",
+    "crates/phantom/tests/proxies/proxy_h2.rs:h2_remembered_navigation_and_fetch_replay_place_credentials_as_captured",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:caller_failure_stops_its_acquired_actual_peer",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:eager_caller_drop_stops_its_acquired_actual_peer",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:an_unpolled_caller_finish_owns_its_acquired_actual_peer",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:ordinary_forward_finish_stops_its_actual_driver",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:eager_forward_drop_stops_its_actual_driver",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:an_unpolled_forward_finish_owns_its_actual_driver",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:ordinary_connect_finish_stops_driver_and_relays",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:eager_connect_drop_stops_driver_and_relays",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:an_unpolled_connect_finish_owns_driver_and_relays",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:a_completed_peer_failure_survives_a_primary_caller_failure",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:a_completed_peer_failure_is_observed_after_a_healthy_caller",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:ordinary_forward_completion_keeps_nonzero_observations",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:a_caller_failure_keeps_its_concrete_type",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:poisoned_recording_keeps_its_actual_observer_cause",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:healthy_recording_keeps_real_h2_bytes",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:deliberate_http_connect_502_is_typed_after_real_traffic",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:the_rejection_observer_accepts_the_actual_typed_502",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:the_rejection_observer_rejects_an_unrelated_typed_failure",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:the_rejection_observer_rejects_an_unexpected_success",
+    "crates/phantom/tests/proxies/proxy_h2/connection_contract.rs:deliberate_wss_connect_502_is_typed_after_real_traffic",
+    "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs:expiry_keeps_the_actual_elapsed_cause",
+    "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs:an_inner_error_keeps_its_type",
+    "crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs:a_ready_operation_completes",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:odd_hex_is_a_recoverable_error",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:non_ascii_hex_is_a_recoverable_error",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:signed_hex_is_a_recoverable_error",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:short_priority_payload_is_a_recoverable_error",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:a_partial_frame_header_is_rejected",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:overflowing_hpack_integer_is_a_recoverable_error",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:a_truncated_pseudo_value_is_rejected",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:valid_capture_and_frame_inputs_are_kept",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:literal_remembered_authorization_does_not_prove_dynamic_indexing",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:actual_dynamic_entry_is_accepted_after_its_replay",
+    "crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs:an_unrelated_dynamic_entry_does_not_prove_credential_indexing",
+    "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs:an_actual_h2_origin_keeps_its_postexchange_accept_error",
+    "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs:a_forward_driver_keeps_its_actual_postexchange_accept_error",
+    "crates/phantom/tests/proxies/proxy_h2/driver_contract.rs:a_connect_driver_keeps_its_actual_postexchange_accept_error",
+    "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs:an_actual_relay_keeps_a_postexchange_write_failure",
+    "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs:an_actual_relay_keeps_a_postexchange_read_failure",
+    "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs:an_actual_relay_keeps_an_internal_error_body_reset",
+    "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs:an_actual_relay_keeps_its_rejected_final_send_after_a_reset",
+    "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs:an_actual_relay_finishes_after_nonzero_traffic_and_end_stream",
+    "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs:an_actual_internal_error_keeps_its_body_cause",
+    "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs:an_actual_cancel_is_distinct_from_end_stream",
+    "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs:an_actual_end_stream_is_observed",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs:tunnels_to_different_origins_share_one_proxy_connection",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs:forwarded_requests_join_the_tunnel_connection_as_the_profile_says",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs:opted_in_routes_open_another_connection_at_the_proxy_stream_limit",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs:a_proxy_connection_maximum_above_the_ceiling_fails_the_build",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs:separately_built_clients_never_share_a_proxy_connection",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex.rs:websocket_tunnels_use_the_connection_the_profile_gives_them",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs:expiry_keeps_the_actual_elapsed_cause",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs:an_inner_error_keeps_its_type",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs:a_ready_operation_completes",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs:actual_proxy_listener_keeps_its_postexchange_accept_error",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs:actual_origin_listener_keeps_its_postexchange_accept_error",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/listener_contract.rs:actual_proxy_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs:actual_origin_keeps_a_postexchange_read_error",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs:actual_origin_keeps_a_postexchange_write_error",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/origin_contract.rs:actual_origin_keeps_an_unrelated_tls_failure_after_a_healthy_exchange",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs:ordinary_finish_keeps_a_completed_actual_handler_failure",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs:a_primary_failure_keeps_the_completed_actual_handler_failure",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs:a_poisoned_actual_writer_does_not_answer_an_unrecorded_request",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs:a_healthy_actual_writer_records_both_forwarded_requests",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:ordinary_finish_stops_actual_listener_and_relay_descendants",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:eager_drop_stops_actual_listener_and_relay_descendants",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:dropping_an_unpolled_finish_stops_actual_listener_and_relay_descendants",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:explicit_backup_observes_actual_fixture_destruction",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:a_poisoned_log_returns_an_error_after_a_real_forwarded_request",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:ordinary_origin_finish_stops_its_actual_listener_and_connection",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:eager_origin_drop_stops_its_actual_listener_and_connection",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs:an_unpolled_origin_finish_stops_its_actual_listener_and_connection",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs:an_actual_multiplex_relay_keeps_a_postexchange_write_failure",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs:an_actual_multiplex_relay_keeps_a_postexchange_read_failure",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs:an_actual_multiplex_relay_keeps_an_internal_error_body_reset",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs:an_actual_multiplex_relay_keeps_its_rejected_final_send_after_a_reset",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs:an_actual_multiplex_relay_finishes_after_traffic_and_end_stream",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs:a_websocket_caller_failure_stops_its_actual_origin",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs:eager_websocket_peer_drop_stops_its_actual_origin",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs:an_unpolled_websocket_finish_owns_its_actual_origin",
+    "crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs:a_healthy_websocket_close_keeps_actual_wire_observations"
+  ],
+  "semantic_diff": {
+    "bytes": 7340,
+    "sha256": "b3cfeab48c81454d7dccdf87b8832482da440d0bfbab302eee93c91797549d38",
+    "scope": "complete diff manually read"
+  },
+  "author_evidence": [
+    {
+      "path": "h2-control-setup-correction-handoff-011d3189.md",
+      "bytes": 3916,
+      "sha256": "83c3b8785ca83ab2bd8bb1f60993f159155d7e38ace3cc794d8a64983242267c",
+      "scope": "complete author handoff manually read; independent assertions below"
+    },
+    {
+      "path": "h2-control-setup-correction-handoff-011d3189.json",
+      "bytes": 16322,
+      "sha256": "c6fcbc5c1daa7cf6d440444d7c7c3fe0b13b2a43c7b1e9c4ba7c7e1da84b9c41",
+      "scope": "complete author handoff manually read; independent assertions below"
+    },
+    {
+      "path": "h2-control-setup-preservation-validator.py",
+      "bytes": 2804,
+      "sha256": "5c9e50df6f548defff4f7620d4e2105145ea20db7e2f9baf3aa2659e7e156cac",
+      "scope": "complete script manually read and replayed read-only with new output"
+    },
+    {
+      "path": "h2-control-setup-preservation-011d3189.json",
+      "bytes": 15685,
+      "sha256": "1810ef4e012f054399a6a62b50c31776c530645815b8ae09378685a3e5c77662",
+      "scope": "author preservation result complete read"
+    }
+  ],
+  "observations": [
+    "EOF input sends empty DATA with END_STREAM on both actual CONNECT streams; receive queue delivers that item before None. Correction rejects nonempty/error chunks, requires actual None on both, and then checks end state before unchanged has_ended observation.",
+    "Reset prerequisite retains actual healthy CONNECT/200 and literal relayed GET/200/ok before fault. Response handle cannot legally poll_reset after headers; existing Recording now observes inbound bytes on that same connection and original stream.",
+    "Bounded scanning waits for complete frame headers and payloads, uses resolved Head and Reset parser, requires original stream ID plus unchanged INTERNAL_ERROR. No additional request or alternate relay is introduced.",
+    "Parser failure retains concrete frame error in private RecordedResetError payload; frame Error itself has no Error implementation. Poison is returned by lock instead of interpreting stale bytes as success.",
+    "Actual relays, has_ended, cleanup waits, typed target assertions and all 99 entry-point bodies remain unchanged; thirteen other source blobs exact. Eight owned test bodies stay byte exact; helper prerequisites deliberately changed."
+  ],
+  "findings": [],
+  "limitations": [
+    "No Cargo, compile, Clippy, MSRV or runtime execution by reviewer. Source approval is for corrected baseline, not target fixture remedy.",
+    "Prior c312 native counts are author/root retained evidence, not independently reread here. No original-log full-read claim by this report.",
+    "Reset witness proves inbound same-stream frame/reason if native reaches it; downstream target typed failure assertions remain predictions until native corrected baseline.",
+    "Existing Recording silently skips poisoned recording on write; the added reset observer checks lock and returns poison. Broader Recording defect remains a separate finding.",
+    "All supporting scopes stay partial except the four complete small frame owners; unchanged blob equality does not promote whole source coverage.",
+    "Finite explicit cleanup remains existing five-second ConnectionPeer paths. Early return/unwind relies on abort-on-Drop, not guaranteed awaited join or impossible OS teardown."
+  ]
+}

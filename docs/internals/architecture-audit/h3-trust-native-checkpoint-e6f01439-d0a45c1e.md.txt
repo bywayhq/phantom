@@ -1,0 +1,24 @@
+# HTTP/3 repair and trust-anchor baseline results
+
+At `e6f01439`, all three real HTTP/3 received-order controls pass on Windows
+and Linux. Unique and interleaved ordinary fields retain their decoded order.
+Formatting, selected strict Clippy and Rust 1.88 checks pass. Linux's full
+vendor check passes, including canonical replay. Windows passes the same
+package Cargo commands; its archive comparison remains unavailable because
+four checkout license links are placeholder files and native link creation
+requires administrator privileges. Eleven overlapping package selections
+pass on each host; their sum is not a unique-test count.
+
+At `d0a45c1e`, each host runs four trust-anchor tests: three pass and one
+fails at the intended observer rejection assertion. Real named captures and
+the original ordinary checks pass. Replacing HTTP/2 observations with equally
+many actual HTTP/1 observations is accepted by the old aggregate observer.
+Formatting, selected strict Clippy and Rust 1.88 checks pass. This establishes
+a private test-oracle defect, not a missing production connector.
+
+All native runners are terminal. Root read all current logs in full. Raw
+files and commands are hash-bound without replacement. Individual independent
+source reviews exist; independent native assessment and final gates remain
+separate. No main integration has occurred.
+
+JSON SHA256: `3c99fe49c53fc9988496baa3cf8314a437ab6e23b56531c6e48b00d729de7ae0`.

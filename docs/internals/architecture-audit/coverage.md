@@ -40,6 +40,31 @@ do not establish that need.
 
 ## Recent verification
 
+At `e6f01439`, all three real HTTP/3 received-order controls pass on Windows
+and Linux. The [native receipt](h3-trust-native-checkpoint-e6f01439-d0a45c1e.md.txt)
+and [independent assessment](h3-trust-native-independent-addendum-e6f01439-d0a45c1e.md.txt)
+record the exact source and checks. Linux passes the full vendor check,
+including canonical patch replay. Windows passes the package commands;
+archive comparison remains unavailable because native checkout links
+require administrator privileges. The named request-parts change has
+independent source review. These are focused results, not final gates.
+
+At `1ac70fe1`, the [trust-anchor observer repair](trust-observer-remedy-native-1ac70fe1.md.txt)
+passes all four methods on both hosts, with default features and all
+features. Each named connector must have its own nonempty batch. The
+unchanged control now rejects equal-count HTTP/1 substitution for HTTP/2.
+The earlier `d0a45c1e` baseline failed that assertion on both hosts.
+Independent source review is approved; native assessment and final gates
+remain separate. Original exceptional cleanup is not newly proved.
+
+At `3e48645c`, the [corrected HTTP/2 baseline](h2-lifecycle-baseline-native-3e48645c.md.txt)
+runs 99 methods per host: 55 pass and 44 fail. All 24 original methods pass.
+The EOF control now passes, and four reset controls reach their intended
+missing-cause assertions. The earlier compiler and control-setup failures
+remain preserved. Fixture ownership, transport causes and poisoned
+observations still need repair. Formatting, selected strict Clippy and
+Rust 1.88 checks pass. Failures count test cases, not production defects.
+
 At `2fb596ad`, the [cookie repair receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt)
 records thirty passes per host with all original controls unchanged. Ten
 formerly failing lifecycle cases now pass, including concrete combined
@@ -48,23 +73,24 @@ Rust 1.88 checks pass on Windows and Linux. The current complete 825-line
 owner has root and independent source review. Independent native review is
 approved; final gates remain open.
 
-At `2234a8c3`, the [CONNECT baseline](connect-route-baseline-root-2234a8c3.md.txt)
-records 106 methods per host: one hundred pass and six intended failures.
-The exact public CONNECT prefix gives a derived 24-method subset, with
-eighteen passes and six failures. This is not a separate execution. The
-[independent review](connect-route-baseline-native-independent-addendum-2234a8c3.md.txt)
-confirms actual preparation, traffic and completed-cause prerequisites.
-The current parent retains historical whole-read and current bounded-diff
-scope. Full caller cleanup is in progress.
+At `602284c2`, the [CONNECT repair](connect-lifecycle-remedy-root-602284c2.md.txt)
+passes all 106 selected methods per host. The exact public CONNECT prefix
+derives 24 passes from that execution, including all six previous failures.
+This is not a separate run. The [independent assessment](connect-lifecycle-remedy-native-independent-addendum-602284c2-corrected.md.txt)
+approves the focused evidence. Explicit cleanup joins owners and retains
+completed causes; synchronous Drop requests abort without a join promise.
+Three server-side trust-rejection assertions remain source candidates.
 
 The [request-session source review](request-session-standards-review-5a28f55f-final.md.txt)
 reads client, cookie and hint owners completely. It reconciles existing
 client fixes and adds eight source candidates, without runtime claims.
-The received H3 ordered-header trace remains a partial vendor review.
+The received H3 ordered-header candidate now has real failing and passing
+QPACK receive controls and a reviewed canonical vendor repair.
 The [broader H2 baseline review](h2-lifecycle-regression-independent-review-49c0aad0.md.txt)
-reads all fifteen current owners and children. Root has reviewed two children
-and bounded other changes; composition, compilation and causal execution
-remain pending. Source forecasts receive no runtime credit.
+reads all fifteen baseline owners and children. Later source reviews cover
+the compiler corrections and actual EOF/reset control changes. The current
+execution above replaces the unexecuted forecast. Source review scopes stay
+bound to their stated revisions; equality checks add no semantic coverage.
 
 The following evidence describes earlier revisions.
 

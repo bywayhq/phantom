@@ -1,0 +1,297 @@
+{
+  "finding": "A159",
+  "kind": "regression-only source handoff",
+  "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+  "parent": "6635ad664e6419b1b02e8e9dccf6012590169874",
+  "lane": "C:\\code\\phantom-worktrees\\audit-trust-observations",
+  "branch": "lane/audit-trust-observations",
+  "owned_sources": [
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "e87a25889af4ded53876246374a2cc4b8f1aa18c",
+      "raw_git_sha256": "e3a193130c8c5e51859493dc1f822e2c1e95c40a2e02bce8f990f252f078ef63",
+      "raw_content_sha256": "e3a193130c8c5e51859493dc1f822e2c1e95c40a2e02bce8f990f252f078ef63",
+      "line_count": 218,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 218,
+          "raw_sha256": "e3a193130c8c5e51859493dc1f822e2c1e95c40a2e02bce8f990f252f078ef63"
+        }
+      ],
+      "semantic_read_scope": "full current owned source; manually read after final changes",
+      "working_raw_sha256": "c794035a11039205e8df032e53ded5d513a74e33e3dddb8b6d1ce31c42d67b3d"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "0cf0c6762ef7fe75e00082f0321f814a9c393e64",
+      "raw_git_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+      "raw_content_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+      "line_count": 250,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 250,
+          "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894"
+        }
+      ],
+      "semantic_read_scope": "full current owned source; manually read after final changes",
+      "working_raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894"
+    }
+  ],
+  "historical_source": {
+    "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+    "revision": "6635ad664e6419b1b02e8e9dccf6012590169874",
+    "git_blob_oid": "53cadf94021bf88461bb2d69c0f463e37d9ee60e",
+    "raw_git_sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2",
+    "raw_content_sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2",
+    "line_count": 154,
+    "read_ranges": [
+      {
+        "start": 1,
+        "end": 154,
+        "raw_sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2"
+      }
+    ],
+    "semantic_read_scope": "full historical source before edits; not current coverage"
+  },
+  "supporting_partial_reads": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_git_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "raw_content_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 98,
+          "raw_sha256": "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+        }
+      ],
+      "semantic_read_scope": "partial actual ownership/Future/finite stop and typed combined outcome contracts",
+      "working_raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "raw_content_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 178,
+          "raw_sha256": "e45459d226f38e28402773838380ddc9b1b7c5f8eb7725c9583cdfaa38aa5540"
+        },
+        {
+          "start": 477,
+          "end": 535,
+          "raw_sha256": "7fa685e1b5aaa5f6f00f1c17ee4351cd371cefe8ce701e9aed9886cded8bcb8f"
+        }
+      ],
+      "semantic_read_scope": "partial actual CONNECT establishment, tunnel cancellation and relay support; not whole source coverage",
+      "working_raw_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "raw_content_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 32,
+          "raw_sha256": "d38d1a6c29478571e6735e2758a8b7ec32c6c6f972419ff001ec9a7e4d63c409"
+        }
+      ],
+      "semantic_read_scope": "partial imports and TestResult alias",
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "9b4208de506693e95095a83ff8c4b2d9c04acc27",
+      "raw_git_sha256": "5bf636bace0a1fe449209cc7a60d6fece246233cfe303d8fef42399d3da903e8",
+      "raw_content_sha256": "5bf636bace0a1fe449209cc7a60d6fece246233cfe303d8fef42399d3da903e8",
+      "line_count": 394,
+      "read_ranges": [
+        {
+          "start": 230,
+          "end": 310,
+          "raw_sha256": "46229dea702a9c7eb9d8696b702bf38091bf9f85c315aa63f41e6a81f72a0fe7"
+        }
+      ],
+      "semantic_read_scope": "partial capture API/deadline/input boundary",
+      "working_raw_sha256": "c6e4202ba7feaf8c014fce00fa65bc5e2736cc05d10cca7f7a54c13343d8cce0"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/client_hello.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "37a9b9aa08e442e0eebedd06fb876efeeb9ff33b",
+      "raw_git_sha256": "dabbeb0feb26b3c03802b47fbca88bdccd317145e6f31c207223f0c18357a57b",
+      "raw_content_sha256": "dabbeb0feb26b3c03802b47fbca88bdccd317145e6f31c207223f0c18357a57b",
+      "line_count": 690,
+      "read_ranges": [
+        {
+          "start": 36,
+          "end": 62,
+          "raw_sha256": "8ffb3150a9dbfc076a91fc7d5add8e4088f94b3cee713641d8bcbdecdbc56523"
+        },
+        {
+          "start": 245,
+          "end": 265,
+          "raw_sha256": "16b19630f8004a5ba4b5241686e7b75e895baa5fdcafac2829c1dabcde782828"
+        }
+      ],
+      "semantic_read_scope": "partial parser input contract and exact requested-anchor accessor",
+      "working_raw_sha256": "56411b751413c7181c8d45878871d6cbf1391621eb07f8d76daccb52292c07e9"
+    },
+    {
+      "path": "crates/phantom-profile/src/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "7dc6ded3770ca3eb89a4baad57e67106e5719852",
+      "raw_git_sha256": "4cefad0bab35c8d459d9b54e3b4eb6c5ca72f90c1eb4617f4d8fe53ea6c94b7f",
+      "raw_content_sha256": "4cefad0bab35c8d459d9b54e3b4eb6c5ca72f90c1eb4617f4d8fe53ea6c94b7f",
+      "line_count": 1409,
+      "read_ranges": [
+        {
+          "start": 700,
+          "end": 762,
+          "raw_sha256": "fc8ea0db00250d08b18f6fffb3dbc20f46ea7e9efc6406ec7981b5e86fa6b564"
+        },
+        {
+          "start": 790,
+          "end": 873,
+          "raw_sha256": "cd44c786e960f7db416a75c45c5a47bb76fd8e30f708cc200e076b2f60932d82"
+        },
+        {
+          "start": 881,
+          "end": 935,
+          "raw_sha256": "274979742463b84cd55e073b84621abb9d3777628e366d5ed2593b517019f627"
+        }
+      ],
+      "semantic_read_scope": "partial checked anchor orders, owned opaque ID types, candidates and draw contract",
+      "working_raw_sha256": "a2e201e0f7f911d2e0251db3596e9042954d0b171484425b20f664241168ac48"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_git_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "raw_content_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_ranges": [
+        {
+          "start": 25,
+          "end": 55,
+          "raw_sha256": "7005b73d28130083fbeda8f8e6c064268f93dc711952574854242b935f0105ca"
+        }
+      ],
+      "semantic_read_scope": "partial actual non-exhaustive HttpProtocol definition",
+      "working_raw_sha256": "c32602ff16aeedb56436e3e8717614b2861d6345e10894f6858ccd7b5eeea421"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/mpsc/unbounded.rs",
+      "revision": null,
+      "git_blob_oid": null,
+      "raw_git_sha256": null,
+      "raw_content_sha256": "dda6a292c5b591084ca66a317db9803eda9aae1ec3b978a8a6f404db6223c6a7",
+      "line_count": 726,
+      "read_ranges": [
+        {
+          "start": 80,
+          "end": 106,
+          "raw_sha256": "9891a80378b9a079632120c2d985a26d026589d18fcb0092e0174e25d844d7b8"
+        },
+        {
+          "start": 240,
+          "end": 291,
+          "raw_sha256": "73d030b71480a7d595a4abdd9e7c4c91a66e40f3a362f67f799a416dab721ae4"
+        },
+        {
+          "start": 547,
+          "end": 561,
+          "raw_sha256": "6523f88a06632eccc97b5135302bc56051f92674bb109379da6f66220faff4f2"
+        }
+      ],
+      "semantic_read_scope": "partial resolved registry channel/send/drain contract; Cargo.lock resolves tokio1.53.1"
+    }
+  ],
+  "controls": [
+    {
+      "name": "real_connector_batches_keep_one_recipe_order",
+      "expected": "pass; source prediction only",
+      "prerequisites": "all four/five real named connectors; nonempty exact parsed anchor IDs; recipe membership; same-client observed-order consistency"
+    },
+    {
+      "name": "duplicate_http1_observations_cannot_replace_http2_observations",
+      "expected": "fail at child64\u201366; source prediction only",
+      "first_causal_boundary": "label-blind observer returns Ok after equal-count H2-to-H1 captured-evidence replacement",
+      "prerequisites": "all actual healthy batches and cleanup complete, healthy observer succeeds, total unchanged, no H2 identity, exactly two H1 identities"
+    }
+  ],
+  "preservation": {
+    "validator_path": "C:\\code\\phantom\\target\\architecture-audit\\trust-observation-baseline-preservation-validator.py",
+    "validator_sha256": "0400b12b3ec1778e3f1c9c46a69a93642c9ebee08a60b2c07fc2ae1f26e7302c",
+    "output_path": "C:\\code\\phantom\\target\\architecture-audit\\trust-observation-baseline-preservation-02262a55.json",
+    "output_sha256": "548ec87b04a86f0cc7f9d0ade3eba6fbc0b64a37a3f5cb3816a739745c07af2f",
+    "mechanical_checks": 10,
+    "whole_ordinary_method_unchanged": false,
+    "invalid_order_method_exact": true,
+    "ordinary_changes": [
+      "extract existing capture loop into same owner private function",
+      "drain after each completed original operation into new labelled control metadata",
+      "replace connections increments with the equivalent explicit four/five expected-connector count",
+      "extract original aggregate count, adjacent dedup, one-order and recipe-membership observer; still ignore labels",
+      "clone captures when flattening to retain all input observations for controls"
+    ]
+  },
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check <two owned files>",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit_code": 0
+    },
+    {
+      "command": "python -X utf8 <preservation validator>",
+      "exit_code": 0
+    },
+    {
+      "command": "git status --short",
+      "result": "clean"
+    }
+  ],
+  "not_run": [
+    "Cargo/build",
+    "native Windows/Linux tests",
+    "strict Clippy",
+    "MSRV",
+    "integration gate"
+  ],
+  "limits": [
+    "Baseline preserves defective aggregate sensitivity; no remedy yet.",
+    "Labels are new operation/control metadata; no pre-existing labeled API is claimed.",
+    "Replacement deliberately mutates cloned observation input after real healthy traffic; no production connector absence is measured.",
+    "Ordinary gathering now drains the existing shared capture queue after each completed operation; controls use a separate actual capture listener per named operation.",
+    "Original ordinary failure paths still use existing abort-on-drop ownership and pass-path explicit stop; no new full cleanup proof is claimed there.",
+    "New controls bound bind/request/capture/tunnel joining, finish primary plus cleanup, and retain the actual client until each owner is cleaned up.",
+    "Unbounded local channel and finite capture loop are inherited; this is a private loopback observation contract, not arbitrary external traffic coverage.",
+    "WebSocket operation is present only with its feature. Invalid HTTP3-order test remains construction-only.",
+    "The original stochastic twelve-client diversity check is retained.",
+    "Full manual owned source reads and supporting partial reads are distinct; hashes do not grant semantic coverage."
+  ]
+}

@@ -1,0 +1,336 @@
+{
+  "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+  "parent": "6635ad664e6419b1b02e8e9dccf6012590169874",
+  "decision": "approve regression-only source for root causal native execution",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "e87a25889af4ded53876246374a2cc4b8f1aa18c",
+      "raw_sha256": "e3a193130c8c5e51859493dc1f822e2c1e95c40a2e02bce8f990f252f078ef63",
+      "line_count": 218,
+      "scope": "fresh complete current owned source manual read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 218,
+          "raw_sha256": "e3a193130c8c5e51859493dc1f822e2c1e95c40a2e02bce8f990f252f078ef63"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "0cf0c6762ef7fe75e00082f0321f814a9c393e64",
+      "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+      "line_count": 250,
+      "scope": "fresh complete current owned source manual read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 250,
+          "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "6635ad664e6419b1b02e8e9dccf6012590169874",
+      "git_blob_oid": "53cadf94021bf88461bb2d69c0f463e37d9ee60e",
+      "raw_sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2",
+      "line_count": 154,
+      "scope": "fresh complete historical owner read for comparison; not current coverage",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 154,
+          "raw_sha256": "0298cc9a3d4e9dd482e1ca6d7623e25f0aae90e185b638f90090d7bc328abff2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "raw_sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "scope": "fresh partial supporting task owner/Future/stop/combine read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 135,
+          "raw_sha256": "51ea8685151c035a7bc58b93041895dbc1becb6810619c69d178acd21216293f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "raw_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "scope": "fresh partial supporting established-tunnel cancel/CONNECT read",
+      "read_ranges": [
+        {
+          "start": 34,
+          "end": 138,
+          "raw_sha256": "6e853fc060a34e4b58c1fac8d9d2b5ba31febad6c564b564632dfc2bc6a67531"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "9b4208de506693e95095a83ff8c4b2d9c04acc27",
+      "raw_sha256": "5bf636bace0a1fe449209cc7a60d6fece246233cfe303d8fef42399d3da903e8",
+      "line_count": 394,
+      "scope": "fresh partial capture contract and checked record path read",
+      "read_ranges": [
+        {
+          "start": 230,
+          "end": 310,
+          "raw_sha256": "46229dea702a9c7eb9d8696b702bf38091bf9f85c315aa63f41e6a81f72a0fe7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/client_hello.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "git_blob_oid": "37a9b9aa08e442e0eebedd06fb876efeeb9ff33b",
+      "raw_sha256": "dabbeb0feb26b3c03802b47fbca88bdccd317145e6f31c207223f0c18357a57b",
+      "line_count": 690,
+      "scope": "fresh partial exact anchor-ID accessor read",
+      "read_ranges": [
+        {
+          "start": 245,
+          "end": 265,
+          "raw_sha256": "16b19630f8004a5ba4b5241686e7b75e895baa5fdcafac2829c1dabcde782828"
+        }
+      ]
+    }
+  ],
+  "validated_author_records": [
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "6635ad664e6419b1b02e8e9dccf6012590169874",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom-testkit/src/tls/client_hello.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom-profile/src/tls.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/mpsc/unbounded.rs",
+      "revision": null,
+      "scope": "author identity and exact inclusive ranges checked only; not new semantic review credit"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "trust-observation-baseline-handoff-02262a55.md",
+      "bytes": 3299,
+      "sha256": "f630830b7b72e64104db9ec38b39bd794aecc6ef8a3a38d4e17a58e219ecbc9a",
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "scope": "complete author handoff manually read and checked"
+    },
+    {
+      "path": "trust-observation-baseline-handoff-02262a55.json",
+      "bytes": 13759,
+      "sha256": "2498e92cbf53a99b6f9bafd2654be673e007c90bec06f49725988f1d6624ad17",
+      "lines": 297,
+      "read_ranges": [
+        [
+          1,
+          297
+        ]
+      ],
+      "scope": "complete author handoff manually read and checked"
+    },
+    {
+      "path": "trust-observation-baseline-preservation-validator.py",
+      "bytes": 2782,
+      "sha256": "0400b12b3ec1778e3f1c9c46a69a93642c9ebee08a60b2c07fc2ae1f26e7302c",
+      "lines": 55,
+      "read_ranges": [
+        [
+          1,
+          55
+        ]
+      ],
+      "scope": "complete read-only preservation validator source manually read; executed read-only to captured memory, original output untouched"
+    },
+    {
+      "path": "trust-observation-baseline-preservation-02262a55.json",
+      "bytes": 1187,
+      "sha256": "548ec87b04a86f0cc7f9d0ade3eba6fbc0b64a37a3f5cb3816a739745c07af2f",
+      "lines": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "scope": "complete retained preservation output manually read and read-only replay compared"
+    }
+  ],
+  "semantic_parent_diff": {
+    "bytes": 7428,
+    "sha256": "cc4f3f98f31d984425a22c95771883a06b85bac7094294f5b0fd684b1879d774",
+    "scope": "complete parent semantic diff manually read; complete new child separately manually read"
+  },
+  "preservation_replay": {
+    "base": "6635ad664e6419b1b02e8e9dccf6012590169874",
+    "revision": "02262a55d230d10981a3b2e1c49576013fc2d122",
+    "checks": {
+      "invalid_order_method_exact_text": true,
+      "recipe_candidates_whitespace_insensitive_text_preserved": true,
+      "profile_and_twelve_clients_whitespace_insensitive_text_preserved": true,
+      "direct_request_operations_whitespace_insensitive_text_preserved": true,
+      "https_proxy_operation_whitespace_insensitive_text_preserved": true,
+      "plaintext_proxy_operation_whitespace_insensitive_text_preserved": true,
+      "websocket_operation_whitespace_insensitive_text_preserved": true,
+      "draw_diversity_whitespace_insensitive_text_preserved": true,
+      "capture_decode_and_limits_whitespace_insensitive_text_preserved": true,
+      "observer_dedup_single_order_and_recipe_assertions_preserved": true
+    },
+    "limits": [
+      "Text comparison with whitespace removal is not a Rust token parser or execution.",
+      "Count equivalence is a separately read source argument: original four/five operation increments match the explicit expected connector list.",
+      "The whole ordinary method changed; no byte-identical method claim."
+    ]
+  },
+  "contracts": [
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "range": [
+        21,
+        28
+      ],
+      "sha256": "20cae34c68a65c04381bf43addc3acf0cfac2e4150115c8012eab73b9a42c232",
+      "contract": "healthy positive checks independent expected batches before observer success and literal first observed order"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "range": [
+        31,
+        68
+      ],
+      "sha256": "ae809a52b98fd5501248edd1f135951edfaf4d4a4085db5b2d7863135ca4f376",
+      "contract": "negative first captures healthy named connectors, then replaces H2 with same-count realH1 input and checks unchanged total/noH2/exactlytwoH1 before expected rejection64\u201366"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "range": [
+        71,
+        125
+      ],
+      "sha256": "66a329687f8ca6837fb08a7b07607b23019036ff2355ec903411a66fb02ba6ab",
+      "contract": "one actual client retained across separately bound capture listeners, explicit stop/drain/nonempty before returned observations"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "range": [
+        128,
+        175
+      ],
+      "sha256": "ec223f4eddd198c4296223eff89bc142b584022cd5dd3e3e940989dbdc45cdb3",
+      "contract": "explicit selected H1/H2/HTTPSproxy/tunnel/WSS operation; expected request error only because actual capture endpoint closes after ClientHello"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "range": [
+        177,
+        215
+      ],
+      "sha256": "089d1d9fa01494746593b07e1fea76fae29354c921937a371f1db54abc8c3c26",
+      "contract": "finite CONNECT acquisition/cancel and primary-plus-cleanup retention; literal CONNECT prefix checked"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "range": [
+        217,
+        250
+      ],
+      "sha256": "44acd44ff0c6da78da54065ad6faf5b6e08b03554bccf3a60e0f0da12d0ffb64",
+      "contract": "independent four/five operation roster, each nonempty parsed recipe member, and actual total count"
+    }
+  ],
+  "forecast": {
+    "all_selected_methods": [
+      "opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors",
+      "http3_per_client_orders_with_different_ids_fail_construction",
+      "real_connector_batches_keep_one_recipe_order",
+      "duplicate_http1_observations_cannot_replace_http2_observations"
+    ],
+    "new_positive": "real_connector_batches_keep_one_recipe_order",
+    "new_negative": "duplicate_http1_observations_cannot_replace_http2_observations",
+    "predicted_first_failure_range": [
+      64,
+      66
+    ],
+    "runtime_unexecuted": true
+  },
+  "supported_defect": "same old total-count/adjacent-dedup/single-order/recipe observer ignores new operation labels and accepts equal-countH1 substitution forH2",
+  "rejected_candidates": [
+    "No production connector absence measured or implied.",
+    "No complete original ordinary error cleanup proof from this source slice."
+  ],
+  "limitations": [
+    "Source forecast only: four selected methods expected three positives and one causal negative at child64\u201366. No Cargo, compiler, Clippy, MSRV or native outcome claimed.",
+    "New Connector labels are test operation metadata, not a pre-existing API. Replacement mutates cloned observation input after real healthy traffic; it is not evidence of a missing production connector.",
+    "Capture closes after ClientHello; named HTTP2/TLS/WSS selected connector initiation is observed, not successful HTTP2 application traffic or a completed TLS handshake.",
+    "Ordinary method is intentionally changed by per-operation drains and extraction; only invalid-list test is exact. Ten whitespace-insensitive preservation checks are text predicates, not Rust-token or execution proof.",
+    "Original ordinary returned-error/panic/cancel paths still rely on existing abort-on-Drop and pass-path explicit stop; no new joined cleanup proof is asserted.",
+    "New controls retain the external Client while finite capture/tunnel stop cleanup finishes. External cancellation still requests abort via existing guards rather than synchronously joining.",
+    "Unbounded local capture channel and stochastic12-client diversity are inherited and unchanged; no arbitrary-peer resource-limit or deterministic distribution claim.",
+    "WebSocket is cfg-dependent; feature-disabled roster has four operations. HTTP3 remains invalid-list construction only.",
+    "Whole codebase, browser parity, server acceptance and final gates remain open."
+  ]
+}

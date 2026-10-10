@@ -1,0 +1,17 @@
+# Trust-anchor observer repair verification
+
+At `1ac70fe121879ca9ac72f9aebc24e0fb2a8bfcd6`, all four trust-anchor methods pass on Windows and Linux,
+both with all features and with default features. The default-feature path
+exercises four named connectors; WebSocket adds the fifth. The unchanged
+equal-total substitution control now rejects duplicate HTTP/1 observations
+in place of HTTP/2. Real captures and both original methods remain green.
+Formatting, selected strict Clippy and Rust 1.88 checks pass on both hosts.
+
+Root read every current test/check log completely. All raw artifacts and the
+launcher are preserved and hash-bound. Independent source review approved
+the exact observer repair. The earlier three-pass/one-failure baseline at
+d0a45c1e remains intact. This repairs a private test oracle; exceptional
+cleanup of the original ordinary method is not newly proved. Independent
+native assessment, full integration gates and main CI remain pending.
+
+JSON SHA256: `fbc933f753bdf5d798a30812885185a2b58206291703073ddee2f4e5e1d61c72`.

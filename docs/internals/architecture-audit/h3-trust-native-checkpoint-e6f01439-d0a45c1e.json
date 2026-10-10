@@ -1,0 +1,316 @@
+{
+  "runs": [
+    {
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "selection": "h3",
+      "hosts": {
+        "windows": {
+          "stages": {
+            "fmt": 0,
+            "h3": 0,
+            "clippy": 0,
+            "msrv": 0,
+            "vendor-cargo": 0
+          },
+          "roster": {
+            "h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order": "PASS",
+            "h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response": "PASS",
+            "h3_received_order::received_unique_fields_keep_their_declared_qpack_order": "PASS"
+          }
+        },
+        "linux": {
+          "stages": {
+            "fmt": 0,
+            "h3": 0,
+            "clippy": 0,
+            "msrv": 0,
+            "vendor": 0
+          },
+          "roster": {
+            "h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order": "PASS",
+            "h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response": "PASS",
+            "h3_received_order::received_unique_fields_keep_their_declared_qpack_order": "PASS"
+          }
+        }
+      }
+    },
+    {
+      "revision": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+      "selection": "trust",
+      "hosts": {
+        "windows": {
+          "stages": {
+            "fmt": 0,
+            "trust": 100,
+            "clippy": 0,
+            "msrv": 0
+          },
+          "roster": {
+            "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction": "PASS",
+            "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations": "FAIL",
+            "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order": "PASS",
+            "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors": "PASS"
+          }
+        },
+        "linux": {
+          "stages": {
+            "fmt": 0,
+            "trust": 100,
+            "clippy": 0,
+            "msrv": 0
+          },
+          "roster": {
+            "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction": "PASS",
+            "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order": "PASS",
+            "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations": "FAIL",
+            "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors": "PASS"
+          }
+        }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "h3-received-order-remedy-e6f01439-windows.revision",
+      "bytes": 41,
+      "sha256": "8b87b49d5eb04a4d70e1201c90a72c8281842a3776a03c91551e75c69f843344"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-windows.log",
+      "bytes": 1280,
+      "sha256": "2e5e871b43df6cf0f26b64afb51eb69660aad332706c2a52821efc582e5ad08e"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-windows.log",
+      "bytes": 925,
+      "sha256": "2f66751aa8be1d9cead1262854493e8ef09ca1a89d2215e4453086537673014c"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-windows.log",
+      "bytes": 603,
+      "sha256": "c800e7d6b52f8de502daafb655f600bb0c49bf01c074c08ebf8b6eef32f64a1d"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-cargo-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-cargo-windows.log",
+      "bytes": 29846,
+      "sha256": "b74a5597f505528be468349a1b2632da6681e500756f768f4560abff8a0831af"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-linux.revision",
+      "bytes": 41,
+      "sha256": "8b87b49d5eb04a4d70e1201c90a72c8281842a3776a03c91551e75c69f843344"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-linux.log",
+      "bytes": 1330,
+      "sha256": "1636451bff497b7a5e232b1fc7c60f8b09ed0da3e181ac9465037a5c33dc2b38"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-linux.log",
+      "bytes": 1005,
+      "sha256": "3570f41dbb930bd9cc0fb9cae330a87cae23172608e3ca5cde47ec21dbb61aaa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-linux.log",
+      "bytes": 653,
+      "sha256": "a892f0453569a87fe7aa7b4edccdbd8dfb59134c81d96bba341bbd1c65facec9"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-linux.log",
+      "bytes": 26273,
+      "sha256": "d44861e33add3949d6765fa365e06610d2ec8fab9246dadf8f70ade604102f6e"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-windows.revision",
+      "bytes": 41,
+      "sha256": "300ebda709f573108552ea38605d78821b4ee8486d51fc2c32095c760ccbfef5"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-windows.log",
+      "bytes": 2846,
+      "sha256": "26f62d2bce0713c6a1247c0048f769ca17cc5a683ef5194a4c1bbfbc3478aca3"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-windows.log",
+      "bytes": 168,
+      "sha256": "7979a7adad5ea8f359b6e9a045ded6a296350c5c9c79722c84192ceeae96822f"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-windows.log",
+      "bytes": 168,
+      "sha256": "f960cbb8f6c9acf1191c91d3523ea444ae249afc4de9e18c15a82fc943a3ebb0"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-linux.revision",
+      "bytes": 41,
+      "sha256": "300ebda709f573108552ea38605d78821b4ee8486d51fc2c32095c760ccbfef5"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-linux.log",
+      "bytes": 2852,
+      "sha256": "521a18d23bbf68d67b7e0ca8523d4c9cc8182d60c5d56cbd9c908d5a680285f9"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-linux.log",
+      "bytes": 177,
+      "sha256": "fbd8853b963c6e773b859e7ee8468030688d0600c436ff378d50760498247686"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "c90909b71657e66acb6960d5a86f2fc4b2539c35f36f616a4209f0f9f88797a3"
+    },
+    {
+      "path": "run-h3-received-order-remedy-v3.sh",
+      "bytes": 2547,
+      "sha256": "1fe80e768763ec26d9d3acd6edf11b9910e6c6980cbf2f31a0ff1c5910b42f28"
+    },
+    {
+      "path": "run-h3-windows-package-checks.sh",
+      "bytes": 1614,
+      "sha256": "24992dd4cc889a2bff6a4c4d61e39f9080e512beca4fdaeba42113da469b1b84"
+    },
+    {
+      "path": "run-trust-observation-baseline.sh",
+      "bytes": 2188,
+      "sha256": "1d9ab44fd257e2b35589b1a26986d8985d475a0128721d685e9b62f6a8460b16"
+    }
+  ],
+  "scope": {
+    "root_manual": "complete current native test, Clippy, MSRV and vendor logs on both hosts",
+    "h3_vendor": "Linux full canonical replay and package commands; Windows package commands only",
+    "windows_replay_limit": "four tracked license symlinks are placeholder files; creating links requires administrator privileges",
+    "trust_negative": "actual completed captures, equal-total H1 substitution and failed rejection assertion; no missing production connector claim",
+    "limits": "focused selections only; no final integration gate, PR checks or main merge"
+  }
+}

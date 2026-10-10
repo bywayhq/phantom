@@ -1,0 +1,32 @@
+# Independent HTTP/3 received-order native baseline
+
+Approve the retained causal baseline at signed `772b9c73a0c33745e60f03ea0e42485a71c933a0`.
+Both hosts run the same3 methods: the semantic positive passes, and unique and
+interleaved received-order controls fail at missing OrderedHeaders lookup79.
+Each selects3 of443 methods with440 skipped. Nextest exits100 and both runners
+exit1. Formatting, strict selected Clippy and Rust1.88 checks exit0.
+
+All21 raw artifacts were manually read in full, including both complete test
+logs, launcher, ancillary logs, exits and revisions. Independent pre-Summary
+parsing reproduces identical method/state rosters and avoids repeated summary
+failure entries. Raw sizes and hashes match the root receipt.
+
+Both current committed source files were freshly read in full: control198 and
+registration42 lines. Their exact Git blobs match frozen41ce source. Prior
+source-report Markdown was read; paired JSON files are hash bindings without
+fresh source-coverage promotion.
+
+Each negative reaches79 only after actual trusted QUIC/H3 GET, full URI,
+HTTP3, empty request EOF, literal200 and received response body, bounded endpoint
+cleanup and independent field semantics. Only the outgoing request receives a
+declared sidecar. The actual received Request is not modified. Global sequence87
+and ordinary-only exclusion88-93 remain downstream and uncredited.
+
+This is received-request metadata evidence after stateless QUIC/QPACK traffic.
+It makes no outgoing wire, browser, sensitivity, dynamic-QPACK or OS socket
+release claim. Lexical first-error cancellation is narrower than collecting all
+parallel causes; the helper separately retains operation and bounded cleanup
+causes. No source edits or new execution occurred. Remedy verification, main
+integration and full gates remain open.
+
+JSON SHA256: `2bb69870d0fd7800948609ffa532fa62076fb17d6d800cebd30439967999c23d`.

@@ -1,0 +1,36 @@
+# Independent trust-anchor observation baseline source review
+
+Approve signed `02262a55d230d10981a3b2e1c49576013fc2d122` for root causal execution.
+No source blocker found. This is a regression baseline, not the observer repair
+or a native result. Four methods forecast three positives and one intended
+negative; actual compilation and both-host results remain pending.
+
+Both current owners were manually read completely:218 parent and250 child lines.
+The historical154-line parent, complete parent diff and preservation validator
+were also read. Ten retained text predicates were independently replayed without
+overwriting their output. Exact Git identities and every declared author range
+were checked, while supporting partial reads remain explicitly partial.
+
+The healthy controls first drive every named operation using one retained Client
+and separate real capture listeners. Each batch must contain parsed nonempty
+anchor IDs from the recipe, and the literal four/five-label roster is checked.
+Actual HTTP2 is explicitly selected; capture ends after ClientHello, so no
+successful HTTP2 application exchange or completed TLS handshake is claimed.
+Capture stop and tunnel cancellation finish before the causal assertion.
+
+The negative first requires healthy observer success. It then replaces theH2
+batch with equally many actual capturedH1 observations labelledH1, checks an
+unchanged total, absentH2 and exactly twoH1 batches, then expects rejection at
+64-66. The unchanged aggregate observer still ignores operation labels. This
+proves a coherent planned observation-sensitivity regression, not absence of a
+production connector. Labels are newly introduced private test metadata.
+
+The ordinary method changes by extraction and per-operation queue drains; its
+original profile/routes/requests/timings/twelve draws/recipe/diversity assertions
+remain. The invalid-order method is exact. Original ordinary error cleanup and
+stochastic diversity are retained with their limitations, not newly proved.
+New controls use existing finite concrete owners and preserve primary/cleanup
+results while the external client lives. Guard Drop requests abort without a
+synchronous join promise. No Cargo, source edits or network execution occurred.
+
+JSON SHA256: `43940e94f614210d6b6c05a64a97f202be99d063d1a81b16c147baabb5cc045b`.

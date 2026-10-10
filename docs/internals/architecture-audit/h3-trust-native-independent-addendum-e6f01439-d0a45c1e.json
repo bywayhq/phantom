@@ -1,0 +1,1575 @@
+{
+  "decision": "approve focused H3 named-result native/package green and trust observer causal red evidence",
+  "results": [
+    {
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "selection": "h3",
+      "hosts": {
+        "windows": {
+          "stages": {
+            "fmt": 0,
+            "h3": 0,
+            "clippy": 0,
+            "msrv": 0,
+            "vendor-cargo": 0
+          },
+          "runner": 0,
+          "roster": {
+            "h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order": "PASS",
+            "h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response": "PASS",
+            "h3_received_order::received_unique_fields_keep_their_declared_qpack_order": "PASS"
+          }
+        },
+        "linux": {
+          "stages": {
+            "fmt": 0,
+            "h3": 0,
+            "clippy": 0,
+            "msrv": 0,
+            "vendor": 0
+          },
+          "runner": 0,
+          "roster": {
+            "h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order": "PASS",
+            "h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response": "PASS",
+            "h3_received_order::received_unique_fields_keep_their_declared_qpack_order": "PASS"
+          }
+        }
+      }
+    },
+    {
+      "revision": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+      "selection": "trust",
+      "hosts": {
+        "windows": {
+          "stages": {
+            "fmt": 0,
+            "trust": 100,
+            "clippy": 0,
+            "msrv": 0
+          },
+          "runner": 1,
+          "roster": {
+            "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction": "PASS",
+            "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations": "FAIL",
+            "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order": "PASS",
+            "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors": "PASS"
+          }
+        },
+        "linux": {
+          "stages": {
+            "fmt": 0,
+            "trust": 100,
+            "clippy": 0,
+            "msrv": 0
+          },
+          "runner": 1,
+          "roster": {
+            "trust_anchor_orders::http3_per_client_orders_with_different_ids_fail_construction": "PASS",
+            "trust_anchor_orders::observation_contract::real_connector_batches_keep_one_recipe_order": "PASS",
+            "trust_anchor_orders::observation_contract::duplicate_http1_observations_cannot_replace_http2_observations": "FAIL",
+            "trust_anchor_orders::opera_136_client_keeps_one_tcp_trust_anchor_order_across_connectors": "PASS"
+          }
+        }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "h3-received-order-remedy-e6f01439-windows.revision",
+      "bytes": 41,
+      "sha256": "8b87b49d5eb04a4d70e1201c90a72c8281842a3776a03c91551e75c69f843344",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-windows.log",
+      "bytes": 1280,
+      "sha256": "2e5e871b43df6cf0f26b64afb51eb69660aad332706c2a52821efc582e5ad08e",
+      "line_count": 14,
+      "read_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-windows.log",
+      "bytes": 925,
+      "sha256": "2f66751aa8be1d9cead1262854493e8ef09ca1a89d2215e4453086537673014c",
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-windows.log",
+      "bytes": 603,
+      "sha256": "c800e7d6b52f8de502daafb655f600bb0c49bf01c074c08ebf8b6eef32f64a1d",
+      "line_count": 6,
+      "read_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-cargo-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-cargo-windows.log",
+      "bytes": 29846,
+      "sha256": "b74a5597f505528be468349a1b2632da6681e500756f768f4560abff8a0831af",
+      "line_count": 506,
+      "read_ranges": [
+        [
+          1,
+          506
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-linux.revision",
+      "bytes": 41,
+      "sha256": "8b87b49d5eb04a4d70e1201c90a72c8281842a3776a03c91551e75c69f843344",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-h3-linux.log",
+      "bytes": 1330,
+      "sha256": "1636451bff497b7a5e232b1fc7c60f8b09ed0da3e181ac9465037a5c33dc2b38",
+      "line_count": 14,
+      "read_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-clippy-linux.log",
+      "bytes": 1005,
+      "sha256": "3570f41dbb930bd9cc0fb9cae330a87cae23172608e3ca5cde47ec21dbb61aaa",
+      "line_count": 9,
+      "read_ranges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-msrv-linux.log",
+      "bytes": 653,
+      "sha256": "a892f0453569a87fe7aa7b4edccdbd8dfb59134c81d96bba341bbd1c65facec9",
+      "line_count": 6,
+      "read_ranges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-received-order-remedy-e6f01439-vendor-linux.log",
+      "bytes": 26273,
+      "sha256": "d44861e33add3949d6765fa365e06610d2ec8fab9246dadf8f70ade604102f6e",
+      "line_count": 383,
+      "read_ranges": [
+        [
+          1,
+          383
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-windows.revision",
+      "bytes": 41,
+      "sha256": "300ebda709f573108552ea38605d78821b4ee8486d51fc2c32095c760ccbfef5",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-windows.log",
+      "bytes": 2846,
+      "sha256": "26f62d2bce0713c6a1247c0048f769ca17cc5a683ef5194a4c1bbfbc3478aca3",
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-windows.log",
+      "bytes": 168,
+      "sha256": "7979a7adad5ea8f359b6e9a045ded6a296350c5c9c79722c84192ceeae96822f",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-windows.log",
+      "bytes": 168,
+      "sha256": "f960cbb8f6c9acf1191c91d3523ea444ae249afc4de9e18c15a82fc943a3ebb0",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-linux.revision",
+      "bytes": 41,
+      "sha256": "300ebda709f573108552ea38605d78821b4ee8486d51fc2c32095c760ccbfef5",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "line_count": 0,
+      "read_ranges": [],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-trust-linux.log",
+      "bytes": 2852,
+      "sha256": "521a18d23bbf68d67b7e0ca8523d4c9cc8182d60c5d56cbd9c908d5a680285f9",
+      "line_count": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-clippy-linux.log",
+      "bytes": 177,
+      "sha256": "fbd8853b963c6e773b859e7ee8468030688d0600c436ff378d50760498247686",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "trust-observation-baseline-d0a45c1e-msrv-linux.log",
+      "bytes": 177,
+      "sha256": "c90909b71657e66acb6960d5a86f2fc4b2539c35f36f616a4209f0f9f88797a3",
+      "line_count": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "run-h3-received-order-remedy-v3.sh",
+      "bytes": 2547,
+      "sha256": "1fe80e768763ec26d9d3acd6edf11b9910e6c6980cbf2f31a0ff1c5910b42f28",
+      "line_count": 53,
+      "read_ranges": [
+        [
+          1,
+          53
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "run-h3-windows-package-checks.sh",
+      "bytes": 1614,
+      "sha256": "24992dd4cc889a2bff6a4c4d61e39f9080e512beca4fdaeba42113da469b1b84",
+      "line_count": 29,
+      "read_ranges": [
+        [
+          1,
+          29
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "run-trust-observation-baseline.sh",
+      "bytes": 2188,
+      "sha256": "1d9ab44fd257e2b35589b1a26986d8985d475a0128721d685e9b62f6a8460b16",
+      "line_count": 48,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "scope": "fresh complete raw native log/status/revision/launcher manual read"
+    },
+    {
+      "path": "h3-trust-native-checkpoint-e6f01439-d0a45c1e.md",
+      "bytes": 1460,
+      "sha256": "d047483489838cc8564fcd86ba30770d364ce2c7ce52648736446cc5cdee7a8b",
+      "line_count": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "scope": "complete root receipt manually read and raw records independently checked"
+    },
+    {
+      "path": "h3-trust-native-checkpoint-e6f01439-d0a45c1e.json",
+      "bytes": 12160,
+      "sha256": "3c99fe49c53fc9988496baa3cf8314a437ab6e23b56531c6e48b00d729de7ae0",
+      "line_count": 316,
+      "read_ranges": [
+        [
+          1,
+          316
+        ]
+      ],
+      "scope": "complete root receipt manually read and raw records independently checked"
+    },
+    {
+      "path": "h3-received-order-baseline-native-independent-addendum-772b9c73.json",
+      "bytes": 16279,
+      "sha256": "2bb69870d0fd7800948609ffa532fa62076fb17d6d800cebd30439967999c23d",
+      "line_count": 480,
+      "read_ranges": [],
+      "scope": "retained prior source/native identity anchor only; no fresh whole review"
+    },
+    {
+      "path": "h3-named-request-parts-independent-source-review-e6f01439.json",
+      "bytes": 19498,
+      "sha256": "f64d929a70602a89a65cd1743b6c1322dadfffea42496146a9987d4472e74453",
+      "line_count": 475,
+      "read_ranges": [],
+      "scope": "retained prior source/native identity anchor only; no fresh whole review"
+    },
+    {
+      "path": "trust-observation-baseline-independent-source-review-02262a55.json",
+      "bytes": 15196,
+      "sha256": "43940e94f614210d6b6c05a64a97f202be99d063d1a81b16c147baabb5cc045b",
+      "line_count": 336,
+      "read_ranges": [],
+      "scope": "retained prior source/native identity anchor only; no fresh whole review"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "vendor/h3/h3/src/proto/headers.rs",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "7a321813dbdc80d4bfe0e0b394ab31ae3a380e6c",
+      "raw_sha256": "4ccfce75cf51c39d66175b2266c34afb2b28f134af80da933636365c403136ef",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "raw_sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/patches/ordered-received-request-headers.patch",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "53505c4f4db6b8542c2b5f7378151421ac1b04ad",
+      "raw_sha256": "a6c853d35387c1f1a64dc6567fe46e44bd50ce1e8c88680ebe2c9aafe0450cb0",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/patches/publish-identity.patch",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "52095a73e4a8be1a6540246cdd0a19bba6ce4476",
+      "raw_sha256": "05b83a6eff37206af9a03122f439362f3b87fd643d277d099412192eb15f7e92",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "7855ed35b61d4830f3d2b3c91b6320524d06d206",
+      "raw_sha256": "b3023b4344154c0cab998fc794d6f28d7bde212e6b5af9d956813fa17778a767",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/PHANTOM.md",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "794132bfe23aa6d341a212a67e4cfa05fb1f2f6e",
+      "raw_sha256": "2723b318b45859cb5595a3572be30aa86bbff0bf6402db6816eacd50343e0de8",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "Cargo.toml",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "1e142ba9c749d9bd04eed570fdeb6cedcfc7443e",
+      "raw_sha256": "3daf1111349dc94bfcadd80bd3fff029215f286e69f20a968a94aabb4a1229d1",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "fuzz/Cargo.lock",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "64930e05f5f23d8a72a9d7898cbd9a6e4abae33a",
+      "raw_sha256": "7c0db742f08f75ba59f400c965440d8f7e99e2bc5974a7068c62c8d4d09bf03c",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/Cargo.lock",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "6a39e38162d9ba1f6162e56c550af85e8f9c881a",
+      "raw_sha256": "cd6b64697294a7d3004d96390965eb4eeb342e8caefb5e7733154a57df8ed477",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/examples/Cargo.toml",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "57acddd0e84ba9c680bfd569d6a5c14fff027672",
+      "raw_sha256": "e6f8b9267df808ee779f3d9e3fe294ebeea718d9872a3cb45f950c8b4e7659ff",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/h3-datagram/Cargo.toml",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "94b40b47f9a01c11f7fe0dde53531fc70d2c3e91",
+      "raw_sha256": "5e7d1f3beb55cecaa0099130e92bd03a10252db05a1e5c6e0d82dcc7accfb41d",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/h3-quinn/Cargo.toml",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "926083ec40a60f7ae78b11d934eb15e15682c2d8",
+      "raw_sha256": "98b0bbacdbad536708853aa047b1979187b4d1982170562fbdb3e356ecd1f6d6",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/h3-webtransport/Cargo.toml",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "083420fcc8f5fe8bbc73b37c7b4578ae68fe782c",
+      "raw_sha256": "5308d4d6b6ef17730db3a45e9a4040947744d966a23dfd2605760d1d14dd743d",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "vendor/h3/h3/Cargo.toml",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "0f75ee3bb653fa2158da905422167119f8882fd0",
+      "raw_sha256": "65c6c625730ac177c9e10328a02c2714a51bd279876fd039427e06077e0d49df",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/h3_received_order.rs",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "9fe8ba2a42cb29b28dcc1e9d6e5e3a5a116aa551",
+      "raw_sha256": "0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "raw_sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "scope": "exact approved source binding only; no fresh semantic read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders.rs",
+      "revision": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+      "git_blob_oid": "e87a25889af4ded53876246374a2cc4b8f1aa18c",
+      "raw_sha256": "e3a193130c8c5e51859493dc1f822e2c1e95c40a2e02bce8f990f252f078ef63",
+      "scope": "exact previous complete baseline source binding only"
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "revision": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+      "git_blob_oid": "0cf0c6762ef7fe75e00082f0321f814a9c393e64",
+      "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+      "scope": "exact previous complete baseline source binding only"
+    }
+  ],
+  "supporting_source_reads": [
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "1b37be65d11c716bb0ac356de0f549f863e383fe",
+      "raw_sha256": "2e65d1730d99837fae4d20d2ad86f1795cd212ebda190939cf5e1a49c5ca175d",
+      "line_count": 427,
+      "scope": "fresh supporting partial manual read only",
+      "read_ranges": [
+        {
+          "start": 195,
+          "end": 236,
+          "raw_sha256": "42b5c7834b882d51c386666c14c62637bd2556a64cb1497cbb687beeb9484f38"
+        },
+        {
+          "start": 343,
+          "end": 371,
+          "raw_sha256": "ca26fe924dc493d9b7e69825000a4b666a3a806e0b343001badc5d1c58aa0f69"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/h3_received_order.rs",
+      "revision": "e6f014390e1250bc92b41447dbaf33c7a91e99dc",
+      "git_blob_oid": "9fe8ba2a42cb29b28dcc1e9d6e5e3a5a116aa551",
+      "raw_sha256": "0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16",
+      "line_count": 198,
+      "scope": "fresh supporting partial manual read only",
+      "read_ranges": [
+        {
+          "start": 23,
+          "end": 109,
+          "raw_sha256": "ce375ea1665dd399f5a28bccf0b740fd28cd746035c57325f0a71d7ff85182ea"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs",
+      "revision": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+      "git_blob_oid": "0cf0c6762ef7fe75e00082f0321f814a9c393e64",
+      "raw_sha256": "78bf8ee1503dfeeccff925f57cfc947418a7792c6cb22c99e1c003748e412894",
+      "line_count": 250,
+      "scope": "fresh supporting partial manual read only",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 68,
+          "raw_sha256": "0d02f8906a05cd047b65e7c50a506fc93aebc2b430bb2f11431461e714fcbc76"
+        }
+      ]
+    }
+  ],
+  "package_results": [
+    {
+      "host": "windows",
+      "passed_selection_counts": [
+        10,
+        8,
+        12,
+        18,
+        2,
+        2,
+        7,
+        181,
+        35,
+        5,
+        5
+      ],
+      "selection_rosters": [
+        [
+          "client::builder::tests::dynamic_qpack_is_explicitly_enabled",
+          "client::builder::tests::generated_settings_bytes_are_unchanged_without_override",
+          "client::builder::tests::ordered_settings_reject_duplicates_and_forbidden_identifiers",
+          "client::builder::tests::ordered_settings_reject_out_of_range_and_constrained_values",
+          "client::builder::tests::peer_application_settings_preserve_empty_and_valid_settings",
+          "client::builder::tests::peer_application_settings_reject_invalid_frame_sequences",
+          "client::builder::tests::qpack_decoder_stream_can_be_deferred",
+          "client::builder::tests::qpack_stream_order_and_encoder_stream_type_can_follow_chromium",
+          "client::builder::tests::remembered_peer_settings_are_validated_and_kept_apart_from_application_settings",
+          "client::builder::tests::retained_chrome_settings_keep_entry_order_and_varint_widths"
+        ],
+        [
+          "config::tests::control_stream_reserved_frame_is_disabled_by_default",
+          "config::tests::dynamic_qpack_is_disabled_by_default",
+          "config::tests::maximum_qpack_settings_round_trip_through_frame_view",
+          "config::tests::qpack_decoder_stream_is_eager_by_default",
+          "config::tests::qpack_encoder_policies_default_to_the_existing_behavior",
+          "config::tests::qpack_encoder_stream_is_eager_and_opened_first_by_default",
+          "config::tests::qpack_settings_default_to_zero",
+          "config::tests::qpack_settings_reject_values_outside_quic_varint_range"
+        ],
+        [
+          "proto::frame::tests::buffer_too_short",
+          "proto::frame::tests::data_frame",
+          "proto::frame::tests::headers_frames",
+          "proto::frame::tests::len_unexpected_end",
+          "proto::frame::tests::push_promise_accepts_every_identifier_width_and_preserves_following_frame",
+          "proto::frame::tests::qpack_setting_values_are_preserved_while_parsing",
+          "proto::frame::tests::reserved_frame",
+          "proto::frame::tests::settings_frame",
+          "proto::frame::tests::settings_frame_emtpy",
+          "proto::frame::tests::simple_frames",
+          "proto::frame::tests::type_unexpected_end",
+          "proto::frame::tests::unknown_frame_type"
+        ],
+        [
+          "proto::headers::tests::decoded_request_retains_order_sensitivity_and_semantics",
+          "proto::headers::tests::decoded_request_with_no_ordinary_fields_retains_empty_order",
+          "proto::headers::tests::decoded_response_retains_global_field_order_and_duplicates",
+          "proto::headers::tests::ordered_request_fields_reach_qpack_in_declared_order",
+          "proto::headers::tests::ordered_trailers_preserve_cross_name_order_and_sensitivity",
+          "proto::headers::tests::preserves_duplicate_headers",
+          "proto::headers::tests::preserves_sensitive_markers_in_both_directions",
+          "proto::headers::tests::rejects_order_metadata_that_disagrees_with_request",
+          "proto::headers::tests::rejects_pseudo_header_after_regular_header",
+          "proto::headers::tests::rejects_undefined_pseudo_header",
+          "proto::headers::tests::request_has_authority",
+          "proto::headers::tests::request_has_different_host_and_authority",
+          "proto::headers::tests::request_has_empty_authority",
+          "proto::headers::tests::request_has_empty_host",
+          "proto::headers::tests::request_has_host",
+          "proto::headers::tests::request_has_no_authority_nor_host",
+          "proto::headers::tests::request_has_same_host_and_authority",
+          "proto::headers::tests::request_without_order_extensions_preserves_upstream_encoding"
+        ],
+        [
+          "tests::request::header_too_big_server_error",
+          "tests::request::header_too_big_server_error_trailers"
+        ],
+        [
+          "tests::request::server_accepts_response_at_peer_field_section_limit",
+          "tests::request::server_accepts_trailers_at_peer_field_section_limit"
+        ],
+        [
+          "tests::socket::another_error_after_reserved_port_refusal_is_returned_unchanged",
+          "tests::socket::non_os_bind_errors_keep_their_kind_and_message",
+          "tests::socket::other_os_bind_errors_are_returned_without_retry",
+          "tests::socket::other_platforms_do_not_retry_the_windows_reserved_port_error",
+          "tests::socket::pair_endpoints_bind_only_to_ipv6_loopback",
+          "tests::socket::windows_retries_transient_reserved_port_refusal",
+          "tests::socket::windows_returns_last_error_after_three_reserved_port_retries"
+        ],
+        [
+          "client::outbound_qpack::tests::a_held_stream_type_is_written_with_the_first_field_section_instructions",
+          "client::outbound_qpack::tests::peer_blocked_stream_limit_is_clamped",
+          "client::outbound_qpack::tests::peer_limits_may_increase_but_not_decrease",
+          "client::outbound_qpack::tests::peer_table_capacity_is_clamped_to_local_ceiling",
+          "client::outbound_qpack::tests::publication_drop_is_observable",
+          "client::outbound_qpack::tests::publication_success_is_observable",
+          "qpack::block::test::base_index_too_small",
+          "qpack::block::test::header_prefix",
+          "qpack::block::test::header_prefix_table_size_0",
+          "qpack::block::test::indexed_dynamic",
+          "qpack::block::test::indexed_static",
+          "qpack::block::test::indexed_with_postbase",
+          "qpack::block::test::literal",
+          "qpack::block::test::literal_with_name_ref",
+          "qpack::block::test::literal_with_post_base_name_ref",
+          "qpack::block::test::never_indexed_literals_set_n_and_round_trip",
+          "qpack::decoder::tests::decode_indexed_header_field",
+          "qpack::decoder::tests::decode_name_ref_header_field",
+          "qpack::decoder::tests::decode_post_base_indexed",
+          "qpack::decoder::tests::decode_post_base_name_ref_header_field",
+          "qpack::decoder::tests::decode_single_pass_encoded",
+          "qpack::decoder::tests::decode_without_name_ref_header_field",
+          "qpack::decoder::tests::dynamic_decode_enforces_max_field_section_size",
+          "qpack::decoder::tests::dynamic_table_size_update_cannot_exceed_configured_capacity",
+          "qpack::decoder::tests::enc_recv_accepts_truncated_messages",
+          "qpack::decoder::tests::enc_recv_buf_too_short",
+          "qpack::decoder::tests::encoder_instruction_accepts_one_byte_buf_chunks",
+          "qpack::decoder::tests::encoder_instruction_buffer_is_bounded",
+          "qpack::decoder::tests::large_coalesced_encoder_instructions_are_processed_incrementally",
+          "qpack::decoder::tests::largest_ref_greater_than_max_entries",
+          "qpack::decoder::tests::largest_ref_too_big",
+          "qpack::decoder::tests::stateless_decoder_preserves_never_indexed_markers",
+          "qpack::decoder::tests::test_duplicate_field",
+          "qpack::decoder::tests::test_dynamic_table_size_update",
+          "qpack::decoder::tests::test_header_too_long",
+          "qpack::decoder::tests::test_insert_field_with_name_ref_into_dynamic_table",
+          "qpack::decoder::tests::test_insert_field_with_wrong_name_index_from_dynamic_table",
+          "qpack::decoder::tests::test_insert_field_with_wrong_name_index_from_static_table",
+          "qpack::decoder::tests::test_insert_field_without_name_ref",
+          "qpack::dynamic::tests::acknowledge_block_for_unknown_stream",
+          "qpack::dynamic::tests::acknowledge_block_releases_references",
+          "qpack::dynamic::tests::acknowledge_block_with_missing_reference_is_atomic",
+          "qpack::dynamic::tests::acknowledge_block_with_wrong_count_is_atomic",
+          "qpack::dynamic::tests::acknowledge_blocks_in_stream_order",
+          "qpack::dynamic::tests::blocked_stream_not_registered",
+          "qpack::dynamic::tests::blocked_stream_register_accumulate",
+          "qpack::dynamic::tests::blocked_stream_register_put_larger",
+          "qpack::dynamic::tests::blocked_stream_register_put_smaller",
+          "qpack::dynamic::tests::blocked_stream_registered",
+          "qpack::dynamic::tests::cannot_insert_field_greater_than_total_size",
+          "qpack::dynamic::tests::capacity_reduction_with_tracked_entries_is_atomic",
+          "qpack::dynamic::tests::encode_insert_in_empty",
+          "qpack::dynamic::tests::encoder_build",
+          "qpack::dynamic::tests::encoder_can_evict_unreferenced",
+          "qpack::dynamic::tests::encoder_does_not_evict_referenced",
+          "qpack::dynamic::tests::encoder_find_relative",
+          "qpack::dynamic::tests::encoder_insert",
+          "qpack::dynamic::tests::encoder_insertion_refs_commited",
+          "qpack::dynamic::tests::encoder_insertion_refs_not_commited",
+          "qpack::dynamic::tests::encoder_insertion_tracks_ref",
+          "qpack::dynamic::tests::encoder_insertion_with_ref_tracks_both",
+          "qpack::dynamic::tests::encoder_maps_are_cleaned_on_eviction",
+          "qpack::dynamic::tests::encoder_ref_count_are_incremented",
+          "qpack::dynamic::tests::header_ack_advances_known_received_and_unblocks_streams",
+          "qpack::dynamic::tests::insert_again_after_encoder_ack",
+          "qpack::dynamic::tests::insert_count_increment_must_be_positive_and_not_exceed_insert_count",
+          "qpack::dynamic::tests::insert_static",
+          "qpack::dynamic::tests::multiple_blocked_sections_on_one_stream_count_once",
+          "qpack::dynamic::tests::no_insert_after_max_blocked_reached",
+          "qpack::dynamic::tests::no_insert_when_max_blocked_0",
+          "qpack::dynamic::tests::put_updates_maps",
+          "qpack::dynamic::tests::stream_cancellation_releases_every_outstanding_block",
+          "qpack::dynamic::tests::test_add_field_drop_older_fields_to_have_enough_space",
+          "qpack::dynamic::tests::test_add_field_fitting_free_space",
+          "qpack::dynamic::tests::test_add_field_reduce_free_space",
+          "qpack::dynamic::tests::test_eviction_is_fifo",
+          "qpack::dynamic::tests::test_maximum_table_size_can_reach_maximum",
+          "qpack::dynamic::tests::test_maximum_table_size_can_reach_zero",
+          "qpack::dynamic::tests::test_set_maximum_table_size_to_zero_clear_entries",
+          "qpack::dynamic::tests::test_table_size_is_sum_of_its_entries",
+          "qpack::dynamic::tests::test_table_supports_duplicated_entries",
+          "qpack::dynamic::tests::test_try_add_field_larger_than_maximum_size",
+          "qpack::dynamic::tests::test_try_set_too_large_maximum_table_size",
+          "qpack::dynamic::tests::unblock_stream_larger",
+          "qpack::dynamic::tests::unblock_stream_smaller",
+          "qpack::encoder::tests::decoder_accept_truncated",
+          "qpack::encoder::tests::decoder_block_ack",
+          "qpack::encoder::tests::decoder_instruction_accepts_one_byte_buf_chunks",
+          "qpack::encoder::tests::decoder_stream_canceled",
+          "qpack::encoder::tests::decoder_unknown_stream",
+          "qpack::encoder::tests::encode_dynamic_insert",
+          "qpack::encoder::tests::encode_dynamic_insert_nameref",
+          "qpack::encoder::tests::encode_literal",
+          "qpack::encoder::tests::encode_literal_nameref",
+          "qpack::encoder::tests::encode_literal_postbase_nameref",
+          "qpack::encoder::tests::encode_static",
+          "qpack::encoder::tests::encode_static_nameref",
+          "qpack::encoder::tests::encode_static_nameref_indexed_in_dynamic",
+          "qpack::encoder::tests::encode_with_header_block",
+          "qpack::encoder::tests::feedback_preserves_dynamic_references_across_sections",
+          "qpack::encoder::tests::insert_count",
+          "qpack::encoder::tests::invalid_insert_count_increments_are_rejected",
+          "qpack::encoder::tests::invalid_peer_limits_do_not_change_encoder_state_or_output",
+          "qpack::encoder::tests::large_coalesced_decoder_instructions_are_processed_incrementally",
+          "qpack::encoder::tests::local_stream_cancellation_is_idempotent",
+          "qpack::encoder::tests::overflowing_insert_count_increment_is_rejected",
+          "qpack::encoder::tests::sensitive_fields_are_literal_and_never_inserted",
+          "qpack::encoder::tests::stateless_sensitive_fields_use_never_indexed_literals",
+          "qpack::encoder::tests::unmatched_names_policy_does_not_reference_unacknowledged_entries_without_block_budget",
+          "qpack::encoder::tests::unmatched_names_policy_never_evicts_an_unacknowledged_entry",
+          "qpack::encoder::tests::unmatched_names_policy_reproduces_firefox_157_sections",
+          "qpack::encoder::tests::unmatched_names_policy_stops_inserting_after_a_failed_insert",
+          "qpack::encoder::tests::unmatched_names_sections_decode_across_acknowledgements_and_evictions",
+          "qpack::field::tests::test_field_size_is_offset_by_32",
+          "qpack::field::tests::with_value",
+          "qpack::prefix_int::test::allow_62_bit",
+          "qpack::prefix_int::test::codec_5_bits",
+          "qpack::prefix_int::test::codec_8_bits",
+          "qpack::prefix_int::test::number_never_ends_with_0x80",
+          "qpack::prefix_int::test::overflow",
+          "qpack::prefix_int::test::overflow2",
+          "qpack::prefix_int::test::size_too_big_of_size - should panic",
+          "qpack::prefix_int::test::size_too_big_value - should panic",
+          "qpack::prefix_string::decode::tests::test_decode_all_code_joined",
+          "qpack::prefix_string::decode::tests::test_decode_single_value",
+          "qpack::prefix_string::decode::tests::test_read_bits",
+          "qpack::prefix_string::encode::tests::byte_",
+          "qpack::prefix_string::encode::tests::byte_count_exact_when_bit_count_multiple_of_8",
+          "qpack::prefix_string::encode::tests::test_encode_all_code_joined",
+          "qpack::prefix_string::encode::tests::test_encode_single_value",
+          "qpack::prefix_string::encode::tests::test_set_bits",
+          "qpack::prefix_string::tests::codec_6",
+          "qpack::prefix_string::tests::codec_8",
+          "qpack::prefix_string::tests::codec_8_empty",
+          "qpack::prefix_string::tests::conditional_encoding_uses_huffman_when_smaller",
+          "qpack::prefix_string::tests::conditional_encoding_uses_raw_bytes_for_ties",
+          "qpack::prefix_string::tests::decode_non_huffman",
+          "qpack::prefix_string::tests::decode_too_short",
+          "qpack::state::tests::acknowledgement_releases_cancellation_reservation_at_prefix_boundaries",
+          "qpack::state::tests::block_insert_unblock_orders_feedback_and_releases_accounting",
+          "qpack::state::tests::blocked_stream_and_byte_limits_are_distinct",
+          "qpack::state::tests::cancelling_before_decode_still_releases_peer_references",
+          "qpack::state::tests::cancelling_blocked_section_queues_one_cancellation",
+          "qpack::state::tests::cancelling_one_section_preserves_other_feedback_reservation",
+          "qpack::state::tests::decoded_sections_retain_read_ahead_until_the_buffer_lease_drops",
+          "qpack::state::tests::feedback_limit_fails_closed_without_leaking_section_bytes",
+          "qpack::state::tests::read_ahead_uses_the_connection_wide_byte_budget",
+          "qpack::state::tests::repeated_poll_replaces_waker_without_double_accounting",
+          "qpack::state::tests::request_guard_cancels_after_an_acknowledged_section",
+          "qpack::state::tests::request_guard_cancels_before_any_section_is_received",
+          "qpack::static_::tests::find",
+          "qpack::static_::tests::find_by_name",
+          "qpack::static_::tests::invalid_index",
+          "qpack::static_::tests::test_static_table_can_get_field",
+          "qpack::static_::tests::test_static_table_index_is_0_based",
+          "qpack::static_::tests::test_static_table_is_full",
+          "qpack::stream::test::always_huffman_codes_encoder_strings_even_when_longer",
+          "qpack::stream::test::dynamic_table_size_update",
+          "qpack::stream::test::encoder_instruction_uses_huffman_when_smaller",
+          "qpack::stream::test::encoder_instruction_uses_raw_strings_for_ties",
+          "qpack::stream::test::header_ack",
+          "qpack::stream::test::insert_count_increment",
+          "qpack::stream::test::insert_duplicate",
+          "qpack::stream::test::insert_with_name_ref",
+          "qpack::stream::test::insert_without_name_ref",
+          "qpack::stream::test::stream_cancel",
+          "qpack::tests::blocked_header",
+          "qpack::tests::codec_basic_get",
+          "qpack::tests::codec_table_full",
+          "qpack::tests::codec_table_size_0",
+          "qpack::vas::tests::absolute_from_real_index",
+          "qpack::vas::tests::evicted",
+          "qpack::vas::tests::largest_ref",
+          "qpack::vas::tests::relative",
+          "qpack::vas::tests::test_first_insertion_with_drop",
+          "qpack::vas::tests::test_first_insertion_without_drop",
+          "qpack::vas::tests::test_last_insertion_with_drop",
+          "qpack::vas::tests::test_last_insertion_without_drop",
+          "qpack::vas::tests::test_no_relative_index_when_empty",
+          "qpack::vas::tests::test_post_base_index",
+          "qpack::vas::tests::test_relative_underflow_protected"
+        ],
+        [
+          "client::builder::tests::dynamic_qpack_is_explicitly_enabled",
+          "client::builder::tests::qpack_decoder_stream_can_be_deferred",
+          "client::builder::tests::qpack_stream_order_and_encoder_stream_type_can_follow_chromium",
+          "config::tests::dynamic_qpack_is_disabled_by_default",
+          "config::tests::maximum_qpack_settings_round_trip_through_frame_view",
+          "config::tests::qpack_decoder_stream_is_eager_by_default",
+          "config::tests::qpack_encoder_policies_default_to_the_existing_behavior",
+          "config::tests::qpack_encoder_stream_is_eager_and_opened_first_by_default",
+          "config::tests::qpack_settings_default_to_zero",
+          "config::tests::qpack_settings_reject_values_outside_quic_varint_range",
+          "connection::qpack_runtime_tests::decoder_feedback_drains_across_partial_writes",
+          "connection::qpack_runtime_tests::decoder_feedback_rejects_zero_progress_writes",
+          "connection::qpack_runtime_tests::deferred_decoder_header_precedes_feedback_without_affecting_accounting",
+          "connection::qpack_runtime_tests::deferred_decoder_header_shares_the_feedback_write_budget",
+          "proto::frame::tests::qpack_setting_values_are_preserved_while_parsing",
+          "proto::headers::tests::ordered_request_fields_reach_qpack_in_declared_order",
+          "tests::connection::closing_qpack_encoder_stream_is_a_critical_stream_error",
+          "tests::connection::dynamic_qpack_response_survives_recv_future_cancellation",
+          "tests::connection::dynamic_qpack_trailers_survive_recv_future_cancellation",
+          "tests::connection::invalid_qpack_decoder_ack_has_specific_error",
+          "tests::connection::malformed_qpack_encoder_instruction_has_specific_error",
+          "tests::connection::malformed_response_emits_one_qpack_cancellation",
+          "tests::connection::qpack_cancellation_for_static_stream_is_accepted",
+          "tests::connection::qpack_encoder_insert_emits_decoder_feedback",
+          "tests::connection::qpack_reset_while_trailers_await_eos_cancels_reserved_section",
+          "tests::connection::request_drop_after_response_headers_emits_qpack_cancellation",
+          "tests::connection::request_drop_and_stop_before_response_emit_qpack_cancellation",
+          "tests::connection::stopping_local_qpack_streams_is_a_critical_stream_error",
+          "tests::qpack_request::chromium_stream_order_writes_the_encoder_stream_type_with_its_first_instructions",
+          "tests::qpack_request::default_request_is_stateless_without_waiting_for_peer_settings",
+          "tests::qpack_request::dynamic_request_does_not_open_a_bidi_stream_before_peer_settings",
+          "tests::qpack_request::dynamic_request_emits_the_encoder_and_field_section_bytes",
+          "tests::qpack_request::dynamic_request_uses_peer_application_settings_before_wire_settings",
+          "tests::qpack_request::dynamic_request_uses_remembered_settings_before_any_peer_settings",
+          "tests::qpack_request::unmatched_names_policy_writes_table_capacity_before_any_request"
+        ],
+        [
+          "tests::connection::control_settings_incompatible_with_remembered_settings_are_rejected",
+          "tests::connection::late_application_settings_incompatible_with_remembered_settings_are_rejected",
+          "tests::connection::remembered_settings_apply_until_compatible_control_settings_replace_them",
+          "tests::connection::remembered_settings_do_not_stand_in_for_the_control_stream_settings",
+          "tests::qpack_request::dynamic_request_uses_remembered_settings_before_any_peer_settings"
+        ],
+        [
+          "config::tests::control_stream_reserved_frame_is_disabled_by_default",
+          "proto::frame::tests::reserved_frame",
+          "stream::tests::control_header_can_carry_one_reserved_frame_after_settings",
+          "tests::connection::control_stream_writes_one_reserved_frame_after_ordered_settings",
+          "tests::connection::server_ignores_reserved_frame_after_client_settings"
+        ]
+      ],
+      "overlap": true,
+      "archive_replay": false
+    },
+    {
+      "host": "linux",
+      "passed_selection_counts": [
+        10,
+        8,
+        12,
+        18,
+        2,
+        2,
+        7,
+        181,
+        35,
+        5,
+        5
+      ],
+      "selection_rosters": [
+        [
+          "client::builder::tests::dynamic_qpack_is_explicitly_enabled",
+          "client::builder::tests::generated_settings_bytes_are_unchanged_without_override",
+          "client::builder::tests::ordered_settings_reject_duplicates_and_forbidden_identifiers",
+          "client::builder::tests::ordered_settings_reject_out_of_range_and_constrained_values",
+          "client::builder::tests::peer_application_settings_preserve_empty_and_valid_settings",
+          "client::builder::tests::peer_application_settings_reject_invalid_frame_sequences",
+          "client::builder::tests::qpack_decoder_stream_can_be_deferred",
+          "client::builder::tests::qpack_stream_order_and_encoder_stream_type_can_follow_chromium",
+          "client::builder::tests::remembered_peer_settings_are_validated_and_kept_apart_from_application_settings",
+          "client::builder::tests::retained_chrome_settings_keep_entry_order_and_varint_widths"
+        ],
+        [
+          "config::tests::control_stream_reserved_frame_is_disabled_by_default",
+          "config::tests::dynamic_qpack_is_disabled_by_default",
+          "config::tests::maximum_qpack_settings_round_trip_through_frame_view",
+          "config::tests::qpack_decoder_stream_is_eager_by_default",
+          "config::tests::qpack_encoder_policies_default_to_the_existing_behavior",
+          "config::tests::qpack_encoder_stream_is_eager_and_opened_first_by_default",
+          "config::tests::qpack_settings_default_to_zero",
+          "config::tests::qpack_settings_reject_values_outside_quic_varint_range"
+        ],
+        [
+          "proto::frame::tests::buffer_too_short",
+          "proto::frame::tests::data_frame",
+          "proto::frame::tests::headers_frames",
+          "proto::frame::tests::len_unexpected_end",
+          "proto::frame::tests::push_promise_accepts_every_identifier_width_and_preserves_following_frame",
+          "proto::frame::tests::qpack_setting_values_are_preserved_while_parsing",
+          "proto::frame::tests::reserved_frame",
+          "proto::frame::tests::settings_frame",
+          "proto::frame::tests::settings_frame_emtpy",
+          "proto::frame::tests::simple_frames",
+          "proto::frame::tests::type_unexpected_end",
+          "proto::frame::tests::unknown_frame_type"
+        ],
+        [
+          "proto::headers::tests::decoded_request_retains_order_sensitivity_and_semantics",
+          "proto::headers::tests::decoded_request_with_no_ordinary_fields_retains_empty_order",
+          "proto::headers::tests::decoded_response_retains_global_field_order_and_duplicates",
+          "proto::headers::tests::ordered_request_fields_reach_qpack_in_declared_order",
+          "proto::headers::tests::ordered_trailers_preserve_cross_name_order_and_sensitivity",
+          "proto::headers::tests::preserves_duplicate_headers",
+          "proto::headers::tests::preserves_sensitive_markers_in_both_directions",
+          "proto::headers::tests::rejects_order_metadata_that_disagrees_with_request",
+          "proto::headers::tests::rejects_pseudo_header_after_regular_header",
+          "proto::headers::tests::rejects_undefined_pseudo_header",
+          "proto::headers::tests::request_has_authority",
+          "proto::headers::tests::request_has_different_host_and_authority",
+          "proto::headers::tests::request_has_empty_authority",
+          "proto::headers::tests::request_has_empty_host",
+          "proto::headers::tests::request_has_host",
+          "proto::headers::tests::request_has_no_authority_nor_host",
+          "proto::headers::tests::request_has_same_host_and_authority",
+          "proto::headers::tests::request_without_order_extensions_preserves_upstream_encoding"
+        ],
+        [
+          "tests::request::header_too_big_server_error",
+          "tests::request::header_too_big_server_error_trailers"
+        ],
+        [
+          "tests::request::server_accepts_response_at_peer_field_section_limit",
+          "tests::request::server_accepts_trailers_at_peer_field_section_limit"
+        ],
+        [
+          "tests::socket::another_error_after_reserved_port_refusal_is_returned_unchanged",
+          "tests::socket::non_os_bind_errors_keep_their_kind_and_message",
+          "tests::socket::other_os_bind_errors_are_returned_without_retry",
+          "tests::socket::other_platforms_do_not_retry_the_windows_reserved_port_error",
+          "tests::socket::pair_endpoints_bind_only_to_ipv6_loopback",
+          "tests::socket::windows_retries_transient_reserved_port_refusal",
+          "tests::socket::windows_returns_last_error_after_three_reserved_port_retries"
+        ],
+        [
+          "client::outbound_qpack::tests::a_held_stream_type_is_written_with_the_first_field_section_instructions",
+          "client::outbound_qpack::tests::peer_blocked_stream_limit_is_clamped",
+          "client::outbound_qpack::tests::peer_limits_may_increase_but_not_decrease",
+          "client::outbound_qpack::tests::peer_table_capacity_is_clamped_to_local_ceiling",
+          "client::outbound_qpack::tests::publication_drop_is_observable",
+          "client::outbound_qpack::tests::publication_success_is_observable",
+          "qpack::block::test::base_index_too_small",
+          "qpack::block::test::header_prefix",
+          "qpack::block::test::header_prefix_table_size_0",
+          "qpack::block::test::indexed_dynamic",
+          "qpack::block::test::indexed_static",
+          "qpack::block::test::indexed_with_postbase",
+          "qpack::block::test::literal",
+          "qpack::block::test::literal_with_name_ref",
+          "qpack::block::test::literal_with_post_base_name_ref",
+          "qpack::block::test::never_indexed_literals_set_n_and_round_trip",
+          "qpack::decoder::tests::decode_indexed_header_field",
+          "qpack::decoder::tests::decode_name_ref_header_field",
+          "qpack::decoder::tests::decode_post_base_indexed",
+          "qpack::decoder::tests::decode_post_base_name_ref_header_field",
+          "qpack::decoder::tests::decode_single_pass_encoded",
+          "qpack::decoder::tests::decode_without_name_ref_header_field",
+          "qpack::decoder::tests::dynamic_decode_enforces_max_field_section_size",
+          "qpack::decoder::tests::dynamic_table_size_update_cannot_exceed_configured_capacity",
+          "qpack::decoder::tests::enc_recv_accepts_truncated_messages",
+          "qpack::decoder::tests::enc_recv_buf_too_short",
+          "qpack::decoder::tests::encoder_instruction_accepts_one_byte_buf_chunks",
+          "qpack::decoder::tests::encoder_instruction_buffer_is_bounded",
+          "qpack::decoder::tests::large_coalesced_encoder_instructions_are_processed_incrementally",
+          "qpack::decoder::tests::largest_ref_greater_than_max_entries",
+          "qpack::decoder::tests::largest_ref_too_big",
+          "qpack::decoder::tests::stateless_decoder_preserves_never_indexed_markers",
+          "qpack::decoder::tests::test_duplicate_field",
+          "qpack::decoder::tests::test_dynamic_table_size_update",
+          "qpack::decoder::tests::test_header_too_long",
+          "qpack::decoder::tests::test_insert_field_with_name_ref_into_dynamic_table",
+          "qpack::decoder::tests::test_insert_field_with_wrong_name_index_from_dynamic_table",
+          "qpack::decoder::tests::test_insert_field_with_wrong_name_index_from_static_table",
+          "qpack::decoder::tests::test_insert_field_without_name_ref",
+          "qpack::dynamic::tests::acknowledge_block_for_unknown_stream",
+          "qpack::dynamic::tests::acknowledge_block_releases_references",
+          "qpack::dynamic::tests::acknowledge_block_with_missing_reference_is_atomic",
+          "qpack::dynamic::tests::acknowledge_block_with_wrong_count_is_atomic",
+          "qpack::dynamic::tests::acknowledge_blocks_in_stream_order",
+          "qpack::dynamic::tests::blocked_stream_not_registered",
+          "qpack::dynamic::tests::blocked_stream_register_accumulate",
+          "qpack::dynamic::tests::blocked_stream_register_put_larger",
+          "qpack::dynamic::tests::blocked_stream_register_put_smaller",
+          "qpack::dynamic::tests::blocked_stream_registered",
+          "qpack::dynamic::tests::cannot_insert_field_greater_than_total_size",
+          "qpack::dynamic::tests::capacity_reduction_with_tracked_entries_is_atomic",
+          "qpack::dynamic::tests::encode_insert_in_empty",
+          "qpack::dynamic::tests::encoder_build",
+          "qpack::dynamic::tests::encoder_can_evict_unreferenced",
+          "qpack::dynamic::tests::encoder_does_not_evict_referenced",
+          "qpack::dynamic::tests::encoder_find_relative",
+          "qpack::dynamic::tests::encoder_insert",
+          "qpack::dynamic::tests::encoder_insertion_refs_commited",
+          "qpack::dynamic::tests::encoder_insertion_refs_not_commited",
+          "qpack::dynamic::tests::encoder_insertion_tracks_ref",
+          "qpack::dynamic::tests::encoder_insertion_with_ref_tracks_both",
+          "qpack::dynamic::tests::encoder_maps_are_cleaned_on_eviction",
+          "qpack::dynamic::tests::encoder_ref_count_are_incremented",
+          "qpack::dynamic::tests::header_ack_advances_known_received_and_unblocks_streams",
+          "qpack::dynamic::tests::insert_again_after_encoder_ack",
+          "qpack::dynamic::tests::insert_count_increment_must_be_positive_and_not_exceed_insert_count",
+          "qpack::dynamic::tests::insert_static",
+          "qpack::dynamic::tests::multiple_blocked_sections_on_one_stream_count_once",
+          "qpack::dynamic::tests::no_insert_after_max_blocked_reached",
+          "qpack::dynamic::tests::no_insert_when_max_blocked_0",
+          "qpack::dynamic::tests::put_updates_maps",
+          "qpack::dynamic::tests::stream_cancellation_releases_every_outstanding_block",
+          "qpack::dynamic::tests::test_add_field_drop_older_fields_to_have_enough_space",
+          "qpack::dynamic::tests::test_add_field_fitting_free_space",
+          "qpack::dynamic::tests::test_add_field_reduce_free_space",
+          "qpack::dynamic::tests::test_eviction_is_fifo",
+          "qpack::dynamic::tests::test_maximum_table_size_can_reach_maximum",
+          "qpack::dynamic::tests::test_maximum_table_size_can_reach_zero",
+          "qpack::dynamic::tests::test_set_maximum_table_size_to_zero_clear_entries",
+          "qpack::dynamic::tests::test_table_size_is_sum_of_its_entries",
+          "qpack::dynamic::tests::test_table_supports_duplicated_entries",
+          "qpack::dynamic::tests::test_try_add_field_larger_than_maximum_size",
+          "qpack::dynamic::tests::test_try_set_too_large_maximum_table_size",
+          "qpack::dynamic::tests::unblock_stream_larger",
+          "qpack::dynamic::tests::unblock_stream_smaller",
+          "qpack::encoder::tests::decoder_accept_truncated",
+          "qpack::encoder::tests::decoder_block_ack",
+          "qpack::encoder::tests::decoder_instruction_accepts_one_byte_buf_chunks",
+          "qpack::encoder::tests::decoder_stream_canceled",
+          "qpack::encoder::tests::decoder_unknown_stream",
+          "qpack::encoder::tests::encode_dynamic_insert",
+          "qpack::encoder::tests::encode_dynamic_insert_nameref",
+          "qpack::encoder::tests::encode_literal",
+          "qpack::encoder::tests::encode_literal_nameref",
+          "qpack::encoder::tests::encode_literal_postbase_nameref",
+          "qpack::encoder::tests::encode_static",
+          "qpack::encoder::tests::encode_static_nameref",
+          "qpack::encoder::tests::encode_static_nameref_indexed_in_dynamic",
+          "qpack::encoder::tests::encode_with_header_block",
+          "qpack::encoder::tests::feedback_preserves_dynamic_references_across_sections",
+          "qpack::encoder::tests::insert_count",
+          "qpack::encoder::tests::invalid_insert_count_increments_are_rejected",
+          "qpack::encoder::tests::invalid_peer_limits_do_not_change_encoder_state_or_output",
+          "qpack::encoder::tests::large_coalesced_decoder_instructions_are_processed_incrementally",
+          "qpack::encoder::tests::local_stream_cancellation_is_idempotent",
+          "qpack::encoder::tests::overflowing_insert_count_increment_is_rejected",
+          "qpack::encoder::tests::sensitive_fields_are_literal_and_never_inserted",
+          "qpack::encoder::tests::stateless_sensitive_fields_use_never_indexed_literals",
+          "qpack::encoder::tests::unmatched_names_policy_does_not_reference_unacknowledged_entries_without_block_budget",
+          "qpack::encoder::tests::unmatched_names_policy_never_evicts_an_unacknowledged_entry",
+          "qpack::encoder::tests::unmatched_names_policy_reproduces_firefox_157_sections",
+          "qpack::encoder::tests::unmatched_names_policy_stops_inserting_after_a_failed_insert",
+          "qpack::encoder::tests::unmatched_names_sections_decode_across_acknowledgements_and_evictions",
+          "qpack::field::tests::test_field_size_is_offset_by_32",
+          "qpack::field::tests::with_value",
+          "qpack::prefix_int::test::allow_62_bit",
+          "qpack::prefix_int::test::codec_5_bits",
+          "qpack::prefix_int::test::codec_8_bits",
+          "qpack::prefix_int::test::number_never_ends_with_0x80",
+          "qpack::prefix_int::test::overflow",
+          "qpack::prefix_int::test::overflow2",
+          "qpack::prefix_int::test::size_too_big_of_size - should panic",
+          "qpack::prefix_int::test::size_too_big_value - should panic",
+          "qpack::prefix_string::decode::tests::test_decode_all_code_joined",
+          "qpack::prefix_string::decode::tests::test_decode_single_value",
+          "qpack::prefix_string::decode::tests::test_read_bits",
+          "qpack::prefix_string::encode::tests::byte_",
+          "qpack::prefix_string::encode::tests::byte_count_exact_when_bit_count_multiple_of_8",
+          "qpack::prefix_string::encode::tests::test_encode_all_code_joined",
+          "qpack::prefix_string::encode::tests::test_encode_single_value",
+          "qpack::prefix_string::encode::tests::test_set_bits",
+          "qpack::prefix_string::tests::codec_6",
+          "qpack::prefix_string::tests::codec_8",
+          "qpack::prefix_string::tests::codec_8_empty",
+          "qpack::prefix_string::tests::conditional_encoding_uses_huffman_when_smaller",
+          "qpack::prefix_string::tests::conditional_encoding_uses_raw_bytes_for_ties",
+          "qpack::prefix_string::tests::decode_non_huffman",
+          "qpack::prefix_string::tests::decode_too_short",
+          "qpack::state::tests::acknowledgement_releases_cancellation_reservation_at_prefix_boundaries",
+          "qpack::state::tests::block_insert_unblock_orders_feedback_and_releases_accounting",
+          "qpack::state::tests::blocked_stream_and_byte_limits_are_distinct",
+          "qpack::state::tests::cancelling_before_decode_still_releases_peer_references",
+          "qpack::state::tests::cancelling_blocked_section_queues_one_cancellation",
+          "qpack::state::tests::cancelling_one_section_preserves_other_feedback_reservation",
+          "qpack::state::tests::decoded_sections_retain_read_ahead_until_the_buffer_lease_drops",
+          "qpack::state::tests::feedback_limit_fails_closed_without_leaking_section_bytes",
+          "qpack::state::tests::read_ahead_uses_the_connection_wide_byte_budget",
+          "qpack::state::tests::repeated_poll_replaces_waker_without_double_accounting",
+          "qpack::state::tests::request_guard_cancels_after_an_acknowledged_section",
+          "qpack::state::tests::request_guard_cancels_before_any_section_is_received",
+          "qpack::static_::tests::find",
+          "qpack::static_::tests::find_by_name",
+          "qpack::static_::tests::invalid_index",
+          "qpack::static_::tests::test_static_table_can_get_field",
+          "qpack::static_::tests::test_static_table_index_is_0_based",
+          "qpack::static_::tests::test_static_table_is_full",
+          "qpack::stream::test::always_huffman_codes_encoder_strings_even_when_longer",
+          "qpack::stream::test::dynamic_table_size_update",
+          "qpack::stream::test::encoder_instruction_uses_huffman_when_smaller",
+          "qpack::stream::test::encoder_instruction_uses_raw_strings_for_ties",
+          "qpack::stream::test::header_ack",
+          "qpack::stream::test::insert_count_increment",
+          "qpack::stream::test::insert_duplicate",
+          "qpack::stream::test::insert_with_name_ref",
+          "qpack::stream::test::insert_without_name_ref",
+          "qpack::stream::test::stream_cancel",
+          "qpack::tests::blocked_header",
+          "qpack::tests::codec_basic_get",
+          "qpack::tests::codec_table_full",
+          "qpack::tests::codec_table_size_0",
+          "qpack::vas::tests::absolute_from_real_index",
+          "qpack::vas::tests::evicted",
+          "qpack::vas::tests::largest_ref",
+          "qpack::vas::tests::relative",
+          "qpack::vas::tests::test_first_insertion_with_drop",
+          "qpack::vas::tests::test_first_insertion_without_drop",
+          "qpack::vas::tests::test_last_insertion_with_drop",
+          "qpack::vas::tests::test_last_insertion_without_drop",
+          "qpack::vas::tests::test_no_relative_index_when_empty",
+          "qpack::vas::tests::test_post_base_index",
+          "qpack::vas::tests::test_relative_underflow_protected"
+        ],
+        [
+          "client::builder::tests::dynamic_qpack_is_explicitly_enabled",
+          "client::builder::tests::qpack_decoder_stream_can_be_deferred",
+          "client::builder::tests::qpack_stream_order_and_encoder_stream_type_can_follow_chromium",
+          "config::tests::dynamic_qpack_is_disabled_by_default",
+          "config::tests::maximum_qpack_settings_round_trip_through_frame_view",
+          "config::tests::qpack_decoder_stream_is_eager_by_default",
+          "config::tests::qpack_encoder_policies_default_to_the_existing_behavior",
+          "config::tests::qpack_encoder_stream_is_eager_and_opened_first_by_default",
+          "config::tests::qpack_settings_default_to_zero",
+          "config::tests::qpack_settings_reject_values_outside_quic_varint_range",
+          "connection::qpack_runtime_tests::decoder_feedback_drains_across_partial_writes",
+          "connection::qpack_runtime_tests::decoder_feedback_rejects_zero_progress_writes",
+          "connection::qpack_runtime_tests::deferred_decoder_header_precedes_feedback_without_affecting_accounting",
+          "connection::qpack_runtime_tests::deferred_decoder_header_shares_the_feedback_write_budget",
+          "proto::frame::tests::qpack_setting_values_are_preserved_while_parsing",
+          "proto::headers::tests::ordered_request_fields_reach_qpack_in_declared_order",
+          "tests::connection::closing_qpack_encoder_stream_is_a_critical_stream_error",
+          "tests::connection::dynamic_qpack_response_survives_recv_future_cancellation",
+          "tests::connection::dynamic_qpack_trailers_survive_recv_future_cancellation",
+          "tests::connection::invalid_qpack_decoder_ack_has_specific_error",
+          "tests::connection::malformed_qpack_encoder_instruction_has_specific_error",
+          "tests::connection::malformed_response_emits_one_qpack_cancellation",
+          "tests::connection::qpack_cancellation_for_static_stream_is_accepted",
+          "tests::connection::qpack_encoder_insert_emits_decoder_feedback",
+          "tests::connection::qpack_reset_while_trailers_await_eos_cancels_reserved_section",
+          "tests::connection::request_drop_after_response_headers_emits_qpack_cancellation",
+          "tests::connection::request_drop_and_stop_before_response_emit_qpack_cancellation",
+          "tests::connection::stopping_local_qpack_streams_is_a_critical_stream_error",
+          "tests::qpack_request::chromium_stream_order_writes_the_encoder_stream_type_with_its_first_instructions",
+          "tests::qpack_request::default_request_is_stateless_without_waiting_for_peer_settings",
+          "tests::qpack_request::dynamic_request_does_not_open_a_bidi_stream_before_peer_settings",
+          "tests::qpack_request::dynamic_request_emits_the_encoder_and_field_section_bytes",
+          "tests::qpack_request::dynamic_request_uses_peer_application_settings_before_wire_settings",
+          "tests::qpack_request::dynamic_request_uses_remembered_settings_before_any_peer_settings",
+          "tests::qpack_request::unmatched_names_policy_writes_table_capacity_before_any_request"
+        ],
+        [
+          "tests::connection::control_settings_incompatible_with_remembered_settings_are_rejected",
+          "tests::connection::late_application_settings_incompatible_with_remembered_settings_are_rejected",
+          "tests::connection::remembered_settings_apply_until_compatible_control_settings_replace_them",
+          "tests::connection::remembered_settings_do_not_stand_in_for_the_control_stream_settings",
+          "tests::qpack_request::dynamic_request_uses_remembered_settings_before_any_peer_settings"
+        ],
+        [
+          "config::tests::control_stream_reserved_frame_is_disabled_by_default",
+          "proto::frame::tests::reserved_frame",
+          "stream::tests::control_header_can_carry_one_reserved_frame_after_settings",
+          "tests::connection::control_stream_writes_one_reserved_frame_after_ordered_settings",
+          "tests::connection::server_ignores_reserved_frame_after_client_settings"
+        ]
+      ],
+      "overlap": true,
+      "archive_replay": true
+    }
+  ],
+  "causal_scope": [
+    "H3 unique/interleaved metadata previously missing at79 is now observed and actual literal full ordinary sequence87 plus pseudo exclusion88-93 pass in unchanged bodies on both hosts; semantic positive also passes.",
+    "Trust negative reaches child64 after real healthy named capture/recipe/order controls and exact equal-count no-H2/two-H1 substitution prerequisites. This establishes a private observer failure, not missing production connector.",
+    "Linux exit0 from set-e check-vendor h3 includes checksummed upstream archive, full ordered series application, canonical tree comparison and all package commands. Windows current native package script equals exact corresponding Cargo body and passes, excluding archive replay.",
+    "Eleven package selections overlap; do not sum as unique tests. Two package received Header controls pass, including Some(empty), but sensitivity input is manually supplied decoded field rather than peer sensitivity proof."
+  ],
+  "limitations": [
+    "Reviewer read evidence only; no Cargo, execution, tracked edit or restart.",
+    "Windows full archive replay remains unavailable locally. Earlier four license mismatches preserved; administrator-required symlink creation is root-reported and not independently reproduced.",
+    "No outgoing-wire/browser parity, dynamic-QPACK receive-path, ordinary trust exceptional joined-cleanup, macOS, final gate, PR or main merge claim.",
+    "Current full production coverage remains qualified by named-result source report; hashes/native output do not add whole-read coverage."
+  ]
+}

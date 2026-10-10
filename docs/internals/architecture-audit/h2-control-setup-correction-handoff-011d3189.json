@@ -1,0 +1,333 @@
+{
+  "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+  "parent": "c312cbf056da1d68b7f4df64a24373169a3a4c4a",
+  "worktree": "C:/code/phantom-worktrees/audit-h2-control-corrections",
+  "branch": "lane/audit-h2-control-corrections",
+  "created_utc": "2026-10-10T13:26:22.609526+00:00",
+  "verdict": "Signed source-only control setup correction ready for independent review and root native verification. No fixture remedy or fresh runtime pass claimed.",
+  "owned_sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/stream_contract.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "14523f32c7938020516c1dd6b0bc85b77d4578b1",
+      "raw_git_sha256": "407e67e56f54603aadf23edecb946c26abeb127aa335cc8bf6318981a77e85eb",
+      "working_raw_sha256": "847b4c70240c270088aec0e5b48586e870205310d293d49f0cd85d0ab032c86c",
+      "line_count": 218,
+      "scope": "whole current owned source, manually reviewed",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 218,
+          "working_range_sha256": "847b4c70240c270088aec0e5b48586e870205310d293d49f0cd85d0ab032c86c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "94fe882a485d0b2b0fedcbdd50f803f796160be5",
+      "raw_git_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc",
+      "working_raw_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc",
+      "line_count": 449,
+      "scope": "whole current owned source, manually reviewed",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 449,
+          "working_range_sha256": "574a37136a736fdb355a6bae423fc041386869da686a53adcc102363a2f7eabc"
+        }
+      ]
+    }
+  ],
+  "supporting_sources": [
+    {
+      "path": "crates/phantom/tests/proxies/proxy_h2.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "32010ab386ad11ddbf08eb08b221df41c8b0d1f0",
+      "raw_git_sha256": "e003c74d6b5f94cd44ecbd9237e55b2a8649c5b397af6386c09b2dcf1d3145b3",
+      "working_raw_sha256": "f62911f75ca86d960514a35cd13b3a8326591f081a2fe62d8bce3c238685eb26",
+      "line_count": 2146,
+      "scope": "supporting partial: existing Recording and unchanged has_ended",
+      "actual_manual_ranges": [
+        {
+          "start": 1790,
+          "end": 1838,
+          "working_range_sha256": "cdfddcbf546707fb2bfe3263185f0975daff6f7b0b7d692ad2f28f1ae8977962"
+        },
+        {
+          "start": 2031,
+          "end": 2042,
+          "working_range_sha256": "0b0ad04b2761e66ea20c7e2271f635adb5dfdfe1444231a408d091c05e9f65f2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "57511bd2bd5ad96aa4ea9bd551919875997f0f31",
+      "raw_git_sha256": "cf083a76adbf37d694484426be5460833f0214531f7605c4934054abb50c0d2f",
+      "working_raw_sha256": "dcc22dd139e495623d988894b0d6b3e729ffd7692d8084f46be13a5c7b232688",
+      "line_count": 264,
+      "scope": "supporting partial: finite stop and outcome aggregation",
+      "actual_manual_ranges": [
+        {
+          "start": 60,
+          "end": 113,
+          "working_range_sha256": "687cd84eb760b848f5724fd58d05ef23f8312d0e59c6c9d3671c1b462d253ef7"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_git_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "working_raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "scope": "supporting partial: response/reset legality and stream identity",
+      "actual_manual_ranges": [
+        {
+          "start": 1242,
+          "end": 1268,
+          "working_range_sha256": "85c3d0cffcac9985c06e5350ca07c442d09f2535d74b406dc82709b2b204fedc"
+        },
+        {
+          "start": 1298,
+          "end": 1326,
+          "working_range_sha256": "e42fb4cd132e27a3ba2c8b4072ff3b05d97e4c57177000d1837a9c016454da73"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "raw_git_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "working_raw_sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "line_count": 622,
+      "scope": "supporting partial: streaming reset, stream ID, DATA and EOF API",
+      "actual_manual_ranges": [
+        {
+          "start": 355,
+          "end": 460,
+          "working_range_sha256": "59f50dfcca3459e742fcdbdec19bef7e20ddb16b276addc8f6a45508e7f83046"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/proto/streams/recv.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "960731581dce948219f6648898b1e125f5d88db0",
+      "raw_git_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "working_raw_sha256": "f1fb698c8edf48c451b81d9c6cf48ee295d445fcef836d3b858b5686e8dbcc05",
+      "line_count": 1366,
+      "scope": "supporting partial: pending body items and EOF schedule",
+      "actual_manual_ranges": [
+        {
+          "start": 715,
+          "end": 727,
+          "working_range_sha256": "445a6236d8564fe71ca8c0905c58fac48ba4f8e1153b89ca406f73fa1a74a34b"
+        },
+        {
+          "start": 1289,
+          "end": 1349,
+          "working_range_sha256": "d4bc013ad55d87c19896169af444043f547d9728642c71e9daea4b73098d6661"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/head.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "40428258c366daef32414c1c035f60ca98e98a64",
+      "raw_git_sha256": "f163fc1abcfb8a954a36942be7b912bdef4d90a7c3c15e390563db9ca3d64d57",
+      "working_raw_sha256": "f163fc1abcfb8a954a36942be7b912bdef4d90a7c3c15e390563db9ca3d64d57",
+      "line_count": 96,
+      "scope": "supporting partial: guarded actual frame header parser",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 80,
+          "working_range_sha256": "267e2821ce74356d860fa945ba996f210f4405c4ee1fd0506938e575edfabfd4"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/reset.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "0f8266231934396c8418657cf9091f7c5257278c",
+      "raw_git_sha256": "1ba29fb40e5cbcabefc40cbfd85155423c28683801c944c469e7d67d489b268d",
+      "working_raw_sha256": "1ba29fb40e5cbcabefc40cbfd85155423c28683801c944c469e7d67d489b268d",
+      "line_count": 57,
+      "scope": "whole small supporting parser, manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 57,
+          "working_range_sha256": "1ba29fb40e5cbcabefc40cbfd85155423c28683801c944c469e7d67d489b268d"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/stream_id.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "0f427dfb491b632bbcf18d49f46780f1252319fe",
+      "raw_git_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815",
+      "working_raw_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815",
+      "line_count": 94,
+      "scope": "whole small supporting identifier source, manually read",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 94,
+          "working_range_sha256": "c26f217a6703971bde2806bad649be6ecf532dcd0a2e60142b7d34f58aa06815"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/mod.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "9236f9ff0f61a5622efac11c29ba72e3bc5195a1",
+      "raw_git_sha256": "d07e090b463fc7d24781bd524e0b3f0b2c470f9067ee19a022811143e0415e9a",
+      "working_raw_sha256": "d07e090b463fc7d24781bd524e0b3f0b2c470f9067ee19a022811143e0415e9a",
+      "line_count": 187,
+      "scope": "supporting partial: frame exports/header length/parser error",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 187,
+          "working_range_sha256": "d07e090b463fc7d24781bd524e0b3f0b2c470f9067ee19a022811143e0415e9a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/hpack/decoder.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "f820aa5b1d0de7177a1b8e0112e311be97ddb784",
+      "raw_git_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "working_raw_sha256": "2db32cbd2d36a38475f4753d6066d566d77bee484d5531f5e413882871db7cc8",
+      "line_count": 1012,
+      "scope": "supporting partial: concrete frame error payload enum",
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 105,
+          "working_range_sha256": "07f6d961157dd97d4c25718ffcf435a70e77d4e63255480e1dc456802ebe2593"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/lib.rs",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "569a42382a9f5bedf4fac24db3c702a9e463fb27",
+      "raw_git_sha256": "760a1c37e68e9701d06a382c3e68fa31cb08067add1030cab1ce6f633d364368",
+      "working_raw_sha256": "760a1c37e68e9701d06a382c3e68fa31cb08067add1030cab1ce6f633d364368",
+      "line_count": 164,
+      "scope": "supporting partial: existing unstable frame API export",
+      "actual_manual_ranges": [
+        {
+          "start": 105,
+          "end": 147,
+          "working_range_sha256": "0fbffb7b3c31c36bb2c5a220a5decc6e341d955f23565278d908db83119f850e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "011d3189683c132e93a449ef3b5f72f0dc1bfbc2",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_git_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "working_raw_sha256": "5f4a60a895690644ad565d2828af5320bb09ce98f45ac1ea9936bdf710efba0b",
+      "line_count": 138,
+      "scope": "supporting partial: resolved already-enabled unstable test dependency",
+      "actual_manual_ranges": [
+        {
+          "start": 56,
+          "end": 65,
+          "working_range_sha256": "30cbcfa119cb96efaba20a47c5de1b8bd5b739ea2bca09b375216b517ba0d0e0"
+        }
+      ]
+    }
+  ],
+  "actual_native_evidence": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-lifecycle-baseline-c312cbf0-h2-windows.log",
+      "sha256": "19be12853b3cc7431fa863d9664d4d6555f94bda838c9cdbbdf5becc828a90fb",
+      "bytes": 77457,
+      "line_count": 1658,
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1658,
+          "raw_range_sha256": "19be12853b3cc7431fa863d9664d4d6555f94bda838c9cdbbdf5becc828a90fb"
+        }
+      ],
+      "actual_summary": "99 run, 54 passed, 45 failed, 285 skipped; terminal test run failed",
+      "scope": "Both complete actual nextest logs manually read, including re-reads repairing tool-output truncation gaps."
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h2-lifecycle-baseline-c312cbf0-h2-linux.log",
+      "sha256": "5b9cc4cbb4e97715437e464271dac00d10dec0c13f1a1c3b96b7457351833ba8",
+      "bytes": 77351,
+      "line_count": 1658,
+      "actual_manual_ranges": [
+        {
+          "start": 1,
+          "end": 1658,
+          "raw_range_sha256": "5b9cc4cbb4e97715437e464271dac00d10dec0c13f1a1c3b96b7457351833ba8"
+        }
+      ],
+      "actual_summary": "99 run, 54 passed, 45 failed, 285 skipped; terminal test run failed",
+      "scope": "Both complete actual nextest logs manually read, including re-reads repairing tool-output truncation gaps."
+    }
+  ],
+  "findings": [
+    {
+      "id": "EOF control setup",
+      "measured_boundary": "Both prior runs panic at stream_contract.rs:80: independent.is_none(). Logs do not print the returned item.",
+      "resolved_cause": "The actual client sends empty DATA with END_STREAM. RecvStream returns pending DATA before None; is_end_stream additionally requires an empty pending receive queue. The empty-item identity is explained by actual input plus resolved source, not a decoded-item log.",
+      "change": "Drain the first actual empty DATA and require actual None; drain the second empty DATA until actual None and require is_end_stream before the unchanged has_ended observation. Reject any nonempty data or receive error."
+    },
+    {
+      "id": "Four reset control setup boundaries",
+      "measured_boundary": "Both hosts fail early with User(InactiveStreamId) in both owners BodyReset and ResponseReset controls. The intended typed-error preservation assertions were not reached.",
+      "resolved_cause": "SendResponse::poll_reset is explicitly invalid after send_response. The actual SendStream is consumed by the upstream fixture relay and is not substituted or cloned.",
+      "change": "Wrap the existing server inbound duplex in existing Recording; while driving the actual connection, scan complete actual received frames through resolved Head and Reset parsers, requiring the actual original CONNECT stream ID and original INTERNAL_ERROR reason. No additional request or copied relay implementation."
+    }
+  ],
+  "preservation": {
+    "artifact_path": "C:/code/phantom/target/architecture-audit/h2-control-setup-preservation-011d3189.json",
+    "artifact_sha256": "1810ef4e012f054399a6a62b50c31776c530645815b8ae09378685a3e5c77662",
+    "validator_path": "C:/code/phantom/target/architecture-audit/h2-control-setup-preservation-validator.py",
+    "validator_sha256": "5c9e50df6f548defff4f7620d4e2105145ea20db7e2f9baf3aa2659e7e156cac",
+    "result": "Exit 0. All 99 bodies preserved: eight owned test suffixes exact and thirteen other complete H2 blobs exact. Existing reset validators and post-witness stream operation/causal assertion suffixes exact.",
+    "preliminary_subset_artifact": "h2-control-setup-preservation-c312cbf0.json used an async-only roster of 89; retained as a preliminary subset. The signed-revision artifact uses all 99 synchronous and asynchronous methods."
+  },
+  "verification": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/proxies/proxy_h2/stream_contract.rs crates/phantom/tests/proxies/proxy_h2/relay_contract.rs",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "note": "Before signing; only expected working-copy LF/CRLF notice, no diff error."
+    },
+    {
+      "command": "git verify-commit HEAD",
+      "exit_code": 0,
+      "note": "Good SSH signature, existing allowed signer. Human author and committer Arya Alikhani <AryaAlikhani@icloud.com>."
+    },
+    {
+      "command": "git status --short",
+      "exit_code": 0,
+      "result": "empty"
+    }
+  ],
+  "limits": [
+    "No Cargo, compilation, lint, MSRV or runtime execution was performed in the lane. Root must independently reproduce the corrected baseline before fixture remedies.",
+    "Expected next boundary is a passing EOF positive and four original reset error-preservation negatives, not a predicted all-green baseline.",
+    "The observations concern private loopback/duplex test fixtures and finite five-second witnesses; no production routing, permanent task lifetime or browser parity claim.",
+    "Existing actual fixture helpers, parent Recording behavior, all thirteen other H2 source blobs, shared dependencies and manifests are unchanged. Recording poison behavior is not repaired by this setup correction.",
+    "Source identity and preservation checks for unchanged files are mechanical and do not grant new whole-source audit coverage."
+  ]
+}

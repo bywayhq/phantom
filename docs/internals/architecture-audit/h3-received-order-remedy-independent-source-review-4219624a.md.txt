@@ -1,0 +1,37 @@
+# Independent HTTP/3 received-order remedy source review
+
+Approve signed `4219624afa736181cfb5ff4f5a61f3d758528fcf` for root packaging/composition
+and native verification. No source blocker found in the bounded change.
+
+Fresh complete manual reads cover both current production owners: headers1208
+and server request267 lines, plus canonical patch137 and series27. Feature
+visibility, sidecar API and vendor instructions were separately read in the
+recorded complete or partial ranges. Exact source hashes and every author
+handoff range were independently validated without granting unread coverage.
+
+The decoder already records ordinary fields in sequence, including interleaved
+duplicates and their value markers, before the semantic HeaderMap groups names.
+The conversion now moves that vector into OrderedHeaders. A decoded request
+without ordinary fields retains Some(empty). The resolver attaches the actual
+sidecar while preserving existing method, URI, Protocol, semantic headers,
+version and malformed-request error mapping. Outgoing/response/trailer logic
+and decode behavior are unchanged by this slice.
+
+The default module is private. With the existing opt-in backend feature,
+Header::into_request_parts is public and changes a four-tuple to a five-tuple.
+Root must mark the breaking change, document Migrate, and finish fork identity,
+pins/lockfiles and package documentation. This is not a wholly private fix.
+
+The two added literal-vector unit controls check decoded semantics, duplicate
+order, a manually supplied sensitivity marker and Some(empty). They do not prove
+peer QPACK sensitivity or dynamic receive support. Both baseline source/control
+blobs remain unchanged, including the198-line actual native controls. Their
+post-remedy global-order and pseudo exclusion assertions still need execution.
+
+Independent exact full-context in-memory patch replay against772 reproduces both
+current production files. The one series insertion precedes publish-identity;
+all prior entries are unchanged. Full upstream archive/series verification,
+compilation, both-host native greens and full gates remain with root. No Cargo,
+source changes or new native execution occurred in this review.
+
+JSON SHA256: `87da55a1c55054b75936a82212b15555b2bb47c4f4722b559dbe47bf3f2b9484`.

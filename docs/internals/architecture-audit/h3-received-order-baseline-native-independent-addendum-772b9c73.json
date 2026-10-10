@@ -1,0 +1,480 @@
+{
+  "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+  "author_revision": "41ce0759d5eedccd435db62dff987fad4348cc0c",
+  "decision": "approve actual focused causal baseline evidence; received metadata defect reproduced on both hosts",
+  "raw_execution_artifacts": [
+    {
+      "path": "run-h3-received-order-baseline.sh",
+      "bytes": 2183,
+      "sha256": "2ace0b46eb16b7c7115bbab9891abc063feaf836b11f5c81f9a380b4b097c122",
+      "lines": 48,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-fmt-windows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 0,
+      "read_ranges": [],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-fmt-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-h3-windows.log",
+      "bytes": 2942,
+      "sha256": "d35f999d06d59b8c7d6f478d42643e2b5b74cc0824b9d6051cf38316fd141167",
+      "lines": 73,
+      "read_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-h3-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-clippy-windows.log",
+      "bytes": 168,
+      "sha256": "e491b696ea10721657a3c7abd5010e83ea9f73ce29b57922491a1d0a559c8eb5",
+      "lines": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-clippy-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-msrv-windows.log",
+      "bytes": 167,
+      "sha256": "a5191a67abb194f639957af852d17e7b03cf155f6f866f631e9cfdce53299303",
+      "lines": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-msrv-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-windows.revision",
+      "bytes": 41,
+      "sha256": "367c2d1660706362c80300465dbf8674fde96250ca99b7e3e69d7aed05e7268f",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-fmt-linux.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 0,
+      "read_ranges": [],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-fmt-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-h3-linux.log",
+      "bytes": 2952,
+      "sha256": "12669b4ec7ea695892d429a8c8ded0328815cf85fc147138f8dd57da953135f5",
+      "lines": 73,
+      "read_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-h3-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-clippy-linux.log",
+      "bytes": 178,
+      "sha256": "b76457a0a9c7b768a0e1516eba809ca22cc111a246fed21a3e6e6968111481f8",
+      "lines": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-clippy-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-msrv-linux.log",
+      "bytes": 178,
+      "sha256": "222601fd7c5d624f500a7eda153edc0b60dc2b87bd9bb74fea9ad076e1f00c38",
+      "lines": 2,
+      "read_ranges": [
+        [
+          1,
+          2
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-msrv-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-linux.revision",
+      "bytes": 41,
+      "sha256": "367c2d1660706362c80300465dbf8674fde96250ca99b7e3e69d7aed05e7268f",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    },
+    {
+      "path": "h3-received-order-baseline-772b9c73-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "scope": "complete raw retained execution artifact manually read; empty format logs verified empty"
+    }
+  ],
+  "root_receipts": [
+    {
+      "path": "h3-received-order-baseline-root-772b9c73.md",
+      "bytes": 1620,
+      "sha256": "8c5f3c455c24646d8e4f287c6e8d07891afb0b29df82d6fcaa1b09d981171c44",
+      "lines": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "scope": "complete root Markdown receipt manually read"
+    },
+    {
+      "path": "h3-received-order-baseline-root-772b9c73.json",
+      "bytes": 7306,
+      "sha256": "eadc76db0d87b76d52db682a2e62344bc5f1381c84d7a39db6a610d147a978a6",
+      "lines": 196,
+      "read_ranges": [],
+      "scope": "complete JSON machine parsed and artifact/source metadata manually inspected; no full manual-read ranges"
+    }
+  ],
+  "supporting_artifacts": [
+    {
+      "path": "h3-received-order-baseline-handoff-41ce0759.md",
+      "bytes": 3065,
+      "sha256": "5574b04121cc41279848976612ea4db746f0204439d3fa21a2fa086269bf507c",
+      "lines": 46,
+      "read_ranges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "scope": "complete prior Markdown source report manually read; prior source claims remain historical"
+    },
+    {
+      "path": "h3-received-order-baseline-handoff-41ce0759.json",
+      "bytes": 20142,
+      "sha256": "d723c1513965ae897d1d2a823ecda8f1680dd90b1478a7250b8dac050498366d",
+      "lines": 440,
+      "read_ranges": [],
+      "scope": "prior paired JSON raw hash bound only; no fresh full manual source credit"
+    },
+    {
+      "path": "h3-received-order-baseline-independent-review-41ce0759.md",
+      "bytes": 8338,
+      "sha256": "bd1c9a2effe5b3503bc7130a9bfa973eae415a2436a4c7f7df8009d6e072d32b",
+      "lines": 122,
+      "read_ranges": [
+        [
+          1,
+          122
+        ]
+      ],
+      "scope": "complete prior Markdown source report manually read; prior source claims remain historical"
+    },
+    {
+      "path": "h3-received-order-baseline-independent-review-41ce0759.json",
+      "bytes": 40329,
+      "sha256": "694f365e927d22936a0dd60c6cc92629f28be56a88636f06385fab71300d5396",
+      "lines": 911,
+      "read_ranges": [],
+      "scope": "prior paired JSON raw hash bound only; no fresh full manual source credit"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/h3_received_order.rs",
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "author_revision": "41ce0759d5eedccd435db62dff987fad4348cc0c",
+      "git_blob": "9fe8ba2a42cb29b28dcc1e9d6e5e3a5a116aa551",
+      "sha256": "0d6f28ad4e2817901e2e363ed57975fd4f5a5921d6b382d6d626a1a8bcd0cc16",
+      "lines": 198,
+      "read_ranges": [
+        [
+          1,
+          198
+        ]
+      ],
+      "scope": "fresh full committed current owner manually read in this native review"
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "772b9c73a0c33745e60f03ea0e42485a71c933a0",
+      "author_revision": "41ce0759d5eedccd435db62dff987fad4348cc0c",
+      "git_blob": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "lines": 42,
+      "read_ranges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "scope": "fresh full committed current owner manually read in this native review"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "methods": {
+        "h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order": "FAIL",
+        "h3_received_order::received_unique_fields_keep_their_declared_qpack_order": "FAIL",
+        "h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response": "PASS"
+      },
+      "selected": 3,
+      "passed": 1,
+      "failed": 2,
+      "skipped": 440,
+      "binary_total": 443,
+      "nextest_exit": 100,
+      "runner_exit": 1,
+      "format_clippy_msrv_exits": 0,
+      "first_failure": {
+        "line": 79,
+        "message": "resolved HTTP3 request omitted its decoded OrderedHeaders"
+      },
+      "unreached": [
+        [
+          81,
+          93
+        ]
+      ]
+    },
+    "linux": {
+      "methods": {
+        "h3_received_order::an_interleaved_request_decodes_semantically_and_collects_its_response": "PASS",
+        "h3_received_order::received_interleaved_duplicates_keep_global_and_per_name_order": "FAIL",
+        "h3_received_order::received_unique_fields_keep_their_declared_qpack_order": "FAIL"
+      },
+      "selected": 3,
+      "passed": 1,
+      "failed": 2,
+      "skipped": 440,
+      "binary_total": 443,
+      "nextest_exit": 100,
+      "runner_exit": 1,
+      "format_clippy_msrv_exits": 0,
+      "first_failure": {
+        "line": 79,
+        "message": "resolved HTTP3 request omitted its decoded OrderedHeaders"
+      },
+      "unreached": [
+        [
+          81,
+          93
+        ]
+      ]
+    }
+  },
+  "source_contract_ranges": [
+    {
+      "range": [
+        19,
+        29
+      ],
+      "sha256": "43f4acb71c4662f12f62158492fbcf16fcdf36b6fe4be2bb419350da0820c85b",
+      "meaning": "independent literal unique/interleaved expected fields"
+    },
+    {
+      "range": [
+        31,
+        72
+      ],
+      "sha256": "270854501ab0cf2a1cbe4fee6515fb6a9a26ed86e97d94cd3c086c3bcb457a1b",
+      "meaning": "three actual entry tests plus count/value and per-name duplicate-order semantics"
+    },
+    {
+      "range": [
+        75,
+        94
+      ],
+      "sha256": "16c8202e9b6110513b29d19d3b840effcbbd157271ca4ea560ab15100a1ae545",
+      "meaning": "actual missing extension79; decoded sequence81-87 and ordinary-only88-93 remain unreached"
+    },
+    {
+      "range": [
+        117,
+        134
+      ],
+      "sha256": "8e94d2baf41176faf55443a4eefd75394fa6d7f2c3256e0aef6435a0ae2933ad",
+      "meaning": "actual peer GET/full URI/HTTP3/empty EOF/200/body completion and response-collection acknowledgement"
+    },
+    {
+      "range": [
+        135,
+        167
+      ],
+      "sha256": "f40931f5a361cb22461b66b3f89849c2be0e0cf0c1c5237999ece1f9b886080b",
+      "meaning": "actual raw client connection/driver request response200/HTTP3/literalbody and typed outer bound"
+    },
+    {
+      "range": [
+        169,
+        179
+      ],
+      "sha256": "76be13d501b1a8c69e3fe9932f0ce213d4c1242b4e436414efd7da5561bc880d",
+      "meaning": "both endpoint close requests and bounded simultaneous idle cleanup with retained operation/cleanup causes"
+    }
+  ],
+  "limitations": [
+    "Both intended negatives reach79 only after exchange returns Ok and independent field semantics pass; global sequence87 and pseudo exclusion88-93 receive no baseline native credit.",
+    "Only the outgoing request receives the declared OrderedHeaders extension; the received Request is not augmented by the test.",
+    "The observed contract is decoded received-request metadata after a real stateless QUIC/QPACK exchange, not outgoing wire order, browser fidelity, sensitivity or dynamic-QPACK coverage.",
+    "Lexical try_join/select first-error cancellation does not collect every simultaneous peer failure; existing finish_with_cleanup retains the operation-plus-bounded-cleanup contract.",
+    "Bounded endpoint wait_idle completion is not proof of OS socket release or synchronous cleanup on external cancellation/panic.",
+    "Prior vendor/supporting reads remain historical qualified source evidence; no fresh vendor coverage is granted from hashes or prior report prose.",
+    "No new execution, Cargo or source edit performed. Separate remedy and both-host green verification, main and full gates remain open."
+  ]
+}

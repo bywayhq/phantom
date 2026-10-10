@@ -1,0 +1,28 @@
+# H2 compile-boundary correction review
+
+Source-approved revision `c312cbf056da1d68b7f4df64a24373169a3a4c4a` against
+`78be020482ed6f24bf19edadb308e89b3310aefc`. The complete three-file diff corrects
+two imports to the existing concrete `connection_peer::FixtureFailures` path
+and makes two multiplex relay functions `pub(super)`. No behavior changes.
+
+The actual support module is already visible within the test binary. It does
+not re-export FixtureFailures. The sibling relay_contract needs both functions
+at174/184; visibility reaches their common parent and no public library API.
+Exact reconstruction with only these replacements equals all three current
+sources. Twelve other H2 source blobs are exact, so all99 test bodies remain
+unchanged. This preservation proof is mechanical, not coverage of those files.
+
+Manual current reads cover all651 connection-contract lines,222 outcome-contract
+lines and713 multiplex-owner lines. Supporting partial module/field/caller reads
+and the whole21-line binary registration are hash-bound separately in the JSON.
+
+All20 retained78be artifacts were fully read, including both actual nextest
+logs, four ancillary compiler logs, empty format logs, statuses and revisions.
+Both hosts reached the same four compile errors: two E0432 imports and two E0603
+relay calls. Formatting0, other three stages101, runner1. Nextest failed during
+cargo test --no-run, so no runtime case failed or passed in that attempt.
+
+Root signature verified. No reviewer Cargo, edits, commits or new native runs.
+This independently approves only the root-authored compile correction; the
+broader baseline received its independent review separately. Its deliberately
+unfixed lifecycle behavior still requires actual causal native execution.
