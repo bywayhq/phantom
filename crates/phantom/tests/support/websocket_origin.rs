@@ -39,6 +39,13 @@ pub(crate) async fn serve_h2_echo(
     acceptor: SslAcceptor,
 ) -> TestResult<ExtendedConnectRecord> {
     let stream = accept_tls(listener, acceptor).await?;
+    echo_h2(stream).await
+}
+
+async fn echo_h2<S>(stream: S) -> TestResult<ExtendedConnectRecord>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let mut builder = ::http2::server::Builder::new();
     builder.enable_connect_protocol();
     let mut connection = builder.handshake::<_, Bytes>(stream).await?;
@@ -578,3 +585,7 @@ mod tests {
         observed_h1_second_frame(8).await
     }
 }
+
+#[cfg(test)]
+#[path = "websocket_origin/h2_echo_controls.rs"]
+mod h2_echo_controls;
