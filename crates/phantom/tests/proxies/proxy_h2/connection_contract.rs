@@ -20,8 +20,8 @@ use crate::support::tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailu
 
 use super::{
     H1_ALPN, H2Proxy, Reply, TaskProbe, TaskRole, TestIdentity, TestResult, accept_tls,
-    client_builder, connect_error, finish_forward_exchange, read_head, serve_connects_observed,
-    serve_forwarded_observed,
+    client_builder, connect_error, connect_peer::ConnectPeer, finish_forward_exchange, read_head,
+    serve_connects_observed, serve_forwarded_observed,
 };
 
 enum Cancellation {
@@ -515,9 +515,9 @@ async fn healthy_recording_keeps_real_h2_bytes() -> TestResult<()> {
 async fn deliberate_http_connect_502_is_typed_after_real_traffic() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (uri, root, acceptor, listener) = H2Proxy::bind().await?.into_parts()?;
-    let mut peer = ConnectionPeer::spawn(async move {
+    let peer = ConnectPeer::spawn(None, move |children| async move {
         let (tcp, _) = listener.accept().await?;
-        super::serve_connect(tcp, &acceptor, Reply::Status(502)).await
+        super::serve_connect(tcp, &acceptor, Reply::Status(502), children).await
     });
     let client = client_builder(&identity, true)
         .add_proxy_root_certificate_der(root)
@@ -540,7 +540,7 @@ async fn deliberate_http_connect_502_is_typed_after_real_traffic() -> TestResult
         Some(phantom_net::proxy::HttpConnectError::Rejected { status: 502 })
     ));
     drop(client);
-    let record = timeout(Duration::from_secs(5), &mut peer).await???;
+    let record = timeout(Duration::from_secs(5), peer.finish()).await??;
     assert_eq!(record.authority.as_deref(), Some("origin.test:443"));
     assert_eq!(record.stream_id, 1);
     Ok(())
@@ -556,9 +556,9 @@ enum RejectionCase {
 async fn rejection_observation(case: RejectionCase) -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (uri, root, acceptor, listener) = H2Proxy::bind().await?.into_parts()?;
-    let mut peer = ConnectionPeer::spawn(async move {
+    let peer = ConnectPeer::spawn(None, move |children| async move {
         let (tcp, _) = listener.accept().await?;
-        super::serve_connect(tcp, &acceptor, Reply::Status(502)).await
+        super::serve_connect(tcp, &acceptor, Reply::Status(502), children).await
     });
     let client = client_builder(&identity, true)
         .add_proxy_root_certificate_der(root)
@@ -589,7 +589,7 @@ async fn rejection_observation(case: RejectionCase) -> TestResult<()> {
         RejectionCase::Actual => super::observe_rejection(Err::<(), _>(error)),
     };
     drop(client);
-    let record = timeout(Duration::from_secs(5), &mut peer).await???;
+    let record = timeout(Duration::from_secs(5), peer.finish()).await??;
     assert_eq!(record.authority.as_deref(), Some("origin.test:443"));
     assert_eq!(record.stream_id, 1);
 
@@ -622,9 +622,9 @@ async fn the_rejection_observer_rejects_an_unexpected_success() -> TestResult<()
 async fn deliberate_wss_connect_502_is_typed_after_real_traffic() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let (uri, root, acceptor, listener) = H2Proxy::bind().await?.into_parts()?;
-    let mut peer = ConnectionPeer::spawn(async move {
+    let peer = ConnectPeer::spawn(None, move |children| async move {
         let (tcp, _) = listener.accept().await?;
-        super::serve_connect(tcp, &acceptor, Reply::Status(502)).await
+        super::serve_connect(tcp, &acceptor, Reply::Status(502), children).await
     });
     let client = client_builder(&identity, true)
         .add_proxy_root_certificate_der(root)
@@ -645,7 +645,7 @@ async fn deliberate_wss_connect_502_is_typed_after_real_traffic() -> TestResult<
         Some(phantom_net::proxy::HttpConnectError::Rejected { status: 502 })
     ));
     drop(client);
-    let record = timeout(Duration::from_secs(5), &mut peer).await???;
+    let record = timeout(Duration::from_secs(5), peer.finish()).await??;
     assert_eq!(record.authority.as_deref(), Some("origin.test:8443"));
     Ok(())
 }
