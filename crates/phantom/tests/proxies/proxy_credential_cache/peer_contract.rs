@@ -260,3 +260,61 @@ async fn an_ordinary_authenticated_exchange_completes_with_literal_observations(
     drop(client);
     Ok(())
 }
+
+#[tokio::test]
+async fn a_caller_failure_keeps_the_completed_truncated_connect_failure() -> TestResult<()> {
+    super::bounded(async {
+        let identity = TestIdentity::generate()?;
+        let origin = Origin::start(&identity).await?;
+        let proxy = CountingProxy::start(origin.address).await?;
+        let client = client_builder(&identity, false)
+            .route(proxy_route(proxy.address, "alice", "secret")?)
+            .build()?;
+        send_one(&client, &format!("https://{}/ready", origin.address)).await?;
+        assert_eq!(
+            proxy.counts()?,
+            ProxyCounts {
+                connections: 2,
+                challenges: 1,
+                with_credentials: 1,
+            }
+        );
+        wait_references(&proxy.heads, 2).await?;
+
+        let mut malformed = TcpStream::connect(proxy.address).await?;
+        malformed.write_all(b"CONNECT partial").await?;
+        wait_references(&proxy.heads, 3).await?;
+        malformed.shutdown().await?;
+        wait_references(&proxy.heads, 2).await?;
+
+        // Inject the caller outcome only after the actual authenticated exchange
+        // and completed malformed child, through the original fixture's finish path.
+        let operation: TestResult<()> = Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "injected credential caller failure after an actual exchange",
+        )
+        .into());
+        let result = super::finish_credential_fixture(operation, proxy, origin).await;
+        drop(malformed);
+        drop(client);
+
+        let error = result
+            .err()
+            .ok_or("credential fixture lost both failures")?;
+        let failures = error
+            .downcast_ref::<crate::support::tunnel_proxy::connection_peer::FixtureFailures>()
+            .ok_or("credential fixture discarded its completed child failure")?;
+        let primary = failures
+            .primary
+            .downcast_ref::<io::Error>()
+            .ok_or("credential caller lost its concrete I/O cause")?;
+        let cleanup = failures
+            .cleanup
+            .downcast_ref::<io::Error>()
+            .ok_or("credential peer lost its concrete I/O cause")?;
+        assert_eq!(primary.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(cleanup.kind(), io::ErrorKind::UnexpectedEof);
+        Ok(())
+    })
+    .await
+}
