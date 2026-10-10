@@ -1,12 +1,15 @@
 use std::{error::Error as StdError, fmt, sync::Arc};
 
 use phantom_net::{
-    proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, HttpsProxyProtocol},
+    proxy::{
+        HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
+        HttpsProxyProtocol,
+    },
     request::RequestHeader,
 };
 use phantom_profile::{ProxyConnectField, ProxyConnectTemplate};
 
-use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
+use crate::authority::{AuthorityError, Endpoint, ParseUriError, parse_absolute_uri};
 
 mod connect_udp;
 mod socks5;
@@ -339,7 +342,7 @@ impl HttpProxy {
         password: impl AsRef<str>,
     ) -> Result<Self, ProxyConfigError> {
         let credentials = HttpBasicCredentials::new(username, password)
-            .map_err(|_| ProxyConfigError::invalid_credentials())?;
+            .map_err(ProxyConfigError::invalid_credentials)?;
         if !self
             .connect_headers
             .iter()
@@ -548,7 +551,7 @@ impl HttpProxy {
 fn parse_http_proxy_uri(value: &str) -> Result<(HttpProxyTransport, Endpoint), ProxyConfigError> {
     let uri = parse_absolute_uri(value).map_err(|error| match error {
         ParseUriError::Syntax(error) => ProxyConfigError::invalid_uri(error),
-        ParseUriError::Authority(error) => ProxyConfigError::authority(error.message()),
+        ParseUriError::Authority(error) => ProxyConfigError::authority(error),
         ParseUriError::Fragment => ProxyConfigError::unexpected_path(),
     })?;
     let (transport, default_port) = match uri.scheme_str() {
@@ -566,8 +569,7 @@ fn parse_http_proxy_uri(value: &str) -> Result<(HttpProxyTransport, Endpoint), P
     ) {
         return Err(ProxyConfigError::unexpected_path());
     }
-    let endpoint = Endpoint::new(authority, default_port)
-        .map_err(|error| ProxyConfigError::authority(error.message()))?;
+    let endpoint = Endpoint::new(authority, default_port).map_err(ProxyConfigError::authority)?;
     Ok((transport, endpoint))
 }
 
@@ -615,11 +617,32 @@ pub enum ProxyConfigErrorKind {
 }
 
 /// Error returned while constructing an HTTP proxy route.
+///
+/// Its source retains the URI, authority or Basic credential validation error.
 #[derive(Debug)]
 pub struct ProxyConfigError {
     kind: ProxyConfigErrorKind,
     message: &'static str,
-    source: Option<http::uri::InvalidUri>,
+    source: Option<ProxyConfigSource>,
+}
+
+#[derive(Debug)]
+enum ProxyConfigSource {
+    Uri(http::uri::InvalidUri),
+    Authority(AuthorityError),
+    Credentials(HttpConnectError),
+    Target(ConnectUdpTargetError),
+}
+
+impl ProxyConfigSource {
+    fn as_error(&self) -> &(dyn StdError + 'static) {
+        match self {
+            Self::Uri(error) => error,
+            Self::Authority(error) => error,
+            Self::Credentials(error) => error,
+            Self::Target(error) => error,
+        }
+    }
 }
 
 impl ProxyConfigError {
@@ -627,7 +650,7 @@ impl ProxyConfigError {
         Self {
             kind: ProxyConfigErrorKind::InvalidUri,
             message: "invalid HTTP proxy URI",
-            source: Some(source),
+            source: Some(ProxyConfigSource::Uri(source)),
         }
     }
 
@@ -645,8 +668,12 @@ impl ProxyConfigError {
         )
     }
 
-    fn authority(message: &'static str) -> Self {
-        Self::without_source(ProxyConfigErrorKind::InvalidAuthority, message)
+    fn authority(source: AuthorityError) -> Self {
+        Self {
+            kind: ProxyConfigErrorKind::InvalidAuthority,
+            message: source.message(),
+            source: Some(ProxyConfigSource::Authority(source)),
+        }
     }
 
     fn unexpected_path() -> Self {
@@ -656,11 +683,12 @@ impl ProxyConfigError {
         )
     }
 
-    fn invalid_credentials() -> Self {
-        Self::without_source(
-            ProxyConfigErrorKind::InvalidCredentials,
-            "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
-        )
+    fn invalid_credentials(source: HttpConnectError) -> Self {
+        Self {
+            kind: ProxyConfigErrorKind::InvalidCredentials,
+            message: "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
+            source: Some(ProxyConfigSource::Credentials(source)),
+        }
     }
 
     fn unsupported_transport() -> Self {
@@ -693,9 +721,7 @@ impl fmt::Display for ProxyConfigError {
 
 impl StdError for ProxyConfigError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.source
-            .as_ref()
-            .map(|source| source as &(dyn StdError + 'static))
+        self.source.as_ref().map(ProxyConfigSource::as_error)
     }
 }
 

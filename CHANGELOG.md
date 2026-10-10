@@ -2476,6 +2476,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain proxy configuration validation errors in `Error::source()`.
+  HTTP, SOCKS5 and CONNECT-UDP authority failures keep their causes.
+  Basic credential failures identify the username, password or size limit.
+  Invalid CONNECT-UDP target expansion keeps its original cause.
+  Error categories and messages stay unchanged, and omit supplied secrets.
+
 - Retain original resolver and socket-binding error causes. Cached DNS
   failures share the original error, and binding failures retain their
   OS error or typed cause alongside the operation context.
