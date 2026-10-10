@@ -1,12 +1,5 @@
 //! Public preparation hooks, body metadata, and placement across redirects.
 
-use super::{BUDGET, TestResult, uploads::read_upload};
-use crate::support::tls::tls_settings;
-use phantom::{
-    Client, HttpProtocol, HttpProxy, Method, PreparedRequestBody, PreparedRequestTemplate,
-    RedirectPolicy, RequestErrorKind, RequestHeader, RequestSlotErrorKind, RetryPolicy, Route,
-    profile::{ClientProfile, RequestField, RequestTemplate, browser::chrome},
-};
 use std::{
     net::Ipv4Addr,
     num::NonZeroUsize,
@@ -16,10 +9,22 @@ use std::{
     },
     time::Duration,
 };
+
+use phantom::{
+    Client, HttpProtocol, HttpProxy, Method, PreparedRequestBody, PreparedRequestTemplate,
+    RedirectPolicy, RequestErrorKind, RequestHeader, RequestSlotErrorKind, RetryPolicy, Route,
+    profile::{ClientProfile, RequestField, RequestTemplate, browser::chrome},
+};
 use tokio::{
     io::{AsyncWriteExt, BufReader},
     net::TcpListener,
     time::timeout,
+};
+
+use super::{BUDGET, TestResult, finish_prepared_peer, uploads::read_upload};
+use crate::support::{
+    tls::tls_settings,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
 fn slots_template(
@@ -70,59 +75,71 @@ async fn slot_hook_preserves_literal_order_and_redacts_sensitive_input() -> Test
     timeout(BUDGET, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let url = format!("http://{}/upload", listener.local_addr()?);
-        let server = tokio::spawn(async move {
+        let prepared = slots_template(true, true)?;
+        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
+        let secret = "PRIVATE_SLOT_VALUE";
+
+        let server = ConnectionPeer::spawn(async move {
             let (stream, _) = listener.accept().await?;
             let mut stream = BufReader::new(stream);
             let observed = read_upload(&mut stream).await?;
+
             stream
                 .get_mut()
                 .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
-        let prepared = slots_template(true, true)?;
-        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        let secret = "PRIVATE_SLOT_VALUE";
-        let request = client
-            .request(HttpProtocol::Http1, Method::POST, &url)?
-            .template(&prepared)
-            .fill_slots(|slots| {
-                for name in ["X-First", "x-arbitrary", "sec-ch-ua", "Proxy-Authorization"] {
+
+        let operation = async {
+            let request = client
+                .request(HttpProtocol::Http1, Method::POST, &url)?
+                .template(&prepared)
+                .fill_slots(|slots| {
+                    for name in ["X-First", "x-arbitrary", "sec-ch-ua", "Proxy-Authorization"] {
+                        assert_eq!(
+                            slots
+                                .fill(RequestHeader::new(name, secret))
+                                .map_err(|error| error.kind()),
+                            Err(RequestSlotErrorKind::Undeclared)
+                        );
+                    }
+
+                    let invalid = slots.fill(RequestHeader::new(
+                        "x-ToKeN",
+                        b"PRIVATE_BAD_VALUE\r\nInjected: true",
+                    ));
+                    assert!(!format!("{invalid:?}").contains("PRIVATE_BAD_VALUE"));
+                    assert_eq!(
+                        invalid.map_err(|error| error.kind()),
+                        Err(RequestSlotErrorKind::InvalidValue)
+                    );
+                    assert!(!slots.is_filled("X-TOKEN"));
+
+                    slots.fill(RequestHeader::new("x-ToKeN", secret).sensitive())?;
+                    assert!(slots.is_filled("X-TOKEN"));
                     assert_eq!(
                         slots
-                            .fill(RequestHeader::new(name, secret))
+                            .fill(RequestHeader::new("X-TOKEN", "duplicate"))
                             .map_err(|error| error.kind()),
-                        Err(RequestSlotErrorKind::Undeclared)
+                        Err(RequestSlotErrorKind::AlreadyFilled)
                     );
-                }
-                let invalid = slots.fill(RequestHeader::new(
-                    "x-ToKeN",
-                    b"PRIVATE_BAD_VALUE\r\nInjected: true",
-                ));
-                assert!(!format!("{invalid:?}").contains("PRIVATE_BAD_VALUE"));
-                assert_eq!(
-                    invalid.map_err(|error| error.kind()),
-                    Err(RequestSlotErrorKind::InvalidValue)
-                );
-                assert!(!slots.is_filled("X-TOKEN"));
-                slots.fill(RequestHeader::new("x-ToKeN", secret).sensitive())?;
-                assert!(slots.is_filled("X-TOKEN"));
-                assert_eq!(
-                    slots
-                        .fill(RequestHeader::new("X-TOKEN", "duplicate"))
-                        .map_err(|error| error.kind()),
-                    Err(RequestSlotErrorKind::AlreadyFilled)
-                );
-                assert!(!format!("{slots:?}").contains(secret));
-                Ok(())
-            })?
-            .prepared_body(PreparedRequestBody::form([("a", "b")], 128)?);
-        assert!(!format!("{request:?}").contains(secret));
-        assert_eq!(
-            request.send().await?.status(),
-            phantom::StatusCode::NO_CONTENT
-        );
-        let observed = server.await??;
+                    assert!(!format!("{slots:?}").contains(secret));
+
+                    Ok(())
+                })?
+                .prepared_body(PreparedRequestBody::form([("a", "b")], 128)?);
+            assert!(!format!("{request:?}").contains(secret));
+            assert_eq!(
+                request.send().await?.status(),
+                phantom::StatusCode::NO_CONTENT
+            );
+            Ok(())
+        }
+        .await;
+
+        let observed = finish_prepared_peer(operation, server).await?;
+
         let names: Vec<_> = observed
             .fields
             .iter()
@@ -153,20 +170,6 @@ async fn cross_origin_307_strips_slot_credentials_without_rerunning_hook() -> Te
         let second = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let first_url = format!("http://{}/first", first.local_addr()?);
         let second_url = format!("http://{}/second", second.local_addr()?);
-        let first_peer = tokio::spawn(async move {
-            let (stream, _) = first.accept().await?;
-            let mut stream = BufReader::new(stream);
-            let observed = read_upload(&mut stream).await?;
-            stream.get_mut().write_all(format!("HTTP/1.1 307 Temporary Redirect\r\nLocation: {second_url}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
-        });
-        let second_peer = tokio::spawn(async move {
-            let (stream, _) = second.accept().await?;
-            let mut stream = BufReader::new(stream);
-            let observed = read_upload(&mut stream).await?;
-            stream.get_mut().write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
-        });
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN)).build()?;
         let count = Arc::new(AtomicUsize::new(0));
@@ -174,28 +177,57 @@ async fn cross_origin_307_strips_slot_credentials_without_rerunning_hook() -> Te
         let token = format!("{marker:032x}");
         let authorization = format!("Bearer {token}");
         let body = PreparedRequestBody::form([("tag", "first"), ("tag", "last")], 128)?;
-        let request = client.request(HttpProtocol::Http1, Method::POST, &first_url)?
-            .template(&slots_template(true, true)?)
-            .fill_slots(|slots| {
-                count.fetch_add(1, Ordering::SeqCst);
-                slots.fill(RequestHeader::new("Authorization", authorization.clone()).sensitive())?;
-                slots.fill(RequestHeader::new("X-Token", "ordinary-value").sensitive())?;
-                Ok(())
-            })?.prepared_body(body.clone());
-        assert_eq!(count.load(Ordering::SeqCst), 1);
-        assert!(!format!("{request:?}").contains(&token));
-        assert_eq!(request.send().await?.status(), phantom::StatusCode::NO_CONTENT);
-        let initial = first_peer.await??;
-        let redirected = second_peer.await??;
+        let prepared = slots_template(true, true)?;
+
+        let first_peer = ConnectionPeer::spawn(async move {
+            let (stream, _) = first.accept().await?;
+            let mut stream = BufReader::new(stream);
+            let observed = read_upload(&mut stream).await?;
+
+            stream.get_mut().write_all(format!("HTTP/1.1 307 Temporary Redirect\r\nLocation: {second_url}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
+        });
+        let second_peer = ConnectionPeer::spawn(async move {
+            let (stream, _) = second.accept().await?;
+            let mut stream = BufReader::new(stream);
+            let observed = read_upload(&mut stream).await?;
+
+            stream.get_mut().write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
+        });
+
+        let operation = async {
+            let request = client.request(HttpProtocol::Http1, Method::POST, &first_url)?
+                .template(&prepared)
+                .fill_slots(|slots| {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    slots.fill(RequestHeader::new("Authorization", authorization.clone()).sensitive())?;
+                    slots.fill(RequestHeader::new("X-Token", "ordinary-value").sensitive())?;
+                    Ok(())
+                })?.prepared_body(body.clone());
+            assert_eq!(count.load(Ordering::SeqCst), 1);
+            assert!(!format!("{request:?}").contains(&token));
+            assert_eq!(request.send().await?.status(), phantom::StatusCode::NO_CONTENT);
+            Ok(())
+        }.await;
+
+        let initial = finish_prepared_peer(operation, first_peer).await;
+        let (initial, redirected) = match initial {
+            Ok(initial) => (initial, finish_prepared_peer(Ok(()), second_peer).await?),
+            Err(primary) => return finish_with_cleanup(Err(primary), second_peer.stop().await),
+        };
+
         assert_eq!(initial.value("authorization"), Some(authorization.as_bytes()));
         assert_eq!(redirected.value("authorization"), None);
         assert_eq!(redirected.value("x-token"), Some(&b"ordinary-value"[..]));
+
         for observed in [initial, redirected] {
             assert_eq!(observed.method, b"POST");
             assert_eq!(observed.body, body.bytes().as_ref());
             assert_eq!(observed.value("content-type"), Some(body.content_type().as_bytes()));
             assert_eq!(observed.value("content-length"), Some(body.bytes().len().to_string().as_bytes()));
         }
+
         assert_eq!(count.load(Ordering::SeqCst), 1);
         Ok(())
     }).await?

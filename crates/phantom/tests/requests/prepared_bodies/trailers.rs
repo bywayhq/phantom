@@ -33,7 +33,11 @@ async fn prepared_bytes_with_trailers_use_chunked_framing_without_length() -> Te
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let deadline = Instant::now() + BUDGET;
-        let peer = tokio::spawn(async move {
+        let client = Client::builder(profile()).build()?;
+        let prepared = upload_template()?;
+        let body = PreparedRequestBody::form([("a", "b")], 128)?;
+
+        let peer = ConnectionPeer::spawn(async move {
             let (stream, _) = listener.accept().await?;
             let mut stream = BufReader::new(stream);
             let head =
@@ -45,6 +49,7 @@ async fn prepared_bytes_with_trailers_use_chunked_framing_without_length() -> Te
                     .iter()
                     .any(|field| field.name().eq_ignore_ascii_case(b"content-length"))
             );
+
             let transfer = head
                 .headers()
                 .iter()
@@ -54,30 +59,37 @@ async fn prepared_bytes_with_trailers_use_chunked_framing_without_length() -> Te
                 std::str::from_utf8(transfer.value_bytes())?.trim(),
                 "chunked"
             );
+
             let expected = b"3\r\na=b\r\n0\r\nx-upload-check: done\r\n\r\n";
             let mut body = vec![0; expected.len()];
             stream.read_exact(&mut body).await?;
             assert_eq!(body, expected);
+
             stream
                 .get_mut()
                 .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
-        let client = Client::builder(profile()).build()?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/upload"),
-            )?
-            .template(&upload_template()?)
-            .prepared_body(PreparedRequestBody::form([("a", "b")], 128)?)
-            .trailers(vec![RequestHeader::new("x-upload-check", "done")])
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        peer.await??;
+
+        let operation = async {
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("http://{address}/upload"),
+                )?
+                .template(&prepared)
+                .prepared_body(body)
+                .trailers(vec![RequestHeader::new("x-upload-check", "done")])
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            Ok(())
+        }
+        .await;
+
+        finish_prepared_peer(operation, peer).await?;
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     })
     .await?
