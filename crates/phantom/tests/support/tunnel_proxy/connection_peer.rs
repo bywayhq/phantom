@@ -43,6 +43,12 @@ impl<T: Send + 'static> ConnectionPeer<T> {
     }
 }
 
+impl<T: Send + 'static> From<JoinHandle<T>> for ConnectionPeer<T> {
+    fn from(task: JoinHandle<T>) -> Self {
+        Self::from_task(task)
+    }
+}
+
 impl<T> Future for ConnectionPeer<T> {
     type Output = Result<T, JoinError>;
 
