@@ -24,8 +24,7 @@ use tokio::{
 
 use super::{
     ConnectionPeer, H1_ALPN, HandshakeOutcome, ObservedAcceptor, TestIdentity, TestResult, bounded,
-    client_builder, finish_peer, is_rejected, observe_handshake, observed_acceptor_builder,
-    read_head, require_unknown_ca,
+    client_builder, finish_peer, observe_handshake, observed_acceptor_builder, read_head,
 };
 
 // The retained native headers define ERR_LIB_SSL and SSL_R_CERTIFICATE_VERIFY_FAILED.
@@ -102,13 +101,32 @@ pub(in super::super) async fn ordinary_outer_proxy_rejection() -> TestResult<()>
     require_root_added_connect(&observed)?;
     let rejected = is_root_rejection(&observed);
     assert!(rejected);
-    require_unknown_ca(&observed.first.handshake)?;
     Ok(())
 }
 
 fn is_root_rejection(observed: &RootDifference) -> bool {
-    // Retain the original broad oracle until the regression is reproduced.
-    is_rejected(&observed.first.handshake)
+    // A server may observe a disconnect instead of the client's verification alert.
+    // Adding only the root must enable the same peer's TLS and literal CONNECT.
+    let expected_connect = format!(
+        "CONNECT {} HTTP/1.1\r\nHost: {}\r\n\r\n",
+        observed.origin_address, observed.origin_address
+    );
+    let second_cause = observed
+        .second_error
+        .source()
+        .and_then(|source| source.downcast_ref::<Http1TlsError>());
+
+    certificate_verification_failed(&observed.first_error)
+        && observed.first.handshake.result.is_err()
+        && observed.first.connect.is_none()
+        && observed.second.handshake.result.is_ok()
+        && observed.second.connect.as_deref() == Some(expected_connect.as_bytes())
+        && matches!(
+            second_cause,
+            Some(Http1TlsError::Proxy(HttpConnectError::Rejected {
+                status: 502
+            }))
+        )
 }
 
 struct RootDifference {

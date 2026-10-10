@@ -233,7 +233,20 @@ pub(super) async fn observe_handshake(
 }
 
 pub(super) fn is_rejected(outcome: &HandshakeOutcome) -> bool {
-    outcome.result.is_err()
+    let Some(error) = outcome
+        .result
+        .as_ref()
+        .err()
+        .and_then(|error| error.downcast_ref::<btls::ssl::Error>())
+    else {
+        return false;
+    };
+
+    error.code() == ErrorCode::SSL
+        && error.ssl_error().is_some()
+        && outcome.alert.is_some_and(|alert| {
+            alert.level == Ssl3AlertLevel::FATAL && alert.description == SslAlert::UNKNOWN_CA
+        })
 }
 
 fn require_received_alert(outcome: &HandshakeOutcome, expected: SslAlert) -> TestResult<()> {
