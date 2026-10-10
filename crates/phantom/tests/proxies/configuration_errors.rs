@@ -5,6 +5,8 @@ use std::error::Error;
 use phantom::{EnvironmentProxies, HttpProxy, ProxyConfigError, ProxyConfigErrorKind};
 use phantom_net::proxy::HttpConnectError;
 
+mod sibling_routes;
+
 type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
