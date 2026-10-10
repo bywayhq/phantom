@@ -228,13 +228,14 @@ class RemoteConnection:
     async def read_loop(self) -> None:
         try:
             while True:
-                message = json.loads(await self.socket.receive())
+                try:
+                    text = await self.socket.receive()
+                except (ConnectionError, asyncio.IncompleteReadError) as error:
+                    self._fail_pending(error)
+                    return
+
+                message = json.loads(text)
                 await self.dispatch(message)
-        except asyncio.CancelledError as error:
-            self._fail_pending(error)
-            raise
-        except Exception as error:
-            self._fail_pending(error)
         except BaseException as error:
             self._fail_pending(error)
             raise
