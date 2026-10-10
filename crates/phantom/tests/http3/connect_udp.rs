@@ -1514,3 +1514,6 @@ impl Visit for FieldVisitor {
 
 #[cfg(test)]
 mod observation_contract;
+
+#[cfg(test)]
+mod origin_ownership;
