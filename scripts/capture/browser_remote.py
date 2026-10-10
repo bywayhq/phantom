@@ -16,7 +16,7 @@ import hashlib
 import json
 import os
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -36,8 +36,8 @@ FIREFOX_PORT_FILE = "WebDriverBiDiServer.json"
 
 @dataclass(frozen=True)
 class Credentials:
-    username: str
-    password: str
+    username: str = field(repr=False)
+    password: str = field(repr=False)
 
 
 # -- WebSocket client -------------------------------------------------------
