@@ -1,12 +1,6 @@
 //! Exact HTTP/3 over RFC 9298 CONNECT-UDP (MASQUE) proxies reached over
 //! HTTP/3, HTTP/2 extended CONNECT, or HTTP/1.1 Upgrade.
 
-use crate::support::client_certificate as client_certificate_support;
-use crate::support::h3 as h3_support;
-use crate::support::masque as masque_support;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     error::Error as StdError,
     fmt,
@@ -40,7 +34,10 @@ use tracing::{
     subscriber::Interest,
 };
 
-use crate::support::tunnel_proxy::finish_with_cleanup;
+use crate::support::{
+    client_certificate as client_certificate_support, h3 as h3_support, masque as masque_support,
+    tls as tls_support, tracing as tracing_support, tunnel_proxy::finish_with_cleanup,
+};
 use client_certificate_support::{ClientIdentity, presented_leaf, quic_endpoint_requiring};
 use h3_support::server_endpoint;
 use masque_support::{
