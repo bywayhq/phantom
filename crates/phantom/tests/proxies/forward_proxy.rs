@@ -2341,11 +2341,9 @@ async fn proxy_that_shuts_down_after_the_challenge_gets_the_replay_on_a_new_conn
 
 async fn read_stalled_remainder(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<Vec<u8>> {
     let mut rest = Vec::new();
-    match timeout(Duration::from_millis(100), stream.read_to_end(&mut rest)).await {
-        Ok(result) => {
-            result?;
-        }
-        Err(_) => {} // The existing absence oracle observes only this finite quiet window.
+    // The existing absence oracle observes only this finite quiet window.
+    if let Ok(result) = timeout(Duration::from_millis(100), stream.read_to_end(&mut rest)).await {
+        result?;
     }
     Ok(rest)
 }
