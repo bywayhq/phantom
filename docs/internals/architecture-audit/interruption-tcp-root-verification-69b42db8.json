@@ -1,0 +1,355 @@
+{
+  "checkpoint_revision": "69b42db8a9d81b8e36c3a0ef2020dc89a0d1dde4",
+  "full_capture_tested_revision": "1df5404c031367196022bf0b80b493d0d40cd789",
+  "interruption_baseline": {
+    "windows": {
+      "pass": 1,
+      "causal_failures": 4
+    },
+    "linux": {
+      "pass": 1,
+      "causal_failures": 4
+    }
+  },
+  "interruption_fixed": {
+    "windows": {
+      "pass": 5
+    },
+    "linux": {
+      "pass": 5
+    }
+  },
+  "full_capture": {
+    "windows": {
+      "pass": 515,
+      "skip": 0
+    },
+    "linux": {
+      "pass": 504,
+      "skip": 11
+    }
+  },
+  "import_correction": "Ruff I001 found after full native verification. Only import order changed; whole control class preserved. Five controls pass both hosts at checkpoint. Ruff lint and format pass all 78 capture files.",
+  "tcp_descendant_baseline": {
+    "windows": {
+      "pass": 1,
+      "causal_failures": 2,
+      "raw_test_exit": 100
+    },
+    "linux": {
+      "pass": 1,
+      "causal_failures": 2,
+      "raw_test_exit": 100
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.log",
+      "bytes": 7639,
+      "sha256": "e199252918f079d04baf3d6581a1d0fb5eeecff3db0b816fdaa2e513dffc5e89"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.revision",
+      "bytes": 41,
+      "sha256": "0eca089e10da04587f4623e9b2fcb2603f2f65b051891d41d898d2322f42d2d8"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.log",
+      "bytes": 7589,
+      "sha256": "376f2c97cbf662d525d56c1c20bc5cbe7dfecb6eb3cf28f65d5430a6de72e72b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.revision",
+      "bytes": 41,
+      "sha256": "0eca089e10da04587f4623e9b2fcb2603f2f65b051891d41d898d2322f42d2d8"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.log",
+      "bytes": 932,
+      "sha256": "0486c9177db9a05b9b2b775321534839abcc70aa09d778bfd5c2b24226eba457"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.log",
+      "bytes": 922,
+      "sha256": "5afbb72ef4c049dbac069806d7f2ee9b05dec8cf7b824a05bb8e6c4a8a5a04e4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.log",
+      "bytes": 62458,
+      "sha256": "068f4c84594bcd19c19ab97db362a0fff1d8e17f9f4f16e31563f9907b2ddc27"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.log",
+      "bytes": 57086,
+      "sha256": "7a392b68ba94575cdd457273f0137fbdb2d0785eda598cfe0d80d3a1f94bcf61"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.log",
+      "bytes": 932,
+      "sha256": "0e239f827041d9b98b988eba2d1bc39c60c864fb681d80587a7e12944c11e08b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.revision",
+      "bytes": 41,
+      "sha256": "a6accc1efb8feb310e4d2180da722d0092b0b01bde243a863322d2a5ff57d553"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.log",
+      "bytes": 922,
+      "sha256": "c9a683d6daff262d76bf9901d9bd262302ad0f0805a9bb25b48305c91d419be7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.revision",
+      "bytes": 41,
+      "sha256": "a6accc1efb8feb310e4d2180da722d0092b0b01bde243a863322d2a5ff57d553"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-windows.log",
+      "bytes": 4453,
+      "sha256": "ef1223aec7cd7fb3647064354d8f5236fabfb8efd7a9d88b3373b3b651139bc9"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-windows.revision",
+      "bytes": 41,
+      "sha256": "4bdc21261f8637cfb0555ea3a6c76394c200644898a29dad4b3aedb68f07443b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-windows.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-linux.log",
+      "bytes": 4455,
+      "sha256": "c6d3b01dd44ab07efff91df096e606a22ffa71487d958ae8eac0329e5facca58"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-linux.revision",
+      "bytes": 41,
+      "sha256": "4bdc21261f8637cfb0555ea3a6c76394c200644898a29dad4b3aedb68f07443b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\ech-tcp-owner-baseline-fa97832b-linux.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012"
+    }
+  ],
+  "review_imports": [
+    {
+      "path": "race-capture-cleanup-interruptions-independent-source-review-91bd333d.md.txt",
+      "sha256": "10559796e8ab96e2f3e75872f6af1d3036c264979fafa5746fc4f5ed76eb7d9b"
+    },
+    {
+      "path": "race-capture-cleanup-interruptions-independent-source-review-91bd333d.json",
+      "sha256": "3e0aeddd094181a02e0d4702c9b9fe4c1b0a486b6a2c4659705d36f60166b5bf"
+    },
+    {
+      "path": "race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.md.txt",
+      "sha256": "4359ea6231aa24d34959664c189affc62029f838fa82c66ea883594daed2cf0c"
+    },
+    {
+      "path": "race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.json",
+      "sha256": "99312d605f63259c38aad2ef94105c01e0bd94c0c08c87a8cbba3fbbff94d09e"
+    },
+    {
+      "path": "race-capture-cleanup-interruption-remedy-independent-source-review-942fdd1c.md.txt",
+      "sha256": "b95c763d0d984d1657e61e681df2b4d09d116ce52df4de2b144ad87878e785da"
+    },
+    {
+      "path": "race-capture-cleanup-interruption-remedy-independent-source-review-942fdd1c.json",
+      "sha256": "779657130215091d823b157397260ba7c768a17549d71c9c205f1a7cc24c12fb"
+    },
+    {
+      "path": "race-capture-cleanup-interruptions-fixed-native-independent-addendum-1df5404c.md.txt",
+      "sha256": "26784dd4836da20b0823770be5b1af5f9bab0572cbc103c6457b20f46e82497a"
+    },
+    {
+      "path": "race-capture-cleanup-interruptions-fixed-native-independent-addendum-1df5404c.json",
+      "sha256": "b79ac132c92217f3542bf6293985895929a32975a5c7825de2d72c048a430a30"
+    },
+    {
+      "path": "race-capture-composed-native-independent-review-1df5404c.md.txt",
+      "sha256": "3a736e687101790430baa5e5f73ba73bf50332a458ea71bfcc3325fd235815bf"
+    },
+    {
+      "path": "race-capture-composed-native-independent-review-1df5404c.json",
+      "sha256": "4d7dc4cc462d1e37d8a54422677265e5d32fabe09625bd4e224e409a9db1af64"
+    },
+    {
+      "path": "race-capture-cleanup-imports-independent-addendum-69b42db8.md.txt",
+      "sha256": "dab6b0835ebdf01e7acfdfd0a43fd811ef8bb24cd0baedcbda3e92df3641b59c"
+    },
+    {
+      "path": "race-capture-cleanup-imports-independent-addendum-69b42db8.json",
+      "sha256": "f0a22db9b0c9ae8c09a7718f8058fd5ce2547a3a742b748b95b1bde358658b35"
+    },
+    {
+      "path": "ech-tcp-descendant-baseline-independent-review-d06333d0.md.txt",
+      "sha256": "de6e64fa10cfc61e48a2d999c026bd01b063d3839a0f561ab44510161050db57"
+    },
+    {
+      "path": "ech-tcp-descendant-baseline-independent-review-d06333d0.json",
+      "sha256": "c7b4300d7aae089b3033e597a96359bdf524385870a2aa89286bf3cf641ca7a2"
+    },
+    {
+      "path": "ech-tcp-descendant-baseline-independent-native-addendum-fa97832b.md.txt",
+      "sha256": "32c58f0a0ede86459946b4bd8674843246dc05ecf6d0871e80bb9fc019f682a3"
+    },
+    {
+      "path": "ech-tcp-descendant-baseline-independent-native-addendum-fa97832b.json",
+      "sha256": "bd482a99f2cf821cc3ff3a122993dfb5282b12bf94a5881ce355ed6d1a059a2d"
+    },
+    {
+      "path": "race-capture-push-metadata-independent-review-4074c370.md.txt",
+      "sha256": "f09d5b2be42251f889a1ee705a5cf6d5f2b1bf8a8abb5f1d39ce9f1b936d166f"
+    },
+    {
+      "path": "race-capture-push-metadata-independent-review-4074c370.json",
+      "sha256": "e2baad36ab268fc46c9b69d95a0f62e22314bfd09e2abd9b6e9c15bb2e943f7b"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "9cc39745a8d16fa09e063ead0f277b89c56d1977"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "git_blob": "435268dccf2b375783ba8a7899612bbf29eba7e3"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "git_blob": "787afdf7889dd5eff116587aaee477d788924acb"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3.rs",
+      "git_blob": "0b1dde53187fb193e73c5bb1d3d985b5357a9929"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/tcp_owner_contract.rs",
+      "git_blob": "6a8d62dcb05b856f380dbdc46b092f3eed6fd365"
+    }
+  ],
+  "root_read_scope": "Interruption child and modified canonical cleanup/retention functions read completely; exact 16-line source delta and import-only delta reviewed. All focused interruption logs and TCP baseline logs read completely. Full capture summaries and guarded records read and parsed; independent reviewer read both full logs continuously. Prior complete control reads remain retained, not replaced by hashes.",
+  "limits": [
+    "Full515 executed at1df; the later import-only checkpoint has focused5 execution, not a second full515 run.",
+    "Controlled cleanup faults follow real listener close. No spontaneous OS interruption, native close fault, duplicate/multiple interruption or arbitrary cause graph measurement.",
+    "TCP baseline fails child-destruction checks before backup. Later negative parent/socket/count checks remain unreached; printed failure reports are duplicates, not retries.",
+    "TCP descendant remedy, accepted Python callback outcomes, handler restoration and protocol classification remain open.",
+    "No full gate, new-head CI success, main merge or whole architecture completion claim."
+  ]
+}

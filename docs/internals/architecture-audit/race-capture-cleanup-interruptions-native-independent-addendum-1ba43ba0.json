@@ -1,0 +1,156 @@
+{
+  "review": "Independent focused causal native addendum",
+  "revision": "1ba43ba0b06a8cf33c5003ae8ab347e45d2fa3a4",
+  "verdict": "Actual intended causal baseline confirmed on both hosts",
+  "writer_correction": "Original metadata-only writer failed roster regex on CRLF before report writes; v2 normalizes parsed text only, raw artifact bytes/hashes preserved.",
+  "results": {
+    "windows": {
+      "selected": 5,
+      "pass": 1,
+      "intended_fail": 4,
+      "seconds": "4.242",
+      "test_exit": 1,
+      "runner_exit": 1,
+      "roster_sha256": "5fcedaa5ae19ec46202a0fdfa8dc2c7a360e146f23b1c2e2364ca23d815e1152"
+    },
+    "linux": {
+      "selected": 5,
+      "pass": 1,
+      "intended_fail": 4,
+      "seconds": "2.651",
+      "test_exit": 1,
+      "runner_exit": 1,
+      "roster_sha256": "5fcedaa5ae19ec46202a0fdfa8dc2c7a360e146f23b1c2e2364ca23d815e1152"
+    }
+  },
+  "same_method_status_roster": true,
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.log",
+      "bytes": 7639,
+      "sha256": "e199252918f079d04baf3d6581a1d0fb5eeecff3db0b816fdaa2e513dffc5e89",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.revision",
+      "bytes": 41,
+      "sha256": "0eca089e10da04587f4623e9b2fcb2603f2f65b051891d41d898d2322f42d2d8",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.log",
+      "bytes": 7589,
+      "sha256": "376f2c97cbf662d525d56c1c20bc5cbe7dfecb6eb3cf28f65d5430a6de72e72b",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.revision",
+      "bytes": 41,
+      "sha256": "0eca089e10da04587f4623e9b2fcb2603f2f65b051891d41d898d2322f42d2d8",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-baseline-1ba43ba0-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-interruption-controls.sh",
+      "bytes": 1021,
+      "sha256": "4d4e83c96e5ef4b572e61275ac462c786402596da821461b01150d308e7cc030",
+      "read": "Fresh complete launcher read; exact clean revision and no-overwrite guards"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "1ba43ba0b06a8cf33c5003ae8ab347e45d2fa3a4",
+      "blob": "7f36d1981278f2aa7146c70ab54acfd498281869",
+      "git_bytes": 48718,
+      "git_sha256": "a132a5a11eb928ca1946751a83aeb0788095a9f5bd03654923f25150aaba1a1b",
+      "lines": 1396,
+      "equal_to": "4074c370477638974065be833d6fb4f34536ddbe",
+      "scope": "Exact identity to retained source review, no fresh whole read from this comparison"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "revision": "1ba43ba0b06a8cf33c5003ae8ab347e45d2fa3a4",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "git_bytes": 20333,
+      "git_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "lines": 543,
+      "equal_to": "4074c370477638974065be833d6fb4f34536ddbe",
+      "scope": "Exact identity to retained source review, no fresh whole read from this comparison"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "revision": "1ba43ba0b06a8cf33c5003ae8ab347e45d2fa3a4",
+      "blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "git_bytes": 9240,
+      "git_sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "lines": 245,
+      "equal_to": "4074c370477638974065be833d6fb4f34536ddbe",
+      "scope": "Exact identity to retained source review, no fresh whole read from this comparison"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "revision": "1ba43ba0b06a8cf33c5003ae8ab347e45d2fa3a4",
+      "blob": "6fd68b8bff84a02a20fdaba065235ad0f24578f7",
+      "git_bytes": 4958,
+      "git_sha256": "61c92e267502161b54c980db127438324ca76873262b5b1e28a371020b98fded",
+      "lines": 129,
+      "equal_to": "91bd333dedb5a51f3c17ab30ec89e6c38a50b1e9",
+      "scope": "Exact identity to retained source review, no fresh whole read from this comparison"
+    }
+  ],
+  "prior_source_review": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-independent-source-review-91bd333d.md",
+      "bytes": 1620,
+      "sha256": "10559796e8ab96e2f3e75872f6af1d3036c264979fafa5746fc4f5ed76eb7d9b",
+      "read": "Prior immutable source review binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-independent-source-review-91bd333d.json",
+      "bytes": 5602,
+      "sha256": "3e0aeddd094181a02e0d4702c9b9fe4c1b0a486b6a2c4659705d36f60166b5bf",
+      "read": "Prior immutable source review binding"
+    }
+  ],
+  "reached": [
+    "Healthy trusted H2 GET 200/ok, done 204/empty and three literal UDP deliveries.",
+    "Acquired owner counts, complete ordered cleanup, real descriptor/transport/server closure before backup.",
+    "Exact controlled post-close exception identities and capture boundary identity before final interruption assertion.",
+    "Four negatives fail only at child 97: ordinary CaptureCleanupError replaces the exact injected interruption, including ordinary-first/later-CancelledError."
+  ],
+  "unreached": [
+    "Exact selected interruption type and secondary object/cause graph assertions at 102-104 in negative controls."
+  ],
+  "limits": [
+    "Root executed retained commands; reviewer only read artifacts and compared source identities.",
+    "Controlled same-coroutine post-close exceptions do not prove OS interruption, actual caller Task cancellation or native close failure.",
+    "Backup follows measured snapshots and is not credited as measured capture cleanup.",
+    "No warning, helper error or backup failure in complete focused logs; this is not broad suite/lint/Cargo/full-gate verification.",
+    "No whole-source promotion from identical blobs; prior source scopes remain qualified.",
+    "Multiple interruptions and initiating-operation combinations remain undriven; no repair acceptance yet."
+  ]
+}

@@ -1,0 +1,7 @@
+# Cleanup interruption causal native addendum
+
+Confirmed exact 1ba43ba0 on both hosts: one healthy pass and four intended failures, test and runner exit 1. Windows took 4.242 s; Linux 2.651 s. Both complete logs, launcher and all six guards were read. The five method/status rosters match; no helper error, backup failure or warning appears.
+
+All real trusted H2/UDP traffic, ordered cleanup, acquired-resource closure and exact injected-object prerequisites precede the four failures at child 97. The top-level CaptureCleanupError replaces each original interruption, including ordinary-first/later-cancellation. Secondary assertions 102â€“104 remain unreached.
+
+The canonical owner and original 543/245-line controls equal verified 4074; the new 129-line child equals signed 91bd. These identities bind retained source reviews rather than granting new whole-owner coverage. Controlled same-coroutine exceptions are not OS interruption or actual caller Task cancellation. Backup is not credited as measured cleanup. Root performed execution; reviewer ran no tests or resource processes. Repair, broader combinations and full gates remain open.

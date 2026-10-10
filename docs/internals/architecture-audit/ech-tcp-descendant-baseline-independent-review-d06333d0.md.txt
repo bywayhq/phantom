@@ -1,0 +1,11 @@
+# TCP descendant baseline source review
+
+Approved exact d06333d06c1ab68cede1abf72d47326da7475c20 for bounded causal execution. No source blocker found; no native run was performed.
+
+The full 367-line control owner and complete parent semantic diff were manually read. Fresh parent source coverage is partial lines 1–485 and 724–728; supporting actual handshake/replay, record-header read, cleanup and peer-disconnect contracts are recorded separately. Reversing every parent diff hunk independently restores the exact baseline Git bytes. The retained author inverse also matches after explicit CRLF-to-LF conversion; committed source hashes do not normalize working bytes.
+
+The healthy path requires a verified-root real HTTP/1 GET, literal 200/HTTP1.1, public Http1 metadata and `ok` body, then actual prime destruction and served count one with zero QUIC observations. Each negative acquires two real held TCP sockets, writes an incomplete TLS record, and requires each actual canonical handshake future to return Pending plus an unfinished actual task handle and false destruction flag. No artificial handshake gate or copied server is used.
+
+Backup state exists before acquisition, and actual handles publish immediately after spawn without an intervening await. These controls use the default current-thread runtime. Before backup, lifetime outcomes are captured while client and held sockets remain owned. Backup requests every acquired abort first, finitely observes destruction and finished state for each, and combines failures without replacing an earlier cause. Target assertions run only afterward using the earlier snapshot. Clean EOF and the existing narrow peer-gone kinds are accepted only after observed child destruction; unrelated read failures propagate.
+
+Source forecast: one healthy positive and two failures at “actual TCP children outlived their origin before backup.” Later parent/socket/count assertions are uncredited until executed. AbortHandle completion and a destructor witness do not observe raw task results. Held-handshake Pending is currently a record-header wait, not completed authentication. This review establishes no QUIC traffic, active QUIC responder ownership, permanent leak, whole-parent audit or integration approval. Root owns compilation and both-host causal execution.

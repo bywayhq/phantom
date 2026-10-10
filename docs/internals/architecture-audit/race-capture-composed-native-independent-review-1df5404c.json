@@ -1,0 +1,196 @@
+{
+  "review": "Independent complete composed Python capture native assessment",
+  "revision": "1df5404c031367196022bf0b80b493d0d40cd789",
+  "verdict": "Bounded Python composition approved",
+  "results": {
+    "windows": {
+      "discovered": 515,
+      "pass": 515,
+      "skip": 0,
+      "seconds": "152.969",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "fresh_manual_lines": [
+        1,
+        603
+      ],
+      "prior510_statuses_preserved": true,
+      "exact5_added_from_signed_child": true,
+      "roster_sha256": "4aee46d0c0945e869c953e9031ac2ad1a1e9972b3e600b5fefc7b4451025be05",
+      "diagnostics": {
+        "expected_cli_rejections": 6,
+        "asyncio_slow_callback_debug": 9
+      }
+    },
+    "linux": {
+      "discovered": 515,
+      "pass": 504,
+      "skip": 11,
+      "seconds": "91.705",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "fresh_manual_lines": [
+        1,
+        588
+      ],
+      "prior510_statuses_preserved": true,
+      "exact5_added_from_signed_child": true,
+      "roster_sha256": "b2f758775ebe8c544c5dd88aaa11029265e999267bf4ed40bacab66ff3d5c430",
+      "diagnostics": {
+        "expected_cli_rejections": 6,
+        "asyncio_slow_callback_debug": 0
+      }
+    }
+  },
+  "same515_method_id_roster": true,
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.log",
+      "bytes": 62458,
+      "sha256": "068f4c84594bcd19c19ab97db362a0fff1d8e17f9f4f16e31563f9907b2ddc27",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-windows.log",
+      "bytes": 60970,
+      "sha256": "f31273bbaec506196c7b7d63e4d0ec721e431f66520729f84bd1f9055ccac655",
+      "scope": "Current machine roster/status comparison only; historical full manual review retained separately"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.log",
+      "bytes": 57086,
+      "sha256": "7a392b68ba94575cdd457273f0137fbdb2d0785eda598cfe0d80d3a1f94bcf61",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-1df5404c-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-linux.log",
+      "bytes": 56372,
+      "sha256": "9937d244b0649a04a25820ecce0a6780a8ed85055b271090ad2f63ec7864f4a1",
+      "scope": "Current machine roster/status comparison only; historical full manual review retained separately"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-composed-1df5404c.sh",
+      "bytes": 997,
+      "sha256": "45c929defe49765377cfcf7d676dc47a68e6bbbe3b5d3a5390dcfd9bc99b6d5b",
+      "scope": "Fresh complete guarded 26-line launcher read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-composed-native-independent-review-4074c370.md",
+      "bytes": 1268,
+      "sha256": "4a013128be8ed8a6074c91108d785e57ca612854c31526bf339ccba52e2d2258",
+      "scope": "Retained immutable review binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-composed-native-independent-review-4074c370.json",
+      "bytes": 8548,
+      "sha256": "cdcbbf9abc7d8713b2b511ca767b4b1122492dac10d850fb53d4f1ddc4f0ac50",
+      "scope": "Retained immutable review binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.md",
+      "bytes": 1150,
+      "sha256": "4359ea6231aa24d34959664c189affc62029f838fa82c66ea883594daed2cf0c",
+      "scope": "Retained immutable review binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.json",
+      "bytes": 7447,
+      "sha256": "99312d605f63259c38aad2ef94105c01e0bd94c0c08c87a8cbba3fbbff94d09e",
+      "scope": "Retained immutable review binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-fixed-native-independent-addendum-1df5404c.md",
+      "bytes": 1273,
+      "sha256": "26784dd4836da20b0823770be5b1af5f9bab0572cbc103c6457b20f46e82497a",
+      "scope": "Retained immutable review binding"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-fixed-native-independent-addendum-1df5404c.json",
+      "bytes": 7484,
+      "sha256": "b79ac132c92217f3542bf6293985895929a32975a5c7825de2d72c048a430a30",
+      "scope": "Retained immutable review binding"
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "9cc39745a8d16fa09e063ead0f277b89c56d1977",
+      "git_sha256": "49ce09ede139df5dd810747fb7b0f855868d2cc7022dc679830735491004c2c5",
+      "lines": 1412,
+      "scope": "Retained bounded source approval and preservation identity; no fresh whole owner credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "blob": "6fd68b8bff84a02a20fdaba065235ad0f24578f7",
+      "git_sha256": "61c92e267502161b54c980db127438324ca76873262b5b1e28a371020b98fded",
+      "lines": 129,
+      "scope": "Retained bounded source approval and preservation identity; no fresh whole owner credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "git_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "lines": 543,
+      "scope": "Retained bounded source approval and preservation identity; no fresh whole owner credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "git_sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "lines": 245,
+      "scope": "Retained bounded source approval and preservation identity; no fresh whole owner credit"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+      "blob": "473c269fab640d27f74c2dc602284a0f03069ccb",
+      "git_sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd",
+      "lines": 61,
+      "scope": "Retained bounded source approval and preservation identity; no fresh whole owner credit"
+    }
+  ],
+  "limits": [
+    "Six expected CLI rejection diagnostics per host and Windows slow-callback debug notices are present; output is not diagnostic-free.",
+    "No resource/runtime/deprecation warning, test failure/error or unhandled callback/thread/task exception appears in the complete logs.",
+    "All original510 statuses and Linux skip reasons preserved; exactly five signed interruption controls added and pass.",
+    "Prior1ba causal failure and4074 full510 records remain immutable.",
+    "Only Python suite composition; no Rust, TCP ownership baseline closure, lint/full-gate, main/merge or new lifetime remedy credit.",
+    "Root reported subsequent I001 import-order lint failure in the129 child; later correction must bind its own source/runtime evidence, not inherit this revision execution.",
+    "No reviewer runtime, process, source/index or push operation."
+  ]
+}

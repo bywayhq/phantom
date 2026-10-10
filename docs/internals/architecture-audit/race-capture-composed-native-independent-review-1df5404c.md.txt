@@ -1,0 +1,9 @@
+# Composed capture native assessment
+
+Approved bounded Python composition at exact 1df5404c. Windows passes all 515 in 152.969 s; Linux passes 504 with eleven platform skips in 91.705 s. Test and runner exits are 0. Fresh continuous manual reads cover Windows 1–603 and Linux 1–588, plus the complete guarded launcher and all revision/status records.
+
+The same 515 method IDs run on both hosts. Prior4074's 510 methods retain all statuses and Linux skip reasons; the exact five signed interruption controls are the only additions and pass. Original startup/allocation and two UDP accounting methods remain present/passing. Prior1ba failure and4074 composed records are preserved.
+
+Both logs contain six expected CLI rejection diagnostics in passing tests; Windows also contains asyncio slow-callback debug notices. No resource/runtime/deprecation warning, failure/error or unhandled callback/thread/task exception appears. This is not diagnostic-free output.
+
+Source identities bind retained bounded reviews rather than new whole-owner coverage. Subsequent root-reported I001 import-order correction requires separate source/runtime binding. This review covers Python composition only: Rust/TCP baseline, remaining descendant/protocol/handler contracts, main integration and final gates remain separate. Reviewer performed no execution or tracked changes.

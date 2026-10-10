@@ -1,0 +1,99 @@
+{
+  "review": "Independent import-only source and focused native addendum",
+  "revision": "69b42db8a9d81b8e36c3a0ef2020dc89a0d1dde4",
+  "previous_fullsuite_revision": "1df5404c031367196022bf0b80b493d0d40cd789",
+  "verdict": "Import correction and unchanged focused five approved",
+  "source": {
+    "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+    "blob": "435268dccf2b375783ba8a7899612bbf29eba7e3",
+    "git_sha256": "dcb1b2a6f1f1561300ced32dedd8b16652664f13e7be5773be675806535e095f",
+    "lines": 128,
+    "manual_scope": "Complete three-line relocation diff and current imports 1-16; class identity compared only",
+    "class_literal_bytes_equal": true,
+    "module_AST_items_equal_except_order": true,
+    "unchanged_canonical_blob": "9cc39745a8d16fa09e063ead0f277b89c56d1977"
+  },
+  "results": {
+    "windows": {
+      "selected": 5,
+      "pass": 5,
+      "seconds": "4.215",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "same_previous5_roster": true,
+      "roster_sha256": "ff1dcfc2b3c005c260f52b68119e500eb38809bd56eac9f8026a43e01767581f"
+    },
+    "linux": {
+      "selected": 5,
+      "pass": 5,
+      "seconds": "2.610",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "same_previous5_roster": true,
+      "roster_sha256": "ff1dcfc2b3c005c260f52b68119e500eb38809bd56eac9f8026a43e01767581f"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\cleanup-interruptions-imports-before-1df5404c.py",
+      "bytes": 5087,
+      "sha256": "265ebb57360e4de25780ff7e2cc3aef806f0b19aef464795984a7a68c4273dd7",
+      "scope": "Whole-byte comparison to immutable old child; no fresh whole-owner manual claim"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.log",
+      "bytes": 932,
+      "sha256": "0e239f827041d9b98b988eba2d1bc39c60c864fb681d80587a7e12944c11e08b",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.revision",
+      "bytes": 41,
+      "sha256": "a6accc1efb8feb310e4d2180da722d0092b0b01bde243a863322d2a5ff57d553",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.log",
+      "bytes": 922,
+      "sha256": "c9a683d6daff262d76bf9901d9bd262302ad0f0805a9bb25b48305c91d419be7",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.revision",
+      "bytes": 41,
+      "sha256": "a6accc1efb8feb310e4d2180da722d0092b0b01bde243a863322d2a5ff57d553",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-imports-69b42db8-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    }
+  ],
+  "lint_scope": "Root reports actual prior I001 and corrected full-capture Ruff lint/format pass78; reviewer did not execute Ruff or independently read retained lint output in this slice.",
+  "limits": [
+    "Original full515 execution remains bound only to1df; no full515 execution at69b claimed.",
+    "Prior author static I001-free claim is superseded by root measured lint failure/correction, not silently credited.",
+    "No control/assertion/cleanup behavior changes; scoped current focused results support actual import integration.",
+    "No reviewer runtime/source/index/push operation and no Rust/TCP/full-gate/main approval."
+  ]
+}

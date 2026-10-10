@@ -1,0 +1,158 @@
+{
+  "review": "Independent focused interruption fixed native addendum",
+  "revision": "1df5404c031367196022bf0b80b493d0d40cd789",
+  "baseline_revision": "1ba43ba0b06a8cf33c5003ae8ab347e45d2fa3a4",
+  "verdict": "Focused causal-to-fixed comparison approved",
+  "results": {
+    "windows": {
+      "selected": 5,
+      "pass": 5,
+      "seconds": "3.720",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "same_baseline_method_roster": true,
+      "roster_sha256": "ff1dcfc2b3c005c260f52b68119e500eb38809bd56eac9f8026a43e01767581f"
+    },
+    "linux": {
+      "selected": 5,
+      "pass": 5,
+      "seconds": "2.607",
+      "test_exit": 0,
+      "runner_exit": 0,
+      "same_baseline_method_roster": true,
+      "roster_sha256": "ff1dcfc2b3c005c260f52b68119e500eb38809bd56eac9f8026a43e01767581f"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.log",
+      "bytes": 932,
+      "sha256": "0486c9177db9a05b9b2b775321534839abcc70aa09d778bfd5c2b24226eba457",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.log",
+      "bytes": 922,
+      "sha256": "5afbb72ef4c049dbac069806d7f2ee9b05dec8cf7b824a05bb8e6c4a8a5a04e4",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.revision",
+      "bytes": 41,
+      "sha256": "82e853736dd5485038727642a9a8219161ffe5fc4ab1f846dc6d0ad746ee6dd5",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-interruption-fixed-1df5404c-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "scope": "Fresh complete manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-interruption-controls.sh",
+      "bytes": 1021,
+      "sha256": "4d4e83c96e5ef4b572e61275ac462c786402596da821461b01150d308e7cc030",
+      "scope": "Fresh complete 27-line launcher read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.md",
+      "bytes": 1150,
+      "sha256": "4359ea6231aa24d34959664c189affc62029f838fa82c66ea883594daed2cf0c",
+      "scope": "Retained prior review binding; originals unchanged"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.json",
+      "bytes": 7447,
+      "sha256": "99312d605f63259c38aad2ef94105c01e0bd94c0c08c87a8cbba3fbbff94d09e",
+      "scope": "Retained prior review binding; originals unchanged"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruption-remedy-independent-source-review-942fdd1c.md",
+      "bytes": 1624,
+      "sha256": "b95c763d0d984d1657e61e681df2b4d09d116ce52df4de2b144ad87878e785da",
+      "scope": "Retained prior review binding; originals unchanged"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruption-remedy-independent-source-review-942fdd1c.json",
+      "bytes": 6110,
+      "sha256": "779657130215091d823b157397260ba7c768a17549d71c9c205f1a7cc24c12fb",
+      "scope": "Retained prior review binding; originals unchanged"
+    }
+  ],
+  "unchanged_controls": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "git_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "lines": 543,
+      "equal_to": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "scope": "Preservation identity only; TCP control not executed by focused Python runner"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "git_sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "lines": 245,
+      "equal_to": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "scope": "Preservation identity only; TCP control not executed by focused Python runner"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "blob": "6fd68b8bff84a02a20fdaba065235ad0f24578f7",
+      "git_sha256": "61c92e267502161b54c980db127438324ca76873262b5b1e28a371020b98fded",
+      "lines": 129,
+      "equal_to": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "scope": "Preservation identity only; TCP control not executed by focused Python runner"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_http3/tcp_owner_contract.rs",
+      "blob": "6a8d62dcb05b856f380dbdc46b092f3eed6fd365",
+      "git_sha256": "24cdd2537b8eac61644354b7e56b44581bc1ea7de717f7928c02757d95e67021",
+      "lines": 367,
+      "equal_to": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "scope": "Preservation identity only; TCP control not executed by focused Python runner"
+    }
+  ],
+  "canonical_owner": {
+    "blob": "9cc39745a8d16fa09e063ead0f277b89c56d1977",
+    "git_sha256": "49ce09ede139df5dd810747fb7b0f855868d2cc7022dc679830735491004c2c5",
+    "lines": 1412,
+    "scope": "Complete 16-line delta against fa and A192-only composition delta against author942 manually read, no fresh whole parent claim"
+  },
+  "reached": [
+    "All unchanged real H2/UDP and pre-backup closure prerequisites pass.",
+    "Four formerly failing controls now retain original exact interruption identity/type and exact ordinary secondary object/cause graph at 97-104.",
+    "Healthy real capture result still passes."
+  ],
+  "limits": [
+    "Controlled same-coroutine post-close exceptions, not OS interruption, actual caller cancellation or native close fault.",
+    "No new multi-interruption/duplicate/cyclic-graph runtime evidence.",
+    "Original 1ba healthy1/fail4 evidence remains immutable; negative secondary checks were previously unreached.",
+    "Backup not credited as measured capture cleanup; no joined descendant/browser lifecycle claim.",
+    "Root executed commands; reviewer performed reads/metadata only. Full composed515, ancillary gates and main integration not credited."
+  ]
+}

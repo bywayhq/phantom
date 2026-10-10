@@ -1,0 +1,11 @@
+# Race capture push metadata review
+
+Approved the exact 29-file staged metadata checkpoint atop tested4074c370477638974065be833d6fb4f34536ddbe. No substantive blocker found. This approves a confirmed checkpoint, not broad startup remediation, the full gate or main.
+
+All four staged ledger diffs, the complete310-line receipt, all12 imported prose reports and the complete composed native JSON were read. All24 imported originals are byte-exact. The receipt intentionally binds22 focused review records; the two composed independent records are separately imported, not falsely included in that list. Every40 receipt raw artifact hash/status and all four tested Git/index source identities match.
+
+Inventory contains3480 unique paths, appends27 rows and drops/reorders no existing path. The only two existing-row changes append evidence while preserving their surface/disposition. Both new test-owner rows cite actual source/control review and causal-to-fixed evidence without granting unreviewed parent scope. Historical Windows harness invalidity, its corrected causal run and the original incomplete remedy approval remain explicit.
+
+Complete current510 and historical495 rosters were independently parsed: Windows510pass; Linux499pass with eleven platform skips. Every prior495 method keeps its host status and exactly15 frozen startup/allocation methods are added, all passing. This is a roster/hash assessment, not another every-line native log read. The separately imported composed review records its complete raw-log read and expected CLI/slow-callback diagnostics.
+
+A189 is qualified to the driven startup/allocation repair. A197 remains source-only and broad startup approval withheld; accepted descendants, handler restoration and protocol classification remain open. A180/A181/A188 and A190/A191 rows are unchanged. The changelog describes the observed acquisition/cleanup behavior without a total descendant or interruption guarantee. No source, index, native process, Cargo, push or merge action occurred.

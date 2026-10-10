@@ -1,0 +1,7 @@
+# Cleanup interruption fixed native addendum
+
+Approved focused causal-to-fixed comparison at exact 1df5404c: all five unchanged controls pass both hosts; test and runner exits 0. Windows 3.720 s, Linux 2.607 s. Both complete logs, six guards and 27-line launcher were freshly read; no warnings or helper errors appear. Method rosters match the preserved 1ba baseline (one pass/four identity failures).
+
+The passing unchanged bodies now reach exact interruption identity/type and exact ordinary secondary/cause-graph assertions 97–104, following the same real H2/UDP and resource-closure prerequisites. All 543/245/129/367 controls remain byte-identical to fa; TCP controls are preserved, not executed by this focused runner. The only fa source change is the approved interruption selection, and author942 composition differs only by retained A192 accounting.
+
+No new whole-parent credit or composed515 result is claimed. Controlled post-close Python exceptions are not OS interruption, actual caller cancellation or native close faults. Duplicate/multiple-interruption/cyclic combinations remain undriven. Backup is not measured capture cleanup; descendant, browser and final integration gates remain separate. Reviewer performed no runtime execution or tracked changes.

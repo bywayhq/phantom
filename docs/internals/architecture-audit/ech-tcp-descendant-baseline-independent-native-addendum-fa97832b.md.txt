@@ -1,0 +1,7 @@
+# TCP descendant causal baseline
+
+Both complete fa97832b5761b0661298d18fbd794a8455fb2113 logs, launcher and guarded terminal records were independently read. Each host runs three unique methods: one healthy pass and two causal child-destruction failures at child259 with Err(Elapsed(())). Raw nextest and runner exits are100. Final nextest output renders the same two failures again; it provides no retry or extra-method credit.
+
+The parent and367-line child are byte-exact to independently approved d063. Both negatives pass the real trusted HTTP1/200/metadata/ok prime, successful prime destruction, actual held TCP writes and actual canonical handshake Pending/unfinished-handle prerequisites. They capture lifetime outcomes before mandatory backup, and backup finishes without an error before the target assertion. The healthy method reaches actual parent destruction and zeroQUIC/oneTCP counts.
+
+Later negative parent assertions, held-peer socket checks and returned counts remain uncredited. Finite destruction-before-backup failures do not establish a permanent OS leak, raw joined worker outcomes, completed authentication for held peers or QUIC traffic. The selected launcher adds no full integration gate. No reviewer source edits or native execution occurred. Root may proceed with a bounded complete descendant-ownership remedy using these two causal failures.

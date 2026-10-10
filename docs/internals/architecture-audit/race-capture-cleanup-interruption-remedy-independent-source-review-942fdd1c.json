@@ -1,0 +1,120 @@
+{
+  "review": "Independent bounded cleanup interruption source review",
+  "verdict": "Approved for unchanged five-control and composed verification; fixed native results pending",
+  "revision": "942fdd1c324b116d168a000897b1234269e51824",
+  "base": "d667766dc81a16f2cff2d186087b824f53b2f135",
+  "source": {
+    "revision": "942fdd1c324b116d168a000897b1234269e51824",
+    "path": "scripts/capture/alt_svc_race.py",
+    "blob": "c2543db50fe7c99909a14beca148b08a6027ea83",
+    "git_bytes": 49202,
+    "git_sha256": "67f8594e8565866a698d9f4ebd73f7f8b71674e5a80e6fdf503bdf60705c12d1",
+    "lines": 1411,
+    "manual_scope": "Complete changed capture_run and existing retention/helper scope; complete semantic diff. Remaining file preserved by inverse, no fresh whole-file credit.",
+    "ranges": [
+      {
+        "inclusive": [
+          919,
+          928
+        ],
+        "sha256": "6007338e00da179cf5ceb54c4ccef1d94b93621446bf53895090a53955cab815"
+      },
+      {
+        "inclusive": [
+          930,
+          1054
+        ],
+        "sha256": "dcf003a012c38a269a5f7c57055688e3c5663a2890ba610d07a3efcdc2a99cc2"
+      },
+      {
+        "inclusive": [
+          1057,
+          1084
+        ],
+        "sha256": "603c3df6d7dc034344f0b5a6bada466351b107dee0f850b5e3eddf6ccca8cc58"
+      }
+    ]
+  },
+  "controls": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "root_revision": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "git_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "lines": 543,
+      "equal_to": "d667766dc81a16f2cff2d186087b824f53b2f135",
+      "scope": "Preservation/retained review binding only; root-only controls not claimed present in author lane"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "root_revision": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "git_sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "lines": 245,
+      "equal_to": "5816a708",
+      "scope": "Preservation/retained review binding only; root-only controls not claimed present in author lane"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_cleanup_interruptions.py",
+      "root_revision": "fa97832b5761b0661298d18fbd794a8455fb2113",
+      "blob": "6fd68b8bff84a02a20fdaba065235ad0f24578f7",
+      "git_sha256": "61c92e267502161b54c980db127438324ca76873262b5b1e28a371020b98fded",
+      "lines": 129,
+      "equal_to": "91bd333d",
+      "scope": "Preservation/retained review binding only; root-only controls not claimed present in author lane"
+    }
+  ],
+  "evidence_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cleanup-interruption-remedy-handoff-942fdd1c.md",
+      "bytes": 2148,
+      "sha256": "4bf3ef73e8bd852d4a01db1eb214e3f6cdf543ffa2d0e73b08f6aa8b61ebd550"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cleanup-interruption-remedy-handoff-942fdd1c.json",
+      "bytes": 5637,
+      "sha256": "e50300c49bdd1548331a9116d3cc921fc1dc4c02191e52d3969697f88a12d277"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cleanup-interruption-remedy-handoff-942fdd1c.diff",
+      "bytes": 991,
+      "sha256": "9faa5e01e2231dd5821fdef8e865f4dfa26218e72ba5768305f34d61308acc37"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-cleanup-interruption-remedy-preservation-942fdd1c.json",
+      "bytes": 2413,
+      "sha256": "7a7e361b3fc9e26260d30e6b64a30175992a73608dcfeec8cb39844bd00a59b6"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.md",
+      "bytes": 1150,
+      "sha256": "4359ea6231aa24d34959664c189affc62029f838fa82c66ea883594daed2cf0c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-cleanup-interruptions-native-independent-addendum-1ba43ba0.json",
+      "bytes": 7447,
+      "sha256": "99312d605f63259c38aad2ef94105c01e0bd94c0c08c87a8cbba3fbbff94d09e"
+    }
+  ],
+  "proof": {
+    "sole_modified_path": "scripts/capture/alt_svc_race.py",
+    "whole_file_byte_inverse": true,
+    "whole_file_AST_inverse": true,
+    "root_composition": "Root fa canonical equals 4074; root-only A192 per-listener accounting delta must remain when integrating main-derived author parent"
+  },
+  "findings": [],
+  "assessment": [
+    "Only no-operation-primary/multiple-cleanup branch changes. Select first indexed non-Exception BaseException occurrence without copying or formatting the object.",
+    "Index slice removes exactly selected occurrence, preserves every remaining object in original order and keeps duplicate occurrences.",
+    "Nonempty secondary remains because original count exceeds one. Existing singleton or ordered aggregate secondary and retention helper are reused before raising exact selected primary.",
+    "Initiating operation primary, a sole cleanup failure, all-ordinary multiple failures, resource acquisition/close attempts, periods and traffic remain byte-identical.",
+    "Existing retention helper preserves prior chains and avoids introducing a cause/context back-edge; retained secondary object graph can already reference primary."
+  ],
+  "limits": [
+    "Four original negatives measured only identity loss at child 97; downstream secondary 102-104 still unexecuted before fixed verification.",
+    "Multiple interruptions, duplicate identical occurrences, multi-secondary and pre-existing cyclic graphs are source assessed, not newly native-driven.",
+    "Controlled injected interruption does not demonstrate OS interruption, actual caller cancellation or native close faults.",
+    "No reviewer tests, Cargo, runtime/process/browser operations, source or index edits.",
+    "Accepted descendants, protocol classification and handler restoration remain separate; no full integration/main approval."
+  ]
+}

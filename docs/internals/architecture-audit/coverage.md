@@ -40,6 +40,24 @@ do not establish that need.
 
 ## Recent verification
 
+The [interruption and TCP record](interruption-tcp-root-verification-69b42db8.json)
+preserves four cleanup-interruption identity failures on each host. The
+same five controls pass after the reviewed repair at `1df5404c`. The full
+capture suite passes 515 tests on Windows and 504 on Linux, with eleven
+platform skips. Independent review read both complete logs and confirmed
+every previous method's status.
+
+Ruff then found an import-order error in the new test file. The correction
+at `69b42db8` preserves every test body. The five controls pass again on
+both hosts, and all 78 capture files pass Ruff lint and formatting. The
+full-suite results remain bound to `1df5404c`.
+
+The same record preserves the TCP descendant baseline at `fa97832b`:
+one healthy pass and two child-destruction failures on each host. Both
+negatives reach actual pending TLS reads before the lifetime assertion.
+Later parent, socket and count assertions remain unreached. The remedy
+is in progress. These records do not replace the final gate.
+
 The [race capture verification](race-capture-root-verification-4074c370.json)
 records eight startup and five allocation failures on both hosts, followed
 by passes for the same nine startup and six allocation controls. The full
@@ -50,8 +68,8 @@ remain intact. Independent review approves the focused causal comparisons.
 The initial Windows socket harness queried unsupported state and changed
 a socket type used by the event loop. Those failures retain no causal
 closure credit. The corrected harness reaches the five intended assertions
-on both hosts. Cleanup interruptions with secondary errors, accepted tasks,
-loop handler restoration and protocol classification remain open. These
+on both hosts. Accepted tasks, loop handler restoration, undriven interruption
+combinations and protocol classification remain open. These
 results do not replace the final gate or combined architecture review.
 
 The [confirmed lifecycle batch](confirmed-lifecycle-batch-5973305d.json)
