@@ -50,6 +50,8 @@ from .reserved_ports import open_past_reserved_ports
 
 SUPPORTED_AIOQUIC = "1.3.0"
 MAX_STREAM_CAPTURE = 256 * 1024
+MAX_CAPTURE_STREAMS = 128
+MAX_CAPTURE_STREAM_BYTES = 1024 * 1024
 # `--launch-arguments` may write the listening port as this placeholder; the
 # fixture records the port the server bound.
 PORT_PLACEHOLDER = "<port>"
@@ -90,10 +92,28 @@ class Capture:
             raise RuntimeError("HTTP/3 capture failed") from self.failure
 
     def stream_data(self, event: StreamDataReceived) -> None:
-        data = self.streams.setdefault(event.stream_id, bytearray())
-        if len(data) + len(event.data) > MAX_STREAM_CAPTURE:
+        if self.failure is not None or self.complete.is_set():
+            return
+
+        data = self.streams.get(event.stream_id)
+        if data is None and len(self.streams) >= MAX_CAPTURE_STREAMS:
+            raise ValueError("stream count exceeds the capture limit")
+
+        retained_bytes = len(data) if data is not None else 0
+        if retained_bytes + len(event.data) > MAX_STREAM_CAPTURE:
             raise ValueError(f"stream {event.stream_id} exceeds the capture limit")
+
+        if (
+            sum(map(len, self.streams.values())) + len(event.data)
+            > MAX_CAPTURE_STREAM_BYTES
+        ):
+            raise ValueError("stream bytes exceed the capture limit")
+
+        if data is None:
+            data = bytearray()
+            self.streams[event.stream_id] = data
         data.extend(event.data)
+
         raw = bytes(data)
         if event.stream_id % 4 == 2 and self.settings_frame is None:
             frame = first_frame(raw, has_stream_type=True)
