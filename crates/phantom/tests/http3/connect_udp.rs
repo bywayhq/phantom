@@ -9,6 +9,7 @@ use crate::support::tracing as tracing_support;
 
 use std::{
     error::Error as StdError,
+    fmt,
     future::Future,
     net::SocketAddr,
     num::NonZeroUsize,
@@ -569,7 +570,14 @@ async fn outer_close_fails_inner_connection_and_invalidates_pool_entry() -> Test
         assert_eq!(first, "partial");
 
         proxy.close_connections();
-        let failure = timeout(TEST_TIMEOUT, body.collect()).await?;
+        let failure = timeout(TEST_TIMEOUT, body.collect())
+            .await
+            .map_err(|source| {
+                ConnectUdpDeadline::new(
+                    "inner body did not fail after the outer connection closed",
+                    source,
+                )
+            })?;
         let error = failure
             .err()
             .ok_or("inner body completed after the outer connection closed")?;
@@ -627,7 +635,10 @@ async fn connect_udp_diagnostics_exclude_payloads() -> TestResult<()> {
                 tokio::time::sleep(POLL_INTERVAL).await;
             }
         })
-        .await?;
+        .await
+        .map_err(|source| {
+            ConnectUdpDeadline::new("tunnel drop counters were not recorded", source)
+        })?;
 
         assert_eq!(
             capture.values("proxy.connect_udp", "proxy_protocol"),
@@ -1232,7 +1243,35 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(Duration::from_secs(30), future).await?
+    timeout(Duration::from_secs(30), future)
+        .await
+        .map_err(|source| {
+            ConnectUdpDeadline::new("CONNECT-UDP integration test exceeded its deadline", source)
+        })?
+}
+
+#[derive(Debug)]
+struct ConnectUdpDeadline {
+    operation: &'static str,
+    source: tokio::time::error::Elapsed,
+}
+
+impl ConnectUdpDeadline {
+    fn new(operation: &'static str, source: tokio::time::error::Elapsed) -> Self {
+        Self { operation, source }
+    }
+}
+
+impl fmt::Display for ConnectUdpDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.operation, self.source)
+    }
+}
+
+impl StdError for ConnectUdpDeadline {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.source)
+    }
 }
 
 fn observed_zero_request_retries(subscriber: &OutcomeSubscriber) -> bool {

@@ -5,7 +5,7 @@ mod auth;
 use crate::support::socks5 as socks5_support;
 use crate::support::tls;
 
-use std::{future::Future, io, net::Ipv4Addr, time::Duration};
+use std::{error::Error as StdError, fmt, future::Future, io, net::Ipv4Addr, time::Duration};
 
 use http::Response;
 use http_body_util::BodyExt;
@@ -559,7 +559,26 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future).await?
+    timeout(TEST_TIMEOUT, future).await.map_err(SocksDeadline)?
+}
+
+#[derive(Debug)]
+struct SocksDeadline(tokio::time::error::Elapsed);
+
+impl fmt::Display for SocksDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "SOCKS5 integration test exceeded its deadline: {}",
+            self.0
+        )
+    }
+}
+
+impl StdError for SocksDeadline {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.0)
+    }
 }
 
 #[cfg(test)]
