@@ -4,7 +4,7 @@ use std::{
     error::Error,
     fmt,
     future::Future,
-    net::Ipv4Addr,
+    net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     time::{Duration, SystemTime},
 };
@@ -37,6 +37,7 @@ const HOUR: Duration = Duration::from_secs(60 * 60);
 
 mod deadline_contract;
 mod peer_contract;
+mod peer_outcome;
 
 #[derive(Debug)]
 struct PersistenceDeadline {
@@ -433,26 +434,34 @@ async fn negotiated_plaintext_response_teaches_no_alternative() -> TestResult<()
         });
 
         let client = client(&identity, 8)?;
-        let response = client
-            .get_negotiated(&format!("http://{address}/advertises"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let protocol = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .map(ResponseInfo::protocol);
-        assert_eq!(protocol, Some(HttpProtocol::Http1));
-        response.into_body().collect().await?;
-        server.finish().await?;
-
-        assert_eq!(
-            client.export_alt_svc().map(|snapshot| snapshot.len()),
-            Some(0)
-        );
-        Ok(())
+        plaintext_response(&client, address, server).await
     })
     .await
+}
+
+async fn plaintext_response(
+    client: &Client,
+    address: SocketAddr,
+    server: PlaintextPeer,
+) -> TestResult<()> {
+    let response = client
+        .get_negotiated(&format!("http://{address}/advertises"))?
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let protocol = response
+        .extensions()
+        .get::<ResponseInfo>()
+        .map(ResponseInfo::protocol);
+    assert_eq!(protocol, Some(HttpProtocol::Http1));
+    response.into_body().collect().await?;
+    server.finish().await?;
+
+    assert_eq!(
+        client.export_alt_svc().map(|snapshot| snapshot.len()),
+        Some(0)
+    );
+    Ok(())
 }
 
 async fn learning_fixture(
