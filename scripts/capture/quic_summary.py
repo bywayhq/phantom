@@ -202,7 +202,7 @@ class NormalizedPacket:
 
 
 def is_safe_label(label: str) -> bool:
-    """Returns whether a label is structured and cannot name sensitive material."""
+    """Returns whether a label uses allowed characters and avoids reserved words."""
 
     return (
         bool(label)

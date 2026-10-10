@@ -27,7 +27,7 @@ class _FixtureCleanupError(RuntimeError):
 
 
 def write_atomically(path: Path, text: str, *, encoding: str) -> None:
-    """Replace `path` with `text` only after the complete file is durable.
+    """Write `text` to a staged file, sync it, then replace `path`.
 
     Text is written byte-for-byte: newline translation would change retained
     fixture digests on Windows. An encoding failure or interrupted write leaves
