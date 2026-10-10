@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "reviewed_report_revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+  "current_source_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+  "verdict": "The three failure-path findings are independently supported by actual current source. Report attribution valid with partial supporting scopes preserved.",
+  "report_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\client-websocket-upgrade-test-standards-review-0b2debbef0.md",
+      "raw_sha256": "fd58a8587edbe2988900e4ff40c0be224725057bf6980243eab754e6ac3d56c7",
+      "read_scope": "full prose read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\client-websocket-upgrade-test-standards-review-0b2debbef0.json",
+      "raw_sha256": "9632bb4c5c8559f87ab7c3b0359449a53cf78f2e27c68311ab3ba336058f54cd",
+      "read_scope": "findings, limitations, dependency and source metadata manually reviewed; schema validation, not full JSON semantic reread"
+    }
+  ],
+  "reported_source_validation": [
+    {
+      "path": "crates/phantom/src/client/tests.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "raw_sha256": "5d2da430d363d1c3f57ef1ea6151757d6815bc3004dbe04f760b866455406c12",
+      "line_count": 388,
+      "reported_read_ranges": [
+        [
+          1,
+          388
+        ]
+      ],
+      "reported_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "record_group": "source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "raw_sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "line_count": 438,
+      "reported_read_ranges": [
+        [
+          1,
+          438
+        ]
+      ],
+      "reported_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "record_group": "source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "raw_sha256": "c99a8ca7f0d3595713aecd3a512d697bba5371678274437bbcb5950ca3272e9d",
+      "line_count": 1077,
+      "reported_read_ranges": [
+        [
+          1,
+          1077
+        ]
+      ],
+      "reported_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "record_group": "source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "064a1fe419e64c6b1e122f2752b7cd246188d6c0",
+      "raw_sha256": "1aa2f04f7e4dd35b2500216dc3a2026df4fe66151a95d9a733caddf09e8fd582",
+      "line_count": 756,
+      "reported_read_ranges": [
+        [
+          1,
+          756
+        ]
+      ],
+      "reported_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "record_group": "source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "064a1fe419e64c6b1e122f2752b7cd246188d6c0",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "960c76a8b3d733350da8bb47643b4eafd0aa5538",
+      "raw_sha256": "8d8cd9044248bffb2b7dfe68d0e0845853905d845975751a1e674917957c467b",
+      "line_count": 434,
+      "reported_read_ranges": [
+        [
+          1,
+          130
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "960c76a8b3d733350da8bb47643b4eafd0aa5538",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "raw_sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "line_count": 194,
+      "reported_read_ranges": [
+        [
+          1,
+          35
+        ],
+        [
+          105,
+          163
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "raw_sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "reported_read_ranges": [
+        [
+          1,
+          125
+        ],
+        [
+          270,
+          332
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "raw_sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "reported_read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "reported_read_ranges": [
+        [
+          407,
+          515
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "raw_sha256": "c0a29cc700e6d210ef1dfc141d9f33cf8621427116eb24aa30ee9b7c1ab0bb21",
+      "line_count": 655,
+      "reported_read_ranges": [
+        [
+          1,
+          35
+        ],
+        [
+          126,
+          227
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "reported_read_ranges": [
+        [
+          277,
+          322
+        ],
+        [
+          1950,
+          2040
+        ],
+        [
+          2079,
+          2140
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "13834dd8df82657efd452c4e422823848d694439",
+      "raw_sha256": "5d55775aa3d4d96d4933eb8b7a90a90c6374876411f70015d83b5344388c283f",
+      "line_count": 522,
+      "reported_read_ranges": [
+        [
+          222,
+          255
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "13834dd8df82657efd452c4e422823848d694439",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "reported_read_ranges": [
+        [
+          28,
+          30
+        ],
+        [
+          75,
+          105
+        ]
+      ],
+      "reported_scope": "fresh bounded supporting partial manual read only",
+      "record_group": "supporting_source_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "raw_sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "line_count": 2772,
+      "reported_read_ranges": [
+        [
+          2219,
+          2242
+        ]
+      ],
+      "reported_scope": "bounded metadata/instruction read; no source semantic credit",
+      "record_group": "metadata_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "raw_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "line_count": 221,
+      "reported_read_ranges": [
+        [
+          84,
+          124
+        ]
+      ],
+      "reported_scope": "bounded metadata/instruction read; no source semantic credit",
+      "record_group": "metadata_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "current_bytes_equal": true,
+      "identity_validation_only": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "blob_oid": "1ae4ad2a1ae0cfe2f107f2375527afec6dd8acf9",
+      "raw_sha256": "f28e2a3079974b51413b52bbe10cc2c4f2931de170f430630d6de584b2fc5e1c",
+      "line_count": 1009,
+      "reported_read_ranges": [
+        [
+          73,
+          74
+        ],
+        [
+          96,
+          117
+        ]
+      ],
+      "reported_scope": "bounded metadata/instruction read; no source semantic credit",
+      "record_group": "metadata_records",
+      "current_revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "current_blob_oid": "170ae5c9ff49b3b7ecad83650c920a3cc67a754a",
+      "current_bytes_equal": false,
+      "identity_validation_only": true
+    }
+  ],
+  "dependency_identity_validation": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "resolved_package": "tokio-1.53.1",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          1,
+          38
+        ],
+        [
+          357,
+          365
+        ]
+      ],
+      "read_scope": "fresh resolved primary-source partial read",
+      "archive": "C:\\Users\\arya\\.cargo\\registry\\cache\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1.crate",
+      "archive_sha256": "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
+      "archive_checksum_matches_committed_lockfile": true,
+      "installed_bytes_equal_archive_member": true,
+      "role": "external dependency evidence; no project inventory credit"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-macros-2.7.2\\src\\lib.rs",
+      "resolved_package": "tokio-macros-2.7.2",
+      "sha256": "304421e2b501e4726b98048c75c70b6770b70aca77ead0a62c176d5b47759c1d",
+      "line_count": 668,
+      "read_ranges": [
+        [
+          399,
+          445
+        ]
+      ],
+      "read_scope": "fresh resolved primary-source partial read",
+      "archive": "C:\\Users\\arya\\.cargo\\registry\\cache\\index.crates.io-1949cf8c6b5b557f\\tokio-macros-2.7.2.crate",
+      "archive_sha256": "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e",
+      "archive_checksum_matches_committed_lockfile": true,
+      "installed_bytes_equal_archive_member": true,
+      "role": "external dependency evidence; no project inventory credit"
+    }
+  ],
+  "independent_source_records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "raw_sha256": "c99a8ca7f0d3595713aecd3a512d697bba5371678274437bbcb5950ca3272e9d",
+      "line_count": 1077,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 112,
+          "raw_range_sha256": "88823bfce540a79bbfd21b891034db71a17fcc21f52bb079c3e74f078d7118a0"
+        },
+        {
+          "start_line": 195,
+          "end_line": 262,
+          "raw_range_sha256": "5c4b0b870966de998c6ab67930f0b7ed3ac6b4f7c70edeb2259cf206074c6852"
+        },
+        {
+          "start_line": 795,
+          "end_line": 850,
+          "raw_range_sha256": "db274abc5d930050e11e8d46614558a63463b8d0f4342e239680a6d3d4e7f1a0"
+        },
+        {
+          "start_line": 900,
+          "end_line": 969,
+          "raw_range_sha256": "a98b8e34431846db75d327b80d17bcfd9497c7d1a7db6efc7a396a5c5c6e44e4"
+        },
+        {
+          "start_line": 1002,
+          "end_line": 1077,
+          "raw_range_sha256": "943ed93c35d3974d0cd02421e718c9e0a334b407d512adc26ff28a6ae076a883"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "064a1fe419e64c6b1e122f2752b7cd246188d6c0",
+      "raw_sha256": "1aa2f04f7e4dd35b2500216dc3a2026df4fe66151a95d9a733caddf09e8fd582",
+      "line_count": 756,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 35,
+          "raw_range_sha256": "ae9ca3e2e9b5b7aab66f154b2bf938de15fd28961e55a591ead78da32f07c40d"
+        },
+        {
+          "start_line": 740,
+          "end_line": 756,
+          "raw_range_sha256": "76055cd8738eb721d825573ae8118b4848f257e7979ca0f7b8ff6531a847a81c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "raw_sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "line_count": 194,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 25,
+          "raw_range_sha256": "e364a30d43cb42e970bcc059a9237b193ef0b16b502c6ddbca42995453ca5ad2"
+        },
+        {
+          "start_line": 148,
+          "end_line": 163,
+          "raw_range_sha256": "8320a3e4d154d4ffbaee96a9c2e74ec11afb430e0d6f8e78f093536bb845e466"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "raw_sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "line_count": 438,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 160,
+          "raw_range_sha256": "4660ac668958238a6f44ecbbe910098f18fda4f5de83372249e52cf105b28a1c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "raw_sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 108,
+          "raw_range_sha256": "e5c1a62f3ed1bae36554f4db81f73b2017f5178ff2a601d9a75a7d1e0241c9df"
+        },
+        {
+          "start_line": 189,
+          "end_line": 228,
+          "raw_range_sha256": "474f6e64a058b2123a9061fa0e5b76b283b0aa19e5938f1d4a092393f2fe7fca"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "raw_sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 407,
+          "end_line": 462,
+          "raw_range_sha256": "48c6e56af65746f6537d7a52bdb6a0e6ac70b43d028b717fe4131c4f6bd67162"
+        },
+        {
+          "start_line": 498,
+          "end_line": 515,
+          "raw_range_sha256": "cf64d0df1e283141e709b99009c34e77b80b63efa61636b149487b80a7cc1add"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "960c76a8b3d733350da8bb47643b4eafd0aa5538",
+      "raw_sha256": "8d8cd9044248bffb2b7dfe68d0e0845853905d845975751a1e674917957c467b",
+      "line_count": 434,
+      "read_classification": "partial independent finding/caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 45,
+          "raw_range_sha256": "4d3403facad6858935cf48ac394981c6e9f7e39a256df3d60ce2fbf15fafae49"
+        }
+      ]
+    }
+  ],
+  "independent_external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          1,
+          38
+        ],
+        [
+          357,
+          365
+        ]
+      ],
+      "read_scope": "partial independent installed Tokio JoinHandle contract read; no project inventory credit"
+    }
+  ],
+  "findings": [
+    {
+      "id": "WS-ROUTE-F1",
+      "verdict": "supported source finding; causal controls and remedy required",
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "lines": [
+        72,
+        100
+      ],
+      "independent_trace": "Raw proxy starts before later identity/build/connect/Ping operations. Any ? or outer bounded cancellation before proxy.await drops raw handle. Two-peer paths835-839 and949-957 return on first failure before sibling join; actual fixed ConnectionPeer is available but not used here.",
+      "contract": "Exceptional ownership must request cleanup and retain completed peer outcomes. Raw drop detaches under resolved Tokio.",
+      "remedy": "Use lexical joint workflow or concrete ConnectionPeer; collect all ready/cleanup outcomes before returning; retain literal CONNECT/opening/auth/frame observations.",
+      "limits": "No measured surviving task, historical flake, permanent socket leak or production client defect established."
+    },
+    {
+      "id": "WS-DEADLINE-F2",
+      "verdict": "supported source finding; causal typed-timeout control required",
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "lines": [
+        749,
+        756
+      ],
+      "additional_path": "crates/phantom/tests/support/websocket.rs",
+      "additional_lines": [
+        152,
+        159
+      ],
+      "independent_trace": "Both timeout wrappers map actual Elapsed to string while propagating inner Result. Shared5second wrapper is inherited by routing via websocket.rs29, H2 wrapper10seconds.",
+      "contract": "Original recoverable timeout object remains inspectable in typed source chain.",
+      "remedy": "Retain actual Elapsed in a concrete context error or directly; keep current durations and typed inner outcomes.",
+      "limits": "String cause loss is explicit source behavior; no native baseline executed here."
+    },
+    {
+      "id": "UPGRADE-CONTROL-F3",
+      "verdict": "supported construction ownership/result-loss source finding",
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "lines": [
+        84,
+        116
+      ],
+      "independent_trace": "Already spawned tasks are passed to controlled_fixture before generate, endpoint creation/local_addr and optional second endpoint acquisition can fail. Parent fixture Drop only exists after successful construction. A setup return loses incoming raw task handles/outcomes, including already completed typed errors.",
+      "contract": "Acquire fallible fixture material before child launch or own transferred children throughout construction and all setup errors.",
+      "remedy": "Prefer endpoint/identity preparation before these test children spawn; alternatively concrete construction owner with explicit result retention. Failure control must hit actual construction boundary.",
+      "limits": "Shared shutdown-channel destruction may cause some running tasks to end; no claim that every path leaves a permanent task. Completed failure loss and missing cleanup owner still supported."
+    }
+  ],
+  "layout_disposition": "Reported local-before-external import grouping is independently visible in H2 proxy lines4-29; minor source-only cleanup. No arbitrary split justified. Client tests import gap was not independently reread in this pass.",
+  "coverage_disposition": "Four reported complete owner reads retain attributed exact committed identities and full ranges; nine supporting reads remain partial. This independent pass is finding-focused partial source trace, not a fresh complete four-owner read or automatic inventory promotion.",
+  "preserved_prior_repairs": "A106 parent finish/Drop closes endpoints and owns all post-construction task outcomes. This new control constructor issue precedes successful ownership transfer and does not invalidate the prior bounded parent remedy approval or14-control native result.",
+  "limitations": [
+    "No Cargo, network, runtime, socket controls or tracked edits performed.",
+    "No new causal baseline or remedy approved; the new owner lane is separate and not reviewed here.",
+    "No whole fixture tree, all callers, production leak, browser parity, architecture or final gate approval."
+  ]
+}

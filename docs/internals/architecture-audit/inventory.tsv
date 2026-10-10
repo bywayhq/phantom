@@ -105,13 +105,13 @@ crates/phantom-net/src/http2.rs	crate	source-complete	net-input-runtime-continua
 crates/phantom-net/src/http2/alps.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/alps.rs
 crates/phantom-net/src/http2/alps/tests.rs	crate	source-complete	net-upgrade-alps-continuation-coverage.json#crates/phantom-net/src/http2/alps/tests.rs
 crates/phantom-net/src/http2/alt_svc.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/alt_svc.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/alt_svc.rs
-crates/phantom-net/src/http2/body.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/5
-crates/phantom-net/src/http2/connection.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10; net-address-proxy-platform-standards-review.json#/source_records/25; net-body-ownership-standards-review.json#/source_reads/17; streaming-peer-remediation.json#/sources/7; streaming-peer-independent-review.json#/source_records/2; h2-connection-driver-standards-review-c485de7f.json#/source_records/0; full manual owner read, current bytes unchanged; supported standards remedy pending
+crates/phantom-net/src/http2/body.rs	crate	source-complete	net-body-ownership-standards-review.json#/source_reads/5; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/9
+crates/phantom-net/src/http2/connection.rs	crate	source-complete	vendor-reviewed-records.json#crates/phantom-net/src/http2/connection.rs; request-trailer-wire-independent-review.json#/records/10; net-address-proxy-platform-standards-review.json#/source_records/25; net-body-ownership-standards-review.json#/source_reads/17; streaming-peer-remediation.json#/sources/7; streaming-peer-independent-review.json#/source_records/2; h2-connection-driver-standards-review-c485de7f.json#/source_records/0; full manual owner read, current bytes unchanged; supported standards remedy pending; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/10
 crates/phantom-net/src/http2/driver.rs	crate	source-complete	request-trailer-wire-independent-review.json#/records/13; net-body-ownership-standards-review.json#/source_reads/18; streaming-peer-remediation.json#/sources/8; h2-connection-driver-standards-review-c485de7f.json#/source_records/1; full manual owner read, current bytes unchanged; supported standards remedy pending
 crates/phantom-net/src/http2/error.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/error.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/error.rs
 crates/phantom-net/src/http2/limits.rs	crate	source-complete	net-establishment-continuation-coverage.json#crates/phantom-net/src/http2/limits.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/limits.rs
 crates/phantom-net/src/http2/request.rs	crate	source-complete	net-remaining-coverage.json#crates/phantom-net/src/http2/request.rs; vendor-reviewed-records.json#crates/phantom-net/src/http2/request.rs; trailer-test-contract-review.json#/sources/4; request-trailer-wire-independent-review.json#/records/8
-crates/phantom-net/src/http2/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3; streaming-peer-independent-review.json#/source_records/1
+crates/phantom-net/src/http2/tests.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests.rs; trailer-test-contract-review.json#/sources/20; request-trailer-wire-independent-review.json#/records/3; streaming-peer-independent-review.json#/source_records/1; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/4
 crates/phantom-net/src/http2/tests/adversarial_data_frames.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_data_frames.rs
 crates/phantom-net/src/http2/tests/adversarial_header_limits.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_header_limits.rs
 crates/phantom-net/src/http2/tests/adversarial_informational.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_informational.rs
@@ -119,8 +119,9 @@ crates/phantom-net/src/http2/tests/adversarial_malformed.rs	crate	source-complet
 crates/phantom-net/src/http2/tests/adversarial_wire.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/adversarial_wire.rs
 crates/phantom-net/src/http2/tests/connection.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/connection.rs
 crates/phantom-net/src/http2/tests/continuation_matrix.rs	crate	source-complete	net-h2-wire-compression-continuation-coverage.json#crates/phantom-net/src/http2/tests/continuation_matrix.rs
-crates/phantom-net/src/http2/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_lifecycle.rs
-crates/phantom-net/src/http2/tests/driver_shutdown.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_shutdown.rs
+crates/phantom-net/src/http2/tests/driver_lifecycle.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_lifecycle.rs; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/1
+crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs	crate	source-complete	h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/3
+crates/phantom-net/src/http2/tests/driver_shutdown.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/driver_shutdown.rs; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/5
 crates/phantom-net/src/http2/tests/expect_continue.rs	crate	source-complete	net-input-runtime-continuation-coverage.json#crates/phantom-net/src/http2/tests/expect_continue.rs; canonical-api-signed-rebind.json#/rebind_records/17
 crates/phantom-net/src/http2/tests/extended_connect.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/extended_connect.rs
 crates/phantom-net/src/http2/tests/hpack_replay.rs	crate	source-complete	net-hpack-replay-continuation-coverage.json#crates/phantom-net/src/http2/tests/hpack_replay.rs
@@ -129,7 +130,8 @@ crates/phantom-net/src/http2/tests/idle_close.rs	crate	source-complete	net-h2-id
 crates/phantom-net/src/http2/tests/idle_ping.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/idle_ping.rs
 crates/phantom-net/src/http2/tests/ping_peer.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/ping_peer.rs
 crates/phantom-net/src/http2/tests/preface_ping.rs	crate	source-complete	net-h2-idle-validation-continuation-coverage.json#crates/phantom-net/src/http2/tests/preface_ping.rs
-crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19; net-body-ownership-standards-review.json#/source_reads/16
+crates/phantom-net/src/http2/tests/request_body_cancellation.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_cancellation.rs; canonical-api-signed-rebind.json#/rebind_records/19; net-body-ownership-standards-review.json#/source_reads/16; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/0
+crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs	crate	source-complete	h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/2
 crates/phantom-net/src/http2/tests/request_body_early_response.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_early_response.rs; canonical-api-signed-rebind.json#/rebind_records/20
 crates/phantom-net/src/http2/tests/request_body_early_response/peer_ownership.rs	crate	pending	discovery only; manual review pending
 crates/phantom-net/src/http2/tests/request_body_error.rs	crate	source-complete	net-lifecycle-continuation-coverage.json#crates/phantom-net/src/http2/tests/request_body_error.rs; canonical-api-signed-rebind.json#/rebind_records/21
@@ -445,7 +447,7 @@ crates/phantom/src/client.rs	crate	source-complete	client-remaining-coverage.jso
 crates/phantom/src/client/certificate_origin_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/certificate_origin_tests.rs
 crates/phantom/src/client/dns_cache_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/dns_cache_tests.rs
 crates/phantom/src/client/option_tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/client/option_tests.rs
-crates/phantom/src/client/tests.rs	source	source-partial	canonical-api-signed-rebind.json#/rebind_records/60
+crates/phantom/src/client/tests.rs	source	source-complete	canonical-api-signed-rebind.json#/rebind_records/60; client-websocket-upgrade-test-standards-review-0b2debbef0.json#/source_records/0
 crates/phantom/src/content_coding.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/content_coding.rs | client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding.rs
 crates/phantom/src/content_coding/brotli_stream.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/brotli_stream.rs
 crates/phantom/src/content_coding/field.rs	crate	source-complete	client-lifecycle-continuation-coverage.json#crates/phantom/src/content_coding/field.rs
@@ -457,6 +459,7 @@ crates/phantom/src/diagnostics.rs	crate	source-complete	client-remaining-coverag
 crates/phantom/src/environment_proxy.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy.rs | docs-contract-coverage.json#crates/phantom/src/environment_proxy.rs
 crates/phantom/src/environment_proxy/tests.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/environment_proxy/tests.rs
 crates/phantom/src/error.rs	crate	source-complete	docs-contract-coverage.json#crates/phantom/src/error.rs; canonical-api-signed-rebind.json#/rebind_records/61; client-http3-integration-standards-review.json#/source_records/16; net-cache-interface-independent-review.json#/source_records/11; facade-error-response-template-standards-review-c485de7f.json#/source_records/0; full manual owner read, current bytes unchanged; supported standards remedy pending
+crates/phantom/src/error/tests.rs	crate	source-complete	facade-standards-remedy-handoff.json#/historical_complete_read_anchors; facade-standards-remedy-independent-review-77501b73.json#/source_records/1
 crates/phantom/src/header_hook.rs	crate	source-complete	client-remaining-coverage.json#crates/phantom/src/header_hook.rs | docs-contract-coverage.json#crates/phantom/src/header_hook.rs
 crates/phantom/src/lib.rs	crate	source-complete	canonical-api-signed-rebind.json#/rebind_records/62; facade-error-response-template-standards-review-c485de7f.json#/source_records/1; full manual owner read, current bytes unchanged; supported standards remedy pending
 crates/phantom/src/link.rs	crate	source-complete	client-public-stream-continuation-coverage.json#crates/phantom/src/link.rs
@@ -549,7 +552,7 @@ crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs	crate	pending	discove
 crates/phantom/tests/http3/alt_svc_pinned/route_contract.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/http3/alt_svc_race.rs	crate	pending	
 crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs	source	pending	continued-source-review-reconciliation.json#/discovered_rows/5
-crates/phantom/tests/http3/connect_udp.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/2; masque-boundary-standards-review.json#/source_reads/7
+crates/phantom/tests/http3/connect_udp.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/2; masque-boundary-standards-review.json#/source_reads/7; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/0
 crates/phantom/tests/http3/http2_fallback.rs	crate	pending	client-http3-integration-standards-review.json#/source_records/9
 crates/phantom/tests/http3/http2_fallback/socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/5
 crates/phantom/tests/http3/http3.rs	crate	pending	
@@ -580,7 +583,7 @@ crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	pending
 crates/phantom/tests/proxies/proxy_field_order.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	pending	
-crates/phantom/tests/proxies/socks5.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/3
+crates/phantom/tests/proxies/socks5.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/1
 crates/phantom/tests/proxies/socks5/auth.rs	crate	pending	masque-boundary-standards-review.json#/source_reads/9
 crates/phantom/tests/proxies/socks5_local.rs	crate	pending	
 crates/phantom/tests/requests/client.rs	crate	pending	
@@ -656,10 +659,10 @@ crates/phantom/tests/streams/sse_browser_reconnect.rs	crate	pending
 crates/phantom/tests/streams/websocket.rs	crate	pending	
 crates/phantom/tests/streams/websocket/adversarial.rs	crate	pending	
 crates/phantom/tests/streams/websocket/compression.rs	crate	pending	
-crates/phantom/tests/streams/websocket/routing.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/0; integration-support-independent-review-corrected.json#/source_records/7
+crates/phantom/tests/streams/websocket/routing.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/0; integration-support-independent-review-corrected.json#/source_records/7; client-websocket-upgrade-test-standards-review-0b2debbef0.json#/source_records/2
 crates/phantom/tests/streams/websocket_handshake.rs	crate	pending	
 crates/phantom/tests/streams/websocket_http2.rs	crate	pending	
-crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	source-partial	integration-support-standards-review.json#/selected_caller_records/1; integration-support-independent-review-corrected.json#/source_records/6
+crates/phantom/tests/streams/websocket_http2_proxy.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/1; integration-support-independent-review-corrected.json#/source_records/6; client-websocket-upgrade-test-standards-review-0b2debbef0.json#/source_records/3
 crates/phantom/tests/streams/websocket_http3.rs	crate	pending	integration-support-independent-review-corrected.json#/source_records/9
 crates/phantom/tests/streams/websocket_http3/origin.rs	crate	pending	
 crates/phantom/tests/streams/websocket_profile.rs	crate	pending	
@@ -673,14 +676,14 @@ crates/phantom/tests/support/ech.rs	crate	source-complete	integration-support-st
 crates/phantom/tests/support/h2.rs	crate	source-complete	integration-support-standards-review.json#/records/3; integration-support-independent-review-corrected.json#/source_records/5
 crates/phantom/tests/support/h3.rs	crate	source-complete	integration-support-standards-review.json#/records/4; client-http3-integration-standards-review.json#/source_records/6; masque-boundary-standards-review.json#/source_reads/1; alt-svc-race-fixture-repair-handoff.json#/source_records/2
 crates/phantom/tests/support/http3_upgrade.rs	crate	source-complete	integration-support-standards-review.json#/records/5; masque-boundary-standards-review.json#/source_reads/4; alt-svc-race-fixture-repair-handoff.json#/source_records/8; h3-upgrade-owner-remedy-independent-review-d89883df.json#/source_records/0; complete 1173-line remedy owner read; upgrade-cache-remedy-native-independent-addendum-2b4a401b.json
-crates/phantom/tests/support/http3_upgrade/owner_results.rs	crate	source-partial	discovery only; manual review pending; h3-upgrade-owner-conditional-independent-review-c76d8918.json#/source_records/0; current changed helper read remains partial; upgrade-cache-remedy-native-independent-addendum-2b4a401b.json
+crates/phantom/tests/support/http3_upgrade/owner_results.rs	crate	source-complete	discovery only; manual review pending; h3-upgrade-owner-conditional-independent-review-c76d8918.json#/source_records/0; current changed helper read remains partial; upgrade-cache-remedy-native-independent-addendum-2b4a401b.json; client-websocket-upgrade-test-standards-review-0b2debbef0.json#/source_records/1
 crates/phantom/tests/support/http3_upgrade/worker_results.rs	crate	source-complete	discovery only; manual review pending; h3-upgrade-worker-regression-independent-review-99c49231.json#/source_records/0; complete 383-line control read, unchanged through native 2b; upgrade-cache-remedy-native-independent-addendum-2b4a401b.json
 crates/phantom/tests/support/masque.rs	crate	pending	h3-masque-composed-independent-review.json#/source_records/0
 crates/phantom/tests/support/masque/h3_ownership_controls.rs	source	source-complete	h3-masque-remedy-independent-review.json#/source_records/2; h3-masque-registration-rebind.json#/source_records/2; h3-masque-composed-independent-review.json#/source_records/1; h3-masque-remediation.json#/source_reads/3
 crates/phantom/tests/support/shared_port.rs	crate	source-complete	integration-support-standards-review.json#/records/7; client-http3-integration-standards-review.json#/source_records/7; masque-boundary-standards-review.json#/source_reads/2
-crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8; masque-boundary-standards-review.json#/source_reads/3
+crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8; masque-boundary-standards-review.json#/source_reads/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/2
 crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-support-standards-review.json#/records/9; client-http3-integration-standards-review.json#/source_records/10
-crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4
+crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/3
 crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/11; h3-early-fixture-independent-review.json#/source_records/7
 crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-support-standards-review.json#/records/12
 crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	pending	discovery only; manual review pending
@@ -970,18 +973,42 @@ docs\internals\architecture-audit\cache-test-readiness-release-independent-follo
 docs\internals\architecture-audit\cache-test-readiness-release-independent-followup-bdb07168.md.txt	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\cache-test-readiness-remediation-bdb07168.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\cache-test-readiness-remediation-bdb07168.md.txt	documentation	pending	discovery only; report content review and final disposition pending
+docs\internals\architecture-audit\client-websocket-upgrade-independent-disposition-96ee6074.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\client-websocket-upgrade-independent-disposition-96ee6074.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\client-websocket-upgrade-test-standards-review-0b2debbef0.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\client-websocket-upgrade-test-standards-review-0b2debbef0.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\direct-tcp-category-ledger-independent-review-7af60ef1.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\direct-tcp-category-ledger-independent-review-7af60ef1.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
 docs\internals\architecture-audit\evidence-attributes-independent-review-b1687d15.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\evidence-attributes-independent-review-b1687d15.md.txt	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\evidence-attributes-remediation-2b4a401b.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\evidence-attributes-remediation-2b4a401b.md.txt	documentation	pending	discovery only; report content review and final disposition pending
+docs\internals\architecture-audit\facade-api-native-independent-addendum-96ee6074.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\facade-api-native-independent-addendum-96ee6074.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\facade-api-native-root-7af60ef1.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\facade-api-native-root-7af60ef1.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
 docs\internals\architecture-audit\facade-error-response-template-standards-review-c485de7f.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\facade-error-response-template-standards-review-c485de7f.md.txt	documentation	pending	discovery only; report content review and final disposition pending
+docs\internals\architecture-audit\facade-standards-remedy-handoff.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\facade-standards-remedy-handoff.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\facade-standards-remedy-independent-review-77501b73.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\facade-standards-remedy-independent-review-77501b73.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
 docs\internals\architecture-audit\fixture-evidence-import-independent-review-c485de7f.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\fixture-evidence-import-independent-review-c485de7f.md.txt	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\h2-connection-driver-standards-review-c485de7f.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\h2-connection-driver-standards-review-c485de7f.md.txt	documentation	pending	discovery only; report content review and final disposition pending
+docs\internals\architecture-audit\h2-peer-baseline-native-root-ba6e60c3.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\h2-peer-baseline-native-root-ba6e60c3.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\h2-peer-completion-baseline-a1df13f2.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\h2-peer-completion-baseline-a1df13f2.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\h2-peer-completion-baseline-independent-review-a1df13f2.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\h2-peer-completion-baseline-independent-review-a1df13f2.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
 docs\internals\architecture-audit\h3-upgrade-owner-remedy-independent-review-d89883df.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\h3-upgrade-owner-remedy-independent-review-d89883df.md.txt	documentation	pending	discovery only; report content review and final disposition pending
+docs\internals\architecture-audit\proxy-test-owner-independent-disposition-96ee6074.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\proxy-test-owner-independent-disposition-96ee6074.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\proxy-test-owner-root-standards-review-96ee6074.json	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
+docs\internals\architecture-audit\proxy-test-owner-root-standards-review-96ee6074.md.txt	documentation	pending	Retained evidence artifact; storage validation does not establish a new full content review
 docs\internals\architecture-audit\upgrade-cache-native-root-2b4a401b.json	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\upgrade-cache-native-root-2b4a401b.md.txt	documentation	pending	discovery only; report content review and final disposition pending
 docs\internals\architecture-audit\upgrade-cache-remedy-native-independent-addendum-2b4a401b.json	documentation	pending	discovery only; report content review and final disposition pending
@@ -1769,7 +1796,7 @@ vendor/http2/src/hpack/decoder.rs	vendor-boundary	source-partial	trailer-test-co
 vendor/http2/src/hpack/encoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/11
 vendor/http2/src/hpack/table.rs	vendor-boundary	pending	discovery only; manual review pending
 vendor/http2/src/proto/streams/recv.rs	vendor-boundary	source-partial	net-body-ownership-standards-review.json#/source_reads/28
-vendor/http2/src/proto/streams/streams.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/16; trailer-test-contract-review.json#/sources/10
+vendor/http2/src/proto/streams/streams.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/16; trailer-test-contract-review.json#/sources/10; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/7
 vendor/http2/src/server.rs	vendor-boundary	source-partial	integration-support-independent-review-corrected.json#/source_records/11; streaming-peer-remediation.json#/sources/5; streaming-peer-independent-review.json#/source_records/3
 vendor/http2/src/share.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/9; net-body-ownership-standards-review.json#/source_reads/29; streaming-peer-remediation.json#/sources/6; streaming-peer-independent-review.json#/source_records/4
 vendor/quinn-proto/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending

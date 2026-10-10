@@ -1,0 +1,11 @@
+Fresh root standards review at exact clean 96ee6074 covers all 1,476 lines of CONNECT-UDP integration tests and all 565 lines of remote-DNS SOCKS tests. Supporting SOCKS helpers were read in full (235 lines); TLS support and resolved Tokio JoinHandle source remain qualified partials. All repository bytes equal the earlier 7af candidate. Exact Git identities, complete read chunks, hashes and retained snapshots are in the paired JSON.
+
+CONNECTUDP-ORIGIN-F1: the origin listener does not retain spawned connection tasks or their response children. Drop aborts only the listener; /stall stays pending. H3 setup/accept/resolve errors are returned silently and response results are unobserved. Expected handshake rejection remains a deliberate test behavior and must be distinguished in the remedy. Drive actual stalled traffic and observe child destruction with the external client/runtime still alive before claiming runtime impact.
+
+SOCKS-PEER-F2: raw origin/proxy tasks can lose ownership on fallible setup, client error, assertion or outer cancellation; sequential join errors can skip the sibling outcome. Preserve actual remote-DNS CONNECT, literal request/host/port checks and HTTP/2 stream IDs while adding causal failure/cancellation controls and owned result collection.
+
+PROXY-DEADLINE-F3: both bounded wrappers and two CONNECT-UDP operation deadlines replace actual Elapsed with strings. Preserve existing limits and verify typed timer causes through the real polled paths, with typed-inner-error and success positives.
+
+CONNECTUDP-TRACE-F4: the zero-retry assertion accepts an empty trace vector. Require an actual recorded outcome; an absent observer must fail the same assertion. Import grouping and the capsule helper comment also need scoped cleanup: the assertion checks context/type and length, not an independent full Initial decode.
+
+Wire comparisons and error-category assertions remain useful independent oracles. Quiet observations are finite; endpoint closure and inner listener failures do not pass those assertions. Shared MASQUE owners were not freshly read here. This source pass executes no tests and establishes neither a measured task/OS leak nor a new production defect. New findings remain pending causal controls, repairs and independent review.

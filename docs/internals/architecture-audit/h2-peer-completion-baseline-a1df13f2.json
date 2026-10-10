@@ -1,0 +1,518 @@
+{
+  "schema_version": 1,
+  "finding": "A110 / H2-SUPPORT-CAUSE-F2 and supporting lifecycle ownership/cause gaps",
+  "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+  "base_revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+  "branch": "lane/audit-h2-peer-completion",
+  "worktree": "C:\\code\\phantom-worktrees\\audit-h2-peer-completion",
+  "owned_paths": [
+    "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+    "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+    "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+    "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "f653cdc490b86580985d2e34c7a8b763b3c75763",
+      "raw_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb",
+      "line_count": 123,
+      "read_classification": "full manual base owner read",
+      "review_role": "assigned owner; current full baseline read before extraction",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 123,
+          "raw_range_sha256": "e809fbcda96679657020b180145fe3860822d1ab3e61b69664cc66ef8e40bedb"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "7c2cd7d201c0026f1a9c2b0b86b693a20a13d3ba",
+      "raw_sha256": "8fb2bd2af8e00fb8f503a2b55f67abb21faadc87f747cd9f9be9c165b2597b67",
+      "line_count": 218,
+      "read_classification": "full manual base owner read",
+      "review_role": "assigned owner; current full baseline read before extraction",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 218,
+          "raw_range_sha256": "8fb2bd2af8e00fb8f503a2b55f67abb21faadc87f747cd9f9be9c165b2597b67"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "git_blob_oid": "56017e8f13ae7873cda2f6a1ca8cf411feb2efff",
+      "raw_sha256": "e771b573b37b9bb1119aa43cb7bc3b74c7a06e078dbdb3f5b3cbdeafe3617d85",
+      "line_count": 145,
+      "read_classification": "full manual base owner plus complete extraction/diff read; current whole-file identity qualification",
+      "review_role": "authored baseline source; no remedy or runtime approval",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 145,
+          "raw_range_sha256": "e771b573b37b9bb1119aa43cb7bc3b74c7a06e078dbdb3f5b3cbdeafe3617d85"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "git_blob_oid": "cb35f806bea778a084c8ce1d4bcc0c711c33744f",
+      "raw_sha256": "7641d6bc80725ea39205ab6989fbbd5df91261d346e79d376656e4ead4fcf47d",
+      "line_count": 242,
+      "read_classification": "full manual base owner plus complete extraction/diff read; current whole-file identity qualification",
+      "review_role": "authored baseline source; no remedy or runtime approval",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 242,
+          "raw_range_sha256": "7641d6bc80725ea39205ab6989fbbd5df91261d346e79d376656e4ead4fcf47d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "git_blob_oid": "64fc63af40ddeb71f3c21b5ebf236d4912ec629d",
+      "raw_sha256": "419c8b01db4894169fe39ebb218bf6631b3c0f6a491b9003084bb1d57b93b1d1",
+      "line_count": 336,
+      "read_classification": "full manual authored child source read",
+      "review_role": "authored baseline source; no remedy or runtime approval",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 336,
+          "raw_range_sha256": "419c8b01db4894169fe39ebb218bf6631b3c0f6a491b9003084bb1d57b93b1d1"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "git_blob_oid": "d21af19ad6b2083ea711d8e819610fe72ba1934f",
+      "raw_sha256": "76a00c4d07f0e8d3d81a6d90c841adb3cfd6f1a821c64a6b6bd6ee1993ff0d9a",
+      "line_count": 261,
+      "read_classification": "full manual authored child source read",
+      "review_role": "authored baseline source; no remedy or runtime approval",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 261,
+          "raw_range_sha256": "76a00c4d07f0e8d3d81a6d90c841adb3cfd6f1a821c64a6b6bd6ee1993ff0d9a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/driver_shutdown.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "276f3c3a83aa59dbba655db53e2d2fd9b329c1a7",
+      "raw_sha256": "7b05c76491765d56810ed6e70dcc7fda7d5a89abc6af8c020e31ba0efed1b5ee",
+      "line_count": 525,
+      "read_classification": "partial",
+      "review_role": "existing concrete peer/deadline/error or resolved backend support only",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 25,
+          "raw_range_sha256": "be734646b0b259466135edf7b3340416a013fb40224e5df4feb06bda116928a5"
+        },
+        {
+          "start_line": 264,
+          "end_line": 460,
+          "raw_range_sha256": "8a03cb7514b40cf4af7932b2361d44c2d89d643be5cf9451385d015cef9d219d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/http2/tests/request_body_early_response.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "94b2acef80ee90ab8b2b9dfee4420a4b5274b0a5",
+      "raw_sha256": "e1fad0306989f783c9deb9b8e157f4a9620f653b98c0f3c701b13ef4b5bedbcc",
+      "line_count": 338,
+      "read_classification": "partial",
+      "review_role": "existing concrete peer/deadline/error or resolved backend support only",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 121,
+          "end_line": 233,
+          "raw_range_sha256": "53efc2c91030630399a8c7cd564c11a61255f926b694251e593134be17b45467"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "raw_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "line_count": 1792,
+      "read_classification": "partial",
+      "review_role": "existing concrete peer/deadline/error or resolved backend support only",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1280,
+          "end_line": 1310,
+          "raw_range_sha256": "bf56b08bb0fc0b7aeba8f4765f51ce2d85f32328faf7769e04dca80804c91178"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "dadfc575dea15d42863693350dbc6407d7892217",
+      "raw_sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "line_count": 274,
+      "read_classification": "partial",
+      "review_role": "existing concrete peer/deadline/error or resolved backend support only",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 225,
+          "end_line": 270,
+          "raw_range_sha256": "4096ffbc23c413c45acf83cf4aa90a36033795d3e11f3c2726fef4e576779c94"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/frame/reason.rs",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "ff5e2012f80614900cd3ca32f62e4204f252d5c5",
+      "raw_sha256": "45b13202141b1d8b261d64624b276a9b034d8c3f7d9b6870ee41a204589f4e14",
+      "line_count": 134,
+      "read_classification": "partial",
+      "review_role": "existing concrete peer/deadline/error or resolved backend support only",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 115,
+          "end_line": 134,
+          "raw_range_sha256": "aa19d9851a515193a75f67d32bec4b59dadb99ed788f5cf90db0c6e5ce65dde3"
+        }
+      ]
+    },
+    {
+      "path": "scripts/dev/with-cargo-lock.sh",
+      "revision": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "git_blob_oid": "58b0e5fdda526ad6d37328fb87fc4207ac6a73dc",
+      "raw_sha256": "df011173d12785cceee0489768b7ecf91be390636f5996d8a4f6ba21e020b2fc",
+      "line_count": 86,
+      "read_classification": "partial",
+      "review_role": "existing concrete peer/deadline/error or resolved backend support only",
+      "source_basis": "exact committed Git bytes; inclusive ranges retain raw line endings",
+      "ranges": [
+        {
+          "start_line": 1,
+          "end_line": 80,
+          "raw_range_sha256": "c6eee52c9d21f8e7d0733ad265330d577cff9677cb9956d3d427639dfe39d04c"
+        }
+      ]
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "dependency": "tokio1.53.1",
+      "resolved_pin": "frozen Cargo.lock; no external fetch",
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_classification": "partial supporting API",
+      "git_blob_oid": null,
+      "ranges": [
+        {
+          "start_line": 10,
+          "end_line": 30,
+          "raw_range_sha256": "2c6b0065aaed5b482d019bc54ecb0d0c74d7c6b3bc3c426fa1a55065d9b9be3e"
+        },
+        {
+          "start_line": 350,
+          "end_line": 365,
+          "raw_range_sha256": "49d21ca4c97fc7ea2dd7949d0e257ba07ac9bbc67416188c742c1a5459a6b171"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/abort.rs",
+      "dependency": "tokio1.53.1",
+      "resolved_pin": "frozen Cargo.lock; no external fetch",
+      "raw_sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "line_count": 105,
+      "read_classification": "partial supporting API",
+      "git_blob_oid": null,
+      "ranges": [
+        {
+          "start_line": 35,
+          "end_line": 99,
+          "raw_range_sha256": "f1ad74a6882062235070e066fa89d17ec4dd2c545aaf43829c8b7f10fb9cf643"
+        }
+      ]
+    }
+  ],
+  "mechanical_extraction_proofs": [
+    {
+      "name": "complete run_peer",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "base": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "comparison_basis": "exact code bytes, excluding surrounding trailing whitespace",
+      "equal": true,
+      "original_segment_raw_sha256": "a99a85e2b1077ac3276ac66fee03af58c4d346835414f17f2b16a182b61417ff",
+      "current_segment_raw_sha256": "a99a85e2b1077ac3276ac66fee03af58c4d346835414f17f2b16a182b61417ff",
+      "original_projected_sha256": "84778828dc9b18757e4dce33b8a1211bf70a00759c4226f4f92decced80d3d7d",
+      "current_projected_sha256": "84778828dc9b18757e4dce33b8a1211bf70a00759c4226f4f92decced80d3d7d",
+      "qualification": "Projected identity is mechanical extraction proof, not silently normalized whole-file source identity."
+    },
+    {
+      "name": "original upload future",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "base": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "comparison_basis": "explicit indentation/blank-only projection",
+      "equal": true,
+      "original_segment_raw_sha256": "a4765a0288170bdde23d0f9f4ba8fad2dd592f65cc153bb84878afbf151be030",
+      "current_segment_raw_sha256": "f7df8fa3eae774a371fb270129e3c61290f76722614b44e90fec4b0ac6ad0d9b",
+      "original_projected_sha256": "f617416fc3e7679607b708cae3608ae07e7ac999d9f3e92a893d22cfbf7102f7",
+      "current_projected_sha256": "f617416fc3e7679607b708cae3608ae07e7ac999d9f3e92a893d22cfbf7102f7",
+      "qualification": "Projected identity is mechanical extraction proof, not silently normalized whole-file source identity."
+    },
+    {
+      "name": "original accepted/cancel/followup/join tail",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+      "base": "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+      "revision": "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+      "comparison_basis": "explicit indentation/blank-only projection",
+      "equal": true,
+      "original_segment_raw_sha256": "73ce11792a8c9532fc5f961c0f131bf95d27d4b58cb75136a50ac14a608d215d",
+      "current_segment_raw_sha256": "a0ff3a86fb8cf2b330fa73191128dc05407d970981d1918e11f47b370b8ac90c",
+      "original_projected_sha256": "7011bec55670d94616aab82a135e1578f3b3725b5bda5e7963eb8f4d91c022ca",
+      "current_projected_sha256": "7011bec55670d94616aab82a135e1578f3b3725b5bda5e7963eb8f4d91c022ca",
+      "qualification": "Projected identity is mechanical extraction proof, not silently normalized whole-file source identity."
+    },
+    {
+      "name": "literal assertion preserved",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "literal": "[(7, \"dropped\".to_owned())]",
+      "base_count": 2,
+      "current_count": 2,
+      "qualification": "Specific oracle retention, not a claim of identical full test bodies."
+    },
+    {
+      "name": "literal assertion preserved",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "literal": "origin_before + 1",
+      "base_count": 1,
+      "current_count": 1,
+      "qualification": "Specific oracle retention, not a claim of identical full test bodies."
+    },
+    {
+      "name": "literal assertion preserved",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "literal": "assert_eq!(other.response_body_polls_on_origin_dispatch(), other_before);",
+      "base_count": 1,
+      "current_count": 1,
+      "qualification": "Specific oracle retention, not a claim of identical full test bodies."
+    },
+    {
+      "name": "literal assertion preserved",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "literal": "assert_eq!(origin.connection_driver_events(), 1);",
+      "base_count": 1,
+      "current_count": 1,
+      "qualification": "Specific oracle retention, not a claim of identical full test bodies."
+    },
+    {
+      "name": "literal assertion preserved",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+      "literal": "assert_eq!(other.connection_driver_events(), 0);",
+      "base_count": 1,
+      "current_count": 1,
+      "qualification": "Specific oracle retention, not a claim of identical full test bodies."
+    }
+  ],
+  "new_controls": [
+    {
+      "name": "http2::tests::request_body_cancellation::completion_controls::accepted_channel_failure_keeps_recv_error_and_completed_peer_failure",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "declaration_line": 27,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual root204 and POST/path at zero receive window; peer finishes with tagged typed H2 fault before accepted publication. Extracted actual tail must retain typed RecvError plus completed peer marker913.",
+      "predicted_cause": "Current tail converts channel error to text and skips completed peer result.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::request_body_cancellation::completion_controls::a_reset_upload_keeps_the_original_http2_error",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "declaration_line": 56,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual root204 and POST then server RST_STREAM(INTERNAL_ERROR); original spawned upload must retain Http2Error and remote/reset/INTERNAL_ERROR H2 source.",
+      "predicted_cause": "Original upload maps Http2Error to String.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::request_body_cancellation::completion_controls::an_unreset_upload_keeps_the_actual_elapsed_cause",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "declaration_line": 87,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual root204/zero-window POST acceptance and retained pending upload; original run_peer reaches its real3-second reset deadline. Preserve actual Elapsed in source chain after cleanup.",
+      "predicted_cause": "Original peer replaces actual Elapsed with text. Upload completion error after peer closure is retained as cleanup, not silently accepted.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::request_body_cancellation::completion_controls::dropping_the_upload_observation_stops_both_driven_tasks",
+      "path": "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+      "declaration_line": 126,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual root204/POST accepted, still-pending upload; poll actual tail Pending behind held publication, Drop it while client/runtime live; both task destructors must finish within100ms. Abort/observe baseline cleanup before assertion.",
+      "predicted_cause": "Raw peer/upload JoinHandle Drop detaches both.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::completion_controls::a_primary_failure_observes_the_already_completed_peer_failure",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "declaration_line": 22,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual200, literal partial DATA, observed CANCEL and closed peer before tagged typed H2 failure; actual lifecycle completion must preserve original primary RecvError and peer marker913.",
+      "predicted_cause": "Actual extracted helper returns primary error before observing completed peer.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::completion_controls::dropping_lifecycle_observation_stops_a_peer_after_actual_partial_data",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "declaration_line": 70,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual200/partial DATA; poll actual completion Pending then Drop it while body/runtime remain live. Peer destruction within100ms; abort/observe cleanup before body Drop/assertion.",
+      "predicted_cause": "Raw lifecycle peer JoinHandle Drop detaches it.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::completion_controls::a_driver_telemetry_deadline_keeps_its_actual_elapsed_cause",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "declaration_line": 118,
+      "predicted_baseline": "negative",
+      "independent_contract": "Actual200/partial DATA/CANCEL/closed driver then query distinct empty subscriber through original1-second telemetry wait; source must retain actual Elapsed.",
+      "predicted_cause": "Original telemetry wait replaces Elapsed with text.",
+      "runtime_status": "not compiled or executed"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::completion_controls::a_completed_peer_http2_failure_is_observed_with_its_original_type",
+      "path": "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs",
+      "declaration_line": 156,
+      "predicted_baseline": "positive",
+      "independent_contract": "Actual200/literal partial DATA/CANCEL/closed peer, then tagged completed typed H2 fault; successful primary path must return original H2 source and INTERNAL_ERROR reason.",
+      "predicted_cause": "Existing successful-primary completion already joins peer and retains boxed typed error.",
+      "runtime_status": "not compiled or executed"
+    }
+  ],
+  "existing_controls": [
+    {
+      "name": "http2::tests::request_body_cancellation::cancelling_a_stalled_upload_resets_only_that_stream",
+      "predicted_baseline": "positive existing protocol/runtime/dispatcher oracle retained; no new runtime claim"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::incomplete_body_drop_flushes_reset_and_driver_closes",
+      "predicted_baseline": "positive existing protocol/runtime/dispatcher oracle retained; no new runtime claim"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::response_body_may_be_dropped_on_plain_thread",
+      "predicted_baseline": "positive existing protocol/runtime/dispatcher oracle retained; no new runtime claim"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::cross_thread_body_poll_uses_originating_dispatcher",
+      "predicted_baseline": "positive existing protocol/runtime/dispatcher oracle retained; no new runtime claim"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::cancelled_response_head_records_outcome_once",
+      "predicted_baseline": "positive existing protocol/runtime/dispatcher oracle retained; no new runtime claim"
+    },
+    {
+      "name": "http2::tests::driver_lifecycle::polling_outside_tokio_returns_runtime_unavailable",
+      "predicted_baseline": "positive existing protocol/runtime/dispatcher oracle retained; no new runtime claim"
+    }
+  ],
+  "predicted_counts": {
+    "new": 8,
+    "new_negative": 7,
+    "new_positive": 1,
+    "total_selected": 14,
+    "total_predicted_negative": 7,
+    "total_predicted_positive": 7
+  },
+  "signature": [
+    "a1df13f208d0d3bd71982f1e21a80e74246b9001",
+    "G",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "test(http2): expose lost peer completion and error causes",
+    ""
+  ],
+  "checks": [
+    {
+      "command": [
+        "rustfmt",
+        "--edition",
+        "2024",
+        "--check",
+        "crates/phantom-net/src/http2/tests/request_body_cancellation.rs",
+        "crates/phantom-net/src/http2/tests/driver_lifecycle.rs",
+        "crates/phantom-net/src/http2/tests/request_body_cancellation/completion_controls.rs",
+        "crates/phantom-net/src/http2/tests/driver_lifecycle/completion_controls.rs"
+      ],
+      "cwd": "C:\\code\\phantom-worktrees\\audit-h2-peer-completion",
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-completion-baseline-a1df13f2-rustfmt.log",
+      "log_raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_read": "full"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "2b4a401bd85379dbf9a0a1f027efb440f9106b29",
+        "a1df13f208d0d3bd71982f1e21a80e74246b9001"
+      ],
+      "cwd": "C:\\code\\phantom-worktrees\\audit-h2-peer-completion",
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-completion-baseline-a1df13f2-diff.log",
+      "log_raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_read": "full"
+    },
+    {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "C:\\code\\phantom-worktrees\\audit-h2-peer-completion",
+      "exit_code": 0,
+      "log": "C:\\code\\phantom\\target\\architecture-audit\\h2-peer-completion-baseline-a1df13f2-status.log",
+      "log_raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "output_read": "full"
+    }
+  ],
+  "root_command": "scripts/dev/with-cargo-lock.sh cargo nextest run -p phantom-net --all-targets --all-features --locked --no-fail-fast -E 'test(http2::tests::request_body_cancellation::) | test(http2::tests::driver_lifecycle::)'",
+  "phase": "baseline only; source frozen awaiting actual native red and independent review",
+  "limits": [
+    "No Cargo/build/runtime execution, production source edits, push, rebase or merge. All predicted counts require actual Windows/Linux execution.",
+    "Control task completion uses pinned AbortHandle.is_finished guarantee for destructor completion; this is not an observed original joined outcome after its handle was lost. Abort guards bound cleanup and request abort on unexpected test exits; explicit bounded completion precedes expected negative assertions.",
+    "100ms quiet observations are finite, after actual exchanges with client/body/runtime retained. No permanent OS/resource leak claim.",
+    "CompletedPeerFault is an intentionally injected typed sentinel after real protocol readiness, not an actual wire INTERNAL_ERROR/remote failure. Only the upload reset control sends actual RST_STREAM and requires remote/reset classification.",
+    "Error::source is linear: simultaneous-cause canaries independently check primary RecvError and exact tagged peer diagnostic. Typed peer H2 source has a separate positive; final cleanup-type retention additionally requires independent source inspection of concrete aggregation.",
+    "Local-runtime shutdown in original plain-thread control remains a different enclosing ownership boundary; no permanent survival claim.",
+    "Source identities are exact raw Git bytes. Indentation projections prove named mechanical extractions only; supporting API reads remain partial, not vendor-wide review.",
+    "Original reset peer and literal upload/tail oracles are preserved; first lifecycle caller now captures primary result before equivalent early-return helper, not a completed-peer remedy. Remaining local/Tokio callers remain unfixed until native baseline."
+  ]
+}

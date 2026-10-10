@@ -1,0 +1,60 @@
+# H2 peer completion baseline
+
+Signed `a1df13f208d0d3bd71982f1e21a80e74246b9001`, parent `2b4a401bd85379dbf9a0a1f027efb440f9106b29`, branch `lane/audit-h2-peer-completion`. Baseline only; no Cargo or runtime execution.
+
+Eight new controls: seven predicted causal failures and one typed peer-error positive. With six retained original tests, the proposed selection is fourteen cases: seven predicted failures and seven positives. Predictions require native execution.
+
+Owned source: request_body_cancellation.rs, driver_lifecycle.rs, and one completion_controls child for each. Central tests.rs, production, docs and manifests unchanged. Driver lifecycle was manually read fully before extraction (218 lines); cancellation owner was read fully (123 lines). Existing ShutdownPeer and EarlyResponsePeer support reads informed cleanup, without introducing a shared owner framework.
+
+## Mechanical extraction
+
+- Complete original run_peer function unchanged.
+- Original spawned upload future and its stringifications preserved under explicit indentation projection.
+- Original accepted/cancel/task-cancellation/follow-up 204/join tail preserved under explicit indentation projection.
+- First lifecycle caller captures primary result and passes it to an equivalent early-return/peer-join helper; the early-path completion gap remains.
+- Three existing raw reset peer spawn sites route through a raw spawn seam. Local-runtime boundary remains unchanged.
+- Original telemetry wait and text mapping moved to a directly exercised helper.
+- Original dropped-body, dispatcher counts and literal partial/CANCEL/closed assertions remain. root status is additionally returned as a passive observation for controls.
+
+Each exact source identity/range and named extraction projection is recorded separately in JSON; no whole-file normalization is treated as source identity.
+
+## Predicted controls
+
+| Test | Prediction | Independent contract and cause |
+|---|---|---|
+| `http2::tests::request_body_cancellation::completion_controls::accepted_channel_failure_keeps_recv_error_and_completed_peer_failure` | negative | Actual root204 and POST/path at zero receive window; peer finishes with tagged typed H2 fault before accepted publication. Extracted actual tail must retain typed RecvError plus completed peer marker913. Current tail converts channel error to text and skips completed peer result. |
+| `http2::tests::request_body_cancellation::completion_controls::a_reset_upload_keeps_the_original_http2_error` | negative | Actual root204 and POST then server RST_STREAM(INTERNAL_ERROR); original spawned upload must retain Http2Error and remote/reset/INTERNAL_ERROR H2 source. Original upload maps Http2Error to String. |
+| `http2::tests::request_body_cancellation::completion_controls::an_unreset_upload_keeps_the_actual_elapsed_cause` | negative | Actual root204/zero-window POST acceptance and retained pending upload; original run_peer reaches its real3-second reset deadline. Preserve actual Elapsed in source chain after cleanup. Original peer replaces actual Elapsed with text. Upload completion error after peer closure is retained as cleanup, not silently accepted. |
+| `http2::tests::request_body_cancellation::completion_controls::dropping_the_upload_observation_stops_both_driven_tasks` | negative | Actual root204/POST accepted, still-pending upload; poll actual tail Pending behind held publication, Drop it while client/runtime live; both task destructors must finish within100ms. Abort/observe baseline cleanup before assertion. Raw peer/upload JoinHandle Drop detaches both. |
+| `http2::tests::driver_lifecycle::completion_controls::a_primary_failure_observes_the_already_completed_peer_failure` | negative | Actual200, literal partial DATA, observed CANCEL and closed peer before tagged typed H2 failure; actual lifecycle completion must preserve original primary RecvError and peer marker913. Actual extracted helper returns primary error before observing completed peer. |
+| `http2::tests::driver_lifecycle::completion_controls::dropping_lifecycle_observation_stops_a_peer_after_actual_partial_data` | negative | Actual200/partial DATA; poll actual completion Pending then Drop it while body/runtime remain live. Peer destruction within100ms; abort/observe cleanup before body Drop/assertion. Raw lifecycle peer JoinHandle Drop detaches it. |
+| `http2::tests::driver_lifecycle::completion_controls::a_driver_telemetry_deadline_keeps_its_actual_elapsed_cause` | negative | Actual200/partial DATA/CANCEL/closed driver then query distinct empty subscriber through original1-second telemetry wait; source must retain actual Elapsed. Original telemetry wait replaces Elapsed with text. |
+| `http2::tests::driver_lifecycle::completion_controls::a_completed_peer_http2_failure_is_observed_with_its_original_type` | positive | Actual200/literal partial DATA/CANCEL/closed peer, then tagged completed typed H2 fault; successful primary path must return original H2 source and INTERNAL_ERROR reason. Existing successful-primary completion already joins peer and retains boxed typed error. |
+
+## Existing positive selection
+
+- `http2::tests::request_body_cancellation::cancelling_a_stalled_upload_resets_only_that_stream`
+- `http2::tests::driver_lifecycle::incomplete_body_drop_flushes_reset_and_driver_closes`
+- `http2::tests::driver_lifecycle::response_body_may_be_dropped_on_plain_thread`
+- `http2::tests::driver_lifecycle::cross_thread_body_poll_uses_originating_dispatcher`
+- `http2::tests::driver_lifecycle::cancelled_response_head_records_outcome_once`
+- `http2::tests::driver_lifecycle::polling_outside_tokio_returns_runtime_unavailable`
+
+## Verification
+
+Targeted direct rustfmt and Git diff check pass. Clean lane status after signed checkpoint passes. Exact four touched paths and human author/committer with signature G verified. Every static output read. Stage LF-to-CRLF notices are supported Git working-file conversion notifications, not compiler/test results. No compiler, Clippy, Cargo or native result claimed.
+
+## Root execution
+
+Run the paired JSON command through the Cargo lock on the exact composed candidate, independently on Windows and Linux. Read full compiler and test outputs; expected red is not permission to ignore unrelated failures, warnings or leaked task/process diagnostics. Stop before remedy until native baseline confirms the intended cases.
+
+## Limits
+
+- No Cargo/build/runtime execution, production source edits, push, rebase or merge. All predicted counts require actual Windows/Linux execution.
+- Control task completion uses pinned AbortHandle.is_finished guarantee for destructor completion; this is not an observed original joined outcome after its handle was lost. Abort guards bound cleanup and request abort on unexpected test exits; explicit bounded completion precedes expected negative assertions.
+- 100ms quiet observations are finite, after actual exchanges with client/body/runtime retained. No permanent OS/resource leak claim.
+- CompletedPeerFault is an intentionally injected typed sentinel after real protocol readiness, not an actual wire INTERNAL_ERROR/remote failure. Only the upload reset control sends actual RST_STREAM and requires remote/reset classification.
+- Error::source is linear: simultaneous-cause canaries independently check primary RecvError and exact tagged peer diagnostic. Typed peer H2 source has a separate positive; final cleanup-type retention additionally requires independent source inspection of concrete aggregation.
+- Local-runtime shutdown in original plain-thread control remains a different enclosing ownership boundary; no permanent survival claim.
+- Source identities are exact raw Git bytes. Indentation projections prove named mechanical extractions only; supporting API reads remain partial, not vendor-wide review.
+- Original reset peer and literal upload/tail oracles are preserved; first lifecycle caller now captures primary result before equivalent early-return helper, not a completed-peer remedy. Remaining local/Tokio callers remain unfixed until native baseline.

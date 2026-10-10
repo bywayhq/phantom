@@ -1,0 +1,7 @@
+Approve documentation-only 7af60ef1359fe3f0f5afa53ff42233be764e4011 with no actionable finding.
+
+The direct TCP wording matches current committed source. Ordinary resolver and dial failures share DirectConnectError::Connect; profiled/source-bound TCP and HTTPS-record direct address lookup use the same map. H1, H2 and negotiated TLS conversions retain that category and the facade reports RequestErrorKind::Connect. HTTP/3 origin lookup and local SOCKS5 target lookup have separate Resolve constructors and facade mappings. This applies even when direct TCP uses an explicitly configured resolver; the distinction is the reporting path, not the resolver's provenance.
+
+The commit changes only CHANGELOG.md and A111/A112 ledger wording. Category mapping and retry behavior are unchanged. All three facade remedy files are byte-equal to approved 77501b73; both H2 paragraph files are byte-equal to approved 0a5db8a2. The ledger accurately records the twenty-test move and twenty blank-line additions while retaining pending native checks and final gates.
+
+The paired JSON retains exact committed source OIDs, raw SHA256 values, line totals and inclusive partial ranges for the caller/error trace. No new full owner source coverage is claimed. Good human signature and whitespace checks pass. No Cargo, test execution, network or tracked edits occurred. Running native/API jobs were not inspected or approved. The integration owner retains documentation checks and the applicable final gate.

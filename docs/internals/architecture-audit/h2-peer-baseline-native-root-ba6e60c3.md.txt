@@ -1,0 +1,3 @@
+Both exact ba6e60c3 native runners are terminal. Each host runs fourteen selected H2 tests: seven pass and seven fail. Only four failures reach the intended assertions; accepted-channel, lifecycle-Drop and unreset-deadline controls are masked by a Store cleanup panic. Formatting, focused strict Clippy and Rust 1.88 pass on both hosts.
+
+The complete separate Windows diagnostic traces all three masked failures through client ConnectionInner::drop at connection.rs1206, including lifecycle body lease Drop243. This identifies the observed cleanup path without proving a server destructor cause or production defect. Original logs and failed candidates remain immutable. Baseline corrections, verified remedies and final workspace/platform gates remain required.

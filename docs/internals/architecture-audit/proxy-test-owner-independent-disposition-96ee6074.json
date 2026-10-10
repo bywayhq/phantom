@@ -1,0 +1,353 @@
+{
+  "schema_version": 1,
+  "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+  "verdict": "Four reported failure/oracle findings independently supported. Preserve original report and corrected timer locations.",
+  "original_report": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074.md",
+      "raw_sha256": "b7ebcf413075b7bdf4bbb1a5c929e4909debf474c1f08ee17137f88c88b4f52e",
+      "read_scope": "full prose and finding/source/limit fields manually reviewed; all identities/ranges validated"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074.json",
+      "raw_sha256": "b267a0054456c659de92c71d725907d5325428fcb2a94252cbd4948141438d40",
+      "read_scope": "full prose and finding/source/limit fields manually reviewed; all identities/ranges validated"
+    }
+  ],
+  "reported_source_validation": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob": "b729c9dc454f4872f2a12dd0e7d69c52a6af8336",
+      "sha256": "0a6b7ac177759b8f0638e650b9ea017004df58d712d1f22dd8897bb8e4fdbf53",
+      "line_count": 1476,
+      "read_ranges": [
+        [
+          1,
+          245
+        ],
+        [
+          246,
+          500
+        ],
+        [
+          501,
+          770
+        ],
+        [
+          771,
+          1045
+        ],
+        [
+          1046,
+          1290
+        ],
+        [
+          1291,
+          1476
+        ]
+      ],
+      "role": "fresh complete owned source",
+      "retained_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074-source\\crates__phantom__tests__http3__connect_udp.rs",
+      "equal_to_prior_7af": true,
+      "range_sha256": [
+        "4a48e5b70bfbe24b7ae16b775ce72dd570be9c88c94632efa38837c2f029079f",
+        "8e72f860736a25e3a6f5b56537c77593da24ae056db3ceb7bd592c9cf4efc220",
+        "7c3faff1588716e29454c48a9e6706cf77567d4cd8b41a11a31da4e788e6073b",
+        "d878c6271bc93eb9195ac43721d81e9f5708a8b19c7d8b4da49ccb4c7bcb1319",
+        "84bd61c3edd57421569782e6f4a7f1b03329e4a563aeb5b4892cbabe6704e45d",
+        "9057791d46079230d34c44cacd39fc8015b87ebd4ddf76dc99259604dafcfc13"
+      ],
+      "validation_scope": "raw identity/ranges and retained snapshot only; original full/partial attribution preserved"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob": "2ed1f131a488366511cb934e70b1bb83414ec4a9",
+      "sha256": "a3e30117ba41db0b808ba86778c26bcb22c2a0a3165030950a299fa5cfa06e85",
+      "line_count": 565,
+      "read_ranges": [
+        [
+          1,
+          285
+        ],
+        [
+          286,
+          565
+        ]
+      ],
+      "role": "fresh complete owned source",
+      "retained_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074-source\\crates__phantom__tests__proxies__socks5.rs",
+      "equal_to_prior_7af": true,
+      "range_sha256": [
+        "592c9bd99e0ee89d40cda9924782c0c4a31e5b084ac1fc4ba755a5692a49f7ad",
+        "7d1ed84606f436322296a4d0c1c12d7eeb9362e24e5f90f7acb04010b3ac2bf7"
+      ],
+      "validation_scope": "raw identity/ranges and retained snapshot only; original full/partial attribution preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "role": "fresh complete supporting source",
+      "retained_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074-source\\crates__phantom__tests__support__socks5.rs",
+      "equal_to_prior_7af": true,
+      "range_sha256": [
+        "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8"
+      ],
+      "validation_scope": "raw identity/ranges and retained snapshot only; original full/partial attribution preserved"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "role": "fresh partial supporting source",
+      "retained_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074-source\\crates__phantom__tests__support__tls.rs",
+      "equal_to_prior_7af": true,
+      "range_sha256": [
+        "b208b5c48dbc01cf96f405ebec628975da391ebc446ce591e8a57b1769b90c8a"
+      ],
+      "validation_scope": "raw identity/ranges and retained snapshot only; original full/partial attribution preserved"
+    }
+  ],
+  "independent_source_records": [
+    {
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "b729c9dc454f4872f2a12dd0e7d69c52a6af8336",
+      "raw_sha256": "0a6b7ac177759b8f0638e650b9ea017004df58d712d1f22dd8897bb8e4fdbf53",
+      "line_count": 1476,
+      "read_classification": "partial independent finding and caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 38,
+          "raw_range_sha256": "6683547531f60b63c8bdc3f7e59ab741152a0552c5dfcb1afc9349011b259ee9"
+        },
+        {
+          "start_line": 503,
+          "end_line": 596,
+          "raw_range_sha256": "8f0c8f16f62763a2cb5195a1378ae649fbf7d89eff53008fb7e3a909c09426f4"
+        },
+        {
+          "start_line": 617,
+          "end_line": 652,
+          "raw_range_sha256": "44cee6e255cb7d0d483513239e75e2b76e35fee24101127b34dba60b35483df3"
+        },
+        {
+          "start_line": 1150,
+          "end_line": 1175,
+          "raw_range_sha256": "5fbeaa3e7fa428272d127cc4a94eee1b9a4d50ef65afe6d2fa6cad8f1009b622"
+        },
+        {
+          "start_line": 1225,
+          "end_line": 1384,
+          "raw_range_sha256": "2d90504c5c72e9919854f63dbcda4b1ec8c55d500ce202affa570eac86397813"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "2ed1f131a488366511cb934e70b1bb83414ec4a9",
+      "raw_sha256": "a3e30117ba41db0b808ba86778c26bcb22c2a0a3165030950a299fa5cfa06e85",
+      "line_count": 565,
+      "read_classification": "partial independent finding and caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 150,
+          "raw_range_sha256": "7008a714073d85aa2e1755e625a5334843f9ebd9cd2da367938e289c4fe23c2e"
+        },
+        {
+          "start_line": 220,
+          "end_line": 306,
+          "raw_range_sha256": "8cc7444d90c0d019097526a466b2d97cd2e10ed5ca70f18cc551032c2b0c793e"
+        },
+        {
+          "start_line": 358,
+          "end_line": 430,
+          "raw_range_sha256": "6cf598e4dfbb39b523a2a9de1e67ebfe7a812c715a813918a17bbbf581c9173e"
+        },
+        {
+          "start_line": 551,
+          "end_line": 565,
+          "raw_range_sha256": "d31965e0e85a03d737c6c1f25937045bbaf3c4599424f61bf1c33dc7447a49b0"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "raw_sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_classification": "partial independent finding and caller trace",
+      "read_ranges": [
+        {
+          "start_line": 1,
+          "end_line": 60,
+          "raw_range_sha256": "1a3a39fe23866ec5ca4a681dc56ed6ee22aacf5ebfab091d1ef215885a069e39"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tracing.rs",
+      "revision": "96ee60746b1fe741cf066014e650da63ec0d4588",
+      "blob_oid": "3fdc0f22d4bea7be78fe6aea6d0997d986ce577b",
+      "raw_sha256": "016749cd6b033dabbacbb6fff1af7dbd82e03ab4fa0b220a0cb5416076e21b18",
+      "line_count": 373,
+      "read_classification": "partial independent finding and caller trace",
+      "read_ranges": [
+        {
+          "start_line": 107,
+          "end_line": 123,
+          "raw_range_sha256": "f5684d8b1dac3a664b6d55327b48478b7cc4c32052310b59e6bef48a8134bae6"
+        },
+        {
+          "start_line": 242,
+          "end_line": 281,
+          "raw_range_sha256": "44a74894c1b0a5b8628ec5f63e260a6cb3d19600517fb874661c58bfbe2f8755"
+        },
+        {
+          "start_line": 353,
+          "end_line": 367,
+          "raw_range_sha256": "0799e66f543df5079bde175bb2123ce20f349b7269e794738dd82cda62417697"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "CONNECTUDP-ORIGIN-F1",
+      "verdict": "supported source finding, causal controls required",
+      "severity": "major",
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "lines": [
+        1273,
+        1306
+      ],
+      "related_lines": [
+        [
+          1340,
+          1356
+        ]
+      ],
+      "contract": "Origin must own accepted connection/response work and observe completed failures through normal and exceptional cleanup.",
+      "cause": "Both connection and response JoinHandles are discarded. Origin Drop aborts only listener. Incoming/H3 setup and resolve_request failures return without result, accept errors terminate the while loop, response Result is never observed. A /stall future is permanently Pending by design until its owner drops it.",
+      "remedy": "Concrete lexical/JoinSet ownership through bootstrap, accept and responses; bounded explicit result collection and Drop cancellation. Classify deliberate untrusted handshake rejection narrowly, retain other actual child errors.",
+      "repro": "Actual authenticated /stall partial DATA first, retain live client/runtime externally, then cancel/drop owner and observe child destruction plus socket/connection behavior. Actual typed child error and clean exchange controls required.",
+      "qualification": "No currently measured surviving task or OS socket leak; endpoint/client destruction may terminate some detached work. A pending response future still requires ownership, even when the underlying connection closes."
+    },
+    {
+      "id": "SOCKS-PEER-F2",
+      "verdict": "supported source finding, causal controls required",
+      "severity": "major",
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "lines": [
+        26,
+        140
+      ],
+      "related_lines": [
+        [
+          230,
+          293
+        ],
+        [
+          367,
+          425
+        ]
+      ],
+      "contract": "Origin and proxy peers remain owned before all fallible setup/client steps and both outcomes are observed.",
+      "cause": "Raw spawned handles detach on early ?/unwind/outer deadline. First origin.await?? or literal assertion before proxy await can skip typed proxy result. Supporting forward_one_socks5 propagates actual copy_bidirectional error, so completed failures are meaningful.",
+      "remedy": "Use concrete cancellation ownership and collect all primary/peer outcomes, preserving remote DNS, IDNA, literal host/port/request and H2 stream1/3 assertions.",
+      "repro": "Actual SOCKS handshake/request with external retained client and destruction signal; completed two-error controls must prove both typed failures survive.",
+      "qualification": "Runtime shutdown or dropped client can eventually end detached work; no permanent leak or changed production routing asserted."
+    },
+    {
+      "id": "PROXY-DEADLINE-F3",
+      "verdict": "supported source finding; correct the first reported source location",
+      "severity": "major",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/http3/connect_udp.rs",
+          "ranges": [
+            [
+              577,
+              579
+            ],
+            [
+              629,
+              638
+            ],
+            [
+              1239,
+              1246
+            ]
+          ]
+        },
+        {
+          "path": "crates/phantom/tests/proxies/socks5.rs",
+          "ranges": [
+            [
+              558,
+              565
+            ]
+          ]
+        }
+      ],
+      "cause": "All four actual timeout paths use map_err(|_| fixed string), erasing Elapsed. Durations remain origin TEST_TIMEOUT10seconds, CONNECT-UDP bounded30seconds, SOCKS bounded5seconds.",
+      "remedy": "Retain actual typed Elapsed directly or in concrete contextual error without changing duration/inner result.",
+      "repro": "Poll each actual wrapper/path before expiry, retain success and unrelated typed inner-error positives.",
+      "report_location_note": "Original first range582-585 checks the resulting error category/reopen; the actual map is577-579. Original counter range635-645 includes map but corrected629-638 captures the full wait."
+    },
+    {
+      "id": "CONNECTUDP-TRACE-F4",
+      "verdict": "supported false-green oracle source finding",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/connect_udp.rs",
+      "lines": [
+        531,
+        547
+      ],
+      "cause": "New per-request subscriber returns Vec from currently recorded retry fields; iter().all(zero) accepts empty Vec. Proxy count1 and typed error independently prove traffic but do not prove the asserted retry trace was observed.",
+      "remedy": "Require at least one actual retry outcome before checking zero. Prefer exact literal observation vector if the event contract is singular; otherwise explicit nonempty+allzero.",
+      "repro": "Same assertion with actual subscribed terminal request and deliberately absent subscriber; absence must fail.",
+      "qualification": "This does not establish actual incorrect retries or a broken observer in current execution; it proves the existing assertion accepts zero observations."
+    }
+  ],
+  "metadata_finding": {
+    "severity": "minor",
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\proxy-test-owner-root-standards-review-96ee6074.json",
+    "key": "findings/2/ranges_by_path/crates/phantom/tests/http3/connect_udp.rs/0",
+    "problem": "Recorded582-585 does not contain the first timeout erasure; actual location577-579.",
+    "resolution": "Correct location retained in this append-only disposition; original unchanged. Full reported owner coverage still includes it."
+  },
+  "standards_assessment": [
+    "Local helper imports precede std/external in both owners; scoped grouping cleanup supported.",
+    "Capsule comment claims a full inner Initial but helper asserts only capsule type/context, nonempty first entry and length greater than1200. Narrow the comment to those observations; no independent packet decode claim.",
+    "No arbitrary file/crate split or new shared framework justified."
+  ],
+  "coverage_assessment": "The root report records complete2041-line two-owner reads and complete235-line supporting SOCKS helper; partial TLS and Tokio remain qualified. Exact ranges/hashes/snapshots validate. Independent finding trace here is partial, not a fresh full two-owner read or automatic coverage promotion.",
+  "limitations": [
+    "No Cargo, network, fixture launches, baseline execution, tracked edits or remedy approval here.",
+    "No production defect, measured host leak, permanent OS leak, new browser measurement or whole-audit approval.",
+    "Shared MASQUE implementation not freshly fully read; new findings do not reopen previously approved MASQUE ownership changes."
+  ]
+}

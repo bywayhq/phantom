@@ -1,0 +1,605 @@
+{
+  "kind": "bounded read-only complete four-owner standards and test-oracle pass",
+  "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+  "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+  "recorded_at_utc": "2026-10-10T05:10:14.056621+00:00",
+  "source_records": [
+    {
+      "path": "crates/phantom/src/client/tests.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "sha256": "5d2da430d363d1c3f57ef1ea6151757d6815bc3004dbe04f760b866455406c12",
+      "line_count": 388,
+      "read_ranges": [
+        [
+          1,
+          388
+        ]
+      ],
+      "read_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "4e2146581051c39b9992cb0839b98a916b37aaf5",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "5d2da430d363d1c3f57ef1ea6151757d6815bc3004dbe04f760b866455406c12",
+      "working_bytes_equal_after_crlf_normalization": true,
+      "retained_committed_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\client-websocket-upgrade-test-standards-review-0b2debbef0-source\\crates__phantom__src__client__tests.rs",
+      "test_names": [
+        "invalid_default_request_template_is_an_invalid_profile",
+        "connect_udp_proxy_connection_omits_resumption_additions",
+        "protocol_trace_names_match_negotiated_tokens",
+        "profile_tcp_settings_reach_every_tcp_connector",
+        "profile_udp_settings_reach_every_http3_connector",
+        "source_binding_reaches_every_connector",
+        "invalid_tcp_profile_has_invalid_profile_category",
+        "a_timer_idle_limit_beyond_firefox_range_is_an_invalid_profile",
+        "an_http2_idle_limit_outside_firefox_range_is_an_invalid_profile",
+        "keepalive_without_interval_is_an_invalid_profile_on_windows",
+        "idle_only_keepalive_builds_where_the_host_supports_it",
+        "invalid_proxy_root_has_trust_store_category",
+        "disabled_proxy_authentication_rejects_proxy_roots",
+        "https_proxy_requires_http1_in_the_tls_recipe",
+        "alt_svc_requires_negotiated_http1_or_2_and_http3"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "sha256": "1bd8b1114a32ec4f17f0041a148ab1c7c7534a2ce194bc433805db510c563ed7",
+      "line_count": 438,
+      "read_ranges": [
+        [
+          1,
+          438
+        ]
+      ],
+      "read_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "fcc3a1a046cb76b3dc181616c586c81b3088d71b",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "d8e64e18ef9cab04c6d4dc839d34c7ac15b56726a8e9de834672deb343f02fda",
+      "working_bytes_equal_after_crlf_normalization": true,
+      "retained_committed_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\client-websocket-upgrade-test-standards-review-0b2debbef0-source\\crates__phantom__tests__support__http3_upgrade__owner_results.rs",
+      "test_names": [
+        "finish_retains_two_distinct_completed_owner_failures",
+        "finish_retains_two_distinct_completed_origin_http3_failures",
+        "an_origin_failure_waits_for_its_driven_alternative_before_returning",
+        "an_alternative_failure_waits_for_driven_origin_http3_before_returning",
+        "an_origin_http3_failure_waits_for_its_driven_sibling_before_returning",
+        "a_single_owner_failure_remains_downcastable",
+        "a_successful_fixture_finish_preserves_the_actual_origin_request_count"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "sha256": "c99a8ca7f0d3595713aecd3a512d697bba5371678274437bbcb5950ca3272e9d",
+      "line_count": 1077,
+      "read_ranges": [
+        [
+          1,
+          1077
+        ]
+      ],
+      "read_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "09eed23b5459d722217dfc565fffab283ae4f2c2",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "8a34bbf46f03385368ff3ce3a72b83287afa9a644e0cd304876d8a15bdfa5f4f",
+      "working_bytes_equal_after_crlf_normalization": true,
+      "retained_committed_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\client-websocket-upgrade-test-standards-review-0b2debbef0-source\\crates__phantom__tests__streams__websocket__routing.rs",
+      "test_names": [
+        "plaintext_http_proxy_tunnels_ws_and_sends_the_direct_opening_inside",
+        "verified_https_proxy_tunnels_ws_without_origin_tls",
+        "https_proxy_basic_challenge_replays_on_the_challenged_connection_before_the_ws_tunnel",
+        "later_websocket_tunnels_send_remembered_proxy_credentials_first",
+        "proxy_basic_authentication_is_fresh_per_logical_websocket_when_not_remembered",
+        "configured_basic_is_not_preemptively_sent_or_retried_after_an_open_tunnel",
+        "caller_proxy_authorization_is_rejected_before_proxy_io",
+        "oversized_ws_opening_is_rejected_before_proxy_io",
+        "malformed_proxy_basic_challenge_has_no_direct_fallback",
+        "supported_non_basic_proxy_challenge_is_rejected_without_retry",
+        "second_proxy_basic_challenge_is_terminal_without_fallback",
+        "unauthenticated_407_to_ws_connect_fails_without_retry_or_direct_fallback",
+        "origin_rejection_inside_a_ws_tunnel_is_returned_with_its_body",
+        "connects_through_http_connect_without_origin_fallback",
+        "basic_proxy_challenge_reconnects_before_websocket_upgrade",
+        "connects_through_verified_https_proxy",
+        "rejected_connect_never_opens_a_direct_websocket_connection",
+        "stream_sink_split_supports_concurrent_message_io"
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "064a1fe419e64c6b1e122f2752b7cd246188d6c0",
+      "sha256": "1aa2f04f7e4dd35b2500216dc3a2026df4fe66151a95d9a733caddf09e8fd582",
+      "line_count": 756,
+      "read_ranges": [
+        [
+          1,
+          756
+        ]
+      ],
+      "read_scope": "fresh complete manual standards and observable-contract read; all lines read in bounded tool chunks",
+      "role": "first-party owned source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "064a1fe419e64c6b1e122f2752b7cd246188d6c0",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "1aa2f04f7e4dd35b2500216dc3a2026df4fe66151a95d9a733caddf09e8fd582",
+      "working_bytes_equal_after_crlf_normalization": true,
+      "retained_committed_snapshot": "C:\\code\\phantom\\target\\architecture-audit\\client-websocket-upgrade-test-standards-review-0b2debbef0-source\\crates__phantom__tests__streams__websocket_http2_proxy.rs",
+      "test_names": [
+        "h2_websocket_over_http_connect_exchanges_messages",
+        "h2_websocket_over_https_connect_basic_challenge_replays_once",
+        "h2_websocket_over_h2_proxy_transport_exchanges_messages",
+        "h2_websocket_over_socks5_local_and_remote_dns",
+        "h2_websocket_proxy_failure_never_falls_back",
+        "h2_websocket_over_proxy_requires_peer_setting",
+        "plaintext_ws_over_h2_rejected_before_io",
+        "h2_websocket_rejects_connect_udp_route_before_io",
+        "http1_websocket_over_h2_proxy_transport_exchanges_messages",
+        "plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream",
+        "plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connection",
+        "h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connection",
+        "plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields"
+      ]
+    }
+  ],
+  "supporting_source_records": [
+    {
+      "path": "crates/phantom/tests/streams/websocket.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "960c76a8b3d733350da8bb47643b4eafd0aa5538",
+      "sha256": "8d8cd9044248bffb2b7dfe68d0e0845853905d845975751a1e674917957c467b",
+      "line_count": 434,
+      "read_ranges": [
+        [
+          1,
+          130
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "960c76a8b3d733350da8bb47643b4eafd0aa5538",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "76222941070e65a46894153348ffc5024050e28f9f36f6ff8fcb9454671215b7",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "sha256": "88f0056dbf259d7bfd27c96acd379546717addee2e6197073a32167f4b751609",
+      "line_count": 194,
+      "read_ranges": [
+        [
+          1,
+          35
+        ],
+        [
+          105,
+          163
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "fe069db945eff9527ebb61aad9fb2b8e84c45b83",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "d276a9143f84d50ad1258a8d74635f8a35e53168e91276653044bd3eacfae83c",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          1,
+          125
+        ],
+        [
+          270,
+          332
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "9214cd09d5a1bc58298f8527125409aa5503f409e14141af3a3731d9b72fb2d8",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "sha256": "afb2dc0e7091e241a0fabc6e54e2adc9b2bf3709ac8dd38b922df6045d4b1e6b",
+      "line_count": 256,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "b1d0aa889e2489c4fa523e403b432e5d66f20812",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "3dfa55228a3c96283cdb36cd0a1dea6654dd25d21d4ba1b0a9c5945e7234363a",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/http3_upgrade.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "sha256": "5cbf3e67f88ffcbaf8c1957c8782faffdd800f3026e7d362177d26d0f6bcb34b",
+      "line_count": 1173,
+      "read_ranges": [
+        [
+          407,
+          515
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "2710670dfb5a9031be79483c239c1f2a63b78ae6",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "1afc1f9cc3a54c2d293ba63b2b71d8ee0b1a0190ebd8409f4eb7ba7dd990d85f",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/websocket_origin.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "sha256": "c0a29cc700e6d210ef1dfc141d9f33cf8621427116eb24aa30ee9b7c1ab0bb21",
+      "line_count": 655,
+      "read_ranges": [
+        [
+          1,
+          35
+        ],
+        [
+          126,
+          227
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "7ac606bf09abd120bf980d25ec9403f9cfa532f1",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "650846b88be7563c7df9783ccb73687148736af8e072c0fd839ba8077b7c52a3",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/client.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "line_count": 2362,
+      "read_ranges": [
+        [
+          277,
+          322
+        ],
+        [
+          1950,
+          2040
+        ],
+        [
+          2079,
+          2140
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "5a826afc0b7a8527faa58b8d70b6133fd3f8712a",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "9ce5b0f71bcc6db9dcc1873010b2d5a2754508d6ad6384061e9f1705162eae8f",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/src/websocket/http2.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "13834dd8df82657efd452c4e422823848d694439",
+      "sha256": "5d55775aa3d4d96d4933eb8b7a90a90c6374876411f70015d83b5344388c283f",
+      "line_count": 522,
+      "read_ranges": [
+        [
+          222,
+          255
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "13834dd8df82657efd452c4e422823848d694439",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "5d55775aa3d4d96d4933eb8b7a90a90c6374876411f70015d83b5344388c283f",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "read_ranges": [
+        [
+          28,
+          30
+        ],
+        [
+          75,
+          105
+        ]
+      ],
+      "read_scope": "fresh bounded supporting partial manual read only",
+      "role": "supporting first-party source",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "working_bytes_equal_after_crlf_normalization": true
+    }
+  ],
+  "metadata_records": [
+    {
+      "path": "Cargo.lock",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "line_count": 2772,
+      "read_ranges": [
+        [
+          2219,
+          2242
+        ]
+      ],
+      "read_scope": "bounded metadata/instruction read; no source semantic credit",
+      "role": "repository metadata",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "4cd3f1227e24b257f54a18b80610151b5281b79e",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "4a09e01fdce72ac9b23ab122a54d9706d994f06901549fc029b99a2552c28a26",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "line_count": 221,
+      "read_ranges": [
+        [
+          84,
+          124
+        ]
+      ],
+      "read_scope": "bounded metadata/instruction read; no source semantic credit",
+      "role": "repository metadata",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "head_bytes_equal": true,
+      "working_raw_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "working_bytes_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "0b2debbef0827f1253988b1d3911e18c06eb9910",
+      "git_blob": "1ae4ad2a1ae0cfe2f107f2375527afec6dd8acf9",
+      "sha256": "f28e2a3079974b51413b52bbe10cc2c4f2931de170f430630d6de584b2fc5e1c",
+      "line_count": 1009,
+      "read_ranges": [
+        [
+          73,
+          74
+        ],
+        [
+          96,
+          117
+        ]
+      ],
+      "read_scope": "bounded metadata/instruction read; no source semantic credit",
+      "role": "repository metadata",
+      "comparison_head": "7af60ef1359fe3f0f5afa53ff42233be764e4011",
+      "head_blob": "170ae5c9ff49b3b7ecad83650c920a3cc67a754a",
+      "head_bytes_equal": false,
+      "working_raw_sha256": "919085d67d2d305b0283e8280447d4555211282810e7490834be93e8472570bd",
+      "working_bytes_equal_after_crlf_normalization": false
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "resolved_package": "tokio-1.53.1",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "line_count": 377,
+      "read_ranges": [
+        [
+          1,
+          38
+        ],
+        [
+          357,
+          365
+        ]
+      ],
+      "read_scope": "fresh resolved primary-source partial read",
+      "archive": "C:\\Users\\arya\\.cargo\\registry\\cache\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1.crate",
+      "archive_sha256": "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed",
+      "archive_checksum_matches_committed_lockfile": true,
+      "installed_bytes_equal_archive_member": true,
+      "role": "external dependency evidence; no project inventory credit"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-macros-2.7.2\\src\\lib.rs",
+      "resolved_package": "tokio-macros-2.7.2",
+      "sha256": "304421e2b501e4726b98048c75c70b6770b70aca77ead0a62c176d5b47759c1d",
+      "line_count": 668,
+      "read_ranges": [
+        [
+          399,
+          445
+        ]
+      ],
+      "read_scope": "fresh resolved primary-source partial read",
+      "archive": "C:\\Users\\arya\\.cargo\\registry\\cache\\index.crates.io-1949cf8c6b5b557f\\tokio-macros-2.7.2.crate",
+      "archive_sha256": "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e",
+      "archive_checksum_matches_committed_lockfile": true,
+      "installed_bytes_equal_archive_member": true,
+      "role": "external dependency evidence; no project inventory credit"
+    }
+  ],
+  "complete_owner_file_count": 4,
+  "complete_owner_line_count": 2659,
+  "declared_test_counts": [
+    15,
+    7,
+    18,
+    13
+  ],
+  "test_count_limits": "Declaration counts only. Platform/optional-feature cfg changes compiled selections; no tests executed.",
+  "findings": [
+    {
+      "id": "WS-ROUTE-F1",
+      "severity": "major",
+      "path": "crates/phantom/tests/streams/websocket/routing.rs",
+      "ranges": [
+        [
+          72,
+          100
+        ],
+        [
+          206,
+          251
+        ],
+        [
+          809,
+          839
+        ],
+        [
+          914,
+          957
+        ],
+        [
+          1011,
+          1045
+        ]
+      ],
+      "problem": "Raw route-test proxy/origin/server JoinHandles have no cancellation owner through fallible client work, assertion unwinding or outer timeout.",
+      "cause": "The handle is only awaited after client work succeeds. Dropping a raw JoinHandle detaches its task and loses the result. In multi-peer cases an earlier peer.await?? also skips the sibling result.",
+      "affected_scope": "All raw-spawn route workflows, including authentication challenge, CONNECT relay, rejection and split-stream cases. Supporting top-level websocket.rs also contains raw peers, but is only partially read and not fully assessed.",
+      "remedy": "Use lexical joined peer/client workflows where possible; otherwise reuse the existing concrete ConnectionPeer cancellation owner and explicitly collect all normal/error outcomes. Preserve each literal route, credential, Ping/Pong, Close and finite quiet oracle.",
+      "independent_regression": "Complete an actual literal handshake/ack exchange, retain the live client outside cancellation, then cancel the enclosing owner and observe peer stream closure plus a destruction notification within a finite bound. Separately combine an already completed typed peer failure with a typed client failure and retain both causes. Multiple peers must be observed before return.",
+      "evidence_status": "Source-supported exceptional ownership/result-loss gap, not a measured host leak or demonstrated permanent socket leak."
+    },
+    {
+      "id": "WS-DEADLINE-F2",
+      "severity": "major",
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "ranges": [
+        [
+          749,
+          756
+        ]
+      ],
+      "supporting_path": "crates/phantom/tests/support/websocket.rs",
+      "supporting_ranges": [
+        [
+          152,
+          159
+        ]
+      ],
+      "problem": "Both WebSocket deadline wrappers discard the actual Tokio Elapsed error and return a string.",
+      "cause": "map_err(|_| string) removes the timeout object from the source chain. The routing module imports the five-second shared wrapper; the HTTP/2 proxy wrapper uses ten seconds.",
+      "remedy": "Retain Elapsed as the typed source, directly or in a concrete domain context owner. Keep effective deadlines and operation failures unchanged.",
+      "independent_regression": "Drive the actual wrapper to its finite deadline and downcast its error chain to tokio::time::error::Elapsed. Positive controls must preserve a completed typed inner error and completed success.",
+      "evidence_status": "Source-supported cause erasure; no new runtime baseline executed."
+    },
+    {
+      "id": "UPGRADE-CONTROL-F3",
+      "severity": "moderate",
+      "path": "crates/phantom/tests/support/http3_upgrade/owner_results.rs",
+      "ranges": [
+        [
+          86,
+          124
+        ]
+      ],
+      "problem": "controlled_fixture takes already spawned raw task handles before fallible identity and endpoint acquisition.",
+      "cause": "TestIdentity::generate, h3_endpoint and local_addr may return early. Before Http3UpgradeFixture exists its Drop cleanup cannot run; incoming handles are dropped as raw JoinHandles and their outcomes are lost.",
+      "remedy": "Prepare all fallible endpoint material before spawning these controlled tasks, or give the construction phase a concrete owner that aborts and observes its transferred tasks on failure. Do not introduce a generic task framework.",
+      "independent_regression": "Use the unchanged construction boundary with deterministic endpoint/setup failure after a driven owned child is acquired; retain the client/socket and destruction observer outside the failed construction and require cleanup. Preserve the original setup error and completed typed child failures. The failure must exercise the actual boundary rather than a copied constructor.",
+      "evidence_status": "Source-supported failure-path ownership gap; ordinary seven A106 controls and repaired parent behavior are preserved, with no current acquisition failure reproduced."
+    },
+    {
+      "id": "TEST-LAYOUT-S1",
+      "severity": "minor",
+      "path": "crates/phantom/tests/streams/websocket_http2_proxy.rs",
+      "ranges": [
+        [
+          4,
+          29
+        ]
+      ],
+      "additional_path": "crates/phantom/src/client/tests.rs",
+      "additional_ranges": [
+        [
+          1,
+          3
+        ]
+      ],
+      "problem": "Local support imports precede std/external imports in the HTTP/2 proxy test file; client tests split one std group with an extra blank.",
+      "remedy": "Move existing imports into std, external and local groups with one separating blank; combine the two adjacent std imports. No new tests or layout framework needed.",
+      "evidence_status": "Manual standards/layout finding only; no behavioral defect."
+    }
+  ],
+  "accepted_contracts": [
+    "Client unit tests build profiles and inspect actual connector state without opening sockets or spawning test tasks. Invalid-profile/root/policy assertions retain concrete error categories; uppercase H2 profile rejection also downcasts the typed validation source.",
+    "The client TCP/UDP/source-binding tests assert actual private connector settings. They prove configuration propagation, not actual OS socket application or wire parity. The TCP test name says every connector, but does not independently assert forward_https_proxy, websocket_https_proxy or CONNECT-UDP TCP clone settings; source cloning currently explains their propagation.",
+    "A106 controls retain distinct failure allocations through Weak/Arc ownership observations and assert primary typed downcast. They prove secondary object retention, not independent downcast traversal of every secondary via std::error::Error::source.",
+    "The sibling controls drive literal OWN1/ACK1 duplex traffic, retain the client through shutdown/destruction/EOF observations, and compare the stopped flag at real finish return. Biased join polls finish before controller release. No is_finished-as-join claim is used.",
+    "The A106 success positive performs actual HTTP/2 request/body exchange, then verifies one request with literal method, authority and path and zero alternative activity. Parent finish signals all endpoints, observes every owner and retains typed causes; these already fixed paths are not reopened.",
+    "Route tests independently compare full CONNECT/opening heads, literal credential encodings and origin-form targets; sampled generated key is intentionally the only variable opening field. Actual Ping/Pong payloads and Close exchanges supplement successful handshake assertions.",
+    "HTTP/2 proxy tests use ConnectionPeer on outer origins/proxies. EstablishedTunnel cancellation aborts all relay owners before stopping/observing each, and peer-setting absence observes origin before tunnel cancellation while retaining both outcomes.",
+    "HTTP/2 CONNECT records prove decoded method/authority/stream identity and literal singleton fields; these semantic records do not by themselves prove general cross-name wire ordering, HPACK representation or QPACK behavior.",
+    "Absence checks use held bound nonblocking origin/proxy listeners and accept WouldBlock only. Quiet-connection checks accept timeout as absence; an accept error becomes a failed boolean assertion, not a false success, though it loses typed diagnostic context.",
+    "Synthetic alice/secret/marker credentials are fixed test vectors. The double-407 diagnostic test explicitly excludes username, password, realms and encoded authorization from formatting/source messages. No actual secret leakage is established."
+  ],
+  "rejected_or_qualified_candidates": [
+    "No arbitrary split of the 1077-line routing source: length prompted full responsibility review, not a quota defect. Domain helper/test companion placement is appropriate; no new crate split justified.",
+    "Client build tests are synchronous: absence of explicit Tokio runtime is intentional, not a missing-runtime defect. Idle-only keepalive tests claim building, not successful OS application.",
+    "No permanent leak inference from dropped raw tasks: socket/client destruction or runtime shutdown can end detached work; result ownership and exceptional cleanup are the supported gaps.",
+    "No new A89 inner H2 handler defect: the supporting lexical handler/error path and guarded callers retain the documented repair. Backend nested payload loss remains an upstream limitation, not a newly established facade regression.",
+    "No quiet-window false-green claim for is_err()/is_ok() checks: unexpected accept errors lead to the opposite assertion result. They remain bounded 100ms observations, not guarantees about all future connections.",
+    "The CONNECT-UDP unsupported-route test at h2 proxy 384-408 observes origin absence and typed UnsupportedRoute but has no independently held proxy-side observer for configured port 9. The supporting H2 route match rejects CONNECT-UDP. Treat proxy-side before-I/O evidence as a test scope limitation, not a reproduced operation or fixed-port bind bug.",
+    "The stream/sink split test intentionally permits either message/Pong ordering while requiring both independent opcode/payload observations; no artificial deterministic concurrency order should be added.",
+    "Test panics/assertions are allowed; none of these test sources establishes a production panic or unsafe boundary violation."
+  ],
+  "manual_layout": [
+    "Reviewed arrange/act/assert phases, repeated independent cases and early guards in every owned test and helper. Existing typed source lookup after classification generally has a distinct paragraph. No blanket formatting approval from rustfmt claimed.",
+    "Client tests and owner-results controls already use domain companion files. H2 proxy shared constants precede tests and private domain helpers follow actual callers. The import issue is the supported mechanical layout repair."
+  ],
+  "historical_status": "Earlier reports are preserved. Frozen ledger records A64/A65/A89/A106 as repaired, with final gates pending. This source pass does not independently replay their runtime logs or promote partial supporting reports.",
+  "runtime_status": "No Cargo/build/test/socket/network command or tracked source edit performed. No current native pass/failure claimed.",
+  "dependency_validation": "Resolved Tokio 1.53.1 and tokio-macros 2.7.2 primary source verified byte-equal to cached crate members whose archive SHA256 matches frozen Cargo.lock. Default test runtime is current-thread; this qualification does not extend the tests to every runtime.",
+  "limitations": [
+    "Exactly four fresh complete source reads; all nine supporting production/helper records remain partial.",
+    "Source findings require independent baseline/remedy/native verification before closure.",
+    "No full aggregate, whole support-tree, browser-parity, live external acceptance or final gate approval."
+  ]
+}

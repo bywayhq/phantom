@@ -1,0 +1,13 @@
+# FACADE standards remedy review
+
+Approve `77501b73cffd76ba18d88f0dc192e187afd1966e` for bounded root composition/checks. No actionable finding. Full changed hunks were manually reviewed; exact source identities are retained in the paired JSON.
+
+All20 test names, imports, values/assertions and nonwhitespace text preserved; five formatter line-wrap diffs manually inspected.
+
+Natural #[cfg(test)] mod tests; in error.rs resolves error/tests.rs without #[path]; super still error owner, crate imports unchanged.
+
+All37 root export blocks retain exact cfg/doc/path bytes; remaining declarations/doctest/profile/dns text exact ignoring blank lines.
+
+Resolve/Connect rustdoc follows actual direct TCP combined lookup/dial and independent H3/SOCKS categories; executable error constructors/mappings unchanged except blank paragraph separators.
+
+Git verifies signature G and the agreed human author/committer identities. Original full/partial owner reports remain separate; equality checks do not create fresh full source reading credit. No Cargo, runtime, compiler or full-gate approval is claimed.

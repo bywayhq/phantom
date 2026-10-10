@@ -556,6 +556,29 @@ lock poison. The corrected observer passes all 34 Alt-Svc controls on both
 hosts at `7ae9a390`. Source review, focused verification and full integration
 remain separate requirements.
 
+## Current controls and source findings
+
+The [facade verification](facade-api-native-independent-addendum-96ee6074.md.txt)
+records twenty-two selected tests per host and eighteen passing focused
+stages. Eight API generators succeed. Six retained outputs match. Two stale
+outputs are refreshed at `96ee6074` and independently approved. These checks
+do not establish a full workspace gate or a new review of every API line.
+
+The [H2 baseline](h2-peer-completion-baseline-independent-review-a1df13f2.md.txt)
+records seven passes and seven failures per host at `ba6e60c3`. Four failures
+reach the intended assertions. Three are masked by client connection cleanup
+panics, as confirmed by the separate Windows backtraces. The baseline needs
+correction before those three error and ownership claims can be tested.
+Formatting, focused Clippy and Rust 1.88 pass. No remedy is approved yet.
+
+The [WebSocket and acquisition review](client-websocket-upgrade-independent-disposition-96ee6074.md.txt)
+supports three new findings after four full owner reads. Supporting source
+reads remain partial. The [proxy test review](proxy-test-owner-independent-disposition-96ee6074.md.txt)
+supports four further findings after complete CONNECT-UDP and SOCKS owner
+reads. Controls and remedies remain pending. Test-fixture defects do not
+establish production connection leaks. The repaired upgrade parent remains
+intact; the new acquisition finding concerns construction of its controls.
+
 ## Limits of the record
 
 The shared HTTP/2 relay and diagnostic repairs at `09d974c3` pass all 25
