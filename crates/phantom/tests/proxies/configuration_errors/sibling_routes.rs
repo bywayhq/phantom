@@ -181,7 +181,7 @@ fn oversized_template_expansion_keeps_its_origin_form_cause() -> TestResult {
 }
 
 #[test]
-fn sibling_route_diagnostics_omit_credentials_and_template_text() -> TestResult {
+fn sibling_route_diagnostics_omit_supplied_credentials() -> TestResult {
     let marker = canary()?;
     let socks = Socks5Proxy::new(&format!("socks5h://{marker}:{marker}@proxy.example"))
         .err()
