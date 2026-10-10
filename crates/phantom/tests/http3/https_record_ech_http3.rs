@@ -9,6 +9,7 @@
 use crate::support::ech as ech_support;
 use crate::support::shared_port;
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup};
 
 use std::{error::Error, fmt, net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
 
@@ -33,7 +34,7 @@ use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
     sync::{oneshot, watch},
-    task::JoinHandle,
+    task::JoinSet,
     time::{error::Elapsed, timeout},
 };
 
@@ -113,10 +114,16 @@ struct QuicOrigin {
     port: u16,
     context: SslContext,
     stop: oneshot::Sender<()>,
-    task: JoinHandle<TestResult<Vec<Observed>>>,
+    task: ConnectionPeer<TestResult<Vec<Observed>>>,
     /// How many QUIC connections the origin has recorded so far.
     recorded: watch::Receiver<usize>,
-    tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
+    tcp: Option<TcpOrigin>,
+}
+
+struct TcpOrigin {
+    served: Arc<watch::Sender<usize>>,
+    stop: oneshot::Sender<()>,
+    task: ConnectionPeer<TestResult<()>>,
 }
 
 impl QuicOrigin {
@@ -168,11 +175,13 @@ impl QuicOrigin {
                     let started = tcp_observation
                         .as_ref()
                         .map(|observation| observation.parent.started.clone());
+                    let (stop, stopped) = oneshot::channel();
                     let tcp = tokio::spawn(serve_tcp(
                         listener,
                         acceptor,
                         Arc::clone(&served),
                         tcp_observation,
+                        stopped,
                     ));
                     if let Some(started) = started {
                         drop(started.send_replace(Some(tcp.abort_handle())));
@@ -181,7 +190,11 @@ impl QuicOrigin {
                         endpoint,
                         bound_port,
                         context,
-                        Some((served, tcp)),
+                        Some(TcpOrigin {
+                            served,
+                            stop,
+                            task: tcp.into(),
+                        }),
                         quic_observation,
                     ));
                 }
@@ -216,7 +229,7 @@ impl QuicOrigin {
         endpoint: quinn::Endpoint,
         port: u16,
         context: SslContext,
-        tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
+        tcp: Option<TcpOrigin>,
     ) -> Self {
         Self::start_observed(endpoint, port, context, tcp, None)
     }
@@ -226,7 +239,7 @@ impl QuicOrigin {
         endpoint: quinn::Endpoint,
         port: u16,
         context: SslContext,
-        tcp: Option<(Arc<watch::Sender<usize>>, JoinHandle<()>)>,
+        tcp: Option<TcpOrigin>,
         observation: Option<tcp_owner_contract::TaskObservation>,
     ) -> Self {
         let (stop, mut stopped) = oneshot::channel();
@@ -262,7 +275,7 @@ impl QuicOrigin {
             port,
             context,
             stop,
-            task,
+            task: task.into(),
             recorded,
             tcp,
         }
@@ -284,26 +297,49 @@ impl QuicOrigin {
     /// after those counts are reached is still recorded when it was accepted
     /// first.
     async fn finish(mut self, quic: usize, tcp: usize) -> TestResult<(Vec<Observed>, usize)> {
-        timeout(TEST_TIMEOUT, self.recorded.wait_for(|count| *count >= quic))
-            .await
-            .map_err(|cause| CountDeadline::Quic { count: quic, cause })??;
-        if let Some((served, _)) = &self.tcp {
-            timeout(
-                TEST_TIMEOUT,
-                served.subscribe().wait_for(|count| *count >= tcp),
-            )
-            .await
-            .map_err(|cause| CountDeadline::Tcp { count: tcp, cause })??;
-        }
-        let _ = self.stop.send(());
-        let observed = self.task.await??;
-        let served = match self.tcp {
-            Some((served, task)) => {
-                task.abort();
-                *served.borrow()
+        let counts: TestResult<()> = async {
+            timeout(TEST_TIMEOUT, self.recorded.wait_for(|count| *count >= quic))
+                .await
+                .map_err(|cause| CountDeadline::Quic { count: quic, cause })??;
+            if let Some(origin) = &self.tcp {
+                timeout(
+                    TEST_TIMEOUT,
+                    origin.served.subscribe().wait_for(|count| *count >= tcp),
+                )
+                .await
+                .map_err(|cause| CountDeadline::Tcp { count: tcp, cause })??;
             }
-            None => 0,
+            Ok(())
+        }
+        .await;
+        let _ = self.stop.send(());
+        let tcp = self.tcp.map(|origin| {
+            let _ = origin.stop.send(());
+            (origin.served, origin.task)
+        });
+        let observed = match counts {
+            Ok(()) => match self.task.await {
+                Ok(result) => result,
+                Err(error) => Err(error.into()),
+            },
+            Err(error) => {
+                self.task.abort();
+                Err(error)
+            }
         };
+        let (served, cleanup) = match tcp {
+            Some((served, task)) => {
+                let cleanup = match timeout(TEST_TIMEOUT, task).await {
+                    Ok(Ok(result)) => result,
+                    Ok(Err(error)) => Err(error.into()),
+                    Err(error) => Err(error.into()),
+                };
+                let served = *served.borrow();
+                (served, cleanup)
+            }
+            None => (0, Ok(())),
+        };
+        let observed = finish_with_cleanup(observed, cleanup)?;
         Ok((observed, served))
     }
 }
@@ -316,17 +352,40 @@ async fn serve_tcp(
     acceptor: SslAcceptor,
     served: Arc<watch::Sender<usize>>,
     observation: Option<tcp_owner_contract::TcpObservation>,
-) {
+    mut stopped: oneshot::Receiver<()>,
+) -> TestResult<()> {
     let (_parent_observation, mut children) = match observation {
         Some(observation) => (Some(observation.parent), Some(observation.children)),
         None => (None, None),
     };
-    while let Ok((tcp, _)) = listener.accept().await {
+    let mut serving = JoinSet::new();
+    let mut handles = Vec::new();
+    let mut outcome = Ok(());
+    loop {
+        let accepted = tokio::select! {
+            biased;
+            _ = &mut stopped => break,
+            joined = serving.join_next_with_id(), if !serving.is_empty() => {
+                if let Some(result) = joined {
+                    let id = match &result {
+                        Ok((id, ())) => *id,
+                        Err(error) => error.id(),
+                    };
+                    handles.retain(|handle: &tokio::task::AbortHandle| handle.id() != id);
+                    outcome = finish_with_cleanup(outcome, result.map(|_| ()).map_err(Into::into));
+                }
+                continue;
+            }
+            accepted = listener.accept() => accepted,
+        };
+        let Ok((tcp, _)) = accepted else {
+            break;
+        };
         let acceptor = acceptor.clone();
         let served = Arc::clone(&served);
         let mut child = children.as_mut().and_then(Iterator::next);
         let started = child.as_ref().map(|child| child.task.started.clone());
-        let task = tokio::spawn(async move {
+        let task = serving.spawn(async move {
             let handshake = try_handshake(tcp, &acceptor);
             let handshake = tcp_owner_contract::observe_handshake(handshake, child.as_mut());
             let Ok((seen, Some(mut tls))) = handshake.await else {
@@ -345,10 +404,26 @@ async fn serve_tcp(
             }
         });
         if let Some(started) = started {
-            drop(started.send_replace(Some(task.abort_handle())));
+            drop(started.send_replace(Some(task.clone())));
         }
-        drop(task);
+        handles.push(task);
     }
+    drop(listener);
+    let requested = handles
+        .iter()
+        .filter(|handle| !handle.is_finished())
+        .map(tokio::task::AbortHandle::id)
+        .collect::<Vec<_>>();
+    serving.abort_all();
+    while let Some(result) = serving.join_next_with_id().await {
+        let result = match result {
+            Ok(_) => Ok(()),
+            Err(error) if error.is_cancelled() && requested.contains(&error.id()) => Ok(()),
+            Err(error) => Err(error.into()),
+        };
+        outcome = finish_with_cleanup(outcome, result);
+    }
+    outcome
 }
 
 async fn observe(incoming: quinn::Incoming) -> TestResult<(Observed, Option<quinn::Connection>)> {

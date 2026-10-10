@@ -1,12 +1,4 @@
-use std::{
-    error::Error,
-    fmt,
-    future::{pending, poll_fn},
-    io,
-    sync::Arc,
-    task::Poll,
-    time::Duration,
-};
+use std::{error::Error, fmt, future::poll_fn, io, sync::Arc, task::Poll, time::Duration};
 
 use tokio::{
     sync::{oneshot, watch},
@@ -14,7 +6,7 @@ use tokio::{
     time::{advance, error::Elapsed, timeout},
 };
 
-use super::{QuicOrigin, TEST_ECH_KEYS, TEST_TIMEOUT, origin_identity};
+use super::{QuicOrigin, TEST_ECH_KEYS, TEST_TIMEOUT, TcpOrigin, origin_identity};
 use crate::support::{tls::TestResult, tunnel_proxy::connection_peer::finish_with_cleanup};
 
 const CLEANUP_TIMEOUT: Duration = Duration::from_secs(2);
@@ -179,8 +171,8 @@ async fn missing_count(
             return Err("QUIC count control changed its initial value".into());
         }
 
-        if let Some((served, _)) = &origin.tcp
-            && *served.borrow() != 0
+        if let Some(tcp) = &origin.tcp
+            && *tcp.served.borrow() != 0
         {
             return Err("TCP count control was already satisfied".into());
         }
@@ -266,22 +258,28 @@ fn controlled_origin(
         let (started, entered) = oneshot::channel();
         let (done, destroyed) = oneshot::channel();
         let guard = TaskDestroyed(Some(done));
+        let (stop, stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
             let _guard = guard;
             // Entry is not a network witness; cancellation may drop its receiver.
             let _ = started.send(());
-            pending::<()>().await;
+            stopped.await?;
+            TestResult::Ok(())
         });
         backup.tcp = Some(task.abort_handle());
         backup.tcp_destroyed = Some(destroyed);
         tcp_entered = Some(entered);
-        (served, task)
+        TcpOrigin {
+            served,
+            stop,
+            task: task.into(),
+        }
     });
     let origin = QuicOrigin {
         port: 0,
         context,
         stop,
-        task,
+        task: task.into(),
         recorded: recorded_receiver,
         tcp,
     };
