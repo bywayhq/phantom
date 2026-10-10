@@ -554,7 +554,7 @@ async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
                 if failure is not None:
                     loop.call_exception_handler(
                         {
-                            "message": "Abandoned browser launch failed",
+                            "message": "abandoned browser launch failed",
                             "exception": failure,
                             "future": completed,
                             "cancellation": cancellation,
