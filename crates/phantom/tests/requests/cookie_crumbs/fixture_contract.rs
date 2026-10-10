@@ -1,7 +1,7 @@
 use std::{
     io,
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::Mutex,
     task::{Context, Poll},
     time::Duration,
 };

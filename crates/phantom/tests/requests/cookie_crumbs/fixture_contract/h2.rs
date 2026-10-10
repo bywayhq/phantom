@@ -1,4 +1,4 @@
-use std::{future::Future, io, net::Ipv4Addr, pin::Pin, sync::Arc, task::Poll};
+use std::{future::Future, io, net::Ipv4Addr, sync::Arc, task::Poll};
 
 use http_body_util::BodyExt;
 use tokio::{net::TcpListener, sync::oneshot, task::JoinHandle, time::timeout};
