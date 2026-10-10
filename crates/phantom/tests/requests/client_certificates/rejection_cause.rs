@@ -12,7 +12,7 @@ use super::{
 
 // The retained native headers define these SSL library and reason constants.
 const ERR_LIB_SSL: i32 = 16;
-const SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE: i32 = 192;
+pub(super) const SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE: i32 = 192;
 const SSL_R_CERTIFICATE_VERIFY_FAILED: i32 = 125;
 
 #[tokio::test]
@@ -169,7 +169,7 @@ fn expected_tcp_categories(version: TlsVersion) -> &'static [RequestErrorKind] {
     }
 }
 
-fn tcp_reason(served: &TestResult<Option<Vec<u8>>>, reason: i32) -> bool {
+pub(super) fn tcp_reason(served: &TestResult<Option<Vec<u8>>>, reason: i32) -> bool {
     let Err(error) = served else {
         return false;
     };
@@ -187,7 +187,10 @@ fn tcp_reason(served: &TestResult<Option<Vec<u8>>>, reason: i32) -> bool {
         })
 }
 
-fn quic_alert(served: &TestResult<Option<Vec<u8>>>, alert: rustls::AlertDescription) -> bool {
+pub(super) fn quic_alert(
+    served: &TestResult<Option<Vec<u8>>>,
+    alert: rustls::AlertDescription,
+) -> bool {
     let Err(error) = served else {
         return false;
     };

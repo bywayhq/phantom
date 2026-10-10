@@ -26,7 +26,10 @@ use self::peer_outcome::{CallerFault, PeerFailure, PrimaryFailure};
 use crate::support::{
     client_certificate::{ClientIdentity, presented_leaf, quic_endpoint_requiring},
     h3 as h3_support, tls as tls_support,
-    tunnel_proxy::{ConnectionPeer, https1_connect_recording_client_certificate},
+    tunnel_proxy::{
+        ConnectionPeer, EstablishedTunnel, finish_with_cleanup,
+        https1_connect_recording_client_certificate,
+    },
 };
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
 
@@ -178,6 +181,16 @@ async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
     let mut proxy_acceptor = proxy.acceptor_builder(H1_ALPN)?;
     proxy_acceptor.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
     let proxy_acceptor = proxy_acceptor.build();
+    let origin_acceptor = acceptor(&origin, Some(&identity.authority_der))?;
+    let client = Client::builder(ClientProfile::new(tls(TlsVersion::Tls13)))
+        .add_root_certificate_der(origin.root_der.clone())
+        .add_proxy_root_certificate_der(proxy.root_der.clone())
+        .route(Route::http_proxy(HttpProxy::new(&format!(
+            "https://{proxy_address}"
+        ))?))
+        .client_certificate(identity.certificate()?)
+        .build()?;
+
     let (release, received) = fault.completion_gate();
     let proxy_task = ConnectionPeer::spawn(async move {
         let observed = https1_connect_recording_client_certificate(
@@ -200,49 +213,67 @@ async fn https_proxy_exchange(fault: CallerFault) -> TestResult<()> {
 
         TestResult::Ok(observed)
     });
-    let origin_acceptor = acceptor(&origin, Some(&identity.authority_der))?;
-    let client = Client::builder(ClientProfile::new(tls(TlsVersion::Tls13)))
-        .add_root_certificate_der(origin.root_der.clone())
-        .add_proxy_root_certificate_der(proxy.root_der.clone())
-        .route(Route::http_proxy(HttpProxy::new(&format!(
-            "https://{proxy_address}"
-        ))?))
-        .client_certificate(identity.certificate()?)
-        .build()?;
-
-    let (presented_to_origin, status) = timeout(TEST_TIMEOUT, async {
-        tokio::join!(
+    let primary = timeout(TEST_TIMEOUT, async {
+        let (presented_to_origin, status) = tokio::join!(
             serve_one(origin_listener, origin_acceptor),
             get(&client, format!("https://{origin_address}/"))
-        )
+        );
+
+        assert_eq!(status?, StatusCode::NO_CONTENT);
+        assert_eq!(presented_to_origin?, Some(identity.leaf_der));
+
+        if let Some(release) = release {
+            release
+                .release
+                .send(())
+                .map_err(|_| "proxy completion gate closed")?;
+            timeout(TEST_TIMEOUT, release.failure).await??;
+
+            timeout(TEST_TIMEOUT, async {
+                while !proxy_task.is_finished() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await?;
+
+            return Err(PrimaryFailure.into());
+        }
+
+        Ok(())
     })
-    .await?;
+    .await;
+    let primary = match primary {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    };
 
-    assert_eq!(status?, StatusCode::NO_CONTENT);
-    assert_eq!(presented_to_origin?, Some(identity.leaf_der));
+    finish_certificate_proxy(primary, proxy_task).await
+}
 
-    if let Some(release) = release {
-        release
-            .release
-            .send(())
-            .map_err(|_| "proxy completion gate closed")?;
-        timeout(TEST_TIMEOUT, release.failure).await??;
-
-        timeout(TEST_TIMEOUT, async {
-            while !proxy_task.is_finished() {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await?;
-
-        return Err(PrimaryFailure.into());
+async fn finish_certificate_proxy(
+    primary: TestResult<()>,
+    mut proxy: ConnectionPeer<TestResult<EstablishedTunnel<Option<Vec<u8>>>>>,
+) -> TestResult<()> {
+    let stopping = primary.is_err();
+    if stopping {
+        proxy.abort();
     }
 
-    assert_eq!(
-        timeout(TEST_TIMEOUT, proxy_task).await???.cancel().await?,
-        None
-    );
-    Ok(())
+    let cleanup = async {
+        let observed = match timeout(TEST_TIMEOUT, &mut proxy).await {
+            Ok(Err(error)) if stopping && error.is_cancelled() => return Ok(()),
+            Ok(joined) => joined??,
+            Err(error) => {
+                return finish_with_cleanup(Err(error.into()), proxy.stop().await);
+            }
+        };
+
+        assert_eq!(observed.cancel().await?, None);
+        Ok(())
+    }
+    .await;
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
@@ -789,15 +820,19 @@ fn tcp_missing_certificate_rejected(
     error: &RequestError,
     expected: &[RequestErrorKind],
 ) -> bool {
-    served.is_err() && expected.contains(&error.kind())
+    rejection_cause::tcp_reason(
+        served,
+        rejection_cause::SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE,
+    ) && expected.contains(&error.kind())
 }
 
 fn quic_missing_certificate_rejected(
-    _served: &TestResult<Option<Vec<u8>>>,
+    served: &TestResult<Option<Vec<u8>>>,
     error: &RequestError,
 ) -> bool {
-    matches!(
-        error.kind(),
-        RequestErrorKind::Tls | RequestErrorKind::Http3
-    )
+    rejection_cause::quic_alert(served, rustls::AlertDescription::CertificateRequired)
+        && matches!(
+            error.kind(),
+            RequestErrorKind::Tls | RequestErrorKind::Http3
+        )
 }
