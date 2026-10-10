@@ -301,21 +301,24 @@ async fn concurrent_lookups_share_one_resolution() -> TestResult {
         .map(|_| Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443)))
         .collect::<Vec<_>>();
 
+    let mut selected = Vec::with_capacity(lookups.len());
     for lookup in &mut lookups {
-        if let Poll::Ready(result) =
-            poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context))).await
-        {
+        selected.push(poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context))).await);
+    }
+    let calls_before_release = recorder.calls();
+    open.send(true)?;
+
+    for selection in selected {
+        if let Poll::Ready(result) = selection {
             result?;
             return Err("a gated lookup finished before its resolver was released".into());
         }
     }
     assert_eq!(
-        recorder.calls(),
-        1,
+        calls_before_release, 1,
         "all eight lookups selected pending work"
     );
 
-    open.send(true)?;
     for lookup in lookups {
         let (addresses, stored) = tokio::time::timeout(Duration::from_secs(5), lookup).await??;
 
@@ -929,16 +932,22 @@ async fn clear_forgets_answers_and_drops_resolutions_in_flight() -> TestResult {
     let cache = recorder.cache(long_lived(), answer(&[V4]));
     let mut in_flight = Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
 
-    if let Poll::Ready(result) =
-        poll_fn(|context| Poll::Ready(in_flight.as_mut().poll(context))).await
-    {
+    let selected = poll_fn(|context| Poll::Ready(in_flight.as_mut().poll(context))).await;
+    let calls_before_clear = recorder.calls();
+    if selected.is_pending() {
+        cache.clear();
+    }
+    open.send(true)?;
+
+    if let Poll::Ready(result) = selected {
         result?;
         return Err("the pre-clear lookup finished before its resolver was released".into());
     }
-    assert_eq!(recorder.calls(), 1, "the pre-clear resolution was invoked");
+    assert_eq!(
+        calls_before_clear, 1,
+        "the pre-clear resolution was invoked"
+    );
 
-    cache.clear();
-    open.send(true)?;
     let (addresses, stored) = tokio::time::timeout(Duration::from_secs(5), in_flight).await??;
 
     assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
