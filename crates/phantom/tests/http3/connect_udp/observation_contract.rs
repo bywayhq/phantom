@@ -113,7 +113,13 @@ async fn an_observed_real_proxy_rejection_reports_zero_retries() -> TestResult<(
             .ok_or("proxy rejection succeeded")?;
         assert_eq!(error.kind(), RequestErrorKind::Proxy);
         assert_eq!(proxy.requests().len(), 1);
-        assert_eq!(subscriber.retries_performed_for("client.request"), [0]);
+        assert_eq!(subscriber.outcomes_for("client.request"), ["error"]);
+        // The subscriber records retry updates, not the span's initial zero.
+        assert!(
+            subscriber
+                .retries_performed_for("client.request")
+                .is_empty()
+        );
 
         assert!(observed_zero_request_retries(&subscriber));
         Ok(())
