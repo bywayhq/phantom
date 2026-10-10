@@ -1934,6 +1934,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Clarify request error categories: direct TCP address lookup failures use
+  `RequestErrorKind::Connect`; separately reported lookups use `Resolve`.
+  Error classification and retry behavior are unchanged.
+
 - Clarify that Phases 1 and 2 are complete within their agreed scope, while
   deferred browser coverage and fidelity work remain open.
 - Document Phase 2 API milestones, completion criteria, and browser/TLS
