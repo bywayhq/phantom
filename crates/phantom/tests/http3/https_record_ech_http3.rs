@@ -10,7 +10,7 @@ use crate::support::ech as ech_support;
 use crate::support::shared_port;
 use crate::support::tls as tls_support;
 
-use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{error::Error, fmt, net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use btls::{
     hpke::HpkeKey,
@@ -34,7 +34,7 @@ use tokio::{
     net::TcpListener,
     sync::{oneshot, watch},
     task::JoinHandle,
-    time::timeout,
+    time::{error::Elapsed, timeout},
 };
 
 use ech_support::{
@@ -57,6 +57,39 @@ struct Observed {
     server_name: Option<String>,
     closed_with: Option<u64>,
     session_resumed: bool,
+}
+
+#[derive(Debug)]
+enum CountDeadline {
+    Quic { count: usize, cause: Elapsed },
+    Tcp { count: usize, cause: Elapsed },
+}
+
+impl fmt::Display for CountDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Quic { count, .. } => {
+                write!(
+                    formatter,
+                    "the origin saw fewer than {count} QUIC connections"
+                )
+            }
+            Self::Tcp { count, .. } => {
+                write!(
+                    formatter,
+                    "the origin served fewer than {count} TCP connections"
+                )
+            }
+        }
+    }
+}
+
+impl Error for CountDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Quic { cause, .. } | Self::Tcp { cause, .. } => Some(cause),
+        }
+    }
 }
 
 /// The origin's ECH keys: `config_id` under `key`, with the public name.
@@ -209,14 +242,14 @@ impl QuicOrigin {
     async fn finish(mut self, quic: usize, tcp: usize) -> TestResult<(Vec<Observed>, usize)> {
         timeout(TEST_TIMEOUT, self.recorded.wait_for(|count| *count >= quic))
             .await
-            .map_err(|_| format!("the origin saw fewer than {quic} QUIC connections"))??;
+            .map_err(|cause| CountDeadline::Quic { count: quic, cause })??;
         if let Some((served, _)) = &self.tcp {
             timeout(
                 TEST_TIMEOUT,
                 served.subscribe().wait_for(|count| *count >= tcp),
             )
             .await
-            .map_err(|_| format!("the origin served fewer than {tcp} TCP connections"))??;
+            .map_err(|cause| CountDeadline::Tcp { count: tcp, cause })??;
         }
         let _ = self.stop.send(());
         let observed = self.task.await??;
