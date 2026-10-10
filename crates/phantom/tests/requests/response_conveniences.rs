@@ -294,8 +294,8 @@ async fn dropping_a_pending_read_closes_the_unfinished_body() -> TestResult<()> 
             Ok::<_, Box<dyn Error + Send + Sync>>(closed)
         };
 
+        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
         let (closed, ()) = exchange_peer(peer, async {
-            let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
             let response = client
                 .get(HttpProtocol::Http1, &format!("http://{address}/"))?
                 .send()

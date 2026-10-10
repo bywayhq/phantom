@@ -312,8 +312,8 @@ async fn public_http1_body_source_error_has_request_body_category() -> TestResul
             Ok::<_, Box<dyn Error + Send + Sync>>(observed)
         };
 
+        let client = test_client(&identity, false)?;
         let (_observed, ()) = exchange_peer(peer, async {
-            let client = test_client(&identity, false)?;
             let error = match client
                 .request(
                     HttpProtocol::Http1,
