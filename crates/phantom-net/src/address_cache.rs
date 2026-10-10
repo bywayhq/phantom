@@ -2,6 +2,7 @@
 
 use std::{
     collections::HashMap,
+    error::Error,
     fmt,
     future::Future,
     io,
@@ -127,10 +128,25 @@ enum Outcome {
     /// The resolver's answer, possibly empty; each connection path reports an
     /// empty answer as it would without the cache.
     Resolved(Arc<[SocketAddr]>),
-    Failed {
-        kind: io::ErrorKind,
-        message: Arc<str>,
-    },
+    Failed(SharedResolverError),
+}
+
+/// Shares one original resolver failure across waiters and stored outcomes.
+#[derive(Clone, Debug)]
+struct SharedResolverError {
+    original: Arc<io::Error>,
+}
+
+impl fmt::Display for SharedResolverError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.original.as_ref(), formatter)
+    }
+}
+
+impl Error for SharedResolverError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.original.as_ref())
+    }
 }
 
 impl Outcome {
@@ -145,10 +161,9 @@ impl Outcome {
     fn from_result(result: io::Result<Vec<SocketAddr>>) -> Self {
         match result {
             Ok(addresses) => Self::Resolved(addresses.into()),
-            Err(error) => Self::Failed {
-                kind: error.kind(),
-                message: Arc::from(error.to_string()),
-            },
+            Err(error) => Self::Failed(SharedResolverError {
+                original: Arc::new(error),
+            }),
         }
     }
 
@@ -156,7 +171,7 @@ impl Outcome {
     fn is_negative(&self) -> bool {
         match self {
             Self::Resolved(addresses) => addresses.is_empty(),
-            Self::Failed { .. } => true,
+            Self::Failed(_) => true,
         }
     }
 
@@ -170,7 +185,7 @@ impl Outcome {
                     address
                 })
                 .collect()),
-            Self::Failed { kind, message } => Err(io::Error::new(*kind, message.to_string())),
+            Self::Failed(error) => Err(io::Error::new(error.original.kind(), error.clone())),
         }
     }
 }
