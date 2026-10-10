@@ -84,6 +84,7 @@ impl ObservedConnectUdp {
 struct ProxyLog {
     connections: usize,
     requests: Vec<ObservedConnectUdp>,
+    origin_datagrams: usize,
     /// Outer connections on which the client presented a certificate.
     client_certificates: usize,
     failures: Vec<Box<dyn std::error::Error + Send + Sync>>,
@@ -385,6 +386,7 @@ async fn serve_connected(
             }
             received = udp.recv(&mut buffer) => match received {
                 Ok(count) => {
+                    lock(&log).origin_datagrams += 1;
                     quinn.send_datagram(datagram(&prefix, &buffer[..count]))?;
                 }
                 // Windows reports an earlier ICMP port-unreachable here.

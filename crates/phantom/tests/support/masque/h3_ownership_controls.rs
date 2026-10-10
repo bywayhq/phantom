@@ -233,3 +233,75 @@ async fn a_duplicate_control_stream_retains_the_protocol_failure() -> TestResult
     })
     .await
 }
+
+async fn relay_after_origin_payload(payload: &[u8], forwarded: bool) -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let target = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
+    let proxy = MasqueProxy::spawn(&identity, ProxyMode::Relay)?;
+    let mut peer = Peer::connect(&identity, proxy.address).await?;
+    let request = http::Request::builder()
+        .method("CONNECT")
+        .uri(format!(
+            "https://{}/.well-known/masque/udp/127.0.0.1/{}/",
+            proxy.address,
+            target.local_addr()?.port(),
+        ))
+        .extension(h3::ext::Protocol::CONNECT_UDP)
+        .body(())?;
+    let mut stream = peer.send.send_request(request).await?;
+    assert_eq!(stream.recv_response().await?.status(), StatusCode::OK);
+    let mut capsule = stream.recv_data().await?.ok_or("missing relay capsule")?;
+    let length = capsule.remaining();
+    assert_eq!(capsule.copy_to_bytes(length).as_ref(), UNKNOWN_CAPSULE);
+
+    let quarter_stream_id = stream.id().into_inner() / 4;
+    let mut unknown = peer.connection.read_datagram().await?;
+    assert_eq!(decode_varint(&mut unknown), Some(quarter_stream_id));
+    assert_eq!(decode_varint(&mut unknown), Some(2));
+    assert_eq!(unknown.as_ref(), b"unknown-context");
+    let mut prefix = Vec::new();
+    encode_varint(quarter_stream_id, &mut prefix);
+    prefix.push(0);
+    peer.connection.send_datagram(datagram(&prefix, b"ready"))?;
+    let mut received = [0_u8; 64];
+    let (count, relay) = target.recv_from(&mut received).await?;
+    assert_eq!(&received[..count], b"ready");
+    assert_eq!(proxy.connections(), 1);
+    assert_eq!(proxy.requests().len(), 1);
+
+    target.send_to(payload, relay).await?;
+    // Observe the actual UDP receive before sending the following packet.
+    // A scheduling yield alone does not establish that the first arrived.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while lock(&proxy.log).origin_datagrams != 1 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await?;
+    if forwarded {
+        let mut observed = peer.connection.read_datagram().await?;
+        assert_eq!(decode_varint(&mut observed), Some(quarter_stream_id));
+        assert_eq!(decode_varint(&mut observed), Some(0));
+        assert_eq!(observed.as_ref(), payload);
+    }
+
+    target.send_to(b"after", relay).await?;
+    let mut after = peer.connection.read_datagram().await?;
+    assert_eq!(decode_varint(&mut after), Some(quarter_stream_id));
+    assert_eq!(decode_varint(&mut after), Some(0));
+    assert_eq!(after.as_ref(), b"after");
+    assert_eq!(lock(&proxy.log).origin_datagrams, 2);
+    assert!(peer.connection.close_reason().is_none());
+    assert!(proxy.take_failures().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_oversized_origin_datagram_does_not_close_its_udp_tunnel() -> TestResult<()> {
+    bounded(relay_after_origin_payload(&[0xab; 8_192], false)).await
+}
+
+#[tokio::test]
+async fn ordinary_origin_datagrams_preserve_payload_and_active_tunnel() -> TestResult<()> {
+    bounded(relay_after_origin_payload(b"first", true)).await
+}
