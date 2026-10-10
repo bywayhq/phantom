@@ -1,0 +1,115 @@
+{
+  "kind": "independent lower allocator causal-to-fixed native addendum",
+  "revision": "4074c370477638974065be833d6fb4f34536ddbe",
+  "decision": "focused six fixed contracts approved; five measured closure failures repaired on both hosts",
+  "actual": {
+    "windows": "6PASS0.189s/test0/runner0",
+    "linux": "6PASS0.015s/test0/runner0"
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "sha256": "a132a5a11eb928ca1946751a83aeb0788095a9f5bd03654923f25150aaba1a1b",
+      "bytes": 48718,
+      "lines": 1396,
+      "read_scope": "exact approved source/control rebind; current parent composition delta only manually read cec214",
+      "git_blob": "7f36d1981278f2aa7146c70ab54acfd498281869"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+      "bytes": 9240,
+      "lines": 245,
+      "read_scope": "exact approved source/control rebind; current parent composition delta only manually read cec214",
+      "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "bytes": 20333,
+      "lines": 543,
+      "read_scope": "exact approved source/control rebind; current parent composition delta only manually read cec214",
+      "git_blob": "787afdf7889dd5eff116587aaee477d788924acb"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.log",
+      "sha256": "92df278fa63bd551391e14206d6767d0d45b82a73d00cc5ef39ee22234b67336",
+      "bytes": 1019,
+      "lines": 11,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.revision",
+      "sha256": "98d8575595ff2472254dbcf8ea9fbc23e41f585de8438d9199469f7d22a2d59f",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.log",
+      "sha256": "abeffbfa813fae139b321b1e9e3d91c1f474cf58367243f37857e6bca35ec39b",
+      "bytes": 1008,
+      "lines": 11,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.revision",
+      "sha256": "98d8575595ff2472254dbcf8ea9fbc23e41f585de8438d9199469f7d22a2d59f",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "fresh complete manual cec214"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-socket-controls.sh",
+      "sha256": "7976e249cd92a3b80f6591dd39c3ba1c5677b319ca4f2c5c491f4621ec4d94c5",
+      "bytes": 1010,
+      "lines": 27,
+      "read_scope": "prior complete manual564d6a unchanged launcher; pinned exact clean-head guards and six-only selection"
+    }
+  ],
+  "composition": "Current parent reconstructs exact d667 by undoing only previously verified A192 RunRecord/UdpRecorder listener key scopes; no new whole current source review.",
+  "causal_delta": "Same six frozen controls as corrected581: healthy remains pass, five failures at181/195/208/222/241 now pass. Original primary identity and native fd/state/datagram prerequisites precede successful canonical closure snapshots, before registered test backup.",
+  "historical": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-socket-corrected-baseline-native-independent-addendum-5816a708.json",
+    "sha256": "57320fac078d966726d5913b9bbec44d483240ace2d18d0c800bf4d737c3b7ce",
+    "bytes": 4967,
+    "lines": 90,
+    "read_scope": "immutable corrected causal baseline; original13c Windows masked evidence remains separate"
+  },
+  "limits": [
+    "Focused six only; broad capture still running when reviewed and receives no result credit.",
+    "No spontaneous native close failure or multi-cleanup interruption proof. daa control-flow aggregation finding remains unresolved.",
+    "No accepted descendants/browser/full protocol/main/full-gate approval.",
+    "No reviewer target execution/process operation/tracked source edit."
+  ]
+}

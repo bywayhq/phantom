@@ -1,0 +1,7 @@
+# Startup baseline composition
+
+Exact c0e6fd32 is source-approved for the guarded nine-method causal run. The543-line control file is byte-exact to approved0c8cdc3e. The whole canonical parent is byte-exact to the previously reviewed A192 accounting repair c0dc392b.
+
+Compared with the author baseline, the parent differs only in the UDP storage annotation, composite(listener,address) key, matching peer lookup and recorder docstring. Both current affected scopes and the complete small diff were read. capture_run, reservation/bind, actual UDP/TCP start/close/handle and request routing source bodies are byte-exact to the author baseline. This is a qualified composition, not an assertion that the entire parent equals0c.
+
+No cleanup/ownership remedy is present. Native results remain pending; forecasts and source-only limits stay in the original review. This adds no whole-parent reading, QUIC/browser parity or full-gate approval.

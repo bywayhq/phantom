@@ -1,0 +1,310 @@
+{
+  "tested_revision": "4074c370477638974065be833d6fb4f34536ddbe",
+  "results": {
+    "windows": {
+      "discovered": 510,
+      "passed": 510,
+      "skipped": 0
+    },
+    "linux": {
+      "discovered": 510,
+      "passed": 499,
+      "skipped": 11
+    }
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-windows.log",
+      "sha256": "f31273bbaec506196c7b7d63e4d0ec721e431f66520729f84bd1f9055ccac655"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-windows.revision",
+      "sha256": "98d8575595ff2472254dbcf8ea9fbc23e41f585de8438d9199469f7d22a2d59f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-windows.log",
+      "sha256": "134ce07e010047395481e9273cce810d49684de72c17ca2e5b28ebb48ecd7622"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-windows.revision",
+      "sha256": "36b6c8205daf001c7c091c90c99f6c9e7c1aa5bdfed16d0a13a2a07a91661ce7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.log",
+      "sha256": "3f32a1c906914f5cd3ff1832d7decff52cc92f5561af2c4e62a465c37492f1d9"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.revision",
+      "sha256": "389ae00bd72a0a2d8807d7d0200b39d2d22b9b6b8f986b3cb50070ee2c3a23d3"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-windows.log",
+      "sha256": "88b677ed744cf521b24025f8383ec8a4068ee821aff5910b24147c6ab31ccd9b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-windows.revision",
+      "sha256": "9a07e4671024a2281adf0c351d7498759b1072f2d5f941a33a309e90df40c9de"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.log",
+      "sha256": "92df278fa63bd551391e14206d6767d0d45b82a73d00cc5ef39ee22234b67336"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.revision",
+      "sha256": "98d8575595ff2472254dbcf8ea9fbc23e41f585de8438d9199469f7d22a2d59f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-linux.log",
+      "sha256": "9937d244b0649a04a25820ecce0a6780a8ed85055b271090ad2f63ec7864f4a1"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-linux.revision",
+      "sha256": "98d8575595ff2472254dbcf8ea9fbc23e41f585de8438d9199469f7d22a2d59f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-composed-4074c370-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-linux.log",
+      "sha256": "3043e58fad1ffba9bd2c82a0d675dd0acabe8c9a5cbcc646969244f96af47cc8"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-linux.revision",
+      "sha256": "36b6c8205daf001c7c091c90c99f6c9e7c1aa5bdfed16d0a13a2a07a91661ce7"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-baseline-c0e6fd32-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.log",
+      "sha256": "912478aefbabc9c9e1b6b72674dbb1ba4b6d6aaf8a884be4a99b9de1048312a2"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.revision",
+      "sha256": "389ae00bd72a0a2d8807d7d0200b39d2d22b9b6b8f986b3cb50070ee2c3a23d3"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-linux.log",
+      "sha256": "f04f03c51fd1e795439f917aa4d11e2715af7b4fd4f4b0cae83fb5ea13613d57"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-linux.revision",
+      "sha256": "9a07e4671024a2281adf0c351d7498759b1072f2d5f941a33a309e90df40c9de"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-corrected-baseline-5816a708-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.log",
+      "sha256": "abeffbfa813fae139b321b1e9e3d91c1f474cf58367243f37857e6bca35ec39b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.revision",
+      "sha256": "98d8575595ff2472254dbcf8ea9fbc23e41f585de8438d9199469f7d22a2d59f"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-fixed-4074c370-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "independent_reviews": [
+    {
+      "path": "race-capture-startup-baseline-independent-source-review-0c8cdc3e.json",
+      "sha256": "6e4473c537609923385975b24271ad9c113b8e719e3fd12c0508d2b2dfdb0c10"
+    },
+    {
+      "path": "race-capture-startup-baseline-independent-source-review-0c8cdc3e.md.txt",
+      "sha256": "0638a50c37bc6e9175714d27609f04b8ce861dfdf6af3a5b9511d05839febd08"
+    },
+    {
+      "path": "race-capture-startup-composition-independent-review-c0e6fd32.json",
+      "sha256": "97057cc71b8265957768ea0391729362b5db80d53cc08cb207a10d26a7d9fa23"
+    },
+    {
+      "path": "race-capture-startup-composition-independent-review-c0e6fd32.md.txt",
+      "sha256": "13b08c2aaeee6303d04cc242b5cb5aaead54a2da16e520453d0f55ccedfe9d4f"
+    },
+    {
+      "path": "race-capture-startup-baseline-native-independent-addendum-c0e6fd32.json",
+      "sha256": "5ecfd1ac836ccfbc6330c6d8fb7892289f25a78a875912f511da3d58f22ca3b1"
+    },
+    {
+      "path": "race-capture-startup-baseline-native-independent-addendum-c0e6fd32.md.txt",
+      "sha256": "29b289c8c3964580e8da5197be062093c4d7373bc99b1bb557a5dad575e2f06b"
+    },
+    {
+      "path": "race-capture-socket-baseline-independent-source-review-13c78c18.json",
+      "sha256": "f30714b689d9836d8bc0ab1aa926fca6b3b9f16b47305e76e5e2325e84ac50d2"
+    },
+    {
+      "path": "race-capture-socket-baseline-independent-source-review-13c78c18.md.txt",
+      "sha256": "3247d6f21bcc5901d0b6aeac2f6a369bb1f8b860b507e5ee228246c62c836faf"
+    },
+    {
+      "path": "race-capture-socket-harness-independent-review-5816a708.json",
+      "sha256": "d014b170e9fba3af9c983d6c2ad5eb385ff72160417c49c2084a961b63b1eb7a"
+    },
+    {
+      "path": "race-capture-socket-harness-independent-review-5816a708.md.txt",
+      "sha256": "ab2d8f073a243bd934c1cf0e0571c703847517be5618d58414a74e4510af6970"
+    },
+    {
+      "path": "race-capture-socket-corrected-baseline-native-independent-addendum-5816a708.json",
+      "sha256": "57320fac078d966726d5913b9bbec44d483240ace2d18d0c800bf4d737c3b7ce"
+    },
+    {
+      "path": "race-capture-socket-corrected-baseline-native-independent-addendum-5816a708.md.txt",
+      "sha256": "edbcdb0bf9b7ba41a3b7d6d9140ae80de5336205d46d4dff6c648e9c35984730"
+    },
+    {
+      "path": "race-capture-startup-remedy-independent-source-review-daa5526a.json",
+      "sha256": "f77514bc3360ee434a4c144100aa65d779bfb94ecb5fe9530c5417e2dfdb9316"
+    },
+    {
+      "path": "race-capture-startup-remedy-independent-source-review-daa5526a.md.txt",
+      "sha256": "c8af990e037195b75c008f2bd79b250bdca5b6e204385e1e5a680a1a362b4472"
+    },
+    {
+      "path": "race-capture-udp-owner-caller-independent-review-d83a56f1.json",
+      "sha256": "cc99ac35250d784f55ec6a28eb0aca7aa4bf02074e8d3f7dc20029506171fac9"
+    },
+    {
+      "path": "race-capture-udp-owner-caller-independent-review-d83a56f1.md.txt",
+      "sha256": "10022555e12ea34ce8525fadacee35dbe491af87c46962a71bc22bd5d858f905"
+    },
+    {
+      "path": "race-capture-startup-fixed-native-independent-addendum-4febd8e5.json",
+      "sha256": "08ee7c26ee5e9466e36756491e34734140e1932edb0b0a6b732659747a445dfd"
+    },
+    {
+      "path": "race-capture-startup-fixed-native-independent-addendum-4febd8e5.md.txt",
+      "sha256": "d68d0fc74ead14e8a4f72b1fe88a0bd61470c02f0c38c109b927cea76de24897"
+    },
+    {
+      "path": "race-capture-socket-remedy-independent-source-review-d667766d.json",
+      "sha256": "aabe802b1ba51e2a88fddf3cda2237ad9262e4b0323bd4975814a90638f5633c"
+    },
+    {
+      "path": "race-capture-socket-remedy-independent-source-review-d667766d.md.txt",
+      "sha256": "a2147600bf80ca2650de97668d42cf1271d40948158e96ba7e486d286e2569aa"
+    },
+    {
+      "path": "race-capture-socket-fixed-native-independent-addendum-4074c370.json",
+      "sha256": "f5451d2757fc7fd666286c8c97747011e72a8d5a8d9da74870939239db4981ab"
+    },
+    {
+      "path": "race-capture-socket-fixed-native-independent-addendum-4074c370.md.txt",
+      "sha256": "4e924cf23f7007d361c0fa7955ef7b65db9e3065b382b9db25b83366d3a45877"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "7f36d1981278f2aa7146c70ab54acfd498281869",
+      "sha256": "a132a5a11eb928ca1946751a83aeb0788095a9f5bd03654923f25150aaba1a1b"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+      "git_blob": "473c269fab640d27f74c2dc602284a0f03069ccb",
+      "sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "git_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+      "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+      "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5"
+    }
+  ],
+  "controls": {
+    "startup": {
+      "baseline_positive": 1,
+      "baseline_causal_failures": 8,
+      "fixed_passed": 9
+    },
+    "allocation": {
+      "corrected_baseline_positive": 1,
+      "corrected_baseline_causal_failures": 5,
+      "fixed_passed": 6
+    }
+  },
+  "root_scope": "Complete current 543-line startup and 245-line allocation owners and all modified remedy/caller diffs read. All focused corrected/fixed logs read completely. Composed logs parsed for complete roster, terminal guards and rejection of unexpected test tracebacks/warnings; no root every-line composed log claim.",
+  "limitations": [
+    "Historical Windows 13c harness failures retain zero causal closure credit.",
+    "Controlled errors and actual loopback resources do not establish spontaneous OS failures or browser/QUIC parity.",
+    "Expected CLI rejection text and Windows slow-callback diagnostics occur inside passing full-suite controls.",
+    "Cleanup-only interruption plus another cleanup failure remains open; accepted descendants, exception-handler restoration and protocol classification remain separate.",
+    "Native close failures and multi-fault cause-chain branches remain source assessed.",
+    "Checkpoint only: final combined review, full gate, new-head PR checks, main merge and main CI remain pending."
+  ]
+}

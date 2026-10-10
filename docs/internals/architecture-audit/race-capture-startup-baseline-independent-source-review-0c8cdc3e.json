@@ -1,0 +1,167 @@
+{
+  "kind": "independent A189 causal baseline source review",
+  "revision": "0c8cdc3e7694423cc2b91550e2191201109fbdac",
+  "initial_checkpoint": "158a8736ed6c096a9ef989e3fb203d44561b8ce1",
+  "backup_followup": "682fd4ef8779494fe610a42503ffabcca5921e27",
+  "decision": "source approved for root causal execution only",
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "git_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "lines": 543,
+      "read_scope": "fresh complete current owner manual readae32dc; initial527 readcf2092 separately",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 543,
+          "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082"
+        }
+      ],
+      "working_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "working_equal_git": true
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "ed335f4c342f5f2bb57ba62163e34696fe37c1e7",
+      "sha256": "8eec0af9027ea6c17568ee83f8139f5583a4a6667f58c06ea5ab5246ac684a5b",
+      "lines": 1259,
+      "read_scope": "supporting partial route/listener/acquisition/close; manual31e7d1/cd3bb4/ae32dc; no whole owner claim",
+      "ranges": [
+        {
+          "first": 161,
+          "last": 446,
+          "sha256": "c68359b6d4f15878aa7a3f01be44b52d7e8772ffacd1f21661e593708d2d6494"
+        },
+        {
+          "first": 481,
+          "last": 973,
+          "sha256": "950004ed3d6da5283046788f34b40367300097b3665b10706a92cd27b4887a76"
+        }
+      ],
+      "working_sha256": "ce411d9f45060fc0a9444b44518993ce1b87548f05a6db9d667c4f88ab279ee8",
+      "working_equal_git": false
+    },
+    {
+      "path": "scripts/capture/http2_session.py",
+      "git_blob": "2e575460760edae882e2f8f3f5bb1834af5df7df",
+      "sha256": "947bdd8f07a3982e1c8e6b08b886486e0e0befe14c6bd97e907b920ee78973d6",
+      "lines": 1154,
+      "read_scope": "supporting partial certificate/context; manualcd3bb4/ae32dc",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 152,
+          "sha256": "20c10fedc6a9fd69c9ba40862f399dbf9ad83be5043268c3506c49a918459bd3"
+        }
+      ],
+      "working_sha256": "faf1146eb77136894dbb3b580ee682d70de21440897db7a687a98e44135e2943",
+      "working_equal_git": false
+    },
+    {
+      "path": "scripts/capture/reserved_ports.py",
+      "git_blob": "6312fc492e8dd44c4722667ccdc24b4bd54920f9",
+      "sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07",
+      "lines": 32,
+      "read_scope": "full supporting retry helper manualcd3bb4",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 32,
+          "sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07"
+        }
+      ],
+      "working_sha256": "6e72493e8b73ee9778f23bf236583a3e9eb55916c5bcfebdb76c600b313dcaeb",
+      "working_equal_git": false
+    }
+  ],
+  "external_support": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "lines": 426,
+      "read_scope": "resolved3.10.20 supporting partials manually readcd3bb4/ae32dc/df5756; pure Python cancellation fallback qualified separately from C acceleration",
+      "ranges": [
+        {
+          "first": 125,
+          "last": 148,
+          "sha256": "47090f3031df9ee65fe2cab76bf696a880e72434b9795858b6b17f6990e1931b"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "lines": 946,
+      "read_scope": "resolved3.10.20 supporting partials manually readcd3bb4/ae32dc/df5756; pure Python cancellation fallback qualified separately from C acceleration",
+      "ranges": [
+        {
+          "first": 237,
+          "last": 250,
+          "sha256": "5a0f149fcf1549b78ab70405d4e1e183388efaec057bf93081b513a3f4bbae1b"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\base_events.py",
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "read_scope": "resolved3.10.20 supporting partials manually readcd3bb4/ae32dc/df5756; pure Python cancellation fallback qualified separately from C acceleration",
+      "ranges": [
+        {
+          "first": 304,
+          "last": 400,
+          "sha256": "9d5e946f2a4ced9ca95228569ae21eed1c297000c077ae09677f014840aa81e7"
+        },
+        {
+          "first": 1455,
+          "last": 1568,
+          "sha256": "56be464af62030067a7cab838258e778281877f546f5f48a8546fef37988a01c"
+        }
+      ]
+    }
+  ],
+  "author_pair": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-startup-baseline-handoff-0c8cdc3e.json",
+      "sha256": "64e73d9c929fd2d12b0710a03b45e677e50dfdf9a45048696974e84acf95e66c",
+      "bytes": 12224,
+      "read_scope": "complete metadata read31e7d1"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-startup-baseline-handoff-0c8cdc3e.md",
+      "sha256": "12b6a21bd21edaed1546b22f2ba58fc01340dca1894f866dae21287bc6623a22",
+      "bytes": 3270,
+      "read_scope": "complete prose read756468"
+    }
+  ],
+  "preservation": {
+    "only_new_test_owner": true,
+    "all_existing_tracked_files_unchanged": true,
+    "nine_initial_test_ASTs_exact": true,
+    "paragraph_followup_whole_AST_exact": true
+  },
+  "forecast": {
+    "methods": 9,
+    "positive": 1,
+    "intended_negative": 8,
+    "executed": false
+  },
+  "actual_source_contracts": [
+    "Real loopback UDP reservation probe or canonical BlackholeProtocol delivery precedes the relevant injected startup exit; delivered bytes equal the independent literal.",
+    "Trusted H2 ALPN/GET authority/path/END_STREAM/200 bodyok readiness precedes TCP-start and cleanup controls; healthy controlled driver observes actual /done204 empty response and run.done/page_results.",
+    "Distinct fd=-1, transport.is_closing and server.is_serving observations precede mandatory backup; the200ms closure observation is not readiness.",
+    "CancelledError identity is compared between the original start exception and same-coroutine canonical capture outcome, while external task join separately requires cancellation type.",
+    "Backup is registered before acquisition, releases gate, observes capture outcome, closes actual originals independently despite injected close failures, finitely awaits TCP/handlers, aborts test writers and closes raw/sender sockets, restores patches and loop handler.",
+    "Primary and cleanup objects are distinct; combined control first requires original primary before traversing exact cleanup cause/context identity."
+  ],
+  "limits": [
+    "Only source forecasts; first failure boundaries and downstream causes require actual Windows/Linux execution.",
+    "Faults and start gate are controlled constructor/start/cleanup boundaries; no measured OS failure or permanent leak claim.",
+    "Raw UDP readiness probe uses a finite blocking5s receive, not event-loop-driven receive.",
+    "Blackhole-only UDP ownership does not demonstrate QUIC handshake or browser parity; browser driver is controlled and no NetLog is generated.",
+    "Listener state/fd closure does not prove every accepted descendant joined; A190 remains separate.",
+    "Canonical lower allocation helper failures and protocol classification remain separate; no whole capture/production/gate approval.",
+    "Prior158 and follow-ups remain immutable; current543 whole test read is separate from supporting partial owners."
+  ]
+}

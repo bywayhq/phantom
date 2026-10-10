@@ -1,0 +1,5 @@
+# UDP recorder caller adaptation
+
+Signed d83a56f1 is source-approved to compose with daa for bounded focused verification. The complete61-line test owner and full12add5del diff were read. Existing certificate construction feeds actual UdpAlternative owners; their recorder fields replace equivalent direct recorders, and both BlackholeProtocol calls now pass their concrete owner.
+
+All assertion sequences and literal datagram calls are independently AST-exact. The lookup test body is unchanged. This starts no listener and weakens no accounting expectation. Runtime verification remains pending; the separately verified accounting composition and daa cleanup interruption finding remain qualified.

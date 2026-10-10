@@ -1,0 +1,7 @@
+# Focused startup repair results
+
+Both complete4febd8e5 logs, exact revisions, clean guarded launcher and terminal statuses were independently read. The same nine methods as c0 now all pass: Windows2.702s, Linux1.498s, test/runner0. Eight prior causal failures become passes; unchanged bodies now reach original primary/cancellation identity, pre-backup transferred resource closure, independent sibling cleanup and the formerly unreached combined cleanup cause assertion.
+
+The control remains543 bytes-bound lines; the parent composition differs from reviewed daa only by the separately verified listener/address accounting scopes, and the caller is exactly approved d83. This is a bounded composition comparison, not another whole current parent read.
+
+Cleanup-only interruption plus a secondary failure remains open. Lower allocation, accepted descendants, loop handler restoration, broader protocol/browser parity and full gates are not approved by these nine methods. No reviewer execution or source change occurred.

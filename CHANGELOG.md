@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Close Alt-Svc race sockets and listeners after failed or canceled startup.
+  Attempt sibling cleanup independently and retain the initiating failure.
+  Close partially allocated sockets when construction or setup fails.
+
 - Keep parallel ECH test workers owned during cancellation and retain
   completed peer failures alongside client errors.
 

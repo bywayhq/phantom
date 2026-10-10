@@ -1,0 +1,7 @@
+# Fixed lower allocation results
+
+Both complete4074c370 logs and exact guarded terminal records were independently read: Windows6PASS0.189s, Linux6PASS0.015s, test/runner0. The same six controls as corrected581 now pass. All five prior closure failures become passes after unchanged actual native state/datagram and original primary-identity prerequisites, before test-owned backup.
+
+Frozen245 allocation and543 startup controls remain byte-exact. Current parent is exactly approved d667 plus the previously verified listener-key composition, established by bounded delta/inverse comparison rather than another whole parent read.
+
+Cleanup-fault combinations and the startup interruption finding remain open. The broad capture suite was still running at this assessment and receives no result credit. No browser/protocol/full-gate/main approval or reviewer execution is given.

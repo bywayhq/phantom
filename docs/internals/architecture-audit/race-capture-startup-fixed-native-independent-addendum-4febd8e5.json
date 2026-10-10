@@ -1,0 +1,135 @@
+{
+  "kind": "independent focused startup causal-to-fixed native addendum",
+  "revision": "4febd8e5635d76ac79d521e967358daa59f119eb",
+  "decision": "nine existing startup contracts pass on both hosts; scoped focused verification only",
+  "source": {
+    "path": "scripts/capture/alt_svc_race.py",
+    "sha256": "f1a88010a05b301aeffe39cf85e207ec2ae523cfc0dfeeafc615ec46be2d438b",
+    "bytes": 47827,
+    "lines": 1363,
+    "read_scope": "bounded complete composition diff c65241; prior daa whole1362 read retained, no new whole current1363 credit",
+    "ranges": [],
+    "revision": "4febd8e5635d76ac79d521e967358daa59f119eb",
+    "git_blob": "13176cf85b9c81426272dead796d5f67bd69e546"
+  },
+  "controls": {
+    "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+    "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+    "bytes": 20333,
+    "lines": 543,
+    "read_scope": "all543 exact original controls; fresh481\u2013543 actual cause/cancel assertions c65241",
+    "ranges": [
+      {
+        "first": 481,
+        "last": 543,
+        "sha256": "ae150fb1f88a9b6c2a5367aba2ae96bf6ca843a8e02bd3138203139e798d78a7"
+      }
+    ],
+    "revision": "4febd8e5635d76ac79d521e967358daa59f119eb",
+    "git_blob": "787afdf7889dd5eff116587aaee477d788924acb"
+  },
+  "caller": {
+    "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+    "sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd",
+    "bytes": 2204,
+    "lines": 61,
+    "read_scope": "exact approved d83 current61 caller binding",
+    "ranges": [],
+    "revision": "4febd8e5635d76ac79d521e967358daa59f119eb",
+    "git_blob": "473c269fab640d27f74c2dc602284a0f03069ccb"
+  },
+  "composition": "Only RunRecord listener/address key and UdpRecorder lookup/docstring differ from reviewed daa; inverse of those two prior verified scopes restores daa exactly. Caller exact d83.",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.log",
+      "sha256": "3f32a1c906914f5cd3ff1832d7decff52cc92f5561af2c4e62a465c37492f1d9",
+      "bytes": 1470,
+      "lines": 14,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.revision",
+      "sha256": "389ae00bd72a0a2d8807d7d0200b39d2d22b9b6b8f986b3cb50070ee2c3a23d3",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.log",
+      "sha256": "912478aefbabc9c9e1b6b72674dbb1ba4b6d6aaf8a884be4a99b9de1048312a2",
+      "bytes": 1456,
+      "lines": 14,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.revision",
+      "sha256": "389ae00bd72a0a2d8807d7d0200b39d2d22b9b6b8f986b3cb50070ee2c3a23d3",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-startup-fixed-4febd8e5-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual5e5ac5; both fixed logs/guards, no ancillary stages",
+      "ranges": []
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-startup-controls.sh",
+      "sha256": "6f1adbb918e24fb39d79c334d4d4af8e281dec02a74e8ff2237636c8962bdea4",
+      "bytes": 1012,
+      "lines": 27,
+      "read_scope": "complete manual3e76c3; pinned Python3.10 nine startup controls and clean exact head guards",
+      "ranges": []
+    }
+  ],
+  "actual": {
+    "windows": "9PASS,2.702s, test/runner0",
+    "linux": "9PASS,1.498s,test/runner0"
+  },
+  "causal_delta": "Same nine methods as c0: prior one healthy/eight failures become nine passes. Retained primary/cancellation and actual transferred resource closure assertions now pass before backup. Previously unreached combined original-primary/independent-cleanup identity is now reached by unchanged passing body.",
+  "historical_baseline": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-startup-baseline-native-independent-addendum-c0e6fd32.json",
+    "sha256": "5ecfd1ac836ccfbc6330c6d8fb7892289f25a78a875912f511da3d58f22ca3b1",
+    "bytes": 6872,
+    "lines": 164,
+    "read_scope": "immutable prior full-log independent causal assessment",
+    "ranges": []
+  },
+  "limits": [
+    "No browser/full QUIC or accepted-descendant joins established. Test-owned backup is not canonical cleanup proof.",
+    "Cleanup-only interruption plus another cleanup failure remains unresolved and untested by these nine.",
+    "Lower allocation repair, cleanup-fault combinations, cyclic prior chains, loop handler restoration and hard-stop guarantees are outside this result.",
+    "No ancillary strict lint/full capture/main/full-gate credit and no reviewer runtime."
+  ]
+}

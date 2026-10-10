@@ -40,6 +40,20 @@ do not establish that need.
 
 ## Recent verification
 
+The [race capture verification](race-capture-root-verification-4074c370.json)
+records eight startup and five allocation failures on both hosts, followed
+by passes for the same nine startup and six allocation controls. The full
+capture suite at `4074c370` passes 510 tests on Windows and 499 on Linux,
+with eleven platform skips. Original controls and UDP accounting assertions
+remain intact. Independent review approves the focused causal comparisons.
+
+The initial Windows socket harness queried unsupported state and changed
+a socket type used by the event loop. Those failures retain no causal
+closure credit. The corrected harness reaches the five intended assertions
+on both hosts. Cleanup interruptions with secondary errors, accepted tasks,
+loop handler restoration and protocol classification remain open. These
+results do not replace the final gate or combined architecture review.
+
 The [confirmed lifecycle batch](confirmed-lifecycle-batch-5973305d.json)
 passes all 66 selected HTTPS/ECH tests on both hosts at `5973305d`.
 Formatting, strict Clippy and Rust 1.88 checks pass. All seven parallel

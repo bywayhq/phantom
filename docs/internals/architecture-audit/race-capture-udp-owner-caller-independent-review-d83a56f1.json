@@ -1,0 +1,24 @@
+{
+  "kind": "independent UDP owner constructor integration adaptation",
+  "revision": "d83a56f1f1efbae23d4d23eb54bf6cd5c344d0b0",
+  "decision": "source approved to compose with daa for bounded focused verification only",
+  "source": {
+    "path": "scripts/capture/tests/test_alt_svc_udp_listeners.py",
+    "sha256": "d3a29378e03dd521d12bded22a2f74cad1ad10f0966be90f61a91922f161abcd",
+    "bytes": 2204,
+    "lines": 61,
+    "read_scope": "fresh complete61-line current owner/full12add5del diff manually read c14532",
+    "git_blob": "473c269fab640d27f74c2dc602284a0f03069ccb"
+  },
+  "preservation": {
+    "all_assertion_AST_sequences_exact": true,
+    "all_literal_datagram_calls_exact": true,
+    "old_second_test_body_exact": true
+  },
+  "assessment": "Real existing certificate factory feeds actual UdpAlternative owners. Recorders remain those owners\u2019 existing recorder fields; direct BlackholeProtocol callers supply required concrete owner. No transport is started, no socket bound and no callback/wire assertions weakened by this adaptation.",
+  "limits": [
+    "No runtime claim for this candidate or daa startup remedy.",
+    "Separately verified A192 listener/source-address accounting must remain on root composition.",
+    "daa cleanup-only interruption aggregation gap remains unresolved; this fixes only the constructor integration prerequisite."
+  ]
+}

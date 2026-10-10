@@ -1,0 +1,122 @@
+{
+  "kind": "independent socket harness correction and historical baseline qualification",
+  "revision": "5816a7089857542ae9485945b02b971663f66e16",
+  "decision": "corrected source approved for rerun only; original Windows targets masked",
+  "source": {
+    "path": "scripts/capture/tests/test_alt_svc_race_socket_lifecycle.py",
+    "git_blob": "4bf66a57f9414687c82967166ee660aeabfe6028",
+    "sha256": "2b69a44efba84fae7bc642fdd52c583d1a9d12ac9a5224588c21cfce8c8d94d5",
+    "lines": 245,
+    "read_scope": "complete tiny diff plus current1\u2013106 install/observer partial; initial236 whole read stays historical",
+    "ranges": [
+      {
+        "first": 1,
+        "last": 106,
+        "sha256": "4d66a4bc8f4e04e24eacc12b579f91d702508e12c1ce033da51bfc479223ce1d"
+      }
+    ]
+  },
+  "preservation": {
+    "all_six_test_AST_bodies_exact": true,
+    "canonical_owner_exact": true,
+    "startup543_exact": true
+  },
+  "correction": [
+    "Patch only race.socket binding to a copied SimpleNamespace; native shared socket.socket remains a type for asyncio proactor isinstance.",
+    "SO_ACCEPTCONN is observed only for TCP; UDP unsupported option is skipped, not interpreted as target error.",
+    "First unbound UDP constructor checkpoint retains native fd/SO_TYPE and does not query unsupported getsockname; existing target assertions unchanged."
+  ],
+  "historical_native": {
+    "windows": "6 summary1pass5fail, but all five targets masked at wrong primary identity by10042 or10022;12 proactor self-pipe TypeErrors. No Windows closure credit.",
+    "linux": "6 summary1pass5causal closure failures at172/186/199/213/232; full log read, no proactor harness diagnostics."
+  },
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-windows.log",
+      "sha256": "f9a9be7ae3db8bdbdbadce668bc1be027700601de8bff60951aba9af9f38ba0f",
+      "bytes": 32434,
+      "lines": 391,
+      "read_scope": "manual historical diagnostic partials1\u201382/309\u2013391; complete diagnostic-token scan, not every-line manual read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-windows.revision",
+      "sha256": "29aeeaa1760d67b1820260106eb5396ad04fb4d51f9d687b64ac9c555da5f63b",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-linux.log",
+      "sha256": "bbb8da3383f73c7f864f4c58ccf56339aad26a13c32561963d664b4fc672f1ee",
+      "bytes": 7668,
+      "lines": 91,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-linux.revision",
+      "sha256": "29aeeaa1760d67b1820260106eb5396ad04fb4d51f9d687b64ac9c555da5f63b",
+      "bytes": 41,
+      "lines": 1,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-socket-baseline-13c78c18-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1,
+      "read_scope": "complete manual09c442/d50e10"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-socket-controls.sh",
+      "sha256": "7976e249cd92a3b80f6591dd39c3ba1c5677b319ca4f2c5c491f4621ec4d94c5",
+      "bytes": 1010,
+      "lines": 27,
+      "read_scope": "complete manuale95605; clean exact head guards and pinned Python3.10 six-method execution"
+    }
+  ],
+  "resolved_proactor": {
+    "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10.20-windows-x86_64-none\\Lib\\asyncio\\windows_events.py",
+    "sha256": "08897422f674431ee2424cad98051e9dca4a41efcbee8fc3e154c5bb07550cdb",
+    "lines": 924,
+    "read_scope": "actual443\u2013476 partial manual05e466; public socket.socket type requirement at462",
+    "range": {
+      "first": 443,
+      "last": 476,
+      "sha256": "855e004be61bfa0672d1e2cacc77579fbc3a281b70f011a10446fcbb126c83ad"
+    }
+  },
+  "original_source_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-capture-socket-baseline-independent-source-review-13c78c18.json",
+    "sha256": "f30714b689d9836d8bc0ab1aa926fca6b3b9f16b47305e76e5e2325e84ac50d2",
+    "bytes": 5452,
+    "lines": 111,
+    "read_scope": "preserved; its initial cross-platform approval was too strong for native Windows query/type compatibility"
+  },
+  "limits": [
+    "No corrected baseline runtime, native socket cleanup remedy or A189 startup remedy approval.",
+    "Actual original Linux closure failures do not turn Windows observer failures into causal evidence.",
+    "Initial source assertion that a short shared-module patch is safe is narrowed: the running proactor uses the native class during that scope.",
+    "No source edits, reviewer native execution or process operations; no full-gate credit."
+  ]
+}

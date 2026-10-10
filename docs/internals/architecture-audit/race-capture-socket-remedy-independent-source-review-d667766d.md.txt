@@ -1,0 +1,7 @@
+# Lower allocation repair source review
+
+Signed d667766d is source-approved for the focused six fixed allocation controls. The complete48add15del diff and actual two changed functions were read, together with all245 frozen controls and the complete32-line reserved-port retry owner. An independent inverse restores the entire reviewed daa parent exactly; startup543 remains byte-exact.
+
+Each successfully returned socket is protected before subsequent fallible construction or preparation. Every non-return paired branch assigns the real primary before attempting independent close operations. Only bind OSError retries a paired candidate after successful cleanup. Constructor/listen/nonblocking failures propagate the same object. Standalone bind and nonblocking now share the protected scope, preserving original primary and secondary cleanup objects. Existing reserved-port retry behavior remains unchanged.
+
+Actual native close failures and simultaneous cleanup combinations are source-only branches; a reported failed close is not proof of closure. No fixed execution, broad parent review, interruption-combination repair, browser protocol or main/full-gate approval is given. Root composition must retain its verified accounting and adapted callers.
