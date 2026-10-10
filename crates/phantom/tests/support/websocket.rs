@@ -153,9 +153,7 @@ pub(crate) async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "WebSocket integration test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await?
 }
 
 #[cfg(test)]
