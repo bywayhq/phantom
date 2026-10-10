@@ -62,7 +62,7 @@ async fn quic_rejection_of_a_presented_certificate_does_not_prove_one_is_missing
     let (served, error) = quic_rejection(CertificateInput::WrongAuthority).await?;
 
     assert!(
-        quic_alert(&served, rustls::AlertDescription::UnknownCA),
+        quic_alert(&served, rustls::AlertDescription::DecryptError),
         "unexpected QUIC certificate rejection: {served:?}"
     );
     assert!(!quic_alert(
