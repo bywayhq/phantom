@@ -2476,6 +2476,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Preserve capture failures when staged-file removal or HTTP/3 startup
+  cleanup also fails. Diagnostics retain the staged path and publication
+  state, or the separate server-close and packet-clear failures.
+
 - Retain proxy configuration validation errors in `Error::source()`.
   HTTP, SOCKS5 and CONNECT-UDP authority failures keep their causes.
   Basic credential failures identify the username, password or size limit.

@@ -38,6 +38,28 @@ design. A new crate needs an actual consumer, dependency isolation, or a
 compilation boundary. Repeated names, file sizes and passing lints alone
 do not establish that need.
 
+## Recent verification
+
+The [proxy verification](proxy-storage-native-independent-addendum-440dc2ad.md.txt)
+records twenty configuration controls and forty-five route unit tests passing
+on both Windows and Linux. Focused formatting, Clippy, Rust 1.88 and rustdoc
+checks pass. The earlier candidate failed Clippy because its retained
+credential error enlarged an environment error. Boxing that concrete cause
+resolved the diagnostic while preserving its source chain.
+
+The [capture verification](capture-composed-native-independent-addendum-60b26063.md.txt)
+records fifty-seven methods passing on both hosts. Publication controls use
+real staged files. Startup controls establish acquired-server cleanup calls
+and retained failures, without proving native socket drain.
+
+The [stream retention review](capture-aggregate-stream-retention-independent-review-440dc2ad.md.txt)
+identifies a separate aggregate bound missing from the capture recorder.
+Five new controls fail on Windows before repair. Four positive controls pass.
+The nine controls and existing fifty-seven methods pass after the proposed
+repair on Windows. Independent remedy review and composed Linux execution
+remain pending. These results do not establish whole-process memory bounds
+or live browser behavior.
+
 ## Vendor evidence reconciliation
 
 The [retained records](vendor-reviewed-records.json) preserve 288 validated
