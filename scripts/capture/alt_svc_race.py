@@ -26,7 +26,8 @@ import socket
 import ssl
 import statistics
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -1109,121 +1110,126 @@ async def capture_run(
     netlog: Path,
     timeout: float,
 ) -> RunResult:
-    asyncio.get_running_loop().set_exception_handler(ignore_peer_resets)
-    sockets: list[socket.socket] = []
-    udp_owners: list[tuple[UdpAlternative, socket.socket]] = []
-    tcp: Http2Origin | None = None
-    tcp_socket: socket.socket | None = None
-    primary: BaseException | None = None
-    failures: list[BaseException] = []
-
-    try:
-        certificate = generate_certificate(HOSTNAME)
-        udp_socket, tcp_socket = reserve_ports(listen_host)
-        sockets.extend((udp_socket, tcp_socket))
-        port = tcp_socket.getsockname()[1]
-        earlier_sockets = []
-        for _ in scenario.earlier_alternatives:
-            sock = await bind_udp(listen_host)
-            sockets.append(sock)
-            earlier_sockets.append(sock)
-
-        earlier_ports = [sock.getsockname()[1] for sock in earlier_sockets]
-        origin = Origin(scenario, port, earlier_ports)
-        tcp = Http2Origin(origin, certificate)
-        udp = UdpAlternative(origin, certificate, scenario.quic)
-        udp_owners.append((udp, udp_socket))
-        earlier = []
-        for number, mode in enumerate(scenario.earlier_alternatives):
-            alternative = UdpAlternative(origin, certificate, mode, f"earlier-{number}")
-            udp_owners.append((alternative, earlier_sockets[number]))
-            earlier.append(alternative)
-
-        run = new_run()
-        origin.begin(run)
-        await udp.start(udp_socket)
-        for alternative, sock in zip(earlier, earlier_sockets, strict=True):
-            await alternative.start(sock)
-        await tcp.start(tcp_socket)
-
-        url = f"https://{HOSTNAME}:{port}/start"
-        extra = chromium_extra_arguments(
-            listen_host, certificate.spki_sha256_base64, netlog
-        )
-        plan = LaunchPlan(browser, executable, headless, extra)
-        recorded = plan.recorded_arguments(url).replace(
-            certificate.spki_sha256_base64, "<certificate-spki>"
-        )
-        recorded = recorded.replace(str(netlog), "<netlog>")
-        exited = False
-        async with BrowserDriver(plan, url) as driver:
-            await asyncio.wait_for(run.done.wait(), timeout=timeout)
-            process = driver.browser.process if driver.browser else None
-            if process is not None:
-                # `--dump-dom` exits after the load event; a graceful exit
-                # writes the NetLog's closing polled data.
-                exited = await wait_for_exit(process, EXIT_WAIT_SECONDS)
-            await asyncio.sleep(0.5)
-    except BaseException as error:
-        primary = error
-
-    transferred = set()
-    for alternative, sock in udp_owners:
-        if alternative.transport is not None:
-            transferred.add(sock)
+    with capture_exception_handler():
+        sockets: list[socket.socket] = []
+        udp_owners: list[tuple[UdpAlternative, socket.socket]] = []
+        tcp: Http2Origin | None = None
+        tcp_socket: socket.socket | None = None
+        primary: BaseException | None = None
+        failures: list[BaseException] = []
 
         try:
-            alternative.close()
-        except BaseException as error:
-            failures.append(error)
+            certificate = generate_certificate(HOSTNAME)
+            udp_socket, tcp_socket = reserve_ports(listen_host)
+            sockets.extend((udp_socket, tcp_socket))
+            port = tcp_socket.getsockname()[1]
+            earlier_sockets = []
+            for _ in scenario.earlier_alternatives:
+                sock = await bind_udp(listen_host)
+                sockets.append(sock)
+                earlier_sockets.append(sock)
 
-    if tcp is not None:
-        if tcp.server is not None:
-            transferred.add(tcp_socket)
+            earlier_ports = [sock.getsockname()[1] for sock in earlier_sockets]
+            origin = Origin(scenario, port, earlier_ports)
+            tcp = Http2Origin(origin, certificate)
+            udp = UdpAlternative(origin, certificate, scenario.quic)
+            udp_owners.append((udp, udp_socket))
+            earlier = []
+            for number, mode in enumerate(scenario.earlier_alternatives):
+                alternative = UdpAlternative(
+                    origin, certificate, mode, f"earlier-{number}"
+                )
+                udp_owners.append((alternative, earlier_sockets[number]))
+                earlier.append(alternative)
 
-        try:
-            await asyncio.wait_for(tcp.close(), CLEANUP_WAIT_SECONDS)
-        except BaseException as error:
-            failures.append(error)
+            run = new_run()
+            origin.begin(run)
+            await udp.start(udp_socket)
+            for alternative, sock in zip(earlier, earlier_sockets, strict=True):
+                await alternative.start(sock)
+            await tcp.start(tcp_socket)
 
-    # Transports close their sockets asynchronously, especially on Windows.
-    # Direct closure belongs only to reservations that were never transferred.
-    for sock in sockets:
-        if sock in transferred:
-            continue
-
-        try:
-            sock.close()
-        except BaseException as error:
-            failures.append(error)
-
-    if failures:
-        if primary is None and len(failures) > 1:
-            interruption_index = next(
-                (
-                    index
-                    for index, error in enumerate(failures)
-                    if not isinstance(error, Exception)
-                ),
-                None,
+            url = f"https://{HOSTNAME}:{port}/start"
+            extra = chromium_extra_arguments(
+                listen_host, certificate.spki_sha256_base64, netlog
             )
+            plan = LaunchPlan(browser, executable, headless, extra)
+            recorded = plan.recorded_arguments(url).replace(
+                certificate.spki_sha256_base64, "<certificate-spki>"
+            )
+            recorded = recorded.replace(str(netlog), "<netlog>")
+            exited = False
+            async with BrowserDriver(plan, url) as driver:
+                await asyncio.wait_for(run.done.wait(), timeout=timeout)
+                process = driver.browser.process if driver.browser else None
+                if process is not None:
+                    # `--dump-dom` exits after the load event; a graceful exit
+                    # writes the NetLog's closing polled data.
+                    exited = await wait_for_exit(process, EXIT_WAIT_SECONDS)
+                await asyncio.sleep(0.5)
+        except BaseException as error:
+            primary = error
 
-            if interruption_index is not None:
-                primary = failures[interruption_index]
-                failures = (
-                    failures[:interruption_index] + failures[interruption_index + 1 :]
+        transferred = set()
+        for alternative, sock in udp_owners:
+            if alternative.transport is not None:
+                transferred.add(sock)
+
+            try:
+                alternative.close()
+            except BaseException as error:
+                failures.append(error)
+
+        if tcp is not None:
+            if tcp.server is not None:
+                transferred.add(tcp_socket)
+
+            try:
+                await asyncio.wait_for(tcp.close(), CLEANUP_WAIT_SECONDS)
+            except BaseException as error:
+                failures.append(error)
+
+        # Transports close their sockets asynchronously, especially on Windows.
+        # Direct closure belongs only to reservations that were never transferred.
+        for sock in sockets:
+            if sock in transferred:
+                continue
+
+            try:
+                sock.close()
+            except BaseException as error:
+                failures.append(error)
+
+        if failures:
+            if primary is None and len(failures) > 1:
+                interruption_index = next(
+                    (
+                        index
+                        for index, error in enumerate(failures)
+                        if not isinstance(error, Exception)
+                    ),
+                    None,
                 )
 
-        cleanup = failures[0] if len(failures) == 1 else CaptureCleanupError(failures)
-        if primary is None:
-            raise cleanup
+                if interruption_index is not None:
+                    primary = failures[interruption_index]
+                    failures = (
+                        failures[:interruption_index]
+                        + failures[interruption_index + 1 :]
+                    )
 
-        retain_capture_cleanup(primary, cleanup)
+            cleanup = (
+                failures[0] if len(failures) == 1 else CaptureCleanupError(failures)
+            )
+            if primary is None:
+                raise cleanup
 
-    if primary is not None:
-        raise primary
+            retain_capture_cleanup(primary, cleanup)
 
-    return RunResult(run, port, netlog, recorded, exited)
+        if primary is not None:
+            raise primary
+
+        return RunResult(run, port, netlog, recorded, exited)
 
 
 def retain_capture_cleanup(primary: BaseException, cleanup: BaseException) -> None:
@@ -1254,6 +1260,30 @@ def retain_capture_cleanup(primary: BaseException, cleanup: BaseException) -> No
             return
 
         current = previous
+
+
+@contextmanager
+def capture_exception_handler() -> Iterator[None]:
+    """Restore the caller's loop handler after filtering active peer resets."""
+    loop = asyncio.get_running_loop()
+    previous = loop.get_exception_handler()
+
+    def handle_exception(active_loop: asyncio.AbstractEventLoop, context: dict) -> None:
+        if isinstance(
+            context.get("exception"), (ConnectionResetError, ConnectionAbortedError)
+        ):
+            return
+
+        if previous is None:
+            active_loop.default_exception_handler(context)
+        else:
+            previous(active_loop, context)
+
+    loop.set_exception_handler(handle_exception)
+    try:
+        yield
+    finally:
+        loop.set_exception_handler(previous)
 
 
 def ignore_peer_resets(loop: asyncio.AbstractEventLoop, context: dict) -> None:
