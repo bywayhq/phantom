@@ -571,8 +571,8 @@ crates/phantom/tests/http3/https_record_ech_exact.rs	crate	pending
 crates/phantom/tests/http3/https_record_ech_http3.rs	crate	pending	
 crates/phantom/tests/http3/https_records.rs	crate	pending	
 crates/phantom/tests/http3/main.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/0; alt-svc-race-fixture-independent-review.json#/source_records/3
-crates/phantom/tests/proxies/configuration_errors.rs	crate	pending	discovery only; manual review pending
-crates/phantom/tests/proxies/configuration_errors/sibling_routes.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/proxies/configuration_errors.rs	crate	source-complete	discovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/1
+crates/phantom/tests/proxies/configuration_errors/sibling_routes.rs	crate	source-complete	discovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/2
 crates/phantom/tests/proxies/environment.rs	crate	pending	
 crates/phantom/tests/proxies/environment/ownership_controls.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/proxies/environment/ownership_controls/relay.rs	crate	pending	discovery only; manual review pending
@@ -581,7 +581,7 @@ crates/phantom/tests/proxies/forward_proxy/deadline_contract.rs	crate	source-com
 crates/phantom/tests/proxies/forward_proxy/observer_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/4
 crates/phantom/tests/proxies/forward_proxy/peer_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/5
 crates/phantom/tests/proxies/forward_proxy/remainder_contract.rs	crate	source-complete	current exact whole-read binding: forward-proxy-regression-independent-review-a808f120.json#/source_records/6
-crates/phantom/tests/proxies/main.rs	crate	pending	
+crates/phantom/tests/proxies/main.rs	crate	source-complete	; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/0
 crates/phantom/tests/proxies/negotiated_proxy.rs	crate	source-complete	; current exact whole working-source review and Git binding: proxy-remaining-whole-source-54c60be7.json#/scope/0
 crates/phantom/tests/proxies/proxy.rs	crate	pending	
 crates/phantom/tests/proxies/proxy/auth.rs	crate	pending	
@@ -695,7 +695,7 @@ crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-sup
 crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/3
 crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/11; h3-early-fixture-independent-review.json#/source_records/7
 crates/phantom/tests/support/tunnel_proxy.rs	crate	source-complete	integration-support-standards-review.json#/records/12
-crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	pending	discovery only; manual review pending
+crates/phantom/tests/support/tunnel_proxy/connection_peer.rs	crate	source-complete	discovery only; manual review pending; exact root complete source review: proxy-configuration-root-source-review-81d7ce54.json#/sources/3
 crates/phantom/tests/support/tunnel_proxy/relay_controls.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_failed_send.rs	crate	pending	discovery only; manual review pending
 crates/phantom/tests/support/tunnel_proxy/relay_controls/h2_teardown.rs	crate	pending	discovery only; manual review pending
@@ -1007,6 +1007,8 @@ docs/internals/architecture-audit/pending-source-promotion-independent-review-b6
 docs/internals/architecture-audit/pending-source-six-row-import-d7485fa0.json	documentation	pending	bounded six-row identity import; no new manual source review
 docs/internals/architecture-audit/pending-source-six-row-import-d7485fa0.md.txt	documentation	pending	bounded six-row identity import; no new manual source review
 docs/internals/architecture-audit/profile-quic-coverage.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/130
+docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.json	documentation	pending	retained bounded root source review; independent record review pending
+docs/internals/architecture-audit/proxy-configuration-root-source-review-81d7ce54.md.txt	documentation	pending	retained bounded root source review; independent record review pending
 docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/proxy-remedy-native-independent-addendum-593fc4ae.json	documentation	pending	imported raw report; review scope requires its retained source bindings

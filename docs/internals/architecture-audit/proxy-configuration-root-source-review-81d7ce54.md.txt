@@ -1,0 +1,20 @@
+# Proxy configuration and shared task owner source review
+
+Root read the complete proxy binary root, configuration error owner, sibling
+route controls and ConnectionPeer helper at `81d7ce54`. The paired JSON binds
+exact Git source, complete/partial ranges and review limits.
+
+Configuration controls check concrete categories and causes, static authority
+messages, omitted credential diagnostics and ordinary valid values. Their
+expected contracts are explicit. Module responsibilities, import groups and
+operation paragraphs are readable. No supported new defect was found here.
+
+The shared owner requests abort on Drop, preserves typed results and retains
+both simultaneous failures. Explicit stop has a finite timeout. This source
+review does not prove unconditional joined shutdown or ownership of every
+caller. The separately found local setup cancellation defect remains open.
+
+Production error mapping reads are partial. No tests, browser comparisons,
+captures or measurements ran for this record. Canary text checks do not prove
+all encodings or all diagnostic paths. Independent review of this record and
+final integration verification remain required.
