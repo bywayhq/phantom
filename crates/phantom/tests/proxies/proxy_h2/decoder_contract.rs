@@ -38,6 +38,11 @@ fn non_ascii_hex_is_a_recoverable_error() -> TestResult<()> {
 }
 
 #[test]
+fn signed_hex_is_a_recoverable_error() -> TestResult<()> {
+    malformed_hex("+1")
+}
+
+#[test]
 fn short_priority_payload_is_a_recoverable_error() -> TestResult<()> {
     let mut wire = PREFACE.to_vec();
     wire.extend_from_slice(&[0, 0, 0, 1, 0x24, 0, 0, 0, 1]);
