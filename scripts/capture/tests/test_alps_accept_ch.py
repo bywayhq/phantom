@@ -186,6 +186,8 @@ class ObservedStderr:
         self.listening_seen = threading.Event()
         self.failure_raised = threading.Event()
         self.failure = PermissionError("controlled ALPS stderr read failure")
+        self.close_failed = threading.Event()
+        self.close_failure = PermissionError("controlled ALPS stderr close failure")
 
     def readline(self, *args):
         self.read_started.set()
@@ -212,6 +214,13 @@ class ObservedStderr:
     def __getattr__(self, name):
         return getattr(self.stream, name)
 
+    def close(self):
+        if self.action == "close_fail" and not self.close_failed.is_set():
+            self.close_failed.set()
+            raise self.close_failure
+
+        return self.stream.close()
+
 
 class ControlledStdout:
     def __init__(self, stream, action: str) -> None:
@@ -220,6 +229,7 @@ class ControlledStdout:
         self.read_completed = threading.Event()
         self.failure_raised = threading.Event()
         self.release = threading.Event()
+        self.closed_before_release = threading.Event()
         self.text = None
         self.failure = PermissionError("controlled ALPS stdout read failure")
 
@@ -235,6 +245,13 @@ class ControlledStdout:
 
         return self.text
 
+    def close(self):
+        if self.action == "hold" and not self.release.is_set():
+            self.closed_before_release.set()
+            raise PermissionError("controlled close while stdout reader is held")
+
+        return self.stream.close()
+
     def __getattr__(self, name):
         return getattr(self.stream, name)
 
@@ -249,6 +266,49 @@ class CaptureControlCleanupError(RuntimeError):
         super().__init__("ALPS control cleanup failed")
 
 
+class InterruptedReaderThread:
+    def __init__(self, thread, control, mode: str) -> None:
+        self.thread = thread
+        self.control = control
+        self.mode = mode
+        self.joins = 0
+        self.reported_stopped = False
+        self.failure = KeyboardInterrupt("controlled ALPS reader interruption")
+
+    @property
+    def ident(self):
+        if self.mode == "start_unreported":
+            return None
+
+        return self.thread.ident
+
+    def start(self):
+        self.thread.start()
+        if self.mode == "start_unreported":
+            if not self.control.stdout.read_completed.wait(CONTROL_TIMEOUT):
+                raise TimeoutError("controlled stdout read was not observed")
+
+            self.reported_stopped = True
+            raise self.failure
+
+    def join(self, timeout=None):
+        self.joins += 1
+        if self.mode == "join_stopped" and self.joins == 1:
+            if not self.control.stdout.read_completed.wait(CONTROL_TIMEOUT):
+                raise TimeoutError("controlled stdout read was not observed")
+
+            self.reported_stopped = True
+            raise self.failure
+
+        if self.mode == "cleanup_interrupt" and self.joins == 2:
+            raise self.failure
+
+        return self.thread.join(timeout)
+
+    def is_alive(self):
+        return not self.reported_stopped and self.thread.is_alive()
+
+
 class CaptureControl:
     def __init__(
         self,
@@ -257,6 +317,7 @@ class CaptureControl:
         stdout_action: str,
         stderr_action: str,
         browser_error,
+        thread_mode: str,
     ) -> None:
         self.server = server
         self.stderr = ObservedStderr(server.stderr, stderr_action)
@@ -270,6 +331,8 @@ class CaptureControl:
         self.result = None
         self.error = None
         self.browser_error = browser_error
+        self.thread_mode = thread_mode
+        self.interrupted_reader = None
         self.netlog = netlog
         self.worker = REAL_THREAD(target=self.run)
 
@@ -327,6 +390,12 @@ class CaptureControl:
     def new_thread(self, *args, **kwargs):
         thread = REAL_THREAD(*args, **kwargs)
         self.threads.append(thread)
+        if self.thread_mode != "normal" and self.interrupted_reader is None:
+            self.interrupted_reader = InterruptedReaderThread(
+                thread, self, self.thread_mode
+            )
+            return self.interrupted_reader
+
         return thread
 
 
@@ -337,6 +406,7 @@ def capture_control(
     stdout_action: str = "normal",
     stderr_action: str = "normal",
     browser_error=None,
+    thread_mode: str = "normal",
 ):
     server = subprocess.Popen(
         [sys.executable, "-u", "-c", CHILD_SOURCE],
@@ -376,6 +446,7 @@ def capture_control(
                 stdout_action,
                 stderr_action,
                 browser_error,
+                thread_mode,
             )
             threads.append(control.worker)
             if listen:
@@ -525,6 +596,53 @@ class CapturePipeTests(unittest.TestCase):
             any(
                 error is control.stderr.failure
                 for _operation, error in cleanup.failures
+            )
+        )
+
+    def test_interrupted_join_cannot_close_a_live_reader_pipe(self) -> None:
+        with capture_control(
+            listen=True, stdout_action="hold", thread_mode="join_stopped"
+        ) as control:
+            self.assertTrue(control.stdout.read_completed.wait(CONTROL_TIMEOUT))
+            self.assertEqual(control.stdout.text, "request=/\n")
+            self.assertTrue(control.done.wait(1))
+            closed_before_release = control.stdout.closed_before_release.is_set()
+            error_before_release = control.error
+            published_before_release = control.result
+
+        self.assertFalse(closed_before_release, "capture closed a still-used pipe")
+        self.assertIs(error_before_release, control.interrupted_reader.failure)
+        self.assertIsNone(published_before_release)
+
+    def test_interrupted_start_cannot_close_an_unreported_live_reader_pipe(self) -> None:
+        with capture_control(
+            listen=True, stdout_action="hold", thread_mode="start_unreported"
+        ) as control:
+            self.assertTrue(control.stdout.read_completed.wait(CONTROL_TIMEOUT))
+            self.assertEqual(control.stdout.text, "request=/\n")
+            self.assertTrue(control.done.wait(1))
+            closed_before_release = control.stdout.closed_before_release.is_set()
+            error_before_release = control.error
+            published_before_release = control.result
+
+        self.assertFalse(closed_before_release, "capture closed an uncertain reader")
+        self.assertIs(error_before_release, control.interrupted_reader.failure)
+        self.assertIsNone(published_before_release)
+
+    def test_first_cleanup_interruption_keeps_its_original_identity(self) -> None:
+        with capture_control(
+            listen=True, stderr_action="close_fail", thread_mode="cleanup_interrupt"
+        ) as control:
+            self.assertTrue(control.done.wait(CONTROL_TIMEOUT))
+            self.assertEqual(control.stdout.text, "request=/\n")
+
+        self.assertIs(control.error, control.interrupted_reader.failure)
+        self.assertIsNone(control.result)
+        self.assertTrue(control.stderr.close_failed.is_set())
+        self.assertTrue(
+            any(
+                error is control.stderr.close_failure
+                for _operation, error in control.error.__cause__.failures
             )
         )
 
