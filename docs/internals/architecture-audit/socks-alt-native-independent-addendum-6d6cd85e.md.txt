@@ -1,0 +1,11 @@
+# SOCKS remedy and Alt-Svc causal baseline native addendum
+
+Exact tested revision `6d6cd85e78d1848cef25a76f24fd4606ac82933d`. Both root-owned native runners completed with wrapper exit 1. The reviewer read the complete launcher, ten logs, ten stage exits, both revision receipts and both wrapper exits (25 artifacts), and did not run Cargo. Hashes and source rebinds are in the paired JSON.
+
+Windows and Linux each passed all 31 SOCKS methods. Their selected Alt-Svc runs each had four passes and one intended failure: a_truncated_response_keeps_both_the_body_and_completed_peer_errors reports "caller discarded its completed peer failure". The exact control calls assert_truncated_body before that diagnostic, so the concrete Http1 request category/protocol and underlying UnexpectedEof were reached successfully. This is the intended completed-secondary-cause loss, rather than a setup, network timeout or compilation failure.
+
+Formatting, targeted phantom-http proxies/http3 all-feature Clippy with warnings denied, and their Rust 1.88 checks all exited zero on both hosts. The combined runner remains nonzero. The 202 skipped proxies and 290 skipped HTTP3 methods on each host are filter exclusions, not executed tests.
+
+All six changed source blobs match the approved signed sources exactly: three SOCKS owners at 0d561bbd, the Alt control and shared module visibility at 83616c72, and the persistence extraction at e03e35fb. The G signature and human identities of the aggregate checkpoint were checked. These identity comparisons rebind prior bounded source approvals; they do not claim another full semantic read of unchanged files.
+
+The original baseline and source records remain immutable. SOCKS focused native verification is green; Alt-Svc now has a measured causal baseline awaiting remedy. A complete workspace gate and architecture completion remain unproven.

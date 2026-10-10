@@ -1,0 +1,587 @@
+{
+  "kind": "A118 signed SOCKS peer/result ownership remedy",
+  "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+  "baseline_composed_revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+  "original_regression_revisions": [
+    "e8d614b99929cf2e4e8f64c5f2ccfe72c9ad11b6",
+    "3fa93b02c2da3200ba4a57ed5b3b784125ff037b",
+    "c332a165b2e72d775686c2e0bb8cb3f59911092b",
+    "1ce35297f7e96ac61715385de0c0de5b2fd4c414"
+  ],
+  "owned_paths": [
+    "crates/phantom/tests/proxies/socks5.rs",
+    "crates/phantom/tests/proxies/socks5/auth.rs",
+    "crates/phantom/tests/proxies/socks5/peer_contract.rs"
+  ],
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "31c6bbe4426db1546525a67f660c893c137dad3c",
+      "sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55",
+      "line_count": 750,
+      "read_ranges": [
+        [
+          1,
+          750
+        ]
+      ],
+      "read_scope": "complete owned source read",
+      "working_raw_sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55",
+      "working_equal_after_crlf_normalization": true,
+      "changed_ranges": [
+        [
+          12,
+          15
+        ],
+        [
+          19,
+          20
+        ],
+        [
+          33,
+          35
+        ],
+        [
+          45,
+          48
+        ],
+        [
+          50,
+          66
+        ],
+        [
+          68,
+          69
+        ],
+        [
+          99,
+          101
+        ],
+        [
+          120,
+          136
+        ],
+        [
+          138,
+          138
+        ],
+        [
+          140,
+          141
+        ],
+        [
+          168,
+          191
+        ],
+        [
+          194,
+          194
+        ],
+        [
+          255,
+          257
+        ],
+        [
+          281,
+          300
+        ],
+        [
+          302,
+          303
+        ],
+        [
+          333,
+          356
+        ],
+        [
+          359,
+          359
+        ],
+        [
+          405,
+          407
+        ],
+        [
+          432,
+          447
+        ],
+        [
+          449,
+          450
+        ],
+        [
+          474,
+          476
+        ],
+        [
+          486,
+          489
+        ],
+        [
+          491,
+          503
+        ],
+        [
+          506,
+          507
+        ],
+        [
+          535,
+          537
+        ],
+        [
+          547,
+          550
+        ],
+        [
+          552,
+          569
+        ],
+        [
+          571,
+          572
+        ],
+        [
+          611,
+          616
+        ],
+        [
+          619,
+          632
+        ],
+        [
+          634,
+          665
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "7bfe91ac98fa086aa595dd467c3a8cd8e781a669",
+      "sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0",
+      "line_count": 554,
+      "read_ranges": [
+        [
+          1,
+          554
+        ]
+      ],
+      "read_scope": "complete owned source read",
+      "working_raw_sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0",
+      "working_equal_after_crlf_normalization": true,
+      "changed_ranges": [
+        [
+          3,
+          3
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          18,
+          19
+        ],
+        [
+          25,
+          25
+        ],
+        [
+          39,
+          41
+        ],
+        [
+          51,
+          51
+        ],
+        [
+          55,
+          57
+        ],
+        [
+          59,
+          74
+        ],
+        [
+          76,
+          77
+        ],
+        [
+          93,
+          95
+        ],
+        [
+          108,
+          108
+        ],
+        [
+          112,
+          114
+        ],
+        [
+          116,
+          131
+        ],
+        [
+          133,
+          134
+        ],
+        [
+          152,
+          155
+        ],
+        [
+          157,
+          176
+        ],
+        [
+          179,
+          179
+        ],
+        [
+          199,
+          200
+        ],
+        [
+          209,
+          232
+        ],
+        [
+          234,
+          242
+        ],
+        [
+          250,
+          250
+        ],
+        [
+          282,
+          284
+        ],
+        [
+          309,
+          309
+        ],
+        [
+          313,
+          327
+        ],
+        [
+          329,
+          330
+        ],
+        [
+          374,
+          376
+        ],
+        [
+          386,
+          386
+        ],
+        [
+          390,
+          394
+        ],
+        [
+          396,
+          411
+        ],
+        [
+          413,
+          414
+        ],
+        [
+          438,
+          438
+        ],
+        [
+          442,
+          448
+        ],
+        [
+          452,
+          528
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "f7df844273d10fbfb291cf820955228c3d4367f0",
+      "sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7",
+      "line_count": 807,
+      "read_ranges": [
+        [
+          1,
+          807
+        ]
+      ],
+      "read_scope": "complete owned source read",
+      "working_raw_sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7",
+      "working_equal_after_crlf_normalization": true,
+      "changed_ranges": [
+        [
+          19,
+          20
+        ],
+        [
+          256,
+          256
+        ],
+        [
+          286,
+          290
+        ],
+        [
+          322,
+          329
+        ],
+        [
+          358,
+          363
+        ],
+        [
+          404,
+          408
+        ],
+        [
+          445,
+          452
+        ],
+        [
+          479,
+          484
+        ]
+      ]
+    }
+  ],
+  "supporting_source_records": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          111
+        ]
+      ],
+      "read_scope": "fresh supporting partial concrete ownership/failure APIs; tests not credited",
+      "working_raw_sha256": "6ea0a959ef76707e83f00ac3dac4b43d91f48fe6e7efc9ffe2727a1a6f79151b",
+      "working_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "read_scope": "supporting partial module export/canonical owner boundary",
+      "working_raw_sha256": "b4178734a284d8c2c28407cfa5e58e8e2f542397ae718b413f45fa52b4d57da4",
+      "working_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "read_scope": "fresh full supporting SOCKS protocol/relay ownership source",
+      "working_raw_sha256": "7fb1f8b8e297ddcfd3c3369f772569b235aaa1a104ea8f9559802c28129a3651",
+      "working_equal_after_crlf_normalization": true
+    },
+    {
+      "path": "crates/phantom/tests/proxies/main.rs",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "git_blob": "d2d17e124f47b05c60abcfacab71de75cb32cde8",
+      "sha256": "566424e4f716646c9762f878563bdb8160220f16c168981966406058ca72bbdd",
+      "line_count": 21,
+      "read_ranges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "read_scope": "fresh full test module registration",
+      "working_raw_sha256": "ba992001601c0e9b27fd49c3d17918c8a80c2a400cfa69243f255c0ce43bc752",
+      "working_equal_after_crlf_normalization": true
+    }
+  ],
+  "external_source_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "version": "1.53.1",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "line_count": 851,
+      "read_ranges": [
+        [
+          281,
+          390
+        ],
+        [
+          451,
+          520
+        ],
+        [
+          587,
+          600
+        ]
+      ],
+      "read_scope": "fresh partial resolved external task API; no first-party inventory credit",
+      "contracts": [
+        "try_join_next observes completed available outcomes without async budget yield",
+        "join_next cancel safety",
+        "abort_all does not remove tasks; await join_next to observe cancellation",
+        "shutdown convenience suppresses panic and is therefore not used",
+        "JoinSet Drop requests abort rather than awaiting cleanup"
+      ]
+    }
+  ],
+  "retained_runtime_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capacity-peer-baseline-82fd3695-socks-windows.log",
+      "sha256": "a08c874ddf26a0c3b3d0e85574af86ec412f729353786b4f51b87fc8ca727fee",
+      "line_count": 335,
+      "read_ranges": [
+        [
+          1,
+          335
+        ]
+      ],
+      "read_scope": "full retained actual root native baseline log; author did not execute runner",
+      "root_tested_revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "summary": "31 selected, 23 passed, 8 intended failures; 202 skipped outside selection",
+      "particular_failures": [
+        "second TLS completed origin cause discarded at725",
+        "completed pool returned before driven handler destruction at772"
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\capacity-peer-baseline-82fd3695-socks-linux.log",
+      "sha256": "7edaca22ccfc719bf9cb56904a47eecb9f52e24080d55527f39a6bda14209d50",
+      "line_count": 335,
+      "read_ranges": [
+        [
+          1,
+          335
+        ]
+      ],
+      "read_scope": "full retained actual root native baseline log; author did not execute runner",
+      "root_tested_revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+      "summary": "31 selected, 23 passed, 8 intended failures; 202 skipped outside selection",
+      "particular_failures": [
+        "second TLS completed origin cause discarded at725",
+        "completed pool returned before driven handler destruction at772"
+      ]
+    }
+  ],
+  "source_equivalence": {
+    "base_revision": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+    "only_owned_files": [
+      "crates/phantom/tests/proxies/socks5.rs",
+      "crates/phantom/tests/proxies/socks5/auth.rs",
+      "crates/phantom/tests/proxies/socks5/peer_contract.rs"
+    ],
+    "peer_contract_whitespace_normalized_equal_after_seven_explicit_call_adaptations": true,
+    "peer_contract_added_controls_tail_byte_equal": true,
+    "deadline_bound_and_controls_suffix_byte_equal": true,
+    "original_quoted_literals_equal_after_Rust_escaped_newline_indentation_normalization_and_removed_redundant_path": true,
+    "additional_auth_literal": "SOCKS5 handler cleanup exceeded its deadline: {}",
+    "qualified_edits": [
+      "Seven raw route/proxy call sites explicitly pass Ok(()) and eagerly adopt transferred handles; no assertion, handshake, observation, timer or destruction body changed.",
+      "Existing ordinary client operations are nested in Result blocks, preserving primary failure through cleanup.",
+      "Preparation order changes prepare both listening addresses before first spawn.",
+      "Pool origin assertion names its retained completed result rather than origin.await?? inline; expected two-array literal unchanged."
+    ],
+    "static_only": true
+  },
+  "commit": {
+    "subject": "fix(socks5): own peers and retain all handler failures",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "raw_commit_sha256": "2bb704929da09124a9f578b2614a609d55f70ea664f3756415334eebec2124c4",
+    "ssh_signature_present": true
+  },
+  "contract_repairs": [
+    "Ordinary origin/proxy spawn immediately creates canonical ConnectionPeer before fallible client operations. Both listening addresses are acquired before paired tasks start.",
+    "Each real client operation returns Result into route cleanup, preserving the request failure as original primary and retaining simultaneous typed peer failures through existing finish_with_cleanup.",
+    "Raw controlled task handles explicitly become ConnectionPeer before helper future polling; seven call signatures now pass Ok(()) with owners. Their control observations and assertions are unchanged.",
+    "Route completion selects either peer; on failure it observes an already-completed sibling outcome or explicitly stops/awaits a live sibling. Completed cancellation/panic is retained before a fresh abort request.",
+    "Both authenticated origin acquisition and proxy-handler completion use one owner-local collector. A listener/TLS acquisition failure remains primary; completed outcomes are drained before abort; all live children receive requested cancellation and awaited bounded cleanup.",
+    "Collector ignores only cancellation after its own abort_all request, retains completed prior cancellation, panic/typed errors, and adds concrete typed contextual cleanup deadline on timeout.",
+    "Successful collector waits all handlers and preserves values/completion order; existing credential separation and HTTP2 connection path arrays remain literal.",
+    "Pool proxy JoinSet collector stays lexical so top-level cancellation cannot bypass its child cleanup by aborting an intermediate spawned collector.",
+    "Natural auth module declaration replaces redundant path attribute; imports now precede declarations. No shared API, production client, manifests or support source changed."
+  ],
+  "manual_layout_review": "Manually reviewed setup, request/response and cleanup paragraphs of all changed owner callers, raw adoption call sites, completed-cause guards, collector wait/pre-abort/drain/deadline phases and concrete deadline type beside implementations. Existing control bodies/oracles intentionally preserved. No arbitrary size split or new framework.",
+  "native_selection": {
+    "filter": "test(socks5::)",
+    "baseline_observed": {
+      "windows": {
+        "total": 31,
+        "pass": 23,
+        "intended_fail": 8
+      },
+      "linux": {
+        "total": 31,
+        "pass": 23,
+        "intended_fail": 8
+      }
+    },
+    "green_prediction": {
+      "total": 31,
+      "pass": 31
+    },
+    "green_status": "not executed by author; root/independent verification pending"
+  },
+  "checks": [
+    {
+      "command": "rustfmt --edition 2024 --check crates/phantom/tests/proxies/main.rs",
+      "exit": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    {
+      "command": "python target/architecture-audit/verify-socks-peer-remedy.py",
+      "exit": 0
+    },
+    {
+      "command": "git status --short",
+      "result": "clean"
+    }
+  ],
+  "read_log": [
+    "Both full baseline logs were reread separately after an initial combined read was truncated; no full credit derives from that first output.",
+    "Owned parent full source read in contiguous chunks, plus final focused stop/completion boundary after its nine-line insertion.",
+    "Owned auth source full read after collection repair, plus exact focused lexical pool result changes and final imported stop function.",
+    "Owned peer controls full final source read1\u2013410 and411\u2013end.",
+    "Comparison tooling initially rejected naive quoted-string matching and default Windows decoding; final explicit UTF8/DOTALL reader and Rust escaped-newline indentation normalization were verified before evidence was saved. Original Unicode origin raw UTF8 bytes separately checked unchanged."
+  ],
+  "limitations": [
+    "No Cargo/compiler/Clippy/native green/full gate executed by author; source review and actual root both-host green remain required.",
+    "Dropped owner requests task abort. Drop does not asynchronously join; forced outer cancellation and cleanup-deadline exhaustion retain abort ownership without claiming guaranteed immediate descendant join.",
+    "Original JoinSet already requested abort on Drop; repaired regressions target retained causes and observed cleanup before return, not an established indefinite host resource leak.",
+    "Malformed TLS control invokes the actual acquisition interface but does not independently reproduce the whole two TLS/HTTP2 pool admission workflow.",
+    "Direct authenticated relay control proves actual handshake/request readiness and child cleanup for the collector boundary, not additional live protocol fidelity.",
+    "Nested origin worker JoinSet remains Drop abort ownership if its top-level owner is forcibly stopped; ordinary acquisition-error return uses explicit collector drain.",
+    "Existing baseline/source reports are preserved; native observations are a separate exact82fd status update, not a rewrite of historical predictions."
+  ]
+}

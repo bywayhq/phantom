@@ -1,0 +1,129 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+  "baseline": "82fd3695980a4b21cea7e5bfb479907a8d9b5fc0",
+  "verdict": "source_approved",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "records": [
+    {
+      "repository": "C:/code/phantom-worktrees/audit-socks-peer-results",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "blob_oid": "31c6bbe4426db1546525a67f660c893c137dad3c",
+      "sha256": "df87aa0ab457754218dff7d85139da18d8d4a327575c27b390c277256f4cff55",
+      "line_count": 750,
+      "read_ranges": [
+        [
+          1,
+          750
+        ]
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Ordinary SOCKS peer ownership, completion and failure cleanup with client and route observations retained."
+    },
+    {
+      "repository": "C:/code/phantom-worktrees/audit-socks-peer-results",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "blob_oid": "7bfe91ac98fa086aa595dd467c3a8cd8e781a669",
+      "sha256": "4c9d6728f999e10d9270682d2ba7eb7c289c56c0f479937a27e6dc8d307e82c0",
+      "line_count": 554,
+      "read_ranges": [
+        [
+          1,
+          554
+        ]
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Authenticated and pooled acquisitions: typed operation failure, completed handler outcomes and bounded abort/drain."
+    },
+    {
+      "repository": "C:/code/phantom-worktrees/audit-socks-peer-results",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "blob_oid": "f7df844273d10fbfb291cf820955228c3d4367f0",
+      "sha256": "fe75dac57a139ef0e2394596c0614f510bfac63c2faef4f08e068472510cacb7",
+      "line_count": 807,
+      "read_ranges": [
+        [
+          1,
+          807
+        ]
+      ],
+      "classification": "complete_manual_read",
+      "contract": "Actual literal exchange, live-runtime/client cancellation, typed paired failure and acquisition collector controls."
+    },
+    {
+      "repository": "C:/code/phantom-worktrees/audit-socks-peer-results",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "path": "crates/phantom/tests/support/socks5.rs",
+      "blob_oid": "d5f536e70a69257b09e01ce6e8c8e8125d458ab7",
+      "sha256": "13409bcc85a9ac8b9953011aaccde4bc83e8ca3fc3a2ddc508a2e0f68eeb57e8",
+      "line_count": 235,
+      "read_ranges": [
+        [
+          1,
+          235
+        ]
+      ],
+      "classification": "complete_supporting_read",
+      "contract": "Actual SOCKS parsing and copy_bidirectional returned errors."
+    },
+    {
+      "repository": "C:/code/phantom-worktrees/audit-socks-peer-results",
+      "revision": "0d561bbdb4054502118b362efa127b75f2df34b5",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "classification": "partial_supporting_read",
+      "contract": "Eager owner construction, Drop abort, observed stop, paired typed failures."
+    }
+  ],
+  "baseline_identities": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "baseline_blob_oid": "11ba2bba671d187459fbd31d2b5c452fe0d0478a",
+      "baseline_sha256": "7bdbd36a6f96c3cefe0869fcf5aad17ef35188770a598e73cbddb6e7637d8f41"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/auth.rs",
+      "baseline_blob_oid": "2b1a587064c1e08e4766841105ad3a850a2cdcef",
+      "baseline_sha256": "38188b2f2f72bdd37f88a88e2a8b70438bcaa7d66e92ebeb3abf0331f6019336"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "baseline_blob_oid": "e633a7a53e0499b1de3b9bd9724847a2dc81a49d",
+      "baseline_sha256": "310a787401c5722a7ff8f78edc1d00970423752871e940643db1670b14f4e187"
+    }
+  ],
+  "identity_proofs": [
+    {
+      "path": "crates/phantom/tests/proxies/socks5.rs",
+      "marker": "async fn bounded<F>",
+      "raw_suffix_equal": true,
+      "sha256": "a30c4902637f66ee31f0c076efdd6e12f384d9d257955084eea73a8777084ce5"
+    },
+    {
+      "path": "crates/phantom/tests/proxies/socks5/peer_contract.rs",
+      "marker": "async fn failed_second_tls_acquisition()",
+      "raw_suffix_equal": true,
+      "sha256": "efdb0ebe4fda21ddd5024fb72cbbd847baace50d66a93cacbe0fff1807a74df6"
+    }
+  ],
+  "scope": "Three edited owner/control files fully manually read, full support SOCKS source, partial shared peer owner. Source only.",
+  "findings": [],
+  "control_preservation": "Seven raw-handle controls explicitly adopt Ok operation plus ConnectionPeer::from_task; the acquisition tail and deadline suffix are raw-byte equal. Assertions and literal expectations retain semantics. Assertion expression text in ordinary owner files changes with helper signatures, so this is not a blanket raw assertion-token equality claim.",
+  "limits": [
+    "No Cargo or runtime execution by reviewer. Native expanded baseline 23 positive and eight failures is parent evidence, not remedy execution.",
+    "Drop requests abort; bounded cleanup timeout and outer test cancellation do not guarantee unconditional joining. Forced stop of the nested origin may Drop-abort its JoinSet rather than report every nested failure.",
+    "Later second-TLS destruction assertion was not reached at the original completed-cause baseline failure.",
+    "An earlier scratch report-generator assertion expected raw assertion equality and failed before writing; corrected this reporting premise, not candidate code."
+  ]
+}

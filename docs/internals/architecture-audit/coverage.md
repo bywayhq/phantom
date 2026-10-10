@@ -116,10 +116,25 @@ All 57 focused methods pass per host. Whole-workspace verification remains.
 The earlier Linux reuse failure has no captured cause and remains qualified.
 
 The [Alt-Svc source review](alt-svc-state-owner-standards-review-8d834d49.md.txt)
-records seven complete manual reads with unchanged current source bytes.
+records seven complete manual reads at `8d834d49`, rebound at `7fbeaab3`.
 Supporting production and dependency ranges remain partial. A132 records
 caller errors skipping completed peer results, distinct from the repaired
 Drop ownership. A133 records three independent-case paragraph boundaries.
+
+The [SOCKS source review](socks-peer-remedy-independent-review-0d561bbd.md.txt)
+records complete manual reads of the three repaired owners and their
+235-line decoder. Their exact current source identities match those reads.
+The [Alt-Svc import correction](alt-svc-baseline-visibility-independent-review-83616c72.md.txt)
+records a complete read of the new 127-line control. Other supporting
+ranges retain their partial scopes.
+
+The [native verification](socks-alt-native-independent-addendum-6d6cd85e.md.txt)
+at `6d6cd85e` records all 31 selected SOCKS methods passing per host.
+Alt-Svc passes four controls and reaches one intended completed-cause
+failure after preserving the typed HTTP/1 body error. Formatting, focused
+Clippy and Rust 1.88 checks pass on Windows and Linux. Both runners remain
+nonzero. These selections exclude 202 proxy and 290 HTTP/3 methods per host.
+The Alt-Svc remedy and whole-workspace gate remain required.
 
 The [proxy verification](proxy-storage-native-independent-addendum-440dc2ad.md.txt)
 records twenty configuration controls and forty-five route unit tests passing

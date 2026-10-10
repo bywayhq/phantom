@@ -546,6 +546,7 @@ crates/phantom/tests/http3/alt_svc_frames/deadline_contract.rs	crate	source-comp
 crates/phantom/tests/http3/alt_svc_persistence.rs	crate	source-complete	alt-svc-state-owner-standards-review-8d834d49.json#/source_records/2; full manual read; current bytes unchanged
 crates/phantom/tests/http3/alt_svc_persistence/deadline_contract.rs	crate	source-complete	discovery only; manual review pending; alt-svc-state-owner-standards-review-8d834d49.json#/source_records/3; full manual read; current bytes unchanged
 crates/phantom/tests/http3/alt_svc_persistence/peer_contract.rs	crate	source-complete	discovery only; manual review pending; alt-svc-state-owner-standards-review-8d834d49.json#/source_records/4; full manual read; current bytes unchanged
+crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs	crate	source-complete	alt-svc-baseline-visibility-independent-review-83616c72.json#/records/0
 crates/phantom/tests/http3/alt_svc_pinned.rs	crate	source-complete	masque-boundary-standards-review.json#/source_reads/8; alt-svc-state-owner-standards-review-8d834d49.json#/source_records/5; full manual read; current bytes unchanged
 crates/phantom/tests/http3/alt_svc_pinned/deadline_contract.rs	crate	source-complete	discovery only; manual review pending; alt-svc-state-owner-standards-review-8d834d49.json#/source_records/6; full manual read; current bytes unchanged
 crates/phantom/tests/http3/alt_svc_pinned/peer_contract.rs	crate	pending	discovery only; manual review pending
@@ -584,8 +585,9 @@ crates/phantom/tests/proxies/proxy_credential_cache.rs	crate	pending
 crates/phantom/tests/proxies/proxy_field_order.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2.rs	crate	pending	
 crates/phantom/tests/proxies/proxy_h2_multiplex.rs	crate	pending	
-crates/phantom/tests/proxies/socks5.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/1
-crates/phantom/tests/proxies/socks5/auth.rs	crate	pending	masque-boundary-standards-review.json#/source_reads/9
+crates/phantom/tests/proxies/socks5.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/1; socks-peer-remedy-independent-review-0d561bbd.json#/records/0
+crates/phantom/tests/proxies/socks5/auth.rs	crate	source-complete	masque-boundary-standards-review.json#/source_reads/9; socks-peer-remedy-independent-review-0d561bbd.json#/records/1
+crates/phantom/tests/proxies/socks5/peer_contract.rs	crate	source-complete	socks-peer-remedy-independent-review-0d561bbd.json#/records/2
 crates/phantom/tests/proxies/socks5_local.rs	crate	source-complete	local-and-forward-proxy-standards-review-3fa93b02.json#/source_records/0
 crates/phantom/tests/requests/client.rs	crate	pending	
 crates/phantom/tests/requests/client/peer_contract.rs	crate	pending	discovery only; manual review pending
@@ -682,7 +684,7 @@ crates/phantom/tests/support/http3_upgrade/worker_results.rs	crate	source-comple
 crates/phantom/tests/support/masque.rs	crate	pending	h3-masque-composed-independent-review.json#/source_records/0
 crates/phantom/tests/support/masque/h3_ownership_controls.rs	source	source-complete	h3-masque-remedy-independent-review.json#/source_records/2; h3-masque-registration-rebind.json#/source_records/2; h3-masque-composed-independent-review.json#/source_records/1; h3-masque-remediation.json#/source_reads/3
 crates/phantom/tests/support/shared_port.rs	crate	source-complete	integration-support-standards-review.json#/records/7; client-http3-integration-standards-review.json#/source_records/7; masque-boundary-standards-review.json#/source_reads/2
-crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8; masque-boundary-standards-review.json#/source_reads/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/2
+crates/phantom/tests/support/socks5.rs	crate	source-complete	integration-support-standards-review.json#/records/8; masque-boundary-standards-review.json#/source_reads/3; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/2; socks-peer-remedy-independent-review-0d561bbd.json#/records/3
 crates/phantom/tests/support/socks5_udp.rs	crate	source-complete	integration-support-standards-review.json#/records/9; client-http3-integration-standards-review.json#/source_records/10
 crates/phantom/tests/support/tls.rs	crate	source-complete	integration-support-standards-review.json#/records/10; integration-support-independent-review-corrected.json#/source_records/4; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/3
 crates/phantom/tests/support/tracing.rs	crate	source-complete	integration-support-standards-review.json#/records/11; client-http3-integration-standards-review.json#/source_records/11; h3-early-fixture-independent-review.json#/source_records/7
@@ -762,6 +764,12 @@ docs/internals/architecture-audit/a57-shared-composition-followup-review.json	do
 docs/internals/architecture-audit/a57-shared-composition-followup-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/45
 docs/internals/architecture-audit/a57-shared-composition-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/46
 docs/internals/architecture-audit/a57-shared-composition-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/47
+docs/internals/architecture-audit/alt-svc-baseline-visibility-independent-review-83616c72.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/alt-svc-baseline-visibility-independent-review-83616c72.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-e03e35fb.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-e03e35fb.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-independent-review-e03e35fb.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/alt-svc-peer-outcome-baseline-independent-review-e03e35fb.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json	documentation	pending	discovery only; manual review pending
 docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.md.txt	documentation	pending	discovery only; manual review pending
 docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json	documentation	pending	discovery only; manual review pending
@@ -778,6 +786,8 @@ docs/internals/architecture-audit/canonical-api-independent-review.json	document
 docs/internals/architecture-audit/canonical-api-independent-review.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/49
 docs/internals/architecture-audit/canonical-api-signed-rebind.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/50
 docs/internals/architecture-audit/canonical-api-signed-rebind.md.txt	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/51
+docs/internals/architecture-audit/capacity-origin-evidence-ledger-independent-review-7fbeaab3.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/capacity-origin-evidence-ledger-independent-review-7fbeaab3.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.json	documentation	pending	byte-exact retained independent native report; review scope reconciliation pending
 docs/internals/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.md.txt	documentation	pending	byte-exact retained independent native report; review scope reconciliation pending
 docs/internals/architecture-audit/capacity-peer-native-baseline-independent-addendum-82fd3695.json	documentation	pending	byte-exact retained report; review scope reconciliation pending
@@ -827,6 +837,8 @@ docs/internals/architecture-audit/environment-fixture-remedy-independent-review-
 docs/internals/architecture-audit/findings.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/66
 docs/internals/architecture-audit/fixture-remedy-origin-native-independent-addendum-43fe668c.json	documentation	pending	byte-exact retained evidence; scope reconciliation pending
 docs/internals/architecture-audit/fixture-remedy-origin-native-independent-addendum-43fe668c.md.txt	documentation	pending	byte-exact retained evidence; scope reconciliation pending
+docs/internals/architecture-audit/forward-proxy-control-remedy-design-7fbeaab3.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/forward-proxy-control-remedy-design-7fbeaab3.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/h1-ownership-children-root-source-fd7ef84e.json	documentation	pending	byte-exact retained evidence; scope reconciliation pending
 docs/internals/architecture-audit/h1-ownership-children-root-source-fd7ef84e.md.txt	documentation	pending	byte-exact retained evidence; scope reconciliation pending
 docs/internals/architecture-audit/h2-late-reset-identity-independent-review-fd7ef84e.json	documentation	pending	byte-exact retained evidence; scope reconciliation pending
@@ -985,8 +997,16 @@ docs/internals/architecture-audit/socks-acquisition-live-regression-independent-
 docs/internals/architecture-audit/socks-acquisition-live-regression-independent-review-1ce35297.md.txt	documentation	pending	byte-exact retained report; review scope reconciliation pending
 docs/internals/architecture-audit/socks-acquisition-readiness-status-correction-1ce35297.json	documentation	pending	byte-exact retained report; review scope reconciliation pending
 docs/internals/architecture-audit/socks-acquisition-readiness-status-correction-1ce35297.md.txt	documentation	pending	byte-exact retained report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-alt-native-independent-addendum-6d6cd85e.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-alt-native-independent-addendum-6d6cd85e.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-peer-final-crossreview-0d561bbd.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-peer-final-crossreview-0d561bbd.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/socks-peer-regression-independent-review-3fa93b02.json	documentation	pending	byte-exact retained evidence; scope reconciliation pending
 docs/internals/architecture-audit/socks-peer-regression-independent-review-3fa93b02.md.txt	documentation	pending	byte-exact retained evidence; scope reconciliation pending
+docs/internals/architecture-audit/socks-peer-remedy-handoff.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-peer-remedy-handoff.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-peer-remedy-independent-review-0d561bbd.json	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
+docs/internals/architecture-audit/socks-peer-remedy-independent-review-0d561bbd.md.txt	documentation	pending	byte-exact retained bounded report; review scope reconciliation pending
 docs/internals/architecture-audit/source-evidence-first-party-gap-correction-77646c8c.json	documentation	pending	retained original evidence bytes; semantic scope remains in the original record
 docs/internals/architecture-audit/source-evidence-first-party-gap-correction-77646c8c.md.txt	documentation	pending	retained original evidence bytes; semantic scope remains in the original record
 docs/internals/architecture-audit/state-environment-native-baseline-independent-addendum-86e01bfd.json	documentation	pending	discovery only; manual review pending

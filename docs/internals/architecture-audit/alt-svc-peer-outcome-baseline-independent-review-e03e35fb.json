@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "review": "Independent Alt-Svc peer outcome baseline source review",
+  "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+  "parent_revision": "482e75ddc4008c2363ea84ff7560ab5bdfdbccb0",
+  "disposition": "Correction required before native execution: FixtureFailures imported path is not exported. Other causal controls supported by read source; no remedy/runtime approval.",
+  "signature": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1 G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "eb658684947432835a8a937d71b7c358a103929a",
+      "sha256": "5e9269e6d17107b3f7ab674c8954afdfa11d7ec60efb8c3c3681b5e7962ad76b",
+      "line_count": 541,
+      "read_ranges": [
+        [
+          1,
+          113
+        ],
+        [
+          418,
+          465
+        ],
+        [
+          519,
+          541
+        ]
+      ],
+      "range_sha256": [
+        "8e1353a5f83baf15c7785076c3b39e8c1843eec02890920449cf5cb8236b5de8",
+        "c9f5ad78614a7f33ac25d0a180fed4056c4471ba32b2d3e6088133bc29058604",
+        "5087972bd9c68c7bb9ed3a55f9f9aa3e1eb47bf252379623530922136bc092d0"
+      ],
+      "classification": "partial changed owner, full changed helper and original owner/caller context"
+    },
+    {
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "95c44fde9069df04e12f128792fcd1034246dd14",
+      "sha256": "c74cdaed0e7eb3a6cf6e03b1af1081d2ed6b9627abfda388b3a7d61b70f217b8",
+      "line_count": 127,
+      "read_ranges": [
+        [
+          1,
+          127
+        ]
+      ],
+      "range_sha256": [
+        "c74cdaed0e7eb3a6cf6e03b1af1081d2ed6b9627abfda388b3a7d61b70f217b8"
+      ],
+      "classification": "full new control child read"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "range_sha256": [
+        "d3b1987a0b925382b78134d2ca751dfcff41ecc64de261e08ab90250c69ccac4"
+      ],
+      "classification": "partial owner and concrete aggregation contract"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "cd49aa864fffe2e7fb107569ae0dd158f212fe27",
+      "sha256": "c47599e171926097bc88d1b31c99c5d0eb4626514305dacdb7a48f82c2835413",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          1,
+          36
+        ],
+        [
+          110,
+          160
+        ]
+      ],
+      "range_sha256": [
+        "885836b590d019a6d393dadd0b6f93e29d98834c613263fcad23b975a76e3c18",
+        "c34260e1b3072c6fe4df76f53a0e5fba233e6dd6aa028d6ae0fcf1294e1610e8"
+      ],
+      "classification": "partial actual export declaration and supporting tunnel source"
+    },
+    {
+      "path": "crates/phantom-net/src/http1/body.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "50cf835d9a7cea22d2a0383ca9763cef10e5df83",
+      "sha256": "65c1c51193afca62a18f4fb8a5045ec43ef0710c1c177a3db1b7051dc443c98a",
+      "line_count": 228,
+      "read_ranges": [
+        [
+          106,
+          159
+        ]
+      ],
+      "range_sha256": [
+        "6ef97b26f11768f430cf291fbbb694bbdec38e53419b05220380ee6f66dc9eff"
+      ],
+      "classification": "partial decoder wrapping contract"
+    },
+    {
+      "path": "vendor/wreq-proto/src/proto/http1/decode.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "b79badd1ecf629eeab3b32086c838a23949bfbcd",
+      "sha256": "69a6a6775fc03c514c092b5d88a2abbbd3f6502173117a24c9aab4e8a8d54aba",
+      "line_count": 1314,
+      "read_ranges": [
+        [
+          160,
+          196
+        ],
+        [
+          760,
+          785
+        ]
+      ],
+      "range_sha256": [
+        "2378e7f4100b9dad6cc92b82f3604f4665bdfdd8a1c49364c91a0628aff89751",
+        "827ad34d49b1127f3dcfc5f44225514aa316d56882fa314bfc5af236ea0c33cb"
+      ],
+      "classification": "partial content-length EOF contract"
+    },
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "revision": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+      "git_blob_oid": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "line_count": 30,
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "range_sha256": [
+        "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf"
+      ],
+      "classification": "full module registration owner read"
+    }
+  ],
+  "mechanical_projection": {
+    "equal_original_operation_tokens": true,
+    "independent_token_count": 128,
+    "scope": "old original caller operation sequence vs extracted plaintext_response body; token equality gives no new whole-source credit"
+  },
+  "findings": [
+    {
+      "priority": "P2",
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+      "range": [
+        8,
+        8
+      ],
+      "title": "Typed aggregate import has no available shared public path",
+      "cause": "tunnel_proxy.rs28-30 declares private connection_peer and reexports only ConnectionPeer/finish_with_cleanup. FixtureFailures resides inside that private child, not the imported parent path.",
+      "remedy": "Root-owned narrow reexport with actual use, or a concrete accessible typed boundary. Preserve the typed primary/cleanup control; no string-only replacement."
+    }
+  ],
+  "observations": [
+    "Four controls have independent literal complete200/Content-Length0 or truncated200/Content-Length4 with two bytes ab. Peer reads actual GET path, writes/flushes, drops socket on terminal return; client retained through helper and completion observation.",
+    "Primary truncated-body assertion requires actual RequestError Http1 with protocolHttp1 and io UnexpectedEof down the cause chain before checking simultaneous cleanup. No unrelated setup/timeout error can satisfy it.",
+    "Negative requires concrete FixtureFailures cleanup PeerFailure; positives cover truncated/successful peer, complete/failed peer, complete/successful peer with no learned plaintext Alt-Svc.",
+    "The completion notification is sent after write/flush with no later await. It witnesses peer terminal path, not an explicitly joined destructor. Truncated EOF requires the actual socket to close. Existing PlaintextPeer Drop aborts on exceptional helper return; no permanent leak claim.",
+    "All asynchronous controls have15s outer and5s notification bounds; setup uses ephemeral loopbackTCP. Peer panic propagates for the complete path and cannot satisfy typed negative.",
+    "Original plaintext_response retains defective success-only finish and all operation tokens; no pre-baseline cleanup repair. Existing TestIdentity/root/H2/H3 profile construction and transport configuration unchanged.",
+    "No Cargo execution by reviewer. Missing handoff filename lookup and wildcard rg failure were read-command errors, not compilation or runtime evidence.",
+    "Do not claim all132 original tokens by this tokenizer: independent token count is recorded explicitly. No source credit for other unchanged parents."
+  ]
+}

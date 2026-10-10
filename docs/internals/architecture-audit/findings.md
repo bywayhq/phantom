@@ -124,7 +124,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A115 | P3 | WebSocket fixture deadlines preserve Elapsed | Shared and H2 proxy wrappers replace the timer cause with text | Typed deadline and operation-context repair independently approved; all 42 selected WebSocket methods and focused checks pass both hosts; final gates pending |
 | A116 | P2 | Upgrade control construction owns supplied peers | Fallible identity and endpoint setup precede the fixture owner | Reviewed eager acquisition repair passes all eleven owner-result methods on both hosts at 43fe668c; frozen controls preserved; final gates pending |
 | A117 | P2 | CONNECT-UDP test origins own connection and response tasks | Listener discards child handles and outcomes; stalled responses remain pending | Reviewed ownership and typed-result repair passes all 39 origin methods on each host at 482e75dd; four original regressions pass; historical Linux reuse failure remains qualified; final gates pending |
-| A118 | P2 | SOCKS test peers retain ownership and sibling failures | Raw tasks surround fallible setup and client work; sequential joins skip remaining failures | Expanded baseline at 82fd3695 passes 23 positives and reaches eight intended failures per host; TLS acquisition reaches completed-cause loss before its later destruction assertion; live pool failure reaches destruction assertion; repair underway |
+| A118 | P2 | SOCKS test peers retain ownership and sibling failures | Raw tasks surround fallible setup and client work; sequential joins skip remaining failures | Independently reviewed ownership and result repair passes all 31 selected methods on Windows/Linux at 6d6cd85e; original eight failures and TLS acquisition assertion-order limits remain recorded; final gates pending |
 | A119 | P3 | Proxy fixture deadlines preserve Elapsed | Four CONNECT-UDP and SOCKS timer paths replace causes with text | Reviewed typed operation-context repair passes 33 CONNECT-UDP and twenty SOCKS methods per host at 593fc4ae; focused checks pass; body/counter expiry paths retain source-only failure evidence; final gates pending |
 | A120 | P2 | CONNECT-UDP zero-retry assertions require trace outcomes | An empty result vector satisfies the current all-zero predicate | Corrected baseline reaches absent-observer failure on both hosts; reviewed terminal-outcome predicate passes native proxy selection; original invalid initial-zero expectation retained separately; final gates pending |
 | A121 | P3 | Client setting tests name their actual coverage | TCP propagation test omits independent checks of several clones; imports need grouping | Reviewed explicit connector assertions pass on both hosts at 43fe668c; configuration propagation only, no OS socket application claim; final gates pending |
@@ -138,7 +138,7 @@ No finding is resolved by an assignment or a proposed fix.
 | A129 | P3 | Local and forward fixtures group imports and operations | Local imports precede standard/external groups; several guards run into independent output | Manual whole-owner layout review; narrow changes belong with the related remedies |
 | A130 | P3 | Early-response ownership control bounds retain Elapsed | Three outer control wrappers discard their timer error while adding context | Actual 12-second baseline fails on both hosts; reviewed existing PeerDeadline reuse passes all six controls on each host at 482e75dd; final gates pending |
 | A131 | P2 | H3 MASQUE test relays survive an oversized origin payload | TooLarge ends the whole proxy handler instead of dropping one UDP payload | Actual diagnostic retains TooLarge on both hosts; oversized baseline fails while ordinary forwarding and protocol-error controls pass; reviewed narrow repair passes ten proxy controls and both original WebSocket failures per host at 482e75dd; final gates pending |
-| A132 | P2 | Alt-Svc test callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Seven-file manual review and root caller reads confirm success-only cleanup; existing Drop ownership is correct; actual truncated-response regression and repair underway |
+| A132 | P2 | Alt-Svc test callers observe completed secondary peer failures | Request and body errors return before explicit peer or fixture finish | Actual truncated-response regression at 6d6cd85e reaches lost completed peer cause on Windows/Linux after typed body checks; four positives pass per host; existing Drop ownership is correct; repair underway |
 | A133 | P3 | Snapshot tests separate independent cases | Persistence round-trip and validation loops run into different cases and observations | Manual source review identifies three paragraph boundaries; narrow layout repair belongs with A132; no behavioral test needed |
 
 ## Initial source evidence
@@ -1002,6 +1002,14 @@ this audit's scope.
   redaction contract.
 
 ## Integration state
+
+At `6d6cd85e`, Windows and Linux each pass all 31 selected SOCKS methods.
+The Alt-Svc selection passes four controls and fails its simultaneous-error
+control at the intended missing-peer-cause assertion. The concrete HTTP/1
+body error and unexpected-EOF checks precede that failure. Formatting,
+focused Clippy and Rust 1.88 checks pass. Both combined runners remain
+nonzero. The [independent native review](socks-alt-native-independent-addendum-6d6cd85e.md.txt)
+records the exact source and test scope.
 
 At `482e75dd`, Windows and Linux each pass ten H3 proxy controls, six
 early-response deadline controls, 39 CONNECT-UDP origin methods and the two

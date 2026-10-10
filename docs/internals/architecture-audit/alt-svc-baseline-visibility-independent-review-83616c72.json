@@ -1,0 +1,68 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "83616c72e85c74997aaa8a84c55866257e264f80",
+  "baseline": "e03e35fb31fa855b0b06153eba96eb7802ffd3f1",
+  "verdict": "source_approved_visibility_correction",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> / Arya Alikhani <AryaAlikhani@icloud.com>",
+  "records": [
+    {
+      "repository": "C:/code/phantom-worktrees/audit-fixture-error-observation",
+      "revision": "83616c72e85c74997aaa8a84c55866257e264f80",
+      "path": "crates/phantom/tests/http3/alt_svc_persistence/peer_outcome.rs",
+      "blob_oid": "002b291000ddfeb0aba9c2b1367cda955a29fca8",
+      "sha256": "a30440e146cbcee46d51fe424208684905a555d27a761d7dfb4bbb938583a165",
+      "line_count": 127,
+      "read_ranges": [
+        [
+          1,
+          127
+        ]
+      ],
+      "classification": "complete_manual_reread",
+      "contract": "Four actual response/cause controls and defining-path import."
+    },
+    {
+      "repository": "C:/code/phantom-worktrees/audit-fixture-error-observation",
+      "revision": "83616c72e85c74997aaa8a84c55866257e264f80",
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "blob_oid": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "line_count": 629,
+      "read_ranges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "classification": "partial_supporting_read",
+      "contract": "Module visibility and unchanged canonical owner/function reexports."
+    },
+    {
+      "repository": "C:/code/phantom-worktrees/audit-fixture-error-observation",
+      "revision": "83616c72e85c74997aaa8a84c55866257e264f80",
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob_oid": "72af70d4f74586c1abbf73007e8c625fd4079039",
+      "sha256": "929353cb42ec2070898076dfc4aaf400b732bdd0fa2a7fbd0eff2b7aaa0f8026",
+      "line_count": 258,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "classification": "partial_supporting_reread",
+      "contract": "Existing concrete FixtureFailures fields/source and helper; owner bodies unchanged."
+    }
+  ],
+  "proofs": [
+    "The control child differs only by its defining-path import.",
+    "The tunnel parent differs only by pub(crate) on existing module.",
+    "ConnectionPeer source is raw-byte identical to baseline."
+  ],
+  "findings": [],
+  "limits": [
+    "Source approval only; no Cargo/compiler/native baseline execution claimed.",
+    "Original e03 failure semantics and plaintext_response success-only completion remain intentionally defective baseline.",
+    "Existing e03 independent report remains immutable; this is a separate correction record."
+  ]
+}
