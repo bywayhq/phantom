@@ -89,6 +89,9 @@ impl InterfaceNameLimit {
 /// macOS and Windows resolve the name to an interface index when each socket
 /// binds. An unknown name fails with [`io::ErrorKind::NotFound`]. The macOS
 /// implementation also compiles for other Apple platforms, which are untested.
+///
+/// Binding errors retain their kind and expose the underlying OS error or
+/// typed cause through [Error::source].
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct SourceBinding {
     ipv4: Option<Ipv4Addr>,
@@ -368,8 +371,55 @@ pub(crate) fn unicast_interface_value(index: u32, domain: Domain) -> [u8; 4] {
 fn interface_error(name: &str, error: io::Error) -> io::Error {
     io::Error::new(
         error.kind(),
-        format!("failed to bind a socket to interface {name:?}: {error}"),
+        InterfaceBindingError {
+            name: name.into(),
+            error,
+        },
     )
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[derive(Debug)]
+struct InterfaceBindingError {
+    name: Box<str>,
+    error: io::Error,
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+impl fmt::Display for InterfaceBindingError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to bind a socket to interface {:?}: {}",
+            self.name, self.error
+        )
+    }
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+impl Error for InterfaceBindingError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // io::Error::source skips a custom payload, including lookup context.
+        match self.error.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&self.error),
+        }
+    }
 }
 
 fn no_bound_family() -> io::Error {
@@ -382,8 +432,39 @@ fn no_bound_family() -> io::Error {
 pub(crate) fn bind_error(protocol: &str, address: IpAddr, error: io::Error) -> io::Error {
     io::Error::new(
         error.kind(),
-        format!("failed to bind a {protocol} socket to source address {address}: {error}"),
+        AddressBindingError {
+            protocol: protocol.into(),
+            address,
+            error,
+        },
     )
+}
+
+#[derive(Debug)]
+struct AddressBindingError {
+    protocol: Box<str>,
+    address: IpAddr,
+    error: io::Error,
+}
+
+impl fmt::Display for AddressBindingError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to bind a {} socket to source address {}: {}",
+            self.protocol, self.address, self.error
+        )
+    }
+}
+
+impl Error for AddressBindingError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // Preserve custom causes as well as raw OS errors.
+        match self.error.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&self.error),
+        }
+    }
 }
 
 /// Error returned when a [`SourceBinding`] cannot be applied as written.
