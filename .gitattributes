@@ -3,3 +3,35 @@ vendor/tungstenite/CHANGELOG.md -whitespace
 vendor/tungstenite/patches/*.patch -whitespace
 fixtures/** -text
 vendor/** -text
+
+# Retain imported review evidence bytes, including their line endings.
+docs/internals/architecture-audit/*.md.txt -text whitespace=cr-at-eol
+docs/internals/architecture-audit/alt-svc-race-fixture-composition-correction.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/alt-svc-race-fixture-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/alt-svc-race-fixture-repair-handoff.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/canonical-api-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/canonical-api-signed-rebind.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/client-examples-composition-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/client-examples-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/client-http3-integration-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/continued-source-review-import.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/continued-source-review-reconciliation.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/crate-boundary-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/h3-early-fixture-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/h3-masque-composed-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/h3-masque-registration-rebind.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/h3-masque-remediation.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/h3-masque-remedy-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/integration-support-independent-review-corrected.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/integration-support-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/masque-boundary-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/net-address-proxy-platform-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/net-body-ownership-standards-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/net-cache-interface-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/new-source-review-import.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/new-source-review-reconciliation.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/nextest-leak-policy-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/request-trailer-wire-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/streaming-peer-independent-review.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/streaming-peer-remediation.json -text whitespace=cr-at-eol
+docs/internals/architecture-audit/trailer-test-contract-review.json -text whitespace=cr-at-eol
